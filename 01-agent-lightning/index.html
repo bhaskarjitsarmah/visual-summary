@@ -157,6 +157,16 @@ canvas { display:block; background:var(--bg); border-radius:8px; border:1px soli
 .btn-ignore { background:#f87171 !important; color:#fff !important; border:none !important; }
 .btn-ignore:hover { opacity:0.85; }
 .why-rl-step-content { transition: opacity 0.25s ease; }
+.mdp-tuple {
+  display:inline-flex; flex-direction:column; align-items:center;
+  background:var(--surface2); border:1px solid var(--border);
+  border-radius:8px; padding:10px 14px; font-size:12px;
+  font-family:'JetBrains Mono',monospace; min-width:140px;
+}
+.mdp-tuple-label { font-size:10px; color:var(--muted); margin-bottom:4px; text-transform:uppercase; letter-spacing:1px; }
+.mdp-step-content { display:none; }
+.mdp-step-content.active { display:block; }
+.mdp-toggle-row { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; align-items:center; }
 </style>
 </head>
 <body>
@@ -230,6 +240,9 @@ window.addEventListener('load',()=>{ const el=document.getElementById('pg-input'
     <div class="nav-group-title">Introduction</div>
     <a class="nav-link active" href="#overview" onclick="setActive(this)">
       <span class="dot" style="background:#A29BFE"></span>Overview
+    </a>
+    <a class="nav-link" href="#mdp" onclick="setActive(this)">
+      <span class="dot" style="background:#fdcb6e"></span>What is an MDP?
     </a>
     <a class="nav-link" href="#landscape" onclick="setActive(this)">
       <span class="dot" style="background:#7c6af4"></span>RL Landscape
@@ -463,6 +476,88 @@ window.addEventListener('load',()=>{ const el=document.getElementById('pg-input'
 
   <div class="highlight-box" style="margin-top:28px">
     <p><strong>Core Insight:</strong> Remember the cancelled-flight scenario? Agent Lightning is built specifically for that world — multi-step tool-using agents where the right action ordering matters. It formalizes the entire chain as a structured MDP and decomposes reward back to each step that deserved credit.</p>
+  </div>
+</section>
+
+<!-- ===== 1b. STRUCTURED MDP ===== -->
+<section class="section" id="mdp">
+  <div class="section-tag">Core Concept</div>
+  <div class="section-title" style="color:#fdcb6e">What is a Structured MDP?</div>
+  <div class="section-sub">Agent Lightning says it "formalizes agent trajectories as a structured MDP." But what does that mean? Let's build this from the ground up — State, Action, Reward — then see what makes Agent Lightning's version "structured."</div>
+
+  <!-- PART 1: S-A-R Stepper -->
+  <div class="stepper" id="mdp-stepper" style="margin-bottom:0;">
+    <button class="step-btn active" onclick="setMDPStep(0,this)">1 — State</button>
+    <button class="step-btn" onclick="setMDPStep(1,this)">2 — Action</button>
+    <button class="step-btn" onclick="setMDPStep(2,this)">3 — Reward</button>
+  </div>
+
+  <div id="mdp-step-0" class="mdp-step-content active" style="margin-top:18px;">
+    <div class="g2" style="gap:28px;align-items:flex-start;">
+      <div>
+        <div class="card-title" style="color:#fdcb6e">State (s) — What the agent knows</div>
+        <p style="font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:12px;">At every moment, the agent sees a <strong style="color:var(--text)">state</strong> — its current snapshot of the world. It's everything the agent can observe right now.</p>
+        <p style="font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:12px;">For our cancelled-flight agent, the state at step 1 is just the user's message. At step 2, the state includes the user's message <em>plus</em> the Memory tool result. Each step the state grows richer.</p>
+        <div class="highlight-box">
+          <p><strong>Key point:</strong> The agent cannot go back in time. It only acts on the current state. So the state must contain everything relevant — which is why it accumulates tool results as the conversation progresses.</p>
+        </div>
+      </div>
+      <div>
+        <canvas id="mdp-state-canvas" width="400" height="220" style="width:100%;border-radius:8px;background:var(--bg);border:1px solid var(--border);"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div id="mdp-step-1" class="mdp-step-content" style="margin-top:18px;">
+    <div class="g2" style="gap:28px;align-items:flex-start;">
+      <div>
+        <div class="card-title" style="color:#fdcb6e">Action (a) — What the agent decides</div>
+        <p style="font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:12px;">Given the state, the agent picks an <strong style="color:var(--text)">action</strong> — which tool to call, or what response to give. This is the decision the policy π learns to make.</p>
+        <p style="font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:12px;">An untrained agent might call 🔍 Search immediately. A well-trained agent learns to call 🧠 Memory first — because without knowing the user's origin city and budget, any search result is meaningless.</p>
+        <div class="highlight-box">
+          <p><strong>The policy π</strong> is just a function: given state s, output a probability distribution over actions. Training changes these probabilities — good actions get higher probability, bad actions lower.</p>
+        </div>
+      </div>
+      <div>
+        <canvas id="mdp-action-canvas" width="400" height="220" style="width:100%;border-radius:8px;background:var(--bg);border:1px solid var(--border);"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div id="mdp-step-2" class="mdp-step-content" style="margin-top:18px;">
+    <div class="g2" style="gap:28px;align-items:flex-start;">
+      <div>
+        <div class="card-title" style="color:#fdcb6e">Reward (r) — Feedback that shapes the policy</div>
+        <p style="font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:12px;">After each action, the agent gets a <strong style="color:var(--text)">reward</strong> — a number that says "was that useful?" High reward → do that more. Low reward → do that less.</p>
+        <p style="font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:12px;">Over thousands of training iterations, the rewards shape the policy until the agent reliably picks the right action order — without anyone ever writing "check Memory first" as an explicit rule.</p>
+        <div class="highlight-box">
+          <p><strong>The credit problem:</strong> In a multi-step task, the final reward (+1 for correct answer) arrives at step 5 — but step 1 (calling Memory) might have been the most important decision. Standard RL doesn't know this. Agent Lightning's structured MDP fixes it.</p>
+        </div>
+      </div>
+      <div>
+        <canvas id="mdp-reward-canvas" width="400" height="220" style="width:100%;border-radius:8px;background:var(--bg);border:1px solid var(--border);"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-divider" style="margin-top:32px;"><hr><span>The "Structured" Part</span><hr></div>
+
+  <!-- PART 2: Standard vs Structured toggle -->
+  <p style="font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:18px;max-width:640px;">Now that you know S, A, R — here's what makes Agent Lightning's MDP <em>structured</em>. Toggle between the two approaches to see the difference:</p>
+
+  <div class="mdp-toggle-row">
+    <button class="btn btn-outline active" id="mdp-mode-standard" onclick="setMDPMode('standard')">Standard MDP</button>
+    <button class="btn btn-outline" id="mdp-mode-structured" onclick="setMDPMode('structured')">Structured MDP (Agent Lightning)</button>
+    <span id="mdp-mode-label" style="font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-left:6px;">reward only at end</span>
+  </div>
+  <canvas id="mdp-canvas" width="700" height="200" style="width:100%;max-width:700px;border-radius:8px;background:var(--bg);border:1px solid var(--border);display:block;"></canvas>
+  <div id="mdp-canvas-caption" style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.6;max-width:640px;">
+    <strong>Standard MDP:</strong> One reward arrives at the very end. All 3 intermediate steps share the same terminal signal — the agent can't tell which step actually mattered.
+  </div>
+
+  <!-- PART 3: Bridge -->
+  <div class="highlight-box" style="margin-top:24px;">
+    <p>This is exactly what Agent Lightning's <strong>Unified Data Interface</strong> does: it takes any multi-turn agent trajectory and structures it into a list of <code style="background:var(--bg);padding:2px 6px;border-radius:4px;font-size:12px;">(input, output, reward)</code> transitions. Once structured, any RL algorithm — PPO, GRPO, REINFORCE++ — can train on it without needing to understand the agent internals at all.</p>
   </div>
 </section>
 
@@ -1407,6 +1502,326 @@ function drawDPOCanvas_REMOVED() {
 // DPO section removed
 
 /* =====================================================
+   MDP SECTION
+===================================================== */
+var mdpMode = 'standard';
+
+function setMDPStep(idx, btn) {
+  document.querySelectorAll('.mdp-step-content').forEach(function(el) { el.classList.remove('active'); });
+  var active = document.getElementById('mdp-step-' + idx);
+  if (active) active.classList.add('active');
+  document.querySelectorAll('#mdp-stepper .step-btn').forEach(function(b) { b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  // Draw the appropriate canvas for this step
+  if (idx === 0) drawMDPStateCanvas();
+  if (idx === 1) drawMDPActionCanvas();
+  if (idx === 2) drawMDPRewardCanvas();
+}
+
+function setMDPMode(mode) {
+  mdpMode = mode;
+  var btnStd = document.getElementById('mdp-mode-standard');
+  var btnStr = document.getElementById('mdp-mode-structured');
+  var lbl = document.getElementById('mdp-canvas-caption');
+  var modeLabel = document.getElementById('mdp-mode-label');
+  if (btnStd) btnStd.classList.toggle('active', mode === 'standard');
+  if (btnStr) btnStr.classList.toggle('active', mode === 'structured');
+  if (mode === 'standard') {
+    if (modeLabel) modeLabel.textContent = 'reward only at end';
+    if (lbl) lbl.innerHTML = '<strong>Standard MDP:</strong> One reward arrives at the very end. All 3 intermediate steps share the same terminal signal — the agent can\'t tell which step actually mattered.';
+  } else {
+    if (modeLabel) modeLabel.textContent = 'one reward per step';
+    if (lbl) lbl.innerHTML = '<strong>Structured MDP (Agent Lightning):</strong> Each LLM call is its own <code style="background:var(--bg);padding:2px 6px;border-radius:4px;font-size:12px;">(input, output, reward)</code> tuple. Memory gets +0.3 for finding the itinerary. Search gets +0.2 for a valid result. Final answer gets +1.0. Every step has its own signal.';
+  }
+  drawMDPCanvas();
+}
+
+function drawMDPStateCanvas() {
+  var cv = document.getElementById('mdp-state-canvas');
+  if (!cv) return;
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // State box
+  ctx.strokeStyle = '#fdcb6e'; ctx.lineWidth = 2;
+  ctx.fillStyle = 'rgba(253,203,110,0.08)';
+  roundRect(ctx, 20, 20, W - 40, H - 40, 10, true, true);
+
+  ctx.fillStyle = '#fdcb6e'; ctx.font = 'bold 12px Inter,sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText('State (s₁) — Step 1', 36, 44);
+
+  ctx.fillStyle = '#8892b0'; ctx.font = '12px Inter,sans-serif';
+  ctx.fillText('User message:', 36, 72);
+  ctx.fillStyle = '#e2e8f0'; ctx.font = '12px Inter,sans-serif';
+  ctx.fillText('"My flight got cancelled. How do I reach Paris?"', 36, 90);
+
+  ctx.fillStyle = '#8892b0'; ctx.font = '12px Inter,sans-serif';
+  ctx.fillText('Tool results so far:', 36, 118);
+  ctx.fillStyle = '#4a5580'; ctx.font = 'italic 12px Inter,sans-serif';
+  ctx.fillText('(none yet — this is step 1)', 36, 136);
+
+  ctx.fillStyle = '#8892b0'; ctx.font = '12px Inter,sans-serif';
+  ctx.fillText('Available tools:', 36, 164);
+  ctx.fillStyle = '#4ECDC4'; ctx.font = '12px Inter,sans-serif';
+  ctx.fillText('🧠 Memory', 36, 182);
+  ctx.fillStyle = '#45B7D1';
+  ctx.fillText('🔍 Search', 130, 182);
+  ctx.fillStyle = '#4ade80';
+  ctx.fillText('🧮 Calculator', 220, 182);
+}
+
+function drawMDPActionCanvas() {
+  var cv = document.getElementById('mdp-action-canvas');
+  if (!cv) return;
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // State box (small, left)
+  ctx.strokeStyle = '#fdcb6e'; ctx.lineWidth = 1.5;
+  ctx.fillStyle = 'rgba(253,203,110,0.06)';
+  roundRect(ctx, 10, 70, 100, 80, 8, true, true);
+  ctx.fillStyle = '#fdcb6e'; ctx.font = 'bold 10px Inter,sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('State (s)', 60, 100);
+  ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter,sans-serif';
+  ctx.fillText('"flight → Paris"', 60, 116);
+  ctx.fillText('+ context', 60, 130);
+
+  // Three action options
+  var actions = [
+    { label: '🧠 Memory', color: '#A29BFE', y: 40, correct: true },
+    { label: '🔍 Search', color: '#4ECDC4', y: 110, correct: false },
+    { label: '🧮 Calc', color: '#4ade80', y: 180, correct: false },
+  ];
+
+  actions.forEach(function(a) {
+    // Arrow from state box
+    ctx.strokeStyle = a.correct ? a.color : '#2a3060';
+    ctx.lineWidth = a.correct ? 2 : 1;
+    ctx.beginPath();
+    ctx.moveTo(110, 110);
+    ctx.lineTo(200, a.y + 20);
+    ctx.stroke();
+
+    // Action box
+    ctx.strokeStyle = a.color; ctx.lineWidth = a.correct ? 2.5 : 1;
+    ctx.fillStyle = a.correct ? 'rgba(162,155,254,0.12)' : 'rgba(255,255,255,0.02)';
+    roundRect(ctx, 200, a.y, 140, 40, 8, true, true);
+    ctx.fillStyle = a.color; ctx.font = (a.correct ? 'bold ' : '') + '12px Inter,sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(a.label, 270, a.y + 25);
+
+    if (a.correct) {
+      ctx.fillStyle = '#4ade80'; ctx.font = 'bold 11px Inter,sans-serif';
+      ctx.fillText('← correct first action', 360, a.y + 25);
+    }
+  });
+
+  ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter,sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText('Policy π(a|s)', 14, 165);
+  ctx.fillText('= distribution', 14, 178);
+  ctx.fillText('over actions', 14, 191);
+}
+
+function drawMDPRewardCanvas() {
+  var cv = document.getElementById('mdp-reward-canvas');
+  if (!cv) return;
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var steps = [
+    { label: '🧠 Memory', reward: '+0.3', color: '#A29BFE', x: 30 },
+    { label: '🔍 Search', reward: '+0.2', color: '#4ECDC4', x: 150 },
+    { label: '✍️ Answer', reward: '+1.0', color: '#4ade80', x: 270 },
+  ];
+
+  steps.forEach(function(s, i) {
+    // Step box
+    ctx.strokeStyle = s.color; ctx.lineWidth = 1.5;
+    ctx.fillStyle = 'rgba(255,255,255,0.03)';
+    roundRect(ctx, s.x, 20, 100, 44, 8, true, true);
+    ctx.fillStyle = s.color; ctx.font = '11px Inter,sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(s.label, s.x + 50, 46);
+
+    // Arrow to next
+    if (i < steps.length - 1) {
+      ctx.strokeStyle = '#4a5580'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(s.x + 100, 42);
+      ctx.lineTo(s.x + 150, 42);
+      ctx.stroke();
+      // arrowhead
+      ctx.fillStyle = '#4a5580';
+      ctx.beginPath();
+      ctx.moveTo(s.x + 150, 38); ctx.lineTo(s.x + 150, 46); ctx.lineTo(s.x + 158, 42);
+      ctx.fill();
+    }
+
+    // Reward badge below
+    ctx.fillStyle = s.color; ctx.font = 'bold 14px JetBrains Mono,monospace'; ctx.textAlign = 'center';
+    ctx.fillText(s.reward, s.x + 50, 100);
+    ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter,sans-serif';
+    ctx.fillText('reward', s.x + 50, 115);
+
+    // Upward arrow from reward to step
+    ctx.strokeStyle = s.color; ctx.lineWidth = 1.5; ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.moveTo(s.x + 50, 85); ctx.lineTo(s.x + 50, 64); ctx.stroke();
+    ctx.setLineDash([]);
+  });
+
+  // Label
+  ctx.fillStyle = '#8892b0'; ctx.font = '11px Inter,sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText('Each step gets its own reward signal (via AIR)', 30, 150);
+  ctx.fillText('→ policy learns which specific step was the key move', 30, 166);
+}
+
+function drawMDPCanvas() {
+  var cv = document.getElementById('mdp-canvas');
+  if (!cv) return;
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  if (mdpMode === 'standard') {
+    drawMDPStandard(ctx, W, H);
+  } else {
+    drawMDPStructured(ctx, W, H);
+  }
+}
+
+function drawMDPStandard(ctx, W, H) {
+  var steps = [
+    { label: 'Memory', sublabel: 'action a₁', color: '#A29BFE' },
+    { label: 'Search', sublabel: 'action a₂', color: '#4ECDC4' },
+    { label: 'Answer', sublabel: 'action a₃', color: '#45B7D1' },
+  ];
+  var boxW = 100, boxH = 50, startX = 40, y = 60, gap = 80;
+
+  steps.forEach(function(s, i) {
+    var x = startX + i * (boxW + gap);
+    // Box
+    ctx.strokeStyle = s.color; ctx.lineWidth = 1.5;
+    ctx.fillStyle = 'rgba(255,255,255,0.03)';
+    roundRect(ctx, x, y, boxW, boxH, 8, true, true);
+    ctx.fillStyle = s.color; ctx.font = 'bold 12px Inter,sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(s.label, x + boxW / 2, y + 22);
+    ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter,sans-serif';
+    ctx.fillText(s.sublabel, x + boxW / 2, y + 38);
+
+    // Arrow to next
+    if (i < steps.length - 1) {
+      var ax = x + boxW, ay = y + boxH / 2;
+      ctx.strokeStyle = '#4a5580'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ax + gap - 10, ay); ctx.stroke();
+      ctx.fillStyle = '#4a5580';
+      ctx.beginPath(); ctx.moveTo(ax + gap - 10, ay - 4); ctx.lineTo(ax + gap - 10, ay + 4); ctx.lineTo(ax + gap, ay); ctx.fill();
+    }
+
+    // Question mark under each
+    ctx.fillStyle = '#4a5580'; ctx.font = 'bold 18px Inter,sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('?', x + boxW / 2, y + 90);
+  });
+
+  // Terminal reward box (far right)
+  var rx = startX + steps.length * (boxW + gap);
+  ctx.strokeStyle = '#4ade80'; ctx.lineWidth = 2;
+  ctx.fillStyle = 'rgba(74,222,128,0.1)';
+  roundRect(ctx, rx, y, 80, boxH, 8, true, true);
+  ctx.fillStyle = '#4ade80'; ctx.font = 'bold 12px Inter,sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('R = +1', rx + 40, y + 22);
+  ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter,sans-serif';
+  ctx.fillText('terminal', rx + 40, y + 38);
+
+  // Arrow to reward
+  var lastBox = startX + (steps.length - 1) * (boxW + gap) + boxW;
+  ctx.strokeStyle = '#4ade80'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(lastBox, y + boxH / 2); ctx.lineTo(rx - 5, y + boxH / 2); ctx.stroke();
+  ctx.fillStyle = '#4ade80';
+  ctx.beginPath(); ctx.moveTo(rx - 10, y + boxH / 2 - 4); ctx.lineTo(rx - 10, y + boxH / 2 + 4); ctx.lineTo(rx, y + boxH / 2); ctx.fill();
+
+  // Label at bottom
+  ctx.fillStyle = '#f87171'; ctx.font = '11px Inter,sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('Which of these 3 actions deserved the reward? Unknown.', W / 2, H - 12);
+}
+
+function drawMDPStructured(ctx, W, H) {
+  var tuples = [
+    { input: 'input₁', output: '"call Memory"', reward: 'r₁ = +0.3', rcolor: '#A29BFE', label: 'Memory call', color: '#A29BFE' },
+    { input: 'input₂', output: '"call Search"', reward: 'r₂ = +0.2', rcolor: '#4ECDC4', label: 'Search call', color: '#4ECDC4' },
+    { input: 'input₃', output: '"Eurostar"', reward: 'r₃ = +1.0', rcolor: '#4ade80', label: 'Final answer', color: '#4ade80' },
+  ];
+
+  var tW = 180, tH = 120, gap = 28;
+  var totalW = tuples.length * tW + (tuples.length - 1) * gap;
+  var startX = (W - totalW) / 2;
+  var y = 18;
+
+  tuples.forEach(function(t, i) {
+    var x = startX + i * (tW + gap);
+
+    // Outer tuple box
+    ctx.strokeStyle = t.color; ctx.lineWidth = 2;
+    ctx.fillStyle = 'rgba(255,255,255,0.025)';
+    roundRect(ctx, x, y, tW, tH, 10, true, true);
+
+    // Tuple label badge
+    ctx.fillStyle = t.color; ctx.font = 'bold 10px Inter,sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(t.label, x + tW / 2, y + 16);
+
+    // Divider
+    ctx.strokeStyle = t.color + '44'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x + 10, y + 22); ctx.lineTo(x + tW - 10, y + 22); ctx.stroke();
+
+    // Content rows
+    ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter,sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText('input:', x + 12, y + 40);
+    ctx.fillStyle = '#e2e8f0'; ctx.font = '10px JetBrains Mono,monospace';
+    ctx.fillText(t.input, x + 52, y + 40);
+
+    ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter,sans-serif';
+    ctx.fillText('output:', x + 12, y + 58);
+    ctx.fillStyle = '#e2e8f0'; ctx.font = '10px JetBrains Mono,monospace';
+    ctx.fillText(t.output, x + 58, y + 58);
+
+    ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter,sans-serif';
+    ctx.fillText('reward:', x + 12, y + 76);
+    ctx.fillStyle = t.rcolor; ctx.font = 'bold 11px JetBrains Mono,monospace';
+    ctx.fillText(t.reward, x + 60, y + 76);
+
+    // Arrow between tuples
+    if (i < tuples.length - 1) {
+      var ax = x + tW + 4, ay = y + tH / 2;
+      ctx.strokeStyle = '#4a5580'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ax + gap - 10, ay); ctx.stroke();
+      ctx.fillStyle = '#4a5580';
+      ctx.beginPath(); ctx.moveTo(ax + gap - 10, ay - 4); ctx.lineTo(ax + gap - 10, ay + 4); ctx.lineTo(ax + gap, ay); ctx.fill();
+    }
+  });
+
+  ctx.fillStyle = '#4ade80'; ctx.font = '11px Inter,sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('Every step has its own reward. The policy knows exactly which action was most valuable.', W / 2, H - 12);
+}
+
+// Helper: rounded rect
+function roundRect(ctx, x, y, w, h, r, fill, stroke) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y); ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r); ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h); ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r); ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+  if (fill) ctx.fill();
+  if (stroke) ctx.stroke();
+}
+
+function initMDP() {
+  setMDPStep(0, document.querySelector('#mdp-stepper .step-btn'));
+  drawMDPCanvas();
+}
+
+/* =====================================================
    CREDIT ASSIGNMENT STEPPER
 ===================================================== */
 var caSteps = [
@@ -1500,7 +1915,7 @@ window.addEventListener('scroll', animateResultBars);
 /* =====================================================
    ACTIVE NAV LINK ON SCROLL
 ===================================================== */
-var sectionIds = ['why-rl','overview','landscape','reinforce','ppo','grpo','architecture','credit','lightningrl','experiments','comparison'];
+var sectionIds = ['why-rl','overview','mdp','landscape','reinforce','ppo','grpo','architecture','credit','lightningrl','experiments','comparison'];
 
 function updateNavOnScroll() {
   var scrollY = window.scrollY + 100;
@@ -1920,6 +2335,7 @@ function initExperiments() {
    INITIALIZE ALL
 ===================================================== */
 initWhyRL();
+initMDP();
 buildReforceSliders();
 drawReinforceCanvas();
 drawPPOCanvas();
