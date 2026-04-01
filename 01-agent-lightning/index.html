@@ -167,6 +167,19 @@ canvas { display:block; background:var(--bg); border-radius:8px; border:1px soli
 .mdp-step-content { display:none; }
 .mdp-step-content.active { display:block; }
 .mdp-toggle-row { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; align-items:center; }
+.di-turn { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:12px 14px; transition:all 0.3s; }
+.di-turn.active { border-color:#fdcb6e; background:rgba(253,203,110,0.08); }
+.di-turn-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin-bottom:8px; }
+.di-msg { font-size:12px; padding:3px 0; font-family:'JetBrains Mono',monospace; line-height:1.5; }
+.di-user { color:var(--text); }
+.di-tool { color:#4ECDC4; }
+.di-result { color:#8892b0; }
+.di-transition { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:12px 14px; transition:all 0.3s; opacity:0.35; }
+.di-transition.active { border-color:#55efc4; background:rgba(85,239,196,0.08); opacity:1; }
+.di-trans-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin-bottom:8px; }
+.di-trans-row { display:flex; gap:8px; align-items:flex-start; padding:3px 0; font-size:12px; }
+.di-key { font-family:'JetBrains Mono'; color:#e2b35e; min-width:60px; flex-shrink:0; }
+.di-val { color:var(--muted); font-family:'JetBrains Mono'; font-size:11px; }
 </style>
 </head>
 <body>
@@ -240,6 +253,9 @@ window.addEventListener('load',()=>{ const el=document.getElementById('pg-input'
     <div class="nav-group-title">Introduction</div>
     <a class="nav-link active" href="#overview" onclick="setActive(this)">
       <span class="dot" style="background:#A29BFE"></span>Overview
+    </a>
+    <a class="nav-link" href="#datainterface" onclick="setActive(this)">
+      <span class="dot" style="background:#fdcb6e"></span>Data Interface
     </a>
     <a class="nav-link" href="#mdp" onclick="setActive(this)">
       <span class="dot" style="background:#fdcb6e"></span>What is an MDP?
@@ -479,6 +495,46 @@ window.addEventListener('load',()=>{ const el=document.getElementById('pg-input'
 
   <div class="highlight-box" style="margin-top:28px">
     <p><strong>Core Insight:</strong> Remember the cancelled-flight scenario? Agent Lightning is built specifically for that world — multi-step tool-using agents where the right action ordering matters. It formalizes the entire chain as a structured MDP and decomposes reward back to each step that deserved credit.</p>
+  </div>
+</section>
+
+<!-- ===== DATA INTERFACE ===== -->
+<section class="section" id="datainterface">
+  <div class="section-tag">Agent Lightning</div>
+  <div class="section-title" style="color:#fdcb6e">Unified Data Interface</div>
+  <div class="section-sub">The bridge between any agent framework and any RL algorithm. It intercepts your agent's existing API call logs — no code modifications — and structures them into clean MDP transitions that any RL algorithm can train on.</div>
+
+  <div class="tab-bar" style="margin-bottom:20px;">
+    <button class="tab active" id="di-fw-0" onclick="setDIFramework('langchain',this)">LangChain</button>
+    <button class="tab" id="di-fw-1" onclick="setDIFramework('openai',this)">OpenAI Agents SDK</button>
+    <button class="tab" id="di-fw-2" onclick="setDIFramework('autogen',this)">AutoGen</button>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 40px 1fr;gap:12px;align-items:start;margin-bottom:20px;">
+    <div>
+      <div class="card-title" style="margin-bottom:12px;">Raw Agent Trajectory&nbsp;<span id="di-fw-badge" style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:12px;background:rgba(253,203,110,0.15);color:#fdcb6e;">LangChain</span></div>
+      <div id="di-raw-container" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:center;padding-top:44px;font-size:22px;color:var(--muted);">→</div>
+    <div>
+      <div class="card-title" style="margin-bottom:12px;">Structured MDP Transitions</div>
+      <div id="di-trans-container" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px;">
+    <button class="btn btn-outline" onclick="diStepConvert()">Convert Next Turn →</button>
+    <button class="btn" onclick="diConvertAll()">Convert All</button>
+    <button class="btn btn-outline" onclick="diReset()">Reset</button>
+    <span id="di-step-label" style="font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;">Turn 0 / 3 converted</span>
+  </div>
+
+  <div id="di-explanation" class="highlight-box" style="display:none;">
+    <p id="di-explanation-text"></p>
+  </div>
+
+  <div class="highlight-box" style="margin-top:16px;border-color:rgba(253,203,110,0.4);background:rgba(253,203,110,0.07);">
+    <p><strong style="color:#fdcb6e;">Zero agent code changes.</strong> The Data Interface works by intercepting the LLM API calls externally — it reads the request/response logs the agent already generates. Switch from LangChain to AutoGen? The Data Interface adapts; your RL training code stays identical.</p>
   </div>
 </section>
 
@@ -858,6 +914,22 @@ L_GRPO = E_i [ min( r_i(θ)·A_i, clip(r_i(θ),1−ε,1+ε)·A_i ) ] − β·KL(
     <canvas id="arch-canvas" width="660" height="180" style="width:100%;max-width:660px;border-radius:8px;background:var(--bg);border:1px solid var(--border);display:block;"></canvas>
     <p id="arch-canvas-caption" style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;">Synchronous: workers must wait for the slowest peer before the server can update. GPU utilization ~40-60%.</p>
   </div>
+
+  <div class="section-divider" style="margin-top:28px;"><hr><span>The Async Trade-off</span><hr></div>
+  <div class="card" style="margin-top:16px;">
+    <div class="card-title" style="color:#f87171;">Policy Staleness — The Honest Trade-off of Async Training</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:16px;">More workers = more throughput. But in async mode, by the time a worker's trajectory reaches the server, the policy may have updated several times. That data is now <em>stale</em> — it was collected under an older policy. Drag the slider to see the trade-off.</p>
+    <div class="sl-row" style="margin-bottom:16px;">
+      <span class="sl-lbl">Parallel workers</span>
+      <input type="range" id="staleness-slider" min="1" max="8" value="3" oninput="updateStaleness(this.value)">
+      <span class="sl-val" id="staleness-workers-val">3</span>
+    </div>
+    <canvas id="staleness-canvas" width="620" height="130" style="width:100%;max-width:620px;border-radius:8px;background:var(--bg);border:1px solid var(--border);display:block;margin-bottom:12px;"></canvas>
+    <div id="staleness-caption" style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:12px;"></div>
+    <div class="highlight-box" style="border-color:rgba(85,239,196,0.3);">
+      <p><strong style="color:#55efc4;">Mitigation:</strong> Agent Lightning bounds staleness by discarding trajectories collected more than K policy updates ago. K is configurable (typically K = 4). This keeps training data fresh without blocking workers or reducing throughput.</p>
+    </div>
+  </div>
 </section>
 
 <!-- ===== 9. CREDIT ASSIGNMENT ===== -->
@@ -1004,6 +1076,22 @@ Each transition = one self-contained training example.</div>
           </div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <div class="section-divider" style="margin-top:28px;"><hr><span>Data Efficiency</span><hr></div>
+  <div class="card" style="margin-top:16px;">
+    <div class="card-title" style="color:#55efc4;">N Training Samples Per Task — The Efficiency Multiplier</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:16px;">Standard RL produces <strong>1</strong> training sample per completed task. LightningRL produces <strong>N</strong> — one per LLM call in the trajectory. Adjust the slider to see the cumulative difference over 100 tasks.</p>
+    <div class="sl-row" style="margin-bottom:20px;">
+      <span class="sl-lbl">Steps per trajectory</span>
+      <input type="range" id="de-slider" min="1" max="10" value="3" oninput="updateDE(this.value)">
+      <span class="sl-val" id="de-steps-val">3</span>
+    </div>
+    <canvas id="de-canvas" width="620" height="150" style="width:100%;max-width:620px;border-radius:8px;background:var(--bg);border:1px solid var(--border);display:block;margin-bottom:12px;"></canvas>
+    <div id="de-caption" style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:12px;"></div>
+    <div class="highlight-box">
+      <p>In the paper's Text-to-SQL experiment, the 3-agent workflow (SQL writer + checker + rewriter) produces ~3–5 LLM calls per task. LightningRL extracts a transition from each — <strong>3–5× more gradient updates</strong> from the same compute budget, with no extra inference cost.</p>
     </div>
   </div>
 </section>
@@ -2328,7 +2416,7 @@ window.addEventListener('scroll', animateResultBars);
 /* =====================================================
    ACTIVE NAV LINK ON SCROLL
 ===================================================== */
-var sectionIds = ['why-rl','overview','mdp','reinforce','ppo','grpo','architecture','credit','air','lightningrl','experiments','comparison','takeaways'];
+var sectionIds = ['why-rl','overview','datainterface','mdp','reinforce','ppo','grpo','architecture','credit','air','lightningrl','experiments','comparison','takeaways'];
 
 function updateNavOnScroll() {
   var scrollY = window.scrollY + 100;
@@ -3061,6 +3149,290 @@ function initLoop() {
 }
 
 /* =====================================================
+   UNIFIED DATA INTERFACE
+===================================================== */
+var diCurrentStep = 0;
+var diFrameworkName = 'LangChain';
+
+var diTurnsData = [
+  {
+    label: 'Turn 1 — User input + Memory call',
+    msgs: [
+      { cls: 'di-user', text: 'User: "My flight was cancelled. How do I reach Paris?"' },
+      { cls: 'di-tool', text: '→ Memory.invoke("user_itinerary")' },
+      { cls: 'di-result', text: '✓ Returns: CDG→LHR, budget €400, passport UK' }
+    ],
+    input: 'System prompt + User message',
+    output: 'Memory.invoke("user_itinerary")',
+    reward: '+0.30',
+    rewardNote: 'tool success (status 200)',
+    explanation: 'Turn 1: The Data Interface records the LLM output ("call Memory") as output₁, and the full context at that moment (system + user message) as input₁. Memory returned successfully — AIR converts that return status into r₁ = +0.30 automatically.'
+  },
+  {
+    label: 'Turn 2 — Memory result + Search call',
+    msgs: [
+      { cls: 'di-result', text: '(context now includes Memory result)' },
+      { cls: 'di-tool', text: '→ Search.invoke("Paris trains tomorrow, budget €400")' },
+      { cls: 'di-result', text: '✓ Returns: Eurostar 7am £89, Air France 8am £340' }
+    ],
+    input: 'System + User + [Memory result]',
+    output: 'Search.invoke("Paris trains tomorrow...")',
+    reward: '+0.20',
+    rewardNote: 'tool success (status 200)',
+    explanation: 'Turn 2: input₂ now includes the Memory tool result — the context is growing. The decision to call Search becomes output₂. Each transition carries its own independent context snapshot, so no positional encoding corruption from masking.'
+  },
+  {
+    label: 'Turn 3 — Final answer',
+    msgs: [
+      { cls: 'di-result', text: '(context includes both tool results)' },
+      { cls: 'di-user', text: 'Answer: "Take Eurostar 7am (£89).' },
+      { cls: 'di-result', text: 'Arrives Paris 10:22. Book eurostar.com."' }
+    ],
+    input: 'System + User + [Memory] + [Search results]',
+    output: '"Take Eurostar 7am. £89. eurostar.com."',
+    reward: '+1.00',
+    rewardNote: 'correct final answer',
+    explanation: 'Turn 3: The full accumulated context forms input₃. The final answer text is output₃. Answer verified correct → r₃ = +1.00 (terminal reward). Result: one 3-turn task → three clean, independent (input, output, reward) training samples.'
+  }
+];
+
+function renderDI() {
+  var rawEl = document.getElementById('di-raw-container');
+  var transEl = document.getElementById('di-trans-container');
+  if (!rawEl || !transEl) return;
+
+  var rawHTML = '';
+  var transHTML = '';
+
+  for (var i = 0; i < diTurnsData.length; i++) {
+    var t = diTurnsData[i];
+    var converted = diCurrentStep > i;
+    var isCurrent = diCurrentStep === i + 1;
+
+    rawHTML += '<div class="di-turn' + (converted || isCurrent ? ' active' : '') + '">';
+    rawHTML += '<div class="di-turn-label">' + t.label + '</div>';
+    for (var m = 0; m < t.msgs.length; m++) {
+      rawHTML += '<div class="di-msg ' + t.msgs[m].cls + '">' + t.msgs[m].text + '</div>';
+    }
+    rawHTML += '</div>';
+
+    transHTML += '<div class="di-transition' + (converted ? ' active' : '') + '">';
+    transHTML += '<div class="di-trans-label">Transition ' + (i + 1) + '</div>';
+    if (converted) {
+      transHTML += '<div class="di-trans-row"><span class="di-key">input' + (i+1) + '</span><span class="di-val">' + t.input + '</span></div>';
+      transHTML += '<div class="di-trans-row"><span class="di-key">output' + (i+1) + '</span><span class="di-val">' + t.output + '</span></div>';
+      transHTML += '<div class="di-trans-row"><span class="di-key">r' + (i+1) + '</span><span class="di-val" style="color:#4ade80;">' + t.reward + ' <span style="color:var(--muted);font-size:10px;">(' + t.rewardNote + ')</span></span></div>';
+    } else {
+      transHTML += '<div style="font-size:11px;color:var(--border);font-family:\'JetBrains Mono\',monospace;padding:8px 0;text-align:center;">— not yet converted —</div>';
+    }
+    transHTML += '</div>';
+  }
+
+  rawEl.innerHTML = rawHTML;
+  transEl.innerHTML = transHTML;
+
+  var lbl = document.getElementById('di-step-label');
+  if (lbl) lbl.textContent = 'Turn ' + diCurrentStep + ' / ' + diTurnsData.length + ' converted';
+
+  var expl = document.getElementById('di-explanation');
+  var explText = document.getElementById('di-explanation-text');
+  if (expl) {
+    if (diCurrentStep > 0) {
+      expl.style.display = 'block';
+      if (explText) explText.textContent = diTurnsData[diCurrentStep - 1].explanation;
+    } else {
+      expl.style.display = 'none';
+    }
+  }
+}
+
+function diStepConvert() {
+  if (diCurrentStep < diTurnsData.length) { diCurrentStep++; renderDI(); }
+}
+
+function diConvertAll() {
+  diCurrentStep = diTurnsData.length; renderDI();
+}
+
+function diReset() {
+  diCurrentStep = 0; renderDI();
+}
+
+function setDIFramework(fw, btn) {
+  var names = { langchain: 'LangChain', openai: 'OpenAI Agents SDK', autogen: 'AutoGen' };
+  diFrameworkName = names[fw] || fw;
+  document.querySelectorAll('[id^="di-fw-"]').forEach(function(b) { b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  var badge = document.getElementById('di-fw-badge');
+  if (badge) badge.textContent = diFrameworkName;
+}
+
+function initDI() {
+  renderDI();
+}
+
+/* =====================================================
+   POLICY STALENESS
+===================================================== */
+function updateStaleness(val) {
+  var n = parseInt(val);
+  var el = document.getElementById('staleness-workers-val');
+  if (el) el.textContent = n;
+  drawStalenessCanvas(n);
+  var cap = document.getElementById('staleness-caption');
+  if (cap) {
+    var staleness = Math.max(0, n - 1);
+    var sweet = (n >= 3 && n <= 5);
+    cap.innerHTML = n + ' workers → <strong>' + n + '×</strong> throughput, ~' + staleness + ' policy update(s) of staleness per trajectory.'
+      + (sweet ? ' <strong style="color:#4ade80;">Sweet spot for most workloads.</strong>'
+        : (n > 5 ? ' <span style="color:#f87171;">High staleness — consider reducing K or batch size.</span>' : ''));
+  }
+}
+
+function drawStalenessCanvas(n) {
+  var cv = document.getElementById('staleness-canvas');
+  if (!cv) return;
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var padL = 130, padR = 24, padT = 22, padB = 28;
+  var plotW = W - padL - padR;
+  var barH = 24;
+  var gap = 18;
+  var maxW = 8;
+
+  var bars = [
+    { label: 'Throughput', value: n / maxW, color: '#55efc4', display: n + '×' },
+    { label: 'Policy staleness', value: Math.max(0, (n - 1)) / (maxW - 1), color: '#f87171', display: n > 1 ? (n - 1) + ' steps stale' : '0 — perfectly fresh' }
+  ];
+
+  for (var i = 0; i < bars.length; i++) {
+    var bar = bars[i];
+    var by = padT + i * (barH + gap);
+    ctx.fillStyle = '#8892b0'; ctx.font = '11px Inter,sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(bar.label, padL - 8, by + barH / 2 + 4);
+    ctx.fillStyle = '#1e2444'; ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(padL, by, plotW, barH, 4); else ctx.rect(padL, by, plotW, barH);
+    ctx.fill();
+    var fw = bar.value * plotW;
+    if (fw > 0) {
+      ctx.fillStyle = bar.color; ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(padL, by, fw, barH, 4); else ctx.rect(padL, by, fw, barH);
+      ctx.fill();
+    }
+    ctx.fillStyle = '#e2e8f0'; ctx.font = 'bold 11px Inter,sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText(bar.display, padL + fw + 7, by + barH / 2 + 4);
+  }
+
+  // Sweet spot zone
+  var sx1 = padL + (2 / (maxW - 1)) * plotW;
+  var sx2 = padL + (4 / (maxW - 1)) * plotW;
+  ctx.fillStyle = 'rgba(74,222,128,0.06)';
+  ctx.fillRect(sx1, padT - 4, sx2 - sx1, 2 * (barH + gap) + barH + 4);
+  ctx.strokeStyle = 'rgba(74,222,128,0.3)'; ctx.lineWidth = 1;
+  ctx.strokeRect(sx1, padT - 4, sx2 - sx1, 2 * (barH + gap) + barH + 4);
+  ctx.fillStyle = 'rgba(74,222,128,0.7)'; ctx.font = '9px Inter,sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('sweet spot', (sx1 + sx2) / 2, padT - 7);
+
+  // Current marker
+  var cx = padL + ((n - 1) / (maxW - 1)) * plotW;
+  ctx.strokeStyle = '#fdcb6e'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
+  ctx.beginPath(); ctx.moveTo(cx, padT - 10); ctx.lineTo(cx, padT + 2 * (barH + gap) + barH + 4); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#fdcb6e'; ctx.font = 'bold 9px Inter,sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('▲ ' + n + ' workers', cx, padT - 12);
+
+  // x-axis
+  ctx.strokeStyle = '#2a3060'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(padL, H - padB + 4); ctx.lineTo(W - padR, H - padB + 4); ctx.stroke();
+  ctx.fillStyle = '#8892b0'; ctx.font = '9px Inter,sans-serif'; ctx.textAlign = 'center';
+  for (var w = 1; w <= maxW; w++) {
+    var wx = padL + ((w - 1) / (maxW - 1)) * plotW;
+    ctx.fillText(w, wx, H - padB + 16);
+  }
+  ctx.fillText('Number of parallel workers →', padL + plotW / 2, H - 2);
+}
+
+function initStaleness() {
+  drawStalenessCanvas(3);
+  updateStaleness(3);
+}
+
+/* =====================================================
+   DATA EFFICIENCY
+===================================================== */
+function updateDE(val) {
+  var n = parseInt(val);
+  var el = document.getElementById('de-steps-val');
+  if (el) el.textContent = n;
+  drawDECanvas(n);
+  var cap = document.getElementById('de-caption');
+  if (cap) {
+    var tasks = 100;
+    cap.innerHTML = '<strong>100 completed tasks:</strong> Standard RL → <span style="color:#f87171;">' + tasks + ' training samples</span>&nbsp;&nbsp;|&nbsp;&nbsp; LightningRL → <span style="color:#55efc4;">' + (tasks * n) + ' training samples</span>&nbsp;&nbsp;(<strong style="color:#55efc4;">' + n + '× more gradient updates</strong>)';
+  }
+}
+
+function drawDECanvas(n) {
+  var cv = document.getElementById('de-canvas');
+  if (!cv) return;
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var padL = 170, padR = 100, padT = 18, padB = 22;
+  var plotW = W - padL - padR;
+  var barH = 30;
+  var gap = 22;
+  var maxSamples = 1000;
+
+  var bars = [
+    { label: 'Standard RL', sub: '(single-turn / masking)', samples: 100, color: '#f87171' },
+    { label: 'LightningRL', sub: '(' + n + ' steps/task)', samples: 100 * n, color: '#55efc4' }
+  ];
+
+  for (var i = 0; i < bars.length; i++) {
+    var bar = bars[i];
+    var by = padT + i * (barH + gap);
+    ctx.fillStyle = '#8892b0'; ctx.font = '11px Inter,sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(bar.label, padL - 8, by + barH / 2);
+    ctx.fillStyle = '#4a5568'; ctx.font = '10px Inter,sans-serif';
+    ctx.fillText(bar.sub, padL - 8, by + barH / 2 + 13);
+
+    ctx.fillStyle = '#1e2444'; ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(padL, by, plotW, barH, 4); else ctx.rect(padL, by, plotW, barH);
+    ctx.fill();
+
+    var fw = Math.min(1, bar.samples / maxSamples) * plotW;
+    ctx.fillStyle = bar.color; ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(padL, by, fw, barH, 4); else ctx.rect(padL, by, fw, barH);
+    ctx.fill();
+
+    ctx.fillStyle = '#e2e8f0'; ctx.font = 'bold 12px JetBrains Mono,monospace'; ctx.textAlign = 'left';
+    ctx.fillText(bar.samples + ' samples', padL + fw + 8, by + barH / 2 + 4);
+  }
+
+  // Multiplier brace
+  if (n > 1) {
+    var y1 = padT + barH / 2;
+    var y2 = padT + barH + gap + barH / 2;
+    var bx = padL + Math.min(1, 100 / maxSamples) * plotW + 4;
+    ctx.strokeStyle = '#fdcb6e'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(bx, y1); ctx.lineTo(bx + 14, y1);
+    ctx.lineTo(bx + 14, y2); ctx.lineTo(bx, y2);
+    ctx.stroke();
+    ctx.fillStyle = '#fdcb6e'; ctx.font = 'bold 13px Inter,sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText(n + '×', bx + 18, (y1 + y2) / 2 + 5);
+  }
+}
+
+function initDE() {
+  updateDE(3);
+}
+
+/* =====================================================
    INITIALIZE ALL
 ===================================================== */
 initWhyRL();
@@ -3072,9 +3444,12 @@ drawPPOFlightCanvas();
 drawPPOCanvas();
 renderGRPO();
 renderCA();
+initDI();
 initAIR();
 initArch();
+initStaleness();
 initLoop();
+initDE();
 initExperiments();
 </script>
 </body>
