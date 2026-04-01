@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visual Summary — Interactive AI/ML Visualizations</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0d1117;
+    color: #c9d1d9;
+    font-family: system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  .header {
+    border-bottom: 1px solid #21262d;
+    padding: 20px 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .header-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .logo-icon {
+    width: 38px; height: 38px;
+    background: linear-gradient(135deg, #7c6fcd, #4a9eff);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem;
+  }
+  .logo-text { font-size: 1.2rem; font-weight: 700; color: #c9d1d9; }
+  .logo-sub  { font-size: 0.72rem; color: #8b949e; margin-top: 1px; }
+  .header-actions { display: flex; gap: 10px; align-items: center; }
+  .btn-substack {
+    background: linear-gradient(135deg, #ff6719, #ff8c42);
+    color: #fff; border: none; border-radius: 8px;
+    padding: 8px 18px; font-size: 0.82rem; font-weight: 600;
+    cursor: pointer; text-decoration: none; display: inline-block;
+  }
+  .btn-ghost {
+    background: transparent; color: #8b949e;
+    border: 1px solid #30363d; border-radius: 8px;
+    padding: 8px 16px; font-size: 0.82rem;
+    cursor: pointer; text-decoration: none; display: inline-block;
+  }
+  .btn-ghost:hover { color: #c9d1d9; border-color: #8b949e; }
+
+  /* HERO */
+  .hero {
+    padding: 72px 48px 56px;
+    max-width: 760px;
+  }
+  .hero-tag {
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 2px;
+    color: #7c6fcd; font-weight: 600; margin-bottom: 14px;
+  }
+  .hero-title {
+    font-size: 2.6rem; font-weight: 800; line-height: 1.15;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, #c9d1d9 40%, #7c6fcd);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .hero-desc {
+    font-size: 1rem; color: #8b949e; line-height: 1.7; max-width: 580px;
+  }
+
+  /* POSTS GRID */
+  .posts-section {
+    padding: 0 48px 72px;
+  }
+  .posts-header {
+    display: flex; align-items: center; gap: 16px;
+    margin-bottom: 28px; padding-bottom: 16px;
+    border-bottom: 1px solid #21262d;
+  }
+  .posts-header-title { font-size: 0.8rem; font-weight: 600; color: #8b949e; text-transform: uppercase; letter-spacing: 1.5px; }
+  .posts-count {
+    background: #21262d; color: #8b949e;
+    font-size: 0.72rem; padding: 2px 8px; border-radius: 20px;
+  }
+
+  .posts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+  }
+
+  .post-card {
+    background: #161b22;
+    border: 1px solid #21262d;
+    border-radius: 12px;
+    padding: 24px;
+    text-decoration: none;
+    color: inherit;
+    display: flex; flex-direction: column; gap: 14px;
+    transition: border-color 0.2s, transform 0.15s;
+    position: relative; overflow: hidden;
+  }
+  .post-card:hover {
+    border-color: #7c6fcd;
+    transform: translateY(-2px);
+  }
+  .post-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: var(--accent-color, linear-gradient(90deg, #7c6fcd, #4a9eff));
+    border-radius: 12px 12px 0 0;
+  }
+
+  .post-num {
+    font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1.5px; color: #8b949e;
+  }
+  .post-title {
+    font-size: 1.05rem; font-weight: 700; color: #c9d1d9; line-height: 1.3;
+  }
+  .post-desc {
+    font-size: 0.82rem; color: #8b949e; line-height: 1.6; flex: 1;
+  }
+  .post-tags {
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .tag {
+    font-size: 0.68rem; padding: 3px 8px; border-radius: 20px;
+    border: 1px solid #30363d; color: #8b949e;
+  }
+  .post-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-top: 12px; border-top: 1px solid #21262d;
+    font-size: 0.75rem; color: #8b949e;
+  }
+  .post-open {
+    color: #7c6fcd; font-weight: 600; font-size: 0.78rem;
+    display: flex; align-items: center; gap: 4px;
+  }
+
+  /* COMING SOON CARD */
+  .post-card.coming-soon {
+    opacity: 0.5; cursor: default;
+    pointer-events: none;
+  }
+  .coming-soon-badge {
+    position: absolute; top: 16px; right: 16px;
+    background: #21262d; color: #8b949e;
+    font-size: 0.65rem; padding: 2px 8px; border-radius: 20px;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+
+  /* FOOTER */
+  .footer {
+    border-top: 1px solid #21262d;
+    padding: 28px 48px;
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px;
+    font-size: 0.78rem; color: #8b949e;
+  }
+  .footer a { color: #7c6fcd; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-logo">
+    <div class="logo-icon">📊</div>
+    <div>
+      <div class="logo-text">Visual Summary</div>
+      <div class="logo-sub">Interactive AI/ML Visualizations</div>
+    </div>
+  </div>
+  <div class="header-actions">
+    <a href="https://visualsummary.substack.com" target="_blank" class="btn-ghost">Read the Blog</a>
+    <a href="https://visualsummary.substack.com/subscribe" target="_blank" class="btn-substack">Subscribe →</a>
+  </div>
+</header>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-tag">Weekly Visual Blog</div>
+  <div class="hero-title">Learn AI/ML by<br>Exploring, Not Reading</div>
+  <div class="hero-desc">
+    Every week, one interactive visualization that lets you see, touch, and understand
+    a key concept in AI and machine learning — from reinforcement learning to
+    transformers, compression, and beyond.
+  </div>
+</div>
+
+<!-- POSTS -->
+<div class="posts-section">
+  <div class="posts-header">
+    <div class="posts-header-title">All Posts</div>
+    <div class="posts-count" id="post-count">1 post</div>
+  </div>
+
+  <div class="posts-grid">
+
+    <!-- Post 01 -->
+    <a class="post-card" href="./01-agent-lightning/" style="--accent-color: linear-gradient(90deg,#a29bfe,#6c5ce7);">
+      <div>
+        <div class="post-num">Post 01 · Reinforcement Learning</div>
+        <div class="post-title">Agent Lightning — RL Frameworks Explorer</div>
+      </div>
+      <div class="post-desc">
+        Walk through the full RL algorithm landscape interactively — REINFORCE, PPO, GRPO,
+        RLHF, DPO and more. Includes the Agent Lightning architecture and credit assignment deep dive.
+      </div>
+      <div class="post-tags">
+        <span class="tag">Reinforcement Learning</span>
+        <span class="tag">PPO</span>
+        <span class="tag">GRPO</span>
+        <span class="tag">RLHF</span>
+        <span class="tag">DPO</span>
+      </div>
+      <div class="post-footer">
+        <span>🔒 Paid subscribers</span>
+        <span class="post-open">Open tool →</span>
+      </div>
+    </a>
+
+    <!-- Coming soon placeholder -->
+    <div class="post-card coming-soon" style="--accent-color:#21262d;">
+      <div class="coming-soon-badge">Coming soon</div>
+      <div>
+        <div class="post-num">Post 02 · Next week</div>
+        <div class="post-title">Stay tuned...</div>
+      </div>
+      <div class="post-desc">
+        New interactive visualization dropping next week. Subscribe to get notified.
+      </div>
+      <div class="post-footer">
+        <span>Weekly · Every Monday</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div>© 2025 Visual Summary · Built with ❤️ for curious minds</div>
+  <div>
+    <a href="https://visualsummary.substack.com" target="_blank">Substack</a>
+    &nbsp;·&nbsp;
+    <a href="https://github.com/bhaskarjitsarmah/visual-summary" target="_blank">GitHub</a>
+  </div>
+</footer>
+
+</body>
+</html>
