@@ -286,14 +286,19 @@ window.addEventListener('load',()=>{ const el=document.getElementById('pg-input'
   <div class="g2" style="gap:36px;align-items:flex-start;margin-bottom:36px;">
     <div>
       <div class="why-rl-act-label">Act 1 — The Problem</div>
-      <div class="why-rl-act-headline">An LLM with tools... but no training</div>
+      <div class="why-rl-act-headline">An LLM with tools... but no sense of order</div>
       <div class="why-rl-act-body">
-        <p style="margin-bottom:10px;">Modern AI assistants don't just generate text — they call <strong>tools</strong>: web search, a calculator, a memory store. But which tool should it use? When? With what input?</p>
-        <p style="margin-bottom:10px;">Without training, the agent just guesses. For a math question like <em>"What is 12% of 847?"</em> it might call Search instead of Calculator. Every time. It has no idea which tool is right.</p>
-        <p>Click <strong>Try Again</strong> to see the untrained agent randomly pick the wrong tool — over and over.</p>
+        <p style="margin-bottom:10px;">Imagine someone messages the AI: <em>"My flight just got cancelled. How do I get to Paris by tomorrow morning?"</em></p>
+        <p style="margin-bottom:10px;">The agent has three tools available. Stop and ask yourself — <strong>which one would you reach for first?</strong></p>
+        <ul style="margin:8px 0 10px 16px;line-height:1.9;">
+          <li><strong style="color:#4ECDC4;">🔍 Search</strong> — look up alternative flights right now?</li>
+          <li><strong style="color:#A29BFE;">🧠 Memory</strong> — check the user's itinerary, budget, passport details?</li>
+          <li><strong style="color:#4ade80;">🧮 Calculator</strong> — compare cost vs. travel time tradeoffs?</li>
+        </ul>
+        <p>Search <em>sounds</em> right — but search for what? Without knowing where the user is flying from, their budget, or their flexibility, any search result is useless. The correct first step is <strong>Memory</strong>. An untrained agent doesn't know this.</p>
       </div>
       <div class="highlight-box" style="margin-top:16px;">
-        <p><strong>The core problem:</strong> You can't write a rule for every possible question. The space of inputs is infinite. Rule-based fixes don't scale.</p>
+        <p><strong>The core problem:</strong> The right tool depends on context only the agent can discover step by step. There's no rule you can write in advance — and even a human expert pauses before answering.</p>
       </div>
     </div>
     <div>
@@ -316,11 +321,11 @@ window.addEventListener('load',()=>{ const el=document.getElementById('pg-input'
       <div class="why-rl-act-headline">Learn from feedback, not from rules</div>
       <div class="why-rl-act-body">
         <p style="margin-bottom:10px;">Instead of programming the right answer, we give the agent a <strong>score</strong> after each attempt. Right answer = reward. Wrong answer = nothing.</p>
-        <p style="margin-bottom:10px;">Run training rounds and watch the agent figure out — through trial and error — that <strong>Calculator</strong> is the right tool for math questions. The probability bars update in real time.</p>
+        <p style="margin-bottom:10px;">Run training rounds and watch the agent figure out — through trial and error — that <strong>Memory</strong> must be called first, before searching for anything.</p>
         <p>This is reinforcement learning in a nutshell: <em>try → score → adjust → repeat</em>.</p>
       </div>
       <div class="highlight-box" style="margin-top:16px;">
-        <p><strong>Key insight:</strong> Nobody told the agent "use Calculator for math." It discovered this on its own through thousands of scored attempts.</p>
+        <p><strong>Key insight:</strong> Nobody told the agent "check Memory first." It discovered the right order on its own, purely from the reward signal — "did the user actually get to Paris?"</p>
       </div>
     </div>
     <div>
@@ -1688,8 +1693,8 @@ var whyRLLightningRAF = null;
 
 var TOOLS = [
   { label: '🔍 Search',     color: '#4ECDC4', x: 340, y: 40  },
-  { label: '🧮 Calculator', color: '#4ade80', x: 340, y: 130 },
-  { label: '🧠 Memory',     color: '#A29BFE', x: 340, y: 220 }
+  { label: '🧠 Memory',     color: '#A29BFE', x: 340, y: 130 },
+  { label: '🧮 Calculator', color: '#4ade80', x: 340, y: 220 }
 ];
 var AGENT_BOX = { x: 60, y: 115, w: 120, h: 50 };
 
@@ -1727,7 +1732,7 @@ function drawWhyRLAgentCanvas(animTool, animPct, showResult) {
 
   // Question
   ctx.fillStyle='#FFEAA7'; ctx.font='bold 12px Inter,sans-serif'; ctx.textAlign='left';
-  ctx.fillText('Question: "What is 12% of 847?"', 14, 22);
+  ctx.fillText('"My flight got cancelled. How do I reach Paris by tomorrow?"', 14, 22);
 
   // Agent box
   drawRoundedRect(ctx, AGENT_BOX.x, AGENT_BOX.y, AGENT_BOX.w, AGENT_BOX.h, 7, '#1e2444','#7c6af4',2);
@@ -1756,10 +1761,13 @@ function drawWhyRLAgentCanvas(animTool, animPct, showResult) {
     // Result badge
     if (showResult && animPct >= 0.98) {
       var bx = t.x + 115, by = t.y;
-      ctx.fillStyle = '#f87171'; ctx.font='bold 18px Inter,sans-serif'; ctx.textAlign='left';
-      ctx.fillText('✗ Wrong tool!', bx, by+22);
+      ctx.fillStyle = '#f87171'; ctx.font='bold 14px Inter,sans-serif'; ctx.textAlign='left';
+      ctx.fillText('✗ Wrong first step!', bx, by+18);
       ctx.fillStyle='#8892b0'; ctx.font='10px Inter,sans-serif';
-      ctx.fillText('(should use Calculator)', bx, by+38);
+      var hint = animTool === 0
+        ? 'Search for what? No origin,\nbudget, or dates known yet.'
+        : 'No numbers to calculate yet.\nNeed context first.';
+      hint.split('\n').forEach(function(line, li) { ctx.fillText(line, bx, by+34+li*14); });
     }
   }
 
@@ -1770,8 +1778,8 @@ function drawWhyRLAgentCanvas(animTool, animPct, showResult) {
 
 function tryAgentRandom() {
   if (whyRLAgentRAF) { cancelAnimationFrame(whyRLAgentRAF); whyRLAgentRAF = null; }
-  // Always pick a wrong tool (not Calculator = index 1)
-  var wrongTools = [0, 2]; // Search or Memory
+  // Always pick a wrong first tool (not Memory = index 1, which is correct)
+  var wrongTools = [0, 2]; // Search or Calculator — both fail without Memory context first
   whyRLAgentLastTool = wrongTools[Math.floor(Math.random()*wrongTools.length)];
   whyRLAgentAnimPct = 0;
   document.getElementById('why-rl-agent-result').textContent = '';
@@ -1781,8 +1789,11 @@ function tryAgentRandom() {
     if (whyRLAgentAnimPct < 1) {
       whyRLAgentRAF = requestAnimationFrame(tick);
     } else {
-      document.getElementById('why-rl-agent-result').textContent =
-        'Result: ' + (whyRLAgentLastTool === 0 ? '🔍 Searched the web... got irrelevant results. ✗' : '🧠 Checked memory... nothing relevant. ✗');
+      var msgs = [
+        '🔍 Searched "flights to Paris"... 847 results. Which city is the user flying from? Unknown. ✗',
+        '🧮 Calculated cost tradeoffs... but cost of what? No itinerary data available yet. ✗'
+      ];
+      document.getElementById('why-rl-agent-result').textContent = 'Result: ' + msgs[whyRLAgentLastTool === 0 ? 0 : 1];
     }
   }
   whyRLAgentRAF = requestAnimationFrame(tick);
@@ -1804,7 +1815,7 @@ function drawWhyRLTrainCanvas(animTool, animPct, lastCorrect) {
 
   // Question
   ctx.fillStyle='#FFEAA7'; ctx.font='bold 12px Inter,sans-serif'; ctx.textAlign='left';
-  ctx.fillText('Question: "What is 12% of 847?"  →  Reward given only if answer is correct.', 14, 20);
+  ctx.fillText('"Flight cancelled. Get to Paris by tomorrow?" → Reward: did user reach Paris?', 14, 20);
 
   // Agent box (same position as before)
   var AB = { x: 40, y: 100, w: 110, h: 50 };
@@ -1817,8 +1828,8 @@ function drawWhyRLTrainCanvas(animTool, animPct, lastCorrect) {
   // Tool boxes with probability bars
   var tools2 = [
     { label:'🔍 Search',     color:'#4ECDC4', ty:34  },
-    { label:'🧮 Calculator', color:'#4ade80', ty:120 },
-    { label:'🧠 Memory',     color:'#A29BFE', ty:206 }
+    { label:'🧠 Memory',     color:'#A29BFE', ty:120 },
+    { label:'🧮 Calculator', color:'#4ade80', ty:206 }
   ];
   var BAR_X = 230, BAR_W = 180;
   tools2.forEach(function(t, i) {
@@ -1833,13 +1844,13 @@ function drawWhyRLTrainCanvas(animTool, animPct, lastCorrect) {
     drawRoundedRect(ctx, BAR_X, t.ty+5, BAR_W, 22, 4, '#1e2444', '#2a3060', 1);
     // Bar fill
     var fillW = Math.max(4, BAR_W * prob);
-    var barColor = i === 1 ? '#4ade80' : '#8892b0'; // green for correct tool
+    var barColor = i === 1 ? '#A29BFE' : '#8892b0'; // purple for correct tool (Memory)
     drawRoundedRect(ctx, BAR_X, t.ty+5, fillW, 22, 4, barColor, null, 0);
     // Prob label
-    ctx.fillStyle = i===1 && prob > 0.85 ? '#4ade80' : '#e2e8f0';
+    ctx.fillStyle = i===1 && prob > 0.85 ? '#A29BFE' : '#e2e8f0';
     ctx.font = 'bold 11px JetBrains Mono,monospace'; ctx.textAlign='left';
     var label = (prob*100).toFixed(0) + '%';
-    if (i===1 && prob > 0.85) label += ' ✓ Confident!';
+    if (i===1 && prob > 0.85) label += ' ✓ Learned first!';
     ctx.fillText(label, BAR_X + fillW + 6, t.ty+21);
   });
 
@@ -1885,8 +1896,8 @@ function runTrainingRound() {
     } else {
       whyRLTrainRAF = null;
       var prob = (whyRLToolProbs[1]*100).toFixed(0);
-      var msg = 'Round ' + whyRLTrainRounds + ': Calculator chosen → correct answer → +reward. Calculator prob: ' + prob + '%';
-      if (whyRLToolProbs[1] > 0.85) msg += ' 🎉 Agent has learned!';
+      var msg = 'Round ' + whyRLTrainRounds + ': Memory called first → got itinerary & budget → found route → user reached Paris. +reward. Memory prob: ' + prob + '%';
+      if (whyRLToolProbs[1] > 0.85) msg += ' 🎉 Agent learned: always check Memory first!';
       document.getElementById('why-rl-train-result').textContent = msg;
     }
   }
