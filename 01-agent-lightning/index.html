@@ -626,24 +626,43 @@ window.addEventListener('load',()=>{ const el=document.getElementById('pg-input'
 <section class="section" id="reinforce">
   <div class="section-tag">RL Algorithms</div>
   <div class="section-title" style="color:var(--reinforce)">REINFORCE++</div>
-  <div class="section-sub">The foundational policy gradient algorithm. Adjust the probability of actions proportionally to their cumulative discounted return.</div>
+  <div class="section-sub">The simplest policy gradient algorithm. After each trajectory attempt, every action's probability is nudged up or down proportionally to the discounted return it contributed to.</div>
 
   <div class="formula">∇J(θ) = E_τ [ Σ_t ∇_θ log π_θ(a_t|s_t) · G_t ]
 
-G_t = Σ_{k=0}^{T-t} γ^k · r_{t+k}   (discounted return)</div>
+G_t = Σ_{k=0}^{T-t} γ^k · r_{t+k}   (discounted return from step t)</div>
 
-  <div class="g2" style="gap:24px;margin-top:24px">
+  <!-- Flight scenario context -->
+  <div class="highlight-box" style="margin-bottom:20px;">
+    <p><strong>Flight agent scenario:</strong> The agent tries a 3-step trajectory — 🧠 Memory → 🔍 Search → ✍️ Answer. Each step gets an immediate reward. REINFORCE++ uses these rewards to compute a <em>discounted return G_t</em> for each step, then adjusts the policy so good sequences become more likely.</p>
+  </div>
+
+  <div class="g2" style="gap:24px;margin-top:4px">
     <div>
-      <div class="card-title">Reward Trajectory (click sliders)</div>
+      <div class="card-title">Step Rewards — drag to adjust</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5;">These are the rewards the agent received at each step of the flight trajectory. Drag sliders to see how changing one step's reward ripples through the discounted returns G_t.</p>
       <div id="reinforce-sliders"></div>
+      <div style="margin-top:8px;">
+        <div class="sl-row">
+          <span class="sl-lbl">Discount γ</span>
+          <input type="range" id="reinforce-gamma-slider" min="50" max="100" value="90" oninput="updateReinforceGamma(this.value)" style="flex:1;">
+          <span class="sl-val" id="reinforce-gamma-val">0.90</span>
+        </div>
+      </div>
       <div style="margin-top:14px;display:flex;gap:10px">
-        <button class="btn" id="reinforce-run-btn">Run Update</button>
+        <button class="btn" id="reinforce-run-btn">▶ Show Policy Update</button>
         <button class="btn btn-outline" id="reinforce-reset-btn">Reset</button>
       </div>
+      <div id="reinforce-explain" style="font-size:12px;color:var(--muted);margin-top:12px;line-height:1.7;min-height:54px;"></div>
     </div>
     <div>
-      <div class="card-title">Reward &amp; Return Visualization</div>
+      <div class="card-title">Reward r_t vs Discounted Return G_t</div>
       <canvas id="reinforce-canvas" width="440" height="260"></canvas>
+      <p style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;">
+        <span style="color:var(--reinforce)">■</span> r_t = immediate reward at step t &nbsp;|&nbsp;
+        <span style="color:#4ECDC4">■</span> G_t = discounted sum of future rewards &nbsp;|&nbsp;
+        <span style="color:#A29BFE">↑</span> gradient arrows = policy update direction
+      </p>
     </div>
   </div>
 
@@ -659,103 +678,134 @@ G_t = Σ_{k=0}^{T-t} γ^k · r_{t+k}   (discounted return)</div>
     <div class="card">
       <div class="card-title" style="color:#f87171">Cons</div>
       <ul style="padding-left:16px;font-size:13px;color:var(--muted);line-height:1.8">
-        <li>High variance</li>
+        <li>High variance — can swing wildly</li>
         <li>Sample inefficient</li>
-        <li>Slow convergence</li>
+        <li>No trust region → unstable updates</li>
       </ul>
     </div>
     <div class="card">
-      <div class="card-title" style="color:var(--accent)">Variance Reduction</div>
+      <div class="card-title" style="color:var(--accent)">The "++" improvements</div>
       <ul style="padding-left:16px;font-size:13px;color:var(--muted);line-height:1.8">
-        <li>Subtract baseline b(s_t)</li>
-        <li>Advantage: A_t = G_t - b(s_t)</li>
-        <li>Critic baseline → Actor-Critic</li>
+        <li>Subtract baseline b(s_t) to reduce variance</li>
+        <li>Advantage: A_t = G_t − b(s_t)</li>
+        <li>Gradient clipping for stability</li>
       </ul>
     </div>
   </div>
 
   <div class="card" style="margin-top:24px;">
     <div class="card-title" style="color:var(--reinforce)">In Agent Lightning</div>
-    <p style="font-size:13px;color:var(--muted);line-height:1.6">REINFORCE++ is the simplest option in Agent Lightning — useful for quick experiments and smaller models. For the cancelled-flight agent: REINFORCE++ assigns the full trajectory reward to every step equally, then adjusts — a blunt but fast first pass before moving to PPO or GRPO.</p>
+    <p style="font-size:13px;color:var(--muted);line-height:1.6">REINFORCE++ is the simplest option in Agent Lightning — useful for quick experiments and smaller models. After each flight-agent trajectory, it assigns each step a return G_t and nudges the policy: if Memory→Search→Answer led to a good outcome, all three actions become slightly more likely. Simple but effective for a first pass.</p>
   </div>
 </section>
 
 <!-- ===== 4. PPO ===== -->
 <section class="section" id="ppo">
-  <div class="section-tag">Policy Gradient</div>
-  <div class="section-title" style="color:var(--ppo)">Proximal Policy Optimization</div>
-  <div class="section-sub">PPO constrains policy updates using a clipped surrogate objective, preventing large destructive updates while maintaining sample efficiency.</div>
+  <div class="section-tag">RL Algorithms</div>
+  <div class="section-title" style="color:var(--ppo)">Proximal Policy Optimization (PPO)</div>
+  <div class="section-sub">PPO fixes REINFORCE++'s instability problem by clipping the policy update. The agent can only change its behavior by a bounded amount per training step — preventing catastrophic forgetting.</div>
 
   <div class="formula">L_CLIP(θ) = E_t [ min( r_t(θ)·A_t,  clip(r_t(θ), 1-ε, 1+ε)·A_t ) ]
 
-r_t(θ) = π_θ(a_t|s_t) / π_θ_old(a_t|s_t)</div>
+r_t(θ) = π_θ(a_t|s_t) / π_θ_old(a_t|s_t)   (how much the policy changed for this action)</div>
+
+  <!-- Flight scenario context -->
+  <div class="highlight-box" style="margin-bottom:20px;">
+    <p><strong>Flight agent scenario:</strong> REINFORCE++ saw that Memory-first worked well and wants to make it <em>far</em> more likely. But if it swings the policy too hard, the agent might never try Search again — even when Memory returns empty. PPO clips the update: it can improve Memory-first, but only up to the ε boundary per step.</p>
+  </div>
+
+  <!-- Flight policy probability display -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-title">Flight Agent — Policy Before &amp; After One PPO Step</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px;">Adjust ε to see how tightly PPO constrains the update. The agent wants to shift more probability toward 🧠 Memory — but the clip prevents an extreme swing.</p>
+    <canvas id="ppo-flight-canvas" width="660" height="160" style="width:100%;max-width:660px;border-radius:8px;background:var(--bg);border:1px solid var(--border);display:block;"></canvas>
+    <div style="margin-top:10px;display:flex;gap:20px;flex-wrap:wrap;font-size:12px;color:var(--muted);">
+      <span><span style="color:#8892b0">■</span> Old policy π_old</span>
+      <span><span style="color:var(--ppo)">■</span> New policy π_θ (clipped by PPO)</span>
+      <span><span style="color:#f87171">■</span> Unconstrained update (what REINFORCE++ would do)</span>
+    </div>
+  </div>
 
   <div class="ppo-controls">
     <div>
-      <div class="card-title">Clip Epsilon (ε)</div>
+      <div class="card-title">Clip Epsilon (ε) — how much the policy can change</div>
       <div class="sl-row">
         <span class="sl-lbl">ε =</span>
-        <input type="range" id="ppo-eps-slider" min="5" max="40" value="20" style="width:180px">
+        <input type="range" id="ppo-eps-slider" min="5" max="40" value="20" style="width:180px" oninput="drawPPOFlightCanvas();drawPPOCanvas();">
         <span class="sl-val" id="ppo-eps-val">0.20</span>
       </div>
+      <p style="font-size:12px;color:var(--muted);margin-top:6px;">Small ε = cautious updates. Large ε = aggressive updates. Agent Lightning default: ε = 0.2</p>
     </div>
     <div>
-      <div class="card-title">Advantage Sign</div>
+      <div class="card-title">Advantage Sign (for chart below)</div>
       <div class="toggle-group">
-        <button class="toggle-btn active" id="ppo-pos-btn" onclick="setPPOAdvantage(1)">A &gt; 0</button>
-        <button class="toggle-btn" id="ppo-neg-btn" onclick="setPPOAdvantage(-1)">A &lt; 0</button>
+        <button class="toggle-btn active" id="ppo-pos-btn" onclick="setPPOAdvantage(1)">A &gt; 0 (good action)</button>
+        <button class="toggle-btn" id="ppo-neg-btn" onclick="setPPOAdvantage(-1)">A &lt; 0 (bad action)</button>
       </div>
     </div>
   </div>
-  <canvas id="ppo-canvas" width="700" height="300"></canvas>
+
+  <div class="card-title" style="margin-bottom:8px;">PPO Objective — why the clip works</div>
+  <canvas id="ppo-canvas" width="700" height="280"></canvas>
+  <p style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;">When A&gt;0 (good action like Memory-first): PPO won't let the ratio r_t exceed 1+ε, preventing over-reinforcement. When A&lt;0 (bad action like Search-first): won't let ratio go below 1-ε, preventing over-penalisation.</p>
 
   <div class="g2" style="margin-top:24px">
     <div class="card">
-      <div class="card-title" style="color:var(--ppo)">Key Innovation</div>
-      <p style="font-size:13px;color:var(--muted);line-height:1.6">The clipping prevents the policy ratio from moving too far from 1, acting as an implicit trust region without the computational overhead of TRPO's constraint optimization.</p>
+      <div class="card-title" style="color:var(--ppo)">Why clipping matters for the flight agent</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6">Without clipping, one lucky Memory-first trajectory could make the agent <em>always</em> call Memory regardless of context — even when the user hasn't provided their details yet. PPO ensures improvements are gradual and reversible.</p>
     </div>
     <div class="card">
       <div class="card-title" style="color:var(--ppo)">In Agent Lightning</div>
-      <p style="font-size:13px;color:var(--muted);line-height:1.6">PPO is supported in Agent Lightning for stable training. Per-token advantage estimation extends naturally to LightningRL's transition-based format. For the flight agent: PPO nudges the policy slightly toward Memory-first each round, but clips updates so the agent never forgets how to handle edge cases where Memory is empty.</p>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6">PPO is supported in Agent Lightning for stable training. Per-token advantage estimation extends naturally to LightningRL's transition-based format. Each flight-agent step is its own transition — PPO updates each one independently with its own clip.</p>
     </div>
   </div>
 </section>
 
 <!-- ===== 5. GRPO ===== -->
 <section class="section" id="grpo">
-  <div class="section-tag">Policy Gradient</div>
+  <div class="section-tag">RL Algorithms</div>
   <div class="section-title" style="color:var(--grpo)">GRPO — Group Relative Policy Optimization</div>
-  <div class="section-sub">GRPO eliminates the value network by computing advantages relative to a group of sampled responses. Click any sample to randomize its reward.</div>
+  <div class="section-sub">GRPO's key insight: instead of a separate critic network to estimate "how good is this state?", just sample multiple trajectories from the same prompt and compare them against each other.</div>
 
-  <div class="formula">A_i = (r_i - mean(r)) / std(r)    (group-normalized advantage)
+  <div class="formula">A_i = (r_i − mean(r)) / std(r)    (normalized relative to the group)
 
-L_GRPO = E_i [ min( r_i(θ)·A_i, clip(r_i(θ),1-ε,1+ε)·A_i ) ] - β·KL(π_θ || π_ref)</div>
+L_GRPO = E_i [ min( r_i(θ)·A_i, clip(r_i(θ),1−ε,1+ε)·A_i ) ] − β·KL(π_θ ‖ π_ref)</div>
 
-  <div class="highlight-box">
-    <p><strong>Key idea:</strong> Sample G responses from the same prompt, compute rewards for all, normalize to get advantages. No critic network needed — cheaper than PPO for LLMs.</p>
+  <!-- Flight scenario context -->
+  <div class="highlight-box" style="margin-bottom:20px;">
+    <p><strong>Flight agent scenario:</strong> Given the same prompt — "My flight got cancelled, how do I reach Paris?" — the agent generates 4 different trajectories in parallel. GRPO compares them against each other: trajectories above average get positive advantage (do more of this), below average get negative (do less). No critic needed — the group <em>is</em> the baseline.</p>
   </div>
+
+  <div class="card-title" style="margin-bottom:10px;">4 Trajectory Attempts — same prompt, different strategies</div>
+  <p style="font-size:12px;color:var(--muted);margin-bottom:14px;">Click any trajectory card to resample its reward and watch the normalized advantages update in real time.</p>
 
   <div id="grpo-samples" class="grpo-group"></div>
 
   <div class="card" style="margin-top:18px">
-    <div class="card-title">Group Advantages (normalized rewards)</div>
+    <div class="card-title">Normalized Advantages A_i — who should be reinforced?</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">Positive advantage = above group average → increase probability. Negative = below average → decrease probability. The baseline is the group mean, not a separate neural network.</p>
     <div id="grpo-bars"></div>
+  </div>
+
+  <div class="card" style="margin-top:18px;">
+    <div class="card-title" style="color:var(--grpo)">What happens after this GRPO step?</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.6" id="grpo-outcome-text">The policy shifts: strategies with positive advantage become more probable, strategies with negative advantage become less probable. After enough training rounds, Memory-first dominates — the agent has learned the right tool order without anyone writing a rule.</p>
   </div>
 
   <div class="g2" style="margin-top:24px">
     <div class="card">
-      <div class="card-title" style="color:var(--grpo)">vs PPO</div>
+      <div class="card-title" style="color:var(--grpo)">GRPO vs PPO</div>
       <ul style="padding-left:16px;font-size:13px;color:var(--muted);line-height:1.8">
-        <li>No value/critic network</li>
-        <li>Lower memory footprint</li>
-        <li>Advantage from peers, not baseline</li>
-        <li>Works well for open-ended generation</li>
+        <li>No value/critic network needed</li>
+        <li>Lower GPU memory footprint</li>
+        <li>Advantage estimated from group peers</li>
+        <li>Naturally handles open-ended generation</li>
+        <li>Ideal for LLM agents: each prompt gets its own group baseline</li>
       </ul>
     </div>
     <div class="card">
-      <div class="card-title" style="color:var(--grpo)">Agent Lightning Use</div>
-      <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:10px">Default for math, coding, and tool-use agent tasks in Agent Lightning experiments.</p>
-      <p style="font-size:13px;color:var(--muted);line-height:1.6"><strong style="color:var(--text)">Flight agent example:</strong> GRPO samples G=4 trajectories — Memory-first (r=0.9), Search-first (r=0.1), Memory+Search (r=0.7), Ask-user (r=0.5). Normalized advantages: Memory-first wins. Policy shifts accordingly.</p>
+      <div class="card-title" style="color:var(--grpo)">In Agent Lightning</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6">Default algorithm for math, coding, and tool-use agent tasks in Agent Lightning experiments. The group size G is configurable — larger G gives a better baseline estimate but costs more compute. Agent Lightning uses G=4 to G=8 in its paper experiments.</p>
     </div>
   </div>
 </section>
@@ -1018,7 +1068,9 @@ function setActive(el) {
 /* =====================================================
    REINFORCE
 ===================================================== */
-var reinforceRewards = [1.0, 0.5, -0.3, 0.8, 0.2];
+// Flight scenario: 3 steps — Memory call, Search call, Final Answer
+var reinforceRewards = [0.3, 0.2, 1.0];
+var reinforceStepNames = ['🧠 Memory call', '🔍 Search call', '✍️ Final Answer'];
 var reinforceGamma = 0.9;
 var reinforceShowGradients = false;
 
@@ -1028,7 +1080,7 @@ function buildReforceSliders() {
   var html = '';
   for (var i = 0; i < reinforceRewards.length; i++) {
     html += '<div class="sl-row">';
-    html += '<span class="sl-lbl">r_' + i + ' (step ' + i + ')</span>';
+    html += '<span class="sl-lbl" style="min-width:150px;">' + reinforceStepNames[i] + '</span>';
     html += '<input type="range" min="-100" max="100" value="' + Math.round(reinforceRewards[i] * 100) + '" '
           + 'id="r-slider-' + i + '" '
           + 'oninput="updateReinforceReward(' + i + ', this.value)">';
@@ -1036,6 +1088,13 @@ function buildReforceSliders() {
     html += '</div>';
   }
   container.innerHTML = html;
+}
+
+function updateReinforceGamma(val) {
+  reinforceGamma = parseFloat(val) / 100;
+  var el = document.getElementById('reinforce-gamma-val');
+  if (el) el.textContent = reinforceGamma.toFixed(2);
+  drawReinforceCanvas();
 }
 
 function updateReinforceReward(idx, val) {
@@ -1128,7 +1187,8 @@ function drawReinforceCanvas() {
     ctx.fillStyle = '#8892b0';
     ctx.font = '10px Inter, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('t=' + i, x + barW, padT + plotH + 14);
+    var stepLabel = reinforceStepNames ? reinforceStepNames[i] : 't=' + i;
+    ctx.fillText(stepLabel, x + barW, padT + plotH + 14);
 
     // Gradient arrows if enabled
     if (reinforceShowGradients) {
@@ -1165,22 +1225,110 @@ function drawReinforceCanvas() {
 
 document.getElementById('reinforce-run-btn').addEventListener('click', function() {
   reinforceShowGradients = !reinforceShowGradients;
-  this.textContent = reinforceShowGradients ? 'Hide Gradients' : 'Run Update';
+  this.textContent = reinforceShowGradients ? '⬛ Hide Update' : '▶ Show Policy Update';
   drawReinforceCanvas();
+  updateReinforceExplain();
 });
 
 document.getElementById('reinforce-reset-btn').addEventListener('click', function() {
-  reinforceRewards = [1.0, 0.5, -0.3, 0.8, 0.2];
+  reinforceRewards = [0.3, 0.2, 1.0];
+  reinforceGamma = 0.9;
   reinforceShowGradients = false;
-  document.getElementById('reinforce-run-btn').textContent = 'Run Update';
+  document.getElementById('reinforce-run-btn').textContent = '▶ Show Policy Update';
+  var gs = document.getElementById('reinforce-gamma-slider');
+  if (gs) gs.value = 90;
+  var gv = document.getElementById('reinforce-gamma-val');
+  if (gv) gv.textContent = '0.90';
   buildReforceSliders();
   drawReinforceCanvas();
+  updateReinforceExplain();
 });
+
+function updateReinforceExplain() {
+  var el = document.getElementById('reinforce-explain');
+  if (!el) return;
+  if (!reinforceShowGradients) { el.textContent = ''; return; }
+  var returns = computeReturns(reinforceRewards, reinforceGamma);
+  var lines = reinforceStepNames.map(function(name, i) {
+    var dir = returns[i] >= 0 ? '↑ reinforce' : '↓ discourage';
+    var col = returns[i] >= 0 ? '#4ade80' : '#f87171';
+    return '<span style="color:' + col + '">' + dir + '</span> ' + name + ' (G_' + i + '=' + returns[i].toFixed(2) + ')';
+  });
+  el.innerHTML = '<strong style="color:var(--text)">Policy update:</strong><br>' + lines.join('<br>');
+}
 
 /* =====================================================
    PPO
 ===================================================== */
 var ppoAdvantageSign = 1;
+
+function drawPPOFlightCanvas() {
+  var cv = document.getElementById('ppo-flight-canvas');
+  if (!cv) return;
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var epsSlider = document.getElementById('ppo-eps-slider');
+  var eps = epsSlider ? parseFloat(epsSlider.value) / 100 : 0.2;
+  if (document.getElementById('ppo-eps-val')) document.getElementById('ppo-eps-val').textContent = eps.toFixed(2);
+
+  // Three actions: Memory, Search, Calculator
+  var actions = [
+    { label: '🧠 Memory', oldProb: 0.30, desiredProb: 0.75, color: '#A29BFE' },
+    { label: '🔍 Search', oldProb: 0.45, desiredProb: 0.15, color: '#4ECDC4' },
+    { label: '🧮 Calc',   oldProb: 0.25, desiredProb: 0.10, color: '#4ade80' },
+  ];
+
+  // PPO clips the ratio: new_prob / old_prob must stay in [1-eps, 1+eps]
+  actions.forEach(function(a) {
+    var ratio = a.desiredProb / a.oldProb;
+    var clippedRatio = Math.max(1 - eps, Math.min(1 + eps, ratio));
+    a.clippedProb = a.oldProb * clippedRatio;
+  });
+
+  var barH = 28, gap = 18, padL = 110, padR = 20, startY = 18;
+  var maxProb = 0.9;
+
+  actions.forEach(function(a, i) {
+    var y = startY + i * (barH + gap);
+    var availW = W - padL - padR;
+
+    // Label
+    ctx.fillStyle = a.color; ctx.font = 'bold 12px Inter,sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(a.label, padL - 8, y + barH / 2 + 4);
+
+    // Old policy bar (background, grey)
+    var oldW = (a.oldProb / maxProb) * availW;
+    ctx.fillStyle = '#2a3060';
+    ctx.fillRect(padL, y, oldW, barH);
+    ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter,sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText(Math.round(a.oldProb * 100) + '%', padL + oldW + 4, y + barH / 2 + 4);
+
+    // Clipped (PPO) bar
+    var clW = (a.clippedProb / maxProb) * availW;
+    ctx.fillStyle = a.color + 'cc';
+    ctx.fillRect(padL, y, clW, barH);
+
+    // Desired (unconstrained) bar — outline only
+    var desW = (a.desiredProb / maxProb) * availW;
+    ctx.strokeStyle = '#f87171'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
+    ctx.strokeRect(padL, y, desW, barH);
+    ctx.setLineDash([]);
+
+    // Label for clipped value
+    ctx.fillStyle = a.color; ctx.font = 'bold 10px Inter,sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText(Math.round(a.clippedProb * 100) + '%', padL + clW + 4, y + barH / 2 + 4);
+  });
+
+  // ε boundary annotation
+  var clipMaxW = (actions[0].oldProb * (1 + eps) / maxProb) * (W - padL - padR);
+  ctx.strokeStyle = '#4ECDC4'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+  ctx.beginPath(); ctx.moveTo(padL + clipMaxW, startY - 6); ctx.lineTo(padL + clipMaxW, startY + 3 * (barH + gap) - gap + 4); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#4ECDC4'; ctx.font = '10px Inter,sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('clip boundary (1+ε)', padL + clipMaxW, startY - 10);
+}
 
 function setPPOAdvantage(sign) {
   ppoAdvantageSign = sign;
@@ -1333,13 +1481,20 @@ function drawPPOCanvas() {
   ctx.fillText('1+\u03b5=' + (1 + eps).toFixed(2), x2, padT - 6);
 }
 
-document.getElementById('ppo-eps-slider').addEventListener('input', drawPPOCanvas);
+document.getElementById('ppo-eps-slider').addEventListener('input', function() { drawPPOFlightCanvas(); drawPPOCanvas(); });
 
 /* =====================================================
    GRPO
 ===================================================== */
-var grpoRewards = [0.9, 0.4, 0.7, 0.2, 0.85, 0.55];
-var grpoNames = ['Sample 1', 'Sample 2', 'Sample 3', 'Sample 4', 'Sample 5', 'Sample 6'];
+// Flight scenario: 4 trajectories sampled from same prompt
+var grpoRewards = [0.9, 0.1, 0.7, 0.5];
+var grpoNames = ['🧠 Memory-first', '🔍 Search-first', '🧠+🔍 Both', '❓ Ask user'];
+var grpoDescriptions = [
+  'Memory → Search → Answer',
+  'Search → Memory → Answer',
+  'Memory → Search → Search → Answer',
+  'Ask clarification → Search → Answer',
+];
 
 function randomizeGRPO(idx) {
   grpoRewards[idx] = Math.round(Math.random() * 100) / 100;
@@ -1361,10 +1516,13 @@ function renderGRPO() {
     var adv = advantages[i];
     var advColor = adv >= 0 ? '#4ECDC4' : '#FF6B6B';
     var advSign = adv >= 0 ? '+' : '';
-    sampHtml += '<div class="grpo-sample" onclick="randomizeGRPO(' + i + ')">';
-    sampHtml += '<div class="gs-name">' + grpoNames[i] + '</div>';
-    sampHtml += '<div class="gs-reward" style="color:#FFEAA7">' + grpoRewards[i].toFixed(2) + '</div>';
+    var desc = grpoDescriptions ? grpoDescriptions[i] : '';
+    sampHtml += '<div class="grpo-sample" onclick="randomizeGRPO(' + i + ')" style="min-width:140px;max-width:160px;">';
+    sampHtml += '<div class="gs-name" style="font-size:11px;font-weight:700;">' + grpoNames[i] + '</div>';
+    if (desc) sampHtml += '<div style="font-size:9px;color:#4a5580;margin-bottom:4px;line-height:1.4;">' + desc + '</div>';
+    sampHtml += '<div class="gs-reward" style="color:#FFEAA7">r=' + grpoRewards[i].toFixed(2) + '</div>';
     sampHtml += '<div class="gs-adv" style="color:' + advColor + '">A=' + advSign + adv.toFixed(2) + '</div>';
+    sampHtml += '<div style="font-size:9px;color:var(--muted);margin-top:4px;">click to resample</div>';
     sampHtml += '</div>';
   }
   samples.innerHTML = sampHtml;
@@ -2338,6 +2496,8 @@ initWhyRL();
 initMDP();
 buildReforceSliders();
 drawReinforceCanvas();
+updateReinforceExplain();
+drawPPOFlightCanvas();
 drawPPOCanvas();
 renderGRPO();
 renderCA();
