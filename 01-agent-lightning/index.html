@@ -265,6 +265,9 @@ window.addEventListener('load',()=>{ const el=document.getElementById('pg-input'
     <a class="nav-link" href="#credit" onclick="setActive(this)">
       <span class="dot" style="background:#fd79a8"></span>Credit Assignment
     </a>
+    <a class="nav-link" href="#air" onclick="setActive(this)">
+      <span class="dot" style="background:#e84393"></span>AIR — Intermediate Rewards
+    </a>
     <a class="nav-link" href="#lightningrl" onclick="setActive(this)">
       <span class="dot" style="background:#55efc4"></span>LightningRL Algorithm
     </a>
@@ -859,7 +862,55 @@ L_GRPO = E_i [ min( r_i(θ)·A_i, clip(r_i(θ),1−ε,1+ε)·A_i ) ] − β·KL(
   </div>
 </section>
 
-<!-- ===== 10. LIGHTNINGRL ALGORITHM ===== -->
+<!-- ===== 10. AIR — AUTOMATIC INTERMEDIATE REWARDING ===== -->
+<section class="section" id="air">
+  <div class="section-tag">Agent Lightning</div>
+  <div class="section-title" style="color:#fd79a8">AIR — Automatic Intermediate Rewarding</div>
+  <div class="section-sub">The credit assignment problem: a 5-step agent trajectory gets one reward at the end. Which step deserved it? AIR solves this by automatically converting tool call return statuses into intermediate reward signals — no manual reward engineering needed.</div>
+
+  <!-- Sparse vs Dense toggle -->
+  <div class="mdp-toggle-row" style="margin-bottom:20px;">
+    <button class="btn btn-outline active" id="air-mode-sparse" onclick="setAIRMode('sparse')">Without AIR — Sparse Reward</button>
+    <button class="btn btn-outline" id="air-mode-dense" onclick="setAIRMode('dense')">With AIR — Dense Reward</button>
+    <span id="air-mode-label" style="font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-left:6px;">only terminal reward</span>
+  </div>
+
+  <!-- Tool call timeline -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-title" style="margin-bottom:4px;">Flight Agent Trajectory — toggle each tool call result</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.5;">Click the status badge on each step to flip it between ✅ success and ❌ failure. Watch how the reward signal changes — with AIR, failures get immediate penalties instead of waiting for the terminal reward.</p>
+    <div id="air-timeline"></div>
+  </div>
+
+  <!-- Reward comparison canvas -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-title">Reward Signal Density — sparse vs dense</div>
+    <canvas id="air-canvas" width="680" height="180" style="width:100%;max-width:680px;border-radius:8px;background:var(--bg);border:1px solid var(--border);display:block;margin-top:12px;"></canvas>
+    <p style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;" id="air-canvas-caption">
+      Without AIR: only step 5 carries a reward signal. Steps 1–4 get zero gradient. The policy has no way to know that step 1 (Memory) was the key decision.
+    </p>
+  </div>
+
+  <!-- Training signal explanation -->
+  <div class="g2" style="gap:18px;">
+    <div class="card">
+      <div class="card-title" style="color:#f87171">Without AIR — the problem</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:8px;">The agent makes 5 decisions. Only the last one gets a reward. Steps 1–4 receive zero gradient — the optimizer literally has nothing to learn from them.</p>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;">This is why multi-step agent training is slow: most of the work the agent does is invisible to the learning signal.</p>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#fd79a8">With AIR — the fix</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:8px;">Tool call return status is automatically converted to reward: successful call → small positive reward, failed call → small penalty. No manual reward shaping needed.</p>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;">Every step now teaches the policy something. Training converges faster and intermediate behaviors (like always checking Memory first) emerge naturally.</p>
+    </div>
+  </div>
+
+  <div class="highlight-box" style="margin-top:20px;">
+    <p><strong>AIR formula:</strong> <code style="background:var(--bg);padding:2px 6px;border-radius:4px;font-size:12px;">r_t = α · status(tool_call_t) + (1−α) · r_terminal</code> where status is +1 for success, −1 for failure, and α controls how much weight to give intermediate vs terminal rewards. Agent Lightning uses α ≈ 0.1–0.3 in its experiments.</p>
+  </div>
+</section>
+
+<!-- ===== 11. LIGHTNINGRL ALGORITHM ===== -->
 <section class="section" id="lightningrl">
   <div class="section-tag">Agent Lightning</div>
   <div class="section-title" style="color:#55efc4">LightningRL vs. Masking Approaches</div>
@@ -1993,6 +2044,170 @@ function caStep(dir) {
 }
 
 /* =====================================================
+   AIR — AUTOMATIC INTERMEDIATE REWARDING
+===================================================== */
+var airMode = 'sparse';
+
+// Flight trajectory: 5 steps with toggleable status
+var airSteps = [
+  { icon: '🧠', tool: 'Memory',     action: 'Retrieve user itinerary & budget',   successReward: 0.30, failReward: -0.15, status: true },
+  { icon: '🔍', tool: 'Search',     action: 'Find alternative routes to Paris',    successReward: 0.20, failReward: -0.10, status: true },
+  { icon: '🧮', tool: 'Calculator', action: 'Compare cost vs. travel time',        successReward: 0.10, failReward: -0.05, status: true },
+  { icon: '✍️', tool: 'Draft',      action: 'Write recommendation to user',        successReward: 0.15, failReward: -0.10, status: true },
+  { icon: '✅', tool: 'Answer',     action: 'Final answer: "Take Eurostar 7am"',   successReward: 1.00, failReward:  0.00, status: true },
+];
+
+function toggleAIRStep(idx) {
+  airSteps[idx].status = !airSteps[idx].status;
+  renderAIRTimeline();
+  drawAIRCanvas();
+}
+
+function setAIRMode(mode) {
+  airMode = mode;
+  var btnSparse = document.getElementById('air-mode-sparse');
+  var btnDense  = document.getElementById('air-mode-dense');
+  var lbl = document.getElementById('air-mode-label');
+  if (btnSparse) btnSparse.classList.toggle('active', mode === 'sparse');
+  if (btnDense)  btnDense.classList.toggle('active', mode === 'dense');
+  if (lbl) lbl.textContent = mode === 'sparse' ? 'only terminal reward' : 'reward at every step';
+  renderAIRTimeline();
+  drawAIRCanvas();
+  var cap = document.getElementById('air-canvas-caption');
+  if (cap) {
+    cap.innerHTML = mode === 'sparse'
+      ? 'Without AIR: only step 5 carries a reward signal. Steps 1–4 get zero gradient. The policy has no way to know that step 1 (Memory) was the key decision.'
+      : 'With AIR: every tool call returns a reward signal immediately. Steps 1–4 now provide gradient — the policy learns which intermediate steps were valuable.';
+  }
+}
+
+function renderAIRTimeline() {
+  var container = document.getElementById('air-timeline');
+  if (!container) return;
+  var html = '<div style="display:flex;flex-direction:column;gap:10px;">';
+
+  airSteps.forEach(function(step, i) {
+    var isTerminal = i === airSteps.length - 1;
+    var reward = step.status ? step.successReward : step.failReward;
+    var showReward = airMode === 'dense' || isTerminal;
+    var rewardColor = reward > 0 ? '#4ade80' : (reward < 0 ? '#f87171' : '#8892b0');
+    var statusColor = step.status ? '#4ade80' : '#f87171';
+    var statusText  = step.status ? '✅ success' : '❌ failure';
+
+    html += '<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;border-left:3px solid ' + (step.status ? statusColor : '#f87171') + ';">';
+
+    // Step number
+    html += '<div style="font-size:11px;color:var(--muted);min-width:40px;font-family:JetBrains Mono,monospace;">step ' + (i+1) + '</div>';
+
+    // Icon + tool name
+    html += '<div style="min-width:100px;font-weight:600;font-size:13px;">' + step.icon + ' ' + step.tool + '</div>';
+
+    // Action description
+    html += '<div style="flex:1;font-size:12px;color:var(--muted);">' + step.action + '</div>';
+
+    // Toggle button
+    if (!isTerminal) {
+      html += '<button onclick="toggleAIRStep(' + i + ')" style="padding:4px 12px;font-size:11px;font-weight:600;border-radius:20px;border:1px solid ' + statusColor + ';background:transparent;color:' + statusColor + ';cursor:pointer;white-space:nowrap;">' + statusText + '</button>';
+    } else {
+      html += '<div style="padding:4px 12px;font-size:11px;font-weight:600;border-radius:20px;border:1px solid #4ade80;color:#4ade80;white-space:nowrap;">terminal</div>';
+    }
+
+    // Reward badge
+    var rewardDisplay = showReward ? (reward > 0 ? '+' : '') + reward.toFixed(2) : '—';
+    var badgeBg = showReward ? (reward > 0 ? 'rgba(74,222,128,0.12)' : (reward < 0 ? 'rgba(248,113,113,0.12)' : 'rgba(255,255,255,0.05)')) : 'rgba(255,255,255,0.03)';
+    html += '<div style="min-width:64px;text-align:right;padding:4px 10px;border-radius:8px;background:' + badgeBg + ';font-family:JetBrains Mono,monospace;font-size:13px;font-weight:700;color:' + (showReward ? rewardColor : '#4a5580') + ';">' + rewardDisplay + '</div>';
+
+    html += '</div>';
+  });
+
+  // Total reward row
+  var total = airMode === 'dense'
+    ? airSteps.reduce(function(s, step) { return s + (step.status ? step.successReward : step.failReward); }, 0)
+    : (airSteps[airSteps.length - 1].status ? airSteps[airSteps.length - 1].successReward : 0);
+  html += '<div style="display:flex;justify-content:flex-end;gap:12px;padding:8px 14px;border-top:1px solid var(--border);margin-top:4px;">';
+  html += '<span style="font-size:12px;color:var(--muted);">Total training signal:</span>';
+  html += '<span style="font-family:JetBrains Mono,monospace;font-size:14px;font-weight:700;color:' + (total > 0 ? '#4ade80' : '#f87171') + ';">' + (total > 0 ? '+' : '') + total.toFixed(2) + '</span>';
+  html += '</div>';
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function drawAIRCanvas() {
+  var cv = document.getElementById('air-canvas');
+  if (!cv) return;
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var n = airSteps.length;
+  var padL = 60, padR = 20, padT = 30, padB = 40;
+  var plotW = W - padL - padR;
+  var plotH = H - padT - padB;
+  var slotW = plotW / n;
+  var barW = slotW * 0.38;
+
+  // Axes
+  ctx.strokeStyle = '#2a3060'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(padL, padT); ctx.lineTo(padL, padT + plotH); ctx.lineTo(padL + plotW, padT + plotH); ctx.stroke();
+
+  // Zero line
+  var zeroY = padT + plotH * 0.75;
+  ctx.strokeStyle = '#4a5580'; ctx.lineWidth = 0.8; ctx.setLineDash([3,3]);
+  ctx.beginPath(); ctx.moveTo(padL, zeroY); ctx.lineTo(padL + plotW, zeroY); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter,sans-serif'; ctx.textAlign = 'right';
+  ctx.fillText('0', padL - 5, zeroY + 4);
+  ctx.fillText('+1.0', padL - 5, padT + 10);
+  ctx.fillText('−0.2', padL - 5, padT + plotH - 4);
+
+  var maxR = 1.2, minR = -0.25;
+  function toY(r) { return padT + plotH - (r - minR) / (maxR - minR) * plotH; }
+
+  airSteps.forEach(function(step, i) {
+    var cx = padL + i * slotW + slotW / 2;
+    var reward = step.status ? step.successReward : step.failReward;
+    var isTerminal = i === airSteps.length - 1;
+    var showReward = airMode === 'dense' || isTerminal;
+
+    // Sparse mode: grey placeholder bars for non-terminal
+    if (!showReward) {
+      ctx.fillStyle = '#1e2444';
+      var ph = 4;
+      ctx.fillRect(cx - barW / 2, zeroY - ph / 2, barW, ph);
+    } else {
+      var barColor = reward > 0 ? (isTerminal ? '#4ade80' : '#fd79a8') : '#f87171';
+      var barY = toY(reward);
+      var barH2 = Math.abs(barY - zeroY);
+      if (barH2 < 2) barH2 = 2;
+      ctx.fillStyle = barColor + 'cc';
+      ctx.fillRect(cx - barW / 2, Math.min(barY, zeroY), barW, barH2);
+      ctx.strokeStyle = barColor; ctx.lineWidth = 1.5;
+      ctx.strokeRect(cx - barW / 2, Math.min(barY, zeroY), barW, barH2);
+
+      // Value label above bar
+      ctx.fillStyle = barColor; ctx.font = 'bold 10px JetBrains Mono,sans-serif'; ctx.textAlign = 'center';
+      var labelY = reward >= 0 ? toY(reward) - 4 : toY(reward) + barH2 + 12;
+      ctx.fillText((reward > 0 ? '+' : '') + reward.toFixed(2), cx, labelY);
+    }
+
+    // Step label below
+    ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter,sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(step.icon + ' ' + step.tool, cx, padT + plotH + 16);
+  });
+
+  // Mode label top-right
+  ctx.fillStyle = airMode === 'dense' ? '#fd79a8' : '#8892b0';
+  ctx.font = 'bold 11px Inter,sans-serif'; ctx.textAlign = 'right';
+  ctx.fillText(airMode === 'dense' ? 'With AIR — dense reward' : 'Without AIR — sparse reward', padL + plotW, padT - 8);
+}
+
+function initAIR() {
+  renderAIRTimeline();
+  drawAIRCanvas();
+}
+
+/* =====================================================
    MASKING TABS
 ===================================================== */
 function setLightningTab(idx) {
@@ -2035,7 +2250,7 @@ window.addEventListener('scroll', animateResultBars);
 /* =====================================================
    ACTIVE NAV LINK ON SCROLL
 ===================================================== */
-var sectionIds = ['why-rl','overview','mdp','reinforce','ppo','grpo','architecture','credit','lightningrl','experiments','comparison'];
+var sectionIds = ['why-rl','overview','mdp','reinforce','ppo','grpo','architecture','credit','air','lightningrl','experiments','comparison'];
 
 function updateNavOnScroll() {
   var scrollY = window.scrollY + 100;
@@ -2463,6 +2678,7 @@ drawPPOFlightCanvas();
 drawPPOCanvas();
 renderGRPO();
 renderCA();
+initAIR();
 initExperiments();
 </script>
 </body>
