@@ -147,6 +147,16 @@ canvas { display:block; background:var(--bg); border-radius:8px; border:1px soli
 .rlhf-content ul { padding-left:20px; }
 .rlhf-content li { font-size:14px; color:var(--muted); line-height:1.7; margin-bottom:6px; }
 .rlhf-content .formula { font-size:12px; }
+/* WHY-RL SECTION */
+.why-rl-act-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:2px; color:var(--muted); margin-bottom:6px; }
+.why-rl-act-headline { font-size:18px; font-weight:700; margin-bottom:10px; line-height:1.3; }
+.why-rl-act-body { font-size:14px; color:var(--muted); line-height:1.7; max-width:440px; }
+.why-rl-controls { display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; }
+.btn-reward { background:#4ade80 !important; color:#0d0f18 !important; border:none !important; }
+.btn-reward:hover { opacity:0.85; }
+.btn-ignore { background:#f87171 !important; color:#fff !important; border:none !important; }
+.btn-ignore:hover { opacity:0.85; }
+.why-rl-step-content { transition: opacity 0.25s ease; }
 </style>
 </head>
 <body>
@@ -211,6 +221,12 @@ window.addEventListener('load',()=>{ const el=document.getElementById('pg-input'
     <p>arXiv:2508.03680 — Interactive Explorer</p>
   </div>
   <div class="nav-group">
+    <div class="nav-group-title">Why RL?</div>
+    <a class="nav-link" href="#why-rl" onclick="setActive(this)">
+      <span class="dot" style="background:#f9ca24"></span>Why We Need RL
+    </a>
+  </div>
+  <div class="nav-group">
     <div class="nav-group-title">Introduction</div>
     <a class="nav-link active" href="#overview" onclick="setActive(this)">
       <span class="dot" style="background:#A29BFE"></span>Overview
@@ -259,6 +275,152 @@ window.addEventListener('load',()=>{ const el=document.getElementById('pg-input'
 
 <!-- MAIN CONTENT -->
 <main class="main">
+
+<!-- ===== 0. WHY RL? ===== -->
+<section class="section" id="why-rl">
+  <div class="section-tag">Foundations</div>
+  <div class="section-title">Why Does RL Exist?</div>
+  <div class="section-sub">Before diving into Agent Lightning, let's build intuition for why reinforcement learning exists — and why it's the only tool that works when you can't write the rules in advance.</div>
+
+  <!-- ACT 1 -->
+  <div class="g2" style="gap:36px;align-items:flex-start;margin-bottom:36px;">
+    <div>
+      <div class="why-rl-act-label">Act 1 — The Problem</div>
+      <div class="why-rl-act-headline">An LLM with tools... but no training</div>
+      <div class="why-rl-act-body">
+        <p style="margin-bottom:10px;">Modern AI assistants don't just generate text — they call <strong>tools</strong>: web search, a calculator, a memory store. But which tool should it use? When? With what input?</p>
+        <p style="margin-bottom:10px;">Without training, the agent just guesses. For a math question like <em>"What is 12% of 847?"</em> it might call Search instead of Calculator. Every time. It has no idea which tool is right.</p>
+        <p>Click <strong>Try Again</strong> to see the untrained agent randomly pick the wrong tool — over and over.</p>
+      </div>
+      <div class="highlight-box" style="margin-top:16px;">
+        <p><strong>The core problem:</strong> You can't write a rule for every possible question. The space of inputs is infinite. Rule-based fixes don't scale.</p>
+      </div>
+    </div>
+    <div>
+      <div class="card-title" style="margin-bottom:10px;">Untrained LLM Agent</div>
+      <canvas id="why-rl-agent-canvas" width="460" height="260" style="display:block;border-radius:8px;background:var(--bg);border:1px solid var(--border);width:100%;"></canvas>
+      <div class="why-rl-controls">
+        <button class="btn btn-ignore" onclick="tryAgentRandom()">Try Again (untrained)</button>
+        <button class="btn" onclick="resetAgentCanvas()" style="opacity:0.6;">Reset</button>
+      </div>
+      <div id="why-rl-agent-result" style="font-size:12px;color:var(--muted);margin-top:8px;min-height:18px;font-family:'JetBrains Mono',monospace;"></div>
+    </div>
+  </div>
+
+  <div class="section-divider"><hr><span>Enter Reinforcement Learning</span><hr></div>
+
+  <!-- ACT 2 -->
+  <div class="g2" style="gap:36px;align-items:flex-start;margin-bottom:36px;">
+    <div>
+      <div class="why-rl-act-label">Act 2 — The Solution</div>
+      <div class="why-rl-act-headline">Learn from feedback, not from rules</div>
+      <div class="why-rl-act-body">
+        <p style="margin-bottom:10px;">Instead of programming the right answer, we give the agent a <strong>score</strong> after each attempt. Right answer = reward. Wrong answer = nothing.</p>
+        <p style="margin-bottom:10px;">Run training rounds and watch the agent figure out — through trial and error — that <strong>Calculator</strong> is the right tool for math questions. The probability bars update in real time.</p>
+        <p>This is reinforcement learning in a nutshell: <em>try → score → adjust → repeat</em>.</p>
+      </div>
+      <div class="highlight-box" style="margin-top:16px;">
+        <p><strong>Key insight:</strong> Nobody told the agent "use Calculator for math." It discovered this on its own through thousands of scored attempts.</p>
+      </div>
+    </div>
+    <div>
+      <div class="card-title" style="margin-bottom:10px;">RL Training in Progress</div>
+      <canvas id="why-rl-train-canvas" width="460" height="290" style="display:block;border-radius:8px;background:var(--bg);border:1px solid var(--border);width:100%;"></canvas>
+      <div class="why-rl-controls">
+        <button class="btn btn-reward" onclick="runTrainingRound()">▶ Run Training Round</button>
+        <button class="btn" onclick="resetTraining()" style="opacity:0.6;">Reset</button>
+      </div>
+      <div id="why-rl-train-result" style="font-size:12px;color:var(--muted);margin-top:8px;min-height:18px;font-family:'JetBrains Mono',monospace;"></div>
+    </div>
+  </div>
+
+  <div class="section-divider"><hr><span>The Next Level</span><hr></div>
+
+  <!-- ACT 3 -->
+  <div style="margin-bottom:36px;">
+    <div class="why-rl-act-label" style="margin-bottom:4px;">Act 3 — The Scale-Up</div>
+    <div class="why-rl-act-headline" style="margin-bottom:16px;">From one tool call to a full reasoning chain</div>
+    <div class="stepper" id="why-rl-stepper">
+      <button class="step-btn active" onclick="setWhyRLStep(0,this)">1 — Single Tool Call</button>
+      <button class="step-btn" onclick="setWhyRLStep(1,this)">2 — Multi-Step Chain</button>
+      <button class="step-btn" onclick="setWhyRLStep(2,this)">3 — Agent Lightning</button>
+    </div>
+
+    <div id="why-rl-step-0" class="why-rl-step-content">
+      <div class="card" style="margin-top:16px;">
+        <div class="card-title">Single Tool Call — One Decision</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">The agent makes one decision: which tool to call. RL handles this well — one action, one reward.</p>
+        <svg width="100%" height="80" viewBox="0 0 600 80" style="display:block;">
+          <rect x="20" y="24" width="100" height="36" rx="6" fill="#1e2444" stroke="#7c6af4" stroke-width="1.5"/>
+          <text x="70" y="46" text-anchor="middle" fill="#e2e8f0" font-size="12" font-family="Inter,sans-serif">LLM Agent</text>
+          <line x1="120" y1="42" x2="200" y2="42" stroke="#7c6af4" stroke-width="1.5" marker-end="url(#arr1)"/>
+          <text x="160" y="36" text-anchor="middle" fill="#8892b0" font-size="10" font-family="Inter,sans-serif">call</text>
+          <rect x="200" y="24" width="100" height="36" rx="6" fill="#1e2444" stroke="#4ade80" stroke-width="1.5"/>
+          <text x="250" y="46" text-anchor="middle" fill="#4ade80" font-size="12" font-family="Inter,sans-serif">🧮 Calculator</text>
+          <line x1="300" y1="42" x2="380" y2="42" stroke="#4ade80" stroke-width="1.5" marker-end="url(#arr2)"/>
+          <text x="340" y="36" text-anchor="middle" fill="#8892b0" font-size="10" font-family="Inter,sans-serif">result</text>
+          <rect x="380" y="24" width="90" height="36" rx="6" fill="#1e2444" stroke="#FFEAA7" stroke-width="1.5"/>
+          <text x="425" y="46" text-anchor="middle" fill="#FFEAA7" font-size="12" font-family="Inter,sans-serif">Answer ✓</text>
+          <text x="480" y="36" text-anchor="start" fill="#4ade80" font-size="11" font-family="Inter,sans-serif">+reward</text>
+          <defs>
+            <marker id="arr1" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#7c6af4"/></marker>
+            <marker id="arr2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#4ade80"/></marker>
+          </defs>
+        </svg>
+        <p style="font-size:12px;color:var(--muted);margin-top:8px;">Simple. Standard RL handles this fine. One action → one reward signal.</p>
+      </div>
+    </div>
+
+    <div id="why-rl-step-1" class="why-rl-step-content" style="display:none;">
+      <div class="card" style="margin-top:16px;">
+        <div class="card-title">Multi-Step Chain — Complexity Explodes</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">A real agent task needs multiple tool calls in sequence. Each step is a decision. The final reward only comes at the end — so <em>which step deserves credit?</em></p>
+        <svg width="100%" height="100" viewBox="0 0 740 100" style="display:block;">
+          <defs>
+            <marker id="arrM" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#8892b0"/></marker>
+            <marker id="arrQ" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#f87171"/></marker>
+          </defs>
+          <rect x="10" y="32" width="80" height="32" rx="5" fill="#1e2444" stroke="#7c6af4" stroke-width="1.5"/>
+          <text x="50" y="52" text-anchor="middle" fill="#e2e8f0" font-size="11" font-family="Inter,sans-serif">LLM</text>
+          <line x1="90" y1="48" x2="130" y2="48" stroke="#8892b0" stroke-width="1.2" marker-end="url(#arrM)"/>
+          <rect x="130" y="32" width="80" height="32" rx="5" fill="#1e2444" stroke="#4ECDC4" stroke-width="1.5"/>
+          <text x="170" y="52" text-anchor="middle" fill="#4ECDC4" font-size="11" font-family="Inter,sans-serif">🔍 Search</text>
+          <line x1="210" y1="48" x2="250" y2="48" stroke="#8892b0" stroke-width="1.2" marker-end="url(#arrM)"/>
+          <rect x="250" y="32" width="80" height="32" rx="5" fill="#1e2444" stroke="#7c6af4" stroke-width="1.5"/>
+          <text x="290" y="52" text-anchor="middle" fill="#e2e8f0" font-size="11" font-family="Inter,sans-serif">LLM</text>
+          <line x1="330" y1="48" x2="370" y2="48" stroke="#8892b0" stroke-width="1.2" marker-end="url(#arrM)"/>
+          <rect x="370" y="32" width="90" height="32" rx="5" fill="#1e2444" stroke="#4ade80" stroke-width="1.5"/>
+          <text x="415" y="52" text-anchor="middle" fill="#4ade80" font-size="11" font-family="Inter,sans-serif">🧮 Calc</text>
+          <line x1="460" y1="48" x2="500" y2="48" stroke="#8892b0" stroke-width="1.2" marker-end="url(#arrM)"/>
+          <rect x="500" y="32" width="80" height="32" rx="5" fill="#1e2444" stroke="#7c6af4" stroke-width="1.5"/>
+          <text x="540" y="52" text-anchor="middle" fill="#e2e8f0" font-size="11" font-family="Inter,sans-serif">LLM</text>
+          <line x1="580" y1="48" x2="620" y2="48" stroke="#8892b0" stroke-width="1.2" marker-end="url(#arrM)"/>
+          <rect x="620" y="32" width="90" height="32" rx="5" fill="#1e2444" stroke="#FFEAA7" stroke-width="1.5"/>
+          <text x="665" y="52" text-anchor="middle" fill="#FFEAA7" font-size="11" font-family="Inter,sans-serif">Answer</text>
+          <text x="370" y="18" text-anchor="middle" fill="#f87171" font-size="11" font-family="Inter,sans-serif">← reward only arrives here — but which step was right?</text>
+          <line x1="710" y1="48" x2="720" y2="48" stroke="#f87171" stroke-width="1.5"/>
+          <text x="735" y="52" text-anchor="start" fill="#f87171" font-size="13" font-family="Inter,sans-serif">?</text>
+        </svg>
+        <p style="font-size:12px;color:var(--muted);margin-top:8px;">The reward arrives at the end. But was it the Search step that was useful? The Calculator? Both? Standard RL can't tell — this is the <strong>credit assignment problem</strong>.</p>
+      </div>
+    </div>
+
+    <div id="why-rl-step-2" class="why-rl-step-content" style="display:none;">
+      <div class="card" style="margin-top:16px;">
+        <div class="card-title">Agent Lightning — Credit Flows Back Through Every Step</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Agent Lightning formalizes the entire chain as a structured MDP. The reward signal is decomposed and assigned back to each step that contributed — so every decision can be improved.</p>
+        <canvas id="why-rl-lightning-canvas" width="700" height="110" style="display:block;border-radius:6px;background:var(--bg);width:100%;max-width:700px;"></canvas>
+        <p style="font-size:12px;color:var(--muted);margin-top:10px;">The purple reward arrows flow <em>backwards</em> through every step simultaneously. Agent Lightning is the first framework built to handle this at scale — for any tool, any agent architecture.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bridge -->
+  <div class="highlight-box" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;">
+    <p><strong>Agent Lightning</strong> is built specifically for the multi-step agent world — it knows which step in a long tool-calling chain deserves credit when the final answer is right.</p>
+    <a href="#overview" onclick="setActive(document.querySelector('[href=\'#overview\']'))" class="btn" style="white-space:nowrap;color:var(--accent);border-color:var(--accent);">See the Overview →</a>
+  </div>
+</section>
 
 <!-- ===== 1. OVERVIEW ===== -->
 <section class="section" id="overview">
@@ -1487,7 +1649,7 @@ window.addEventListener('scroll', animateResultBars);
 /* =====================================================
    ACTIVE NAV LINK ON SCROLL
 ===================================================== */
-var sectionIds = ['overview','landscape','reinforce','ppo','grpo','rlhf','dpo','architecture','credit','masking','comparison'];
+var sectionIds = ['why-rl','overview','landscape','reinforce','ppo','grpo','rlhf','dpo','architecture','credit','masking','comparison'];
 
 function updateNavOnScroll() {
   var scrollY = window.scrollY + 100;
@@ -1510,8 +1672,331 @@ function updateNavOnScroll() {
 window.addEventListener('scroll', updateNavOnScroll);
 
 /* =====================================================
+   WHY-RL SECTION
+===================================================== */
+var whyRLToolProbs = [0.33, 0.33, 0.34]; // [Search, Calculator, Memory]
+var whyRLTrainRounds = 0;
+var whyRLAgentLastTool = -1; // which tool the untrained agent called last
+var whyRLAgentAnimPct = 0;
+var whyRLAgentRAF = null;
+var whyRLTrainAnimTool = -1;
+var whyRLTrainAnimPct = 0;
+var whyRLTrainRAF = null;
+var whyRLToolPulseInterval = null;
+var whyRLLightningPulse = 0;
+var whyRLLightningRAF = null;
+
+var TOOLS = [
+  { label: '🔍 Search',     color: '#4ECDC4', x: 340, y: 40  },
+  { label: '🧮 Calculator', color: '#4ade80', x: 340, y: 130 },
+  { label: '🧠 Memory',     color: '#A29BFE', x: 340, y: 220 }
+];
+var AGENT_BOX = { x: 60, y: 115, w: 120, h: 50 };
+
+function drawRoundedRect(ctx, x, y, w, h, r, fill, stroke, lw) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y); ctx.lineTo(x+w-r, y); ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w, y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r, y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x, y+r); ctx.arcTo(x,y,x+r,y,r);
+  ctx.closePath();
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw || 1.5; ctx.stroke(); }
+}
+
+function drawArrowLine(ctx, x1, y1, x2, y2, color, pct, lw) {
+  var px = x1 + (x2-x1)*pct;
+  var py = y1 + (y2-y1)*pct;
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(px,py);
+  ctx.strokeStyle = color; ctx.lineWidth = lw||2; ctx.stroke();
+  if (pct >= 0.98) {
+    var angle = Math.atan2(y2-y1, x2-x1);
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.lineTo(px - 10*Math.cos(angle-0.4), py - 10*Math.sin(angle-0.4));
+    ctx.lineTo(px - 10*Math.cos(angle+0.4), py - 10*Math.sin(angle+0.4));
+    ctx.closePath(); ctx.fillStyle = color; ctx.fill();
+  }
+}
+
+function drawWhyRLAgentCanvas(animTool, animPct, showResult) {
+  var c = document.getElementById('why-rl-agent-canvas'); if (!c) return;
+  var ctx = c.getContext('2d');
+  var W = c.width, H = c.height;
+  ctx.clearRect(0,0,W,H); ctx.fillStyle='#0d0f18'; ctx.fillRect(0,0,W,H);
+
+  // Question
+  ctx.fillStyle='#FFEAA7'; ctx.font='bold 12px Inter,sans-serif'; ctx.textAlign='left';
+  ctx.fillText('Question: "What is 12% of 847?"', 14, 22);
+
+  // Agent box
+  drawRoundedRect(ctx, AGENT_BOX.x, AGENT_BOX.y, AGENT_BOX.w, AGENT_BOX.h, 7, '#1e2444','#7c6af4',2);
+  ctx.fillStyle='#e2e8f0'; ctx.font='bold 13px Inter,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('LLM Agent', AGENT_BOX.x+AGENT_BOX.w/2, AGENT_BOX.y+22);
+  ctx.fillStyle='#8892b0'; ctx.font='10px Inter,sans-serif';
+  ctx.fillText('(untrained)', AGENT_BOX.x+AGENT_BOX.w/2, AGENT_BOX.y+38);
+
+  // Tool boxes
+  TOOLS.forEach(function(t, i) {
+    var isTarget = animTool === i;
+    drawRoundedRect(ctx, t.x, t.y, 110, 34, 6, '#1e2444', isTarget ? t.color : '#2a3060', isTarget ? 2 : 1);
+    ctx.fillStyle = isTarget ? t.color : '#8892b0';
+    ctx.font = (isTarget ? 'bold ' : '') + '12px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText(t.label, t.x+55, t.y+22);
+  });
+
+  // Arrow from agent to chosen tool
+  if (animTool >= 0) {
+    var t = TOOLS[animTool];
+    var ax = AGENT_BOX.x + AGENT_BOX.w;
+    var ay = AGENT_BOX.y + AGENT_BOX.h/2;
+    var tx = t.x; var ty = t.y + 17;
+    drawArrowLine(ctx, ax, ay, tx, ty, TOOLS[animTool].color, animPct, 2);
+
+    // Result badge
+    if (showResult && animPct >= 0.98) {
+      var bx = t.x + 115, by = t.y;
+      ctx.fillStyle = '#f87171'; ctx.font='bold 18px Inter,sans-serif'; ctx.textAlign='left';
+      ctx.fillText('✗ Wrong tool!', bx, by+22);
+      ctx.fillStyle='#8892b0'; ctx.font='10px Inter,sans-serif';
+      ctx.fillText('(should use Calculator)', bx, by+38);
+    }
+  }
+
+  // Bottom label
+  ctx.fillStyle='#8892b0'; ctx.font='italic 11px Inter,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('Without training, the agent has no idea which tool is correct.', W/2, H-8);
+}
+
+function tryAgentRandom() {
+  if (whyRLAgentRAF) { cancelAnimationFrame(whyRLAgentRAF); whyRLAgentRAF = null; }
+  // Always pick a wrong tool (not Calculator = index 1)
+  var wrongTools = [0, 2]; // Search or Memory
+  whyRLAgentLastTool = wrongTools[Math.floor(Math.random()*wrongTools.length)];
+  whyRLAgentAnimPct = 0;
+  document.getElementById('why-rl-agent-result').textContent = '';
+  function tick() {
+    whyRLAgentAnimPct = Math.min(1, whyRLAgentAnimPct + 0.04);
+    drawWhyRLAgentCanvas(whyRLAgentLastTool, whyRLAgentAnimPct, true);
+    if (whyRLAgentAnimPct < 1) {
+      whyRLAgentRAF = requestAnimationFrame(tick);
+    } else {
+      document.getElementById('why-rl-agent-result').textContent =
+        'Result: ' + (whyRLAgentLastTool === 0 ? '🔍 Searched the web... got irrelevant results. ✗' : '🧠 Checked memory... nothing relevant. ✗');
+    }
+  }
+  whyRLAgentRAF = requestAnimationFrame(tick);
+}
+
+function resetAgentCanvas() {
+  if (whyRLAgentRAF) { cancelAnimationFrame(whyRLAgentRAF); whyRLAgentRAF = null; }
+  whyRLAgentLastTool = -1; whyRLAgentAnimPct = 0;
+  document.getElementById('why-rl-agent-result').textContent = '';
+  drawWhyRLAgentCanvas(-1, 0, false);
+}
+
+// ---- Training canvas ----
+function drawWhyRLTrainCanvas(animTool, animPct, lastCorrect) {
+  var c = document.getElementById('why-rl-train-canvas'); if (!c) return;
+  var ctx = c.getContext('2d');
+  var W = c.width, H = c.height;
+  ctx.clearRect(0,0,W,H); ctx.fillStyle='#0d0f18'; ctx.fillRect(0,0,W,H);
+
+  // Question
+  ctx.fillStyle='#FFEAA7'; ctx.font='bold 12px Inter,sans-serif'; ctx.textAlign='left';
+  ctx.fillText('Question: "What is 12% of 847?"  →  Reward given only if answer is correct.', 14, 20);
+
+  // Agent box (same position as before)
+  var AB = { x: 40, y: 100, w: 110, h: 50 };
+  drawRoundedRect(ctx, AB.x, AB.y, AB.w, AB.h, 7, '#1e2444','#7c6af4',2);
+  ctx.fillStyle='#e2e8f0'; ctx.font='bold 12px Inter,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('LLM Agent', AB.x+AB.w/2, AB.y+21);
+  ctx.fillStyle='#8892b0'; ctx.font='10px Inter,sans-serif';
+  ctx.fillText('Round ' + whyRLTrainRounds, AB.x+AB.w/2, AB.y+38);
+
+  // Tool boxes with probability bars
+  var tools2 = [
+    { label:'🔍 Search',     color:'#4ECDC4', ty:34  },
+    { label:'🧮 Calculator', color:'#4ade80', ty:120 },
+    { label:'🧠 Memory',     color:'#A29BFE', ty:206 }
+  ];
+  var BAR_X = 230, BAR_W = 180;
+  tools2.forEach(function(t, i) {
+    var prob = whyRLToolProbs[i];
+    var isAnim = animTool === i;
+    drawRoundedRect(ctx, 160, t.ty, 120, 34, 6, '#1e2444', isAnim ? t.color : '#2a3060', isAnim ? 2 : 1);
+    ctx.fillStyle = isAnim ? t.color : '#8892b0';
+    ctx.font = (isAnim ? 'bold ' : '') + '12px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText(t.label, 160+60, t.ty+22);
+
+    // Bar track
+    drawRoundedRect(ctx, BAR_X, t.ty+5, BAR_W, 22, 4, '#1e2444', '#2a3060', 1);
+    // Bar fill
+    var fillW = Math.max(4, BAR_W * prob);
+    var barColor = i === 1 ? '#4ade80' : '#8892b0'; // green for correct tool
+    drawRoundedRect(ctx, BAR_X, t.ty+5, fillW, 22, 4, barColor, null, 0);
+    // Prob label
+    ctx.fillStyle = i===1 && prob > 0.85 ? '#4ade80' : '#e2e8f0';
+    ctx.font = 'bold 11px JetBrains Mono,monospace'; ctx.textAlign='left';
+    var label = (prob*100).toFixed(0) + '%';
+    if (i===1 && prob > 0.85) label += ' ✓ Confident!';
+    ctx.fillText(label, BAR_X + fillW + 6, t.ty+21);
+  });
+
+  // Arrow
+  if (animTool >= 0) {
+    var t2 = tools2[animTool];
+    var ax = AB.x + AB.w, ay = AB.y + AB.h/2;
+    var tx = 160, ty2 = t2.ty + 17;
+    drawArrowLine(ctx, ax, ay, tx, ty2, tools2[animTool].color, animPct, 2);
+    if (animPct >= 0.98 && lastCorrect !== null) {
+      ctx.fillStyle = lastCorrect ? '#4ade80' : '#f87171';
+      ctx.font = 'bold 16px Inter,sans-serif'; ctx.textAlign = 'left';
+      ctx.fillText(lastCorrect ? '✓ +reward' : '✗ no reward', tx + 125, ty2 + 4);
+    }
+  }
+
+  ctx.fillStyle='#8892b0'; ctx.font='italic 11px Inter,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('Calculator probability grows with each successful training round.', W/2, H-6);
+}
+
+function runTrainingRound() {
+  if (whyRLTrainRAF) return;
+  whyRLTrainRounds++;
+  // Always call Calculator (correct), update probs
+  var lr = 0.07;
+  whyRLToolProbs[1] = Math.min(0.95, whyRLToolProbs[1] + lr);
+  var remainder = (1 - whyRLToolProbs[1]) / 2;
+  whyRLToolProbs[0] = Math.max(0.02, remainder);
+  whyRLToolProbs[2] = Math.max(0.02, remainder);
+  // normalise
+  var sum = whyRLToolProbs[0]+whyRLToolProbs[1]+whyRLToolProbs[2];
+  for (var i=0;i<3;i++) whyRLToolProbs[i] /= sum;
+
+  whyRLTrainAnimTool = 1; // Calculator
+  whyRLTrainAnimPct = 0;
+  document.getElementById('why-rl-train-result').textContent = '';
+
+  function tick() {
+    whyRLTrainAnimPct = Math.min(1, whyRLTrainAnimPct + 0.04);
+    drawWhyRLTrainCanvas(whyRLTrainAnimTool, whyRLTrainAnimPct, whyRLTrainAnimPct >= 0.98 ? true : null);
+    if (whyRLTrainAnimPct < 1) {
+      whyRLTrainRAF = requestAnimationFrame(tick);
+    } else {
+      whyRLTrainRAF = null;
+      var prob = (whyRLToolProbs[1]*100).toFixed(0);
+      var msg = 'Round ' + whyRLTrainRounds + ': Calculator chosen → correct answer → +reward. Calculator prob: ' + prob + '%';
+      if (whyRLToolProbs[1] > 0.85) msg += ' 🎉 Agent has learned!';
+      document.getElementById('why-rl-train-result').textContent = msg;
+    }
+  }
+  whyRLTrainRAF = requestAnimationFrame(tick);
+}
+
+function resetTraining() {
+  if (whyRLTrainRAF) { cancelAnimationFrame(whyRLTrainRAF); whyRLTrainRAF = null; }
+  whyRLToolProbs = [0.33, 0.33, 0.34];
+  whyRLTrainRounds = 0;
+  document.getElementById('why-rl-train-result').textContent = '';
+  drawWhyRLTrainCanvas(-1, 0, null);
+}
+
+// ---- Step 3: Lightning canvas ----
+function drawWhyRLLightningCanvas(pulse) {
+  var c = document.getElementById('why-rl-lightning-canvas'); if (!c) return;
+  var ctx = c.getContext('2d');
+  var W = c.width, H = c.height;
+  ctx.clearRect(0,0,W,H); ctx.fillStyle='#0d0f18'; ctx.fillRect(0,0,W,H);
+
+  var nodes = [
+    { label:'LLM',    x:30,  color:'#7c6af4' },
+    { label:'Search', x:155, color:'#4ECDC4' },
+    { label:'LLM',    x:280, color:'#7c6af4' },
+    { label:'Calc',   x:405, color:'#4ade80' },
+    { label:'LLM',    x:530, color:'#7c6af4' },
+    { label:'Answer', x:655, color:'#FFEAA7' }
+  ];
+  var NW=90, NH=38, NY=36;
+
+  // Draw forward arrows first
+  nodes.forEach(function(n, i) {
+    drawRoundedRect(ctx, n.x, NY, NW, NH, 6, '#1e2444', n.color, 1.5);
+    ctx.fillStyle=n.color; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText(n.label, n.x+NW/2, NY+23);
+    if (i < nodes.length-1) {
+      var nx = nodes[i+1];
+      ctx.beginPath(); ctx.moveTo(n.x+NW, NY+NH/2); ctx.lineTo(nx.x, NY+NH/2);
+      ctx.strokeStyle='#2a3060'; ctx.lineWidth=1.5; ctx.stroke();
+      // arrowhead
+      ctx.beginPath(); ctx.moveTo(nx.x, NY+NH/2);
+      ctx.lineTo(nx.x-7, NY+NH/2-4); ctx.lineTo(nx.x-7, NY+NH/2+4); ctx.closePath();
+      ctx.fillStyle='#2a3060'; ctx.fill();
+    }
+  });
+
+  // Reward back-arrows (pulsing)
+  var alpha = 0.4 + 0.6*Math.abs(Math.sin(pulse*0.15));
+  for (var i=nodes.length-2; i>=0; i--) {
+    var n = nodes[i], nx2 = nodes[i+1];
+    var delay = (nodes.length-2-i)*0.3;
+    var a2 = Math.max(0, Math.min(1, alpha - delay));
+    ctx.beginPath();
+    ctx.moveTo(nx2.x, NY+NH+6);
+    ctx.lineTo(nx2.x, NY+NH+16);
+    ctx.lineTo(n.x+NW, NY+NH+16);
+    ctx.lineTo(n.x+NW, NY+NH+6);
+    ctx.strokeStyle='rgba(162,155,254,' + a2 + ')';
+    ctx.lineWidth=2; ctx.stroke();
+    // small reward label
+    if (i === nodes.length-2) {
+      ctx.fillStyle='rgba(162,155,254,' + a2 + ')';
+      ctx.font='9px Inter,sans-serif'; ctx.textAlign='center';
+      ctx.fillText('reward', (n.x+NW+nx2.x)/2, NY+NH+28);
+    }
+  }
+  ctx.fillStyle='rgba(162,155,254,0.7)'; ctx.font='bold 10px Inter,sans-serif'; ctx.textAlign='left';
+  ctx.fillText('← credit flows back through every step', 30, NY+NH+28);
+}
+
+function startLightningPulse() {
+  if (whyRLLightningRAF) return;
+  function tick() {
+    whyRLLightningPulse++;
+    drawWhyRLLightningCanvas(whyRLLightningPulse);
+    whyRLLightningRAF = requestAnimationFrame(tick);
+  }
+  whyRLLightningRAF = requestAnimationFrame(tick);
+}
+
+function stopLightningPulse() {
+  if (whyRLLightningRAF) { cancelAnimationFrame(whyRLLightningRAF); whyRLLightningRAF = null; }
+}
+
+function setWhyRLStep(idx, btn) {
+  stopLightningPulse();
+  for (var i=0;i<3;i++) {
+    var el = document.getElementById('why-rl-step-'+i);
+    var b = document.querySelector('#why-rl-stepper .step-btn:nth-child('+(i+1)+')');
+    if (el) el.style.display = i===idx ? '' : 'none';
+    if (b) b.classList.toggle('active', i===idx);
+  }
+  if (idx === 2) {
+    whyRLLightningPulse = 0;
+    drawWhyRLLightningCanvas(0);
+    startLightningPulse();
+  }
+}
+
+function initWhyRL() {
+  drawWhyRLAgentCanvas(-1, 0, false);
+  drawWhyRLTrainCanvas(-1, 0, null);
+  setWhyRLStep(0, null);
+}
+
+/* =====================================================
    INITIALIZE ALL
 ===================================================== */
+initWhyRL();
 buildReforceSliders();
 drawReinforceCanvas();
 drawPPOCanvas();
