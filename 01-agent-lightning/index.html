@@ -277,6 +277,9 @@ window.addEventListener('load',()=>{ const el=document.getElementById('pg-input'
     <a class="nav-link" href="#comparison" onclick="setActive(this)">
       <span class="dot" style="background:#fdcb6e"></span>Comparison
     </a>
+    <a class="nav-link" href="#takeaways" onclick="setActive(this)">
+      <span class="dot" style="background:#55efc4"></span>Key Takeaways
+    </a>
   </div>
 </nav>
 
@@ -470,7 +473,7 @@ window.addEventListener('load',()=>{ const el=document.getElementById('pg-input'
     </div>
     <div class="contrib-card" style="border-top-color:var(--grpo)">
       <div class="card-title" style="color:var(--grpo)">Training-Agent Disaggregation</div>
-      <p style="font-size:13px;color:var(--muted);line-height:1.6">Async server-client design separates environment rollouts from policy optimization — Lightning Server exposes an OpenAI-like API, Lightning Client runs any agent framework.</p>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6">Async server-client design separates environment <span class="tooltip">rollouts<span class="tooltip-text">Complete agent episodes — the agent acts from a prompt until it produces a final answer</span></span> from policy optimization — Lightning Server exposes an OpenAI-like API, Lightning Client runs any agent framework.</p>
     </div>
   </div>
 
@@ -668,7 +671,7 @@ G_t = Σ_{k=0}^{T-t} γ^k · r_{t+k}   (discounted return from step t)</div>
 <section class="section" id="ppo">
   <div class="section-tag">RL Algorithms</div>
   <div class="section-title" style="color:var(--ppo)">Proximal Policy Optimization (PPO)</div>
-  <div class="section-sub">PPO fixes REINFORCE++'s instability problem by clipping the policy update. The agent can only change its behavior by a bounded amount per training step — preventing catastrophic forgetting.</div>
+  <div class="section-sub">PPO fixes REINFORCE++'s instability problem by <span class="tooltip">clipping the policy update<span class="tooltip-text">Bounding the probability ratio r_t(θ) to [1−ε, 1+ε] so the policy can't change too dramatically in one step</span></span>. The agent can only change its behavior by a bounded amount per training step — preventing catastrophic forgetting.</div>
 
   <div class="formula">L_CLIP(θ) = E_t [ min( r_t(θ)·A_t,  clip(r_t(θ), 1-ε, 1+ε)·A_t ) ]
 
@@ -730,7 +733,7 @@ r_t(θ) = π_θ(a_t|s_t) / π_θ_old(a_t|s_t)   (how much the policy changed for
 <section class="section" id="grpo">
   <div class="section-tag">RL Algorithms</div>
   <div class="section-title" style="color:var(--grpo)">GRPO — Group Relative Policy Optimization</div>
-  <div class="section-sub">GRPO's key insight: instead of a separate critic network to estimate "how good is this state?", just sample multiple trajectories from the same prompt and compare them against each other.</div>
+  <div class="section-sub">GRPO's key insight: instead of a separate <span class="tooltip">critic network<span class="tooltip-text">A second neural network trained to predict how good a state is — adds cost and complexity without always helping</span></span> to estimate "how good is this state?", just sample multiple trajectories from the same prompt and compare them against each other.</div>
 
   <div class="formula">A_i = (r_i − mean(r)) / std(r)    (normalized relative to the group)
 
@@ -748,7 +751,7 @@ L_GRPO = E_i [ min( r_i(θ)·A_i, clip(r_i(θ),1−ε,1+ε)·A_i ) ] − β·KL(
 
   <div class="card" style="margin-top:18px">
     <div class="card-title">Normalized Advantages A_i — who should be reinforced?</div>
-    <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">Positive advantage = above group average → increase probability. Negative = below average → decrease probability. The baseline is the group mean, not a separate neural network.</p>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">Positive <span class="tooltip">advantage<span class="tooltip-text">How much better (or worse) this trajectory was compared to the group average — the signal that drives the policy update</span></span> = above group average → increase probability. Negative = below average → decrease probability. The baseline is the group mean, not a separate neural network.</p>
     <div id="grpo-bars"></div>
   </div>
 
@@ -842,6 +845,18 @@ L_GRPO = E_i [ min( r_i(θ)·A_i, clip(r_i(θ),1−ε,1+ε)·A_i ) ] − β·KL(
       <div class="card-title" style="color:var(--lightning)">Scalability</div>
       <p style="font-size:13px;color:var(--muted);line-height:1.6">Scale to hundreds of parallel clients. The server handles batching, prioritized replay, and gradient accumulation automatically.</p>
     </div>
+  </div>
+
+  <div class="section-divider" style="margin-top:28px;"><hr><span>Sync vs Async — Visual Comparison</span><hr></div>
+  <div class="card" style="margin-top:16px;">
+    <div class="card-title">Why Asynchronous Training Matters</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:16px;">In synchronous mode the server waits for <em>all</em> workers to finish before updating the policy — workers sit idle while others catch up. In async mode (Agent Lightning) every worker runs continuously and the server updates the moment a batch arrives.</p>
+    <div class="mdp-toggle-row" style="margin-bottom:16px;">
+      <button class="btn btn-outline active" id="arch-sync-btn" onclick="setArchMode('sync')">Synchronous — Blocking</button>
+      <button class="btn btn-outline" id="arch-async-btn" onclick="setArchMode('async')">Asynchronous — Agent Lightning</button>
+    </div>
+    <canvas id="arch-canvas" width="660" height="180" style="width:100%;max-width:660px;border-radius:8px;background:var(--bg);border:1px solid var(--border);display:block;"></canvas>
+    <p id="arch-canvas-caption" style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;">Synchronous: workers must wait for the slowest peer before the server can update. GPU utilization ~40-60%.</p>
   </div>
 </section>
 
@@ -1064,6 +1079,69 @@ Each transition = one self-contained training example.</div>
 
   <div class="highlight-box" style="margin-top:24px;">
     <p>The paper reports relative reward improvement curves (not absolute metrics) across 3 experiments. Training consistently improves across all tasks and agent frameworks tested — Text-to-SQL (LangChain/Spider), RAG (OpenAI Agents SDK/MuSiQue), and Math QA (AutoGen/Calc-X).</p>
+  </div>
+</section>
+
+<!-- ===== TAKEAWAYS ===== -->
+<section class="section" id="takeaways">
+  <div class="section-tag">Summary</div>
+  <div class="section-title" style="background:linear-gradient(135deg,#A29BFE,#55efc4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Key Takeaways</div>
+  <div class="section-sub">Three innovations that make Agent Lightning different from every existing RL training framework — and why each one matters in practice.</div>
+
+  <div class="overview-grid" style="margin-bottom:36px;">
+    <div class="contrib-card" style="border-top-color:#fdcb6e;">
+      <div style="font-size:2rem;margin-bottom:12px;">🗂️</div>
+      <div class="card-title" style="color:#fdcb6e;">1 — Unified Data Interface</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:12px;">Takes any multi-turn agent trajectory — from any framework — and structures it into a list of <span style="font-family:'JetBrains Mono';font-size:12px;color:#e2b35e;">(input_t, output_t, r_t)</span> MDP transitions automatically.</p>
+      <div style="background:rgba(253,203,110,0.08);border:1px solid rgba(253,203,110,0.2);border-radius:8px;padding:10px 14px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#fdcb6e;margin-bottom:6px;">Why it matters</div>
+        <p style="font-size:12px;color:var(--text);line-height:1.5;">Works with LangChain, AutoGen, OpenAI Agents SDK — zero agent code changes. Every other framework requires you to rewrite the agent from scratch.</p>
+      </div>
+    </div>
+    <div class="contrib-card" style="border-top-color:#55efc4;">
+      <div style="font-size:2rem;margin-bottom:12px;">⚡</div>
+      <div class="card-title" style="color:#55efc4;">2 — LightningRL Algorithm</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:12px;">Trains on individual MDP transitions instead of full sequences. No loss masking, no padding — each transition is self-contained and carries its own reward.</p>
+      <div style="background:rgba(85,239,196,0.08);border:1px solid rgba(85,239,196,0.2);border-radius:8px;padding:10px 14px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#55efc4;margin-bottom:6px;">Why it matters</div>
+        <p style="font-size:12px;color:var(--text);line-height:1.5;">Cleaner gradient signal, naturally supports AIR (each step has its own reward), and works on trajectories of any length without waste.</p>
+      </div>
+    </div>
+    <div class="contrib-card" style="border-top-color:#A29BFE;">
+      <div style="font-size:2rem;margin-bottom:12px;">🔀</div>
+      <div class="card-title" style="color:#A29BFE;">3 — Training-Agent Disaggregation</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:12px;">Separates the policy server (training) from the agent clients (rollout). Clients stream data asynchronously; the server updates the policy continuously.</p>
+      <div style="background:rgba(162,155,254,0.08);border:1px solid rgba(162,155,254,0.2);border-radius:8px;padding:10px 14px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#A29BFE;margin-bottom:6px;">Why it matters</div>
+        <p style="font-size:12px;color:var(--text);line-height:1.5;">Scale to hundreds of parallel workers without GPU idle time. Synchronous frameworks block training while waiting for every rollout to finish.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- E2E animated loop -->
+  <div class="card" style="margin-bottom:28px;">
+    <div class="card-title">The Full Training Loop — Animated</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Watch how a single flight question flows through the entire Agent Lightning pipeline — from raw prompt to an improved policy.</p>
+    <canvas id="loop-canvas" width="660" height="200" style="width:100%;max-width:660px;border-radius:8px;background:var(--bg);border:1px solid var(--border);display:block;"></canvas>
+    <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center;">
+      <button class="btn" id="loop-play-btn" onclick="toggleLoopAnimation()">▶ Play</button>
+      <button class="btn btn-outline" onclick="resetLoopAnimation()">Reset</button>
+      <span id="loop-stage-label" style="font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-left:6px;">Press Play to start</span>
+    </div>
+  </div>
+
+  <!-- Paper + Subscribe -->
+  <div class="g2" style="gap:18px;">
+    <div class="card" style="border-color:var(--accent);">
+      <div class="card-title" style="color:var(--accent);">📄 Read the Paper</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px;">Agent Lightning: Scalable RL for Agentic AI via Training-Agent Disaggregation — arXiv 2025</p>
+      <a href="https://arxiv.org/abs/2508.03680" target="_blank" class="btn" style="display:inline-block;text-decoration:none;font-size:13px;">arXiv:2508.03680 →</a>
+    </div>
+    <div class="card" style="border-color:#ff6719;">
+      <div class="card-title" style="color:#ff9f43;">📬 Get Next Week's Visual</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px;">Every Monday, a new interactive visualization of an AI/ML paper. Become a paid subscriber to unlock all tools.</p>
+      <a href="https://visualsummary.substack.com/subscribe" target="_blank" style="display:inline-block;background:linear-gradient(135deg,#ff6719,#ff8c42);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:600;text-decoration:none;">Subscribe to Visual Summary →</a>
+    </div>
   </div>
 </section>
 
@@ -2250,7 +2328,7 @@ window.addEventListener('scroll', animateResultBars);
 /* =====================================================
    ACTIVE NAV LINK ON SCROLL
 ===================================================== */
-var sectionIds = ['why-rl','overview','mdp','reinforce','ppo','grpo','architecture','credit','air','lightningrl','experiments','comparison'];
+var sectionIds = ['why-rl','overview','mdp','reinforce','ppo','grpo','architecture','credit','air','lightningrl','experiments','comparison','takeaways'];
 
 function updateNavOnScroll() {
   var scrollY = window.scrollY + 100;
@@ -2667,6 +2745,322 @@ function initExperiments() {
 }
 
 /* =====================================================
+   ARCH ASYNC CANVAS
+===================================================== */
+var archMode = 'sync';
+function setArchMode(mode) {
+  archMode = mode;
+  var sb = document.getElementById('arch-sync-btn');
+  var ab = document.getElementById('arch-async-btn');
+  if (sb) { sb.classList.toggle('active', mode==='sync'); sb.classList.toggle('btn-outline', true); }
+  if (ab) { ab.classList.toggle('active', mode==='async'); ab.classList.toggle('btn-outline', true); }
+  var cap = document.getElementById('arch-canvas-caption');
+  if (cap) {
+    cap.textContent = mode === 'async'
+      ? 'Asynchronous: all workers collect in parallel; the server updates continuously. GPU utilization ~85-95%.'
+      : 'Synchronous: workers must wait for the slowest peer before the server can update. GPU utilization ~40-60%.';
+  }
+  drawArchCanvas();
+}
+
+function drawArchCanvas() {
+  var cv = document.getElementById('arch-canvas');
+  if (!cv) return;
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var padL = 80, padR = 20, padT = 16, padB = 24;
+  var plotW = W - padL - padR;
+  var rowH = (H - padT - padB) / 4; // 3 workers + 1 server
+  var workers = ['Worker 1', 'Worker 2', 'Worker 3', 'Server'];
+  var colors = ['#4ECDC4', '#45B7D1', '#A29BFE', '#55efc4'];
+
+  // Draw row labels
+  ctx.fillStyle = '#8892b0';
+  ctx.font = '11px Inter,sans-serif';
+  ctx.textAlign = 'right';
+  for (var i = 0; i < 4; i++) {
+    var cy = padT + i * rowH + rowH / 2;
+    ctx.fillText(workers[i], padL - 8, cy + 4);
+  }
+
+  // Timeline segments
+  var segments;
+  if (archMode === 'sync') {
+    // Sync: workers take turns (sequential batches), server blocked until all done
+    // Each "epoch" = 3 worker slots + 1 server update slot
+    // Total timeline width = 4 epochs, each epoch = 4 units wide
+    // Worker i is busy in slot i of each epoch, idle otherwise
+    var epochW = plotW / 3;
+    segments = [];
+    for (var ep = 0; ep < 3; ep++) {
+      var ex = padL + ep * epochW;
+      var wSlotW = epochW * 0.28;
+      var serverStart = ex + epochW * 0.88;
+      var serverW = epochW * 0.10;
+      for (var w = 0; w < 3; w++) {
+        // Each worker collects in its own slot, idle the rest
+        var busyStart = ex + w * wSlotW;
+        segments.push({ row: w, x: busyStart, w: wSlotW * 0.9, color: colors[w], label: 'collect' });
+        // Idle bars (lighter) when not collecting
+        if (w > 0) {
+          segments.push({ row: w, x: ex, w: w * wSlotW * 0.9, color: '#2a3060', label: '' });
+        }
+        if (w < 2) {
+          segments.push({ row: w, x: busyStart + wSlotW * 0.9, w: (2 - w) * wSlotW * 0.9 + serverW * 1.2, color: '#2a3060', label: '' });
+        }
+      }
+      segments.push({ row: 3, x: serverStart, w: serverW, color: colors[3], label: 'update' });
+      // Server idle for most of epoch
+      segments.push({ row: 3, x: ex, w: serverStart - ex, color: '#2a3060', label: '' });
+    }
+  } else {
+    // Async: all workers run continuously, server updates frequently
+    var unitW = plotW / 9;
+    segments = [];
+    for (var w = 0; w < 3; w++) {
+      for (var u = 0; u < 9; u++) {
+        segments.push({ row: w, x: padL + u * unitW, w: unitW * 0.92, color: colors[w], label: u === 0 ? 'collect' : '' });
+      }
+    }
+    // Server updates every 3 units for each worker
+    for (var u = 0; u < 9; u++) {
+      segments.push({ row: 3, x: padL + u * unitW, w: unitW * 0.92, color: colors[3], label: u === 0 ? 'update' : '' });
+    }
+  }
+
+  // Draw segments
+  for (var s = 0; s < segments.length; s++) {
+    var seg = segments[s];
+    var sy = padT + seg.row * rowH + 4;
+    var sh = rowH - 8;
+    ctx.fillStyle = seg.color;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(seg.x, sy, seg.w, sh, 3);
+    else { ctx.rect(seg.x, sy, seg.w, sh); }
+    ctx.fill();
+    if (seg.label && seg.w > 30) {
+      ctx.fillStyle = seg.color === '#2a3060' ? '#4a5568' : '#0d0f18';
+      ctx.font = '9px Inter,sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(seg.label, seg.x + seg.w / 2, sy + sh / 2 + 3);
+    }
+  }
+
+  // Draw utilization annotation
+  var util = archMode === 'async' ? '~90% GPU utilization' : '~45% GPU utilization';
+  var utilColor = archMode === 'async' ? '#55efc4' : '#f87171';
+  ctx.fillStyle = utilColor;
+  ctx.font = 'bold 11px Inter,sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText(util, W - padR, H - 6);
+
+  // Timeline arrow
+  ctx.strokeStyle = '#2a3060';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padL, H - padB + 8);
+  ctx.lineTo(W - padR, H - padB + 8);
+  ctx.stroke();
+  ctx.fillStyle = '#8892b0';
+  ctx.font = '10px Inter,sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Training time \u2192', padL + plotW / 2, H - 4);
+}
+
+function initArch() {
+  drawArchCanvas();
+}
+
+/* =====================================================
+   E2E LOOP ANIMATION
+===================================================== */
+var loopAnimId = null;
+var loopStage = -1;
+var loopPlaying = false;
+var loopStageFrames = 0;
+var loopFramesPerStage = 80;
+
+var loopStages = [
+  { label: 'Flight Prompt',           sub: '"My flight is cancelled — how to reach Paris?"', color: '#fdcb6e' },
+  { label: 'Agent Rollout',           sub: 'Memory → Search → Answer  (3 LLM calls)', color: '#4ECDC4' },
+  { label: 'AIR — Assign Rewards',    sub: 'Each tool call gets r_t from return status', color: '#e84393' },
+  { label: 'MDP Transitions',         sub: '(input₁,out₁,r₁)  (input₂,out₂,r₂)  (input₃,out₃,r₃)', color: '#fdcb6e' },
+  { label: 'LightningRL Update',      sub: 'Policy gradient on each transition independently', color: '#55efc4' },
+];
+
+function drawLoopCanvas(stage, progress) {
+  var cv = document.getElementById('loop-canvas');
+  if (!cv) return;
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var n = loopStages.length;
+  var padX = 28, padY = 36;
+  var slotW = (W - padX * 2) / n;
+  var boxW = slotW - 16;
+  var boxH = 68;
+  var cy = H / 2 - 10;
+
+  // Draw connecting arrows
+  for (var i = 0; i < n - 1; i++) {
+    var x1 = padX + i * slotW + boxW;
+    var x2 = padX + (i + 1) * slotW;
+    var arrowY = cy + boxH / 2 - 14;
+    ctx.strokeStyle = '#2a3060';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x1 + 2, arrowY);
+    ctx.lineTo(x2 - 2, arrowY);
+    ctx.stroke();
+    // Arrowhead
+    ctx.fillStyle = '#2a3060';
+    ctx.beginPath();
+    ctx.moveTo(x2 - 2, arrowY);
+    ctx.lineTo(x2 - 8, arrowY - 4);
+    ctx.lineTo(x2 - 8, arrowY + 4);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Draw "loop back" arrow at the bottom
+  var loopY = cy + boxH / 2 + 12;
+  ctx.strokeStyle = '#2a3060';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 3]);
+  ctx.beginPath();
+  ctx.moveTo(padX + (n - 1) * slotW + boxW, loopY);
+  ctx.lineTo(W - padX + 14, loopY);
+  ctx.lineTo(W - padX + 14, H - 10);
+  ctx.lineTo(padX - 14, H - 10);
+  ctx.lineTo(padX - 14, loopY);
+  ctx.lineTo(padX, loopY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  // Arrowhead on loop-back
+  ctx.fillStyle = '#2a3060';
+  ctx.beginPath();
+  ctx.moveTo(padX, loopY);
+  ctx.lineTo(padX + 6, loopY - 4);
+  ctx.lineTo(padX + 6, loopY + 4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#8892b0';
+  ctx.font = '9px Inter,sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Improved policy \u2192 repeat', W / 2, H - 3);
+
+  // Draw each stage box
+  for (var i = 0; i < n; i++) {
+    var s = loopStages[i];
+    var bx = padX + i * slotW;
+    var by = cy - boxH / 2 + 4;
+    var isActive = (stage === i);
+    var isDone = (stage > i);
+
+    var fillColor = isActive ? s.color : (isDone ? s.color + '33' : '#1e2444');
+    var borderColor = isActive ? s.color : (isDone ? s.color + '66' : '#2a3060');
+    var textColor = isActive ? '#0d0f18' : (isDone ? s.color : '#8892b0');
+
+    ctx.fillStyle = fillColor;
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = isActive ? 2 : 1;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(bx + 2, by, boxW - 4, boxH, 8);
+    else ctx.rect(bx + 2, by, boxW - 4, boxH);
+    ctx.fill();
+    ctx.stroke();
+
+    // Active stage: draw progress bar at bottom of box
+    if (isActive && progress > 0) {
+      ctx.fillStyle = s.color + '66';
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(bx + 2, by + boxH - 6, (boxW - 4) * progress, 6, [0, 0, 8, 8]);
+      else ctx.rect(bx + 2, by + boxH - 6, (boxW - 4) * progress, 6);
+      ctx.fill();
+    }
+
+    // Step number
+    ctx.fillStyle = isActive ? '#0d0f18' : (isDone ? s.color : '#4a5568');
+    ctx.font = 'bold 10px Inter,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText((i + 1) + '', bx + slotW / 2, by + 14);
+
+    // Label — wrap to 2 lines
+    ctx.fillStyle = isActive ? '#0d0f18' : (isDone ? s.color + 'cc' : '#8892b0');
+    ctx.font = 'bold 11px Inter,sans-serif';
+    ctx.textAlign = 'center';
+    // Simple wrap: split on em-dash or break at ~14 chars
+    var words = s.label.split(' ');
+    var line1 = '', line2 = '';
+    var mid = Math.ceil(words.length / 2);
+    line1 = words.slice(0, mid).join(' ');
+    line2 = words.slice(mid).join(' ');
+    ctx.fillText(line1, bx + slotW / 2, by + 30);
+    if (line2) ctx.fillText(line2, bx + slotW / 2, by + 43);
+
+    // Sub-label (only for active)
+    if (isActive) {
+      ctx.fillStyle = '#0d0f18';
+      ctx.font = '9px Inter,sans-serif';
+      ctx.textAlign = 'center';
+      // Truncate if too long
+      var sub = s.sub.length > 28 ? s.sub.substring(0, 26) + '\u2026' : s.sub;
+      ctx.fillText(sub, bx + slotW / 2, by + boxH - 10);
+    }
+  }
+}
+
+function loopAnimFrame() {
+  if (!loopPlaying) return;
+  loopStageFrames++;
+  if (loopStageFrames >= loopFramesPerStage) {
+    loopStageFrames = 0;
+    loopStage++;
+    if (loopStage >= loopStages.length) {
+      loopStage = 0;
+    }
+    var lbl = document.getElementById('loop-stage-label');
+    if (lbl) lbl.textContent = 'Stage ' + (loopStage + 1) + ': ' + loopStages[loopStage].label;
+  }
+  var progress = loopStageFrames / loopFramesPerStage;
+  drawLoopCanvas(loopStage, progress);
+  loopAnimId = requestAnimationFrame(loopAnimFrame);
+}
+
+function toggleLoopAnimation() {
+  var btn = document.getElementById('loop-play-btn');
+  if (loopPlaying) {
+    loopPlaying = false;
+    if (loopAnimId) cancelAnimationFrame(loopAnimId);
+    if (btn) btn.textContent = '\u25b6 Play';
+  } else {
+    loopPlaying = true;
+    if (loopStage < 0) loopStage = 0;
+    if (btn) btn.textContent = '\u23f8 Pause';
+    loopAnimFrame();
+  }
+}
+
+function resetLoopAnimation() {
+  loopPlaying = false;
+  if (loopAnimId) cancelAnimationFrame(loopAnimId);
+  loopStage = -1;
+  loopStageFrames = 0;
+  var btn = document.getElementById('loop-play-btn');
+  if (btn) btn.textContent = '\u25b6 Play';
+  var lbl = document.getElementById('loop-stage-label');
+  if (lbl) lbl.textContent = 'Press Play to start';
+  drawLoopCanvas(-1, 0);
+}
+
+function initLoop() {
+  drawLoopCanvas(-1, 0);
+}
+
+/* =====================================================
    INITIALIZE ALL
 ===================================================== */
 initWhyRL();
@@ -2679,6 +3073,8 @@ drawPPOCanvas();
 renderGRPO();
 renderCA();
 initAIR();
+initArch();
+initLoop();
 initExperiments();
 </script>
 </body>
