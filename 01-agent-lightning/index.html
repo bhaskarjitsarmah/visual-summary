@@ -524,6 +524,7 @@ window.addEventListener('resize', function() {
     <div class="section-tag" style="margin-bottom:0;">Paper Overview</div>
     <span style="font-size:11px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 12px;">⏱ ~15 min interactive read</span>
     <span style="font-size:11px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 12px;">12 interactive sections</span>
+    <span style="font-size:11px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 12px;">← → or J/K to navigate</span>
   </div>
   <div class="section-title">Agent Lightning</div>
   <div class="section-sub">A unified, scalable framework for training any AI agent with reinforcement learning — from single-tool LLMs to multi-agent systems. (arXiv:2508.03680)</div>
@@ -1036,7 +1037,14 @@ L_GRPO = E_i [ min( r_i(θ)·A_i, clip(r_i(θ),1−ε,1+ε)·A_i ) ] − β·KL(
   </div>
 
   <div class="card" style="margin-bottom:24px">
-    <div class="card-title">Data Flow</div>
+    <div class="card-title">Live Data Flow — Animated</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:12px;">Three clients run rollouts in parallel, each streaming trajectories to the server as they complete. The server updates the policy continuously — no client ever waits for another.</p>
+    <canvas id="arch-flow-canvas" width="620" height="210" style="width:100%;max-width:620px;border-radius:8px;background:var(--bg);border:1px solid var(--border);display:block;"></canvas>
+    <p style="font-size:11px;color:var(--muted);margin-top:6px;">This is the disaggregation: the policy server and the agent clients are fully decoupled processes. They communicate only via the gRPC API.</p>
+  </div>
+
+  <div class="card" style="margin-bottom:24px">
+    <div class="card-title">Data Flow — Stages</div>
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:8px 0">
       <div style="text-align:center;flex:1;min-width:100px">
         <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:13px;font-weight:600">Task / Prompt</div>
@@ -1369,15 +1377,7 @@ Each transition = one self-contained training example.</div>
           <th>RLlib</th>
         </tr>
       </thead>
-      <tbody>
-        <tr><td>Multi-agent support</td><td><span class="check">✓</span></td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td><td><span class="partial">~</span></td><td><span class="check">✓</span></td></tr>
-        <tr><td>Tool-use agents</td><td><span class="check">✓</span></td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td><td><span class="partial">~</span></td></tr>
-        <tr><td>Async rollout</td><td><span class="check">✓</span></td><td><span class="cross">✗</span></td><td><span class="partial">~</span></td><td><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
-        <tr><td>Intermediate rewarding (AIR)</td><td><span class="check">✓</span></td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td></tr>
-        <tr><td>Transition-based credit (no masking)</td><td><span class="check">✓</span></td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td></tr>
-        <tr><td>Zero-code-modification agent integration</td><td><span class="check">✓</span></td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td></tr>
-        <tr><td>Production-ready</td><td><span class="check">✓</span></td><td><span class="check">✓</span></td><td><span class="partial">~</span></td><td><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
-      </tbody>
+      <tbody id="comparison-tbody"></tbody>
     </table>
   </div>
 
@@ -1419,6 +1419,62 @@ Each transition = one self-contained training example.</div>
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#A29BFE;margin-bottom:6px;">Why it matters</div>
         <p style="font-size:12px;color:var(--text);line-height:1.5;">Scale to hundreds of parallel workers without GPU idle time. Synchronous frameworks block training while waiting for every rollout to finish.</p>
       </div>
+    </div>
+  </div>
+
+  <!-- Before vs After -->
+  <div class="card" style="margin-bottom:28px;">
+    <div class="card-title" style="margin-bottom:4px;">Before Training vs After Training</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Same prompt, same tools, same model weights — before RL training and after. Watch what changes.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div style="border:1px solid #f87171;border-radius:10px;padding:16px;background:rgba(248,113,113,0.04);">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#f87171;margin-bottom:12px;">❌ Before RL Training</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-style:italic;">"My flight got cancelled. How do I reach Paris?"</div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg);border-radius:6px;border:1px solid #2a3060;">
+            <span style="font-size:14px;">🔍</span>
+            <span style="font-size:12px;color:#4ECDC4;">Search("flights Paris")</span>
+            <span style="font-size:10px;color:#f87171;margin-left:auto;">wrong first step</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg);border-radius:6px;border:1px solid #2a3060;">
+            <span style="font-size:14px;">🧮</span>
+            <span style="font-size:12px;color:#4ade80;">Calculator(cost comparison)</span>
+            <span style="font-size:10px;color:#f87171;margin-left:auto;">no data to compare</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg);border-radius:6px;border:1px solid #2a3060;">
+            <span style="font-size:14px;">✍️</span>
+            <span style="font-size:12px;color:var(--muted);">Answer: "Try Eurostar or Air France"</span>
+          </div>
+        </div>
+        <div style="background:rgba(248,113,113,0.1);border-radius:6px;padding:8px 10px;font-size:11px;color:#f87171;">
+          Generic answer — no budget, no itinerary, no personalisation. User can't book anything.
+        </div>
+      </div>
+      <div style="border:1px solid #4ade80;border-radius:10px;padding:16px;background:rgba(74,222,128,0.04);">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#4ade80;margin-bottom:12px;">✅ After RL Training</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-style:italic;">"My flight got cancelled. How do I reach Paris?"</div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg);border-radius:6px;border:1px solid #4ade80;">
+            <span style="font-size:14px;">🧠</span>
+            <span style="font-size:12px;color:#A29BFE;">Memory("user_itinerary")</span>
+            <span style="font-size:10px;color:#4ade80;margin-left:auto;">correct first step</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg);border-radius:6px;border:1px solid #2a3060;">
+            <span style="font-size:14px;">🔍</span>
+            <span style="font-size:12px;color:#4ECDC4;">Search("CDG→Paris trains, budget €400")</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg);border-radius:6px;border:1px solid #2a3060;">
+            <span style="font-size:14px;">✍️</span>
+            <span style="font-size:12px;color:var(--muted);">Answer: "Take Eurostar 7am (£89)"</span>
+          </div>
+        </div>
+        <div style="background:rgba(74,222,128,0.1);border-radius:6px;padding:8px 10px;font-size:11px;color:#4ade80;">
+          Personalised answer — uses itinerary, respects budget. User can book in one click.
+        </div>
+      </div>
+    </div>
+    <div class="highlight-box" style="margin-top:14px;">
+      <p>The model weights are identical — only the <strong>policy distribution</strong> changed. After RL training, Memory-first has ~85% probability; before, all three tools were ~33%. This is what Agent Lightning trains.</p>
     </div>
   </div>
 
@@ -2960,24 +3016,40 @@ function drawWhyRLTrainCanvas(animTool, animPct, lastCorrect) {
     }
   }
 
+  // Round history sparkline at bottom
+  if (whyRLRoundHistory && whyRLRoundHistory.length > 1) {
+    var spX = padL = 40, spW = W - 80, spY = H - 28, spH = 18;
+    ctx.fillStyle = '#1e2444'; ctx.fillRect(spX, spY, spW, spH);
+    ctx.strokeStyle = '#A29BFE'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (var hi = 0; hi < whyRLRoundHistory.length; hi++) {
+      var hx = spX + hi / Math.max(1, whyRLRoundHistory.length - 1) * spW;
+      var hy = spY + spH - whyRLRoundHistory[hi] * spH;
+      if (hi === 0) ctx.moveTo(hx, hy); else ctx.lineTo(hx, hy);
+    }
+    ctx.stroke();
+    ctx.fillStyle = '#8892b0'; ctx.font = '9px Inter,sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText('Memory prob over rounds →', spX, spY - 3);
+  }
   ctx.fillStyle='#8892b0'; ctx.font='italic 11px Inter,sans-serif'; ctx.textAlign='center';
-  ctx.fillText('Calculator probability grows with each successful training round.', W/2, H-6);
+  ctx.fillText('Memory probability rises with each round — the agent learns the correct first tool.', W/2, H-6);
 }
 
+var whyRLRoundHistory = [0.33];
 function runTrainingRound() {
   if (whyRLTrainRAF) return;
   whyRLTrainRounds++;
-  // Always call Calculator (correct), update probs
+  // Memory (index 1) is the correct first tool — reinforce it
   var lr = 0.07;
   whyRLToolProbs[1] = Math.min(0.95, whyRLToolProbs[1] + lr);
   var remainder = (1 - whyRLToolProbs[1]) / 2;
   whyRLToolProbs[0] = Math.max(0.02, remainder);
   whyRLToolProbs[2] = Math.max(0.02, remainder);
-  // normalise
   var sum = whyRLToolProbs[0]+whyRLToolProbs[1]+whyRLToolProbs[2];
   for (var i=0;i<3;i++) whyRLToolProbs[i] /= sum;
+  whyRLRoundHistory.push(whyRLToolProbs[1]);
 
-  whyRLTrainAnimTool = 1; // Calculator
+  whyRLTrainAnimTool = 1; // Memory
   whyRLTrainAnimPct = 0;
   document.getElementById('why-rl-train-result').textContent = '';
 
@@ -2989,8 +3061,8 @@ function runTrainingRound() {
     } else {
       whyRLTrainRAF = null;
       var prob = (whyRLToolProbs[1]*100).toFixed(0);
-      var msg = 'Round ' + whyRLTrainRounds + ': Memory called first → got itinerary & budget → found route → user reached Paris. +reward. Memory prob: ' + prob + '%';
-      if (whyRLToolProbs[1] > 0.85) msg += ' 🎉 Agent learned: always check Memory first!';
+      var msg = 'Round ' + whyRLTrainRounds + ': Memory called first → got itinerary & budget → found route → reached Paris ✓  Memory prob: ' + prob + '%';
+      if (whyRLToolProbs[1] > 0.85) msg += '  🎉 Agent learned: always check Memory first!';
       document.getElementById('why-rl-train-result').textContent = msg;
     }
   }
@@ -3001,6 +3073,7 @@ function resetTraining() {
   if (whyRLTrainRAF) { cancelAnimationFrame(whyRLTrainRAF); whyRLTrainRAF = null; }
   whyRLToolProbs = [0.33, 0.33, 0.34];
   whyRLTrainRounds = 0;
+  whyRLRoundHistory = [0.33];
   document.getElementById('why-rl-train-result').textContent = '';
   drawWhyRLTrainCanvas(-1, 0, null);
 }
@@ -3987,6 +4060,219 @@ function initRF() {
 }
 
 /* =====================================================
+   COMPARISON TABLE — EXPANDABLE ROWS
+===================================================== */
+var compRows = [
+  {
+    feature: 'Multi-agent support',
+    al: '✓', trl: '✗', openrlhf: '✗', verl: '~', rllib: '✓',
+    detail: 'Agent Lightning natively handles multiple LLM agents in a single trajectory (e.g. SQL writer + checker + rewriter). Other frameworks treat each LLM call in isolation — they have no concept of a coordinated multi-agent workflow sharing a single RL training loop.'
+  },
+  {
+    feature: 'Tool-use agents',
+    al: '✓', trl: '✗', openrlhf: '✗', verl: '✗', rllib: '~',
+    detail: 'Most RL frameworks assume the LLM generates text only. Tool-use agents make API calls (search, code, memory) mid-trajectory. Agent Lightning intercepts these calls via its Data Interface — no other LLM RL framework does this without heavy custom wrappers.'
+  },
+  {
+    feature: 'Async rollout',
+    al: '✓', trl: '✗', openrlhf: '~', verl: '✓', rllib: '✓',
+    detail: 'Agent Lightning clients run rollouts independently and push trajectories to the server as they complete — no synchronisation barrier. TRL requires all rollouts to finish before a single update. OpenRLHF has partial async support but not for multi-turn agents.'
+  },
+  {
+    feature: 'Intermediate rewarding (AIR)',
+    al: '✓', trl: '✗', openrlhf: '✗', verl: '✗', rllib: '✗',
+    detail: 'AIR automatically converts tool call return statuses into per-step reward signals. No other framework does this — they all provide a single terminal reward. Without AIR, a 10-step agent trajectory gets one gradient signal at the very end, making credit assignment extremely hard.'
+  },
+  {
+    feature: 'Transition-based credit (no masking)',
+    al: '✓', trl: '✗', openrlhf: '✗', verl: '✗', rllib: '✗',
+    detail: 'LightningRL decomposes trajectories into (input_t, output_t, r_t) tuples — each LLM call is a separate training sample. Other frameworks concatenate the full multi-turn context and use token masking to isolate training signals, which corrupts RoPE positional encodings and creates irregular GPU memory patterns.'
+  },
+  {
+    feature: 'Zero-code-modification agent integration',
+    al: '✓', trl: '✗', openrlhf: '✗', verl: '✗', rllib: '✗',
+    detail: 'Agent Lightning works with any agent that makes LLM API calls — LangChain, AutoGen, OpenAI Agents SDK — without changing a single line of agent code. Every other framework requires you to rewrite the agent using their specific abstractions or add training hooks to the agent internals.'
+  },
+  {
+    feature: 'Production-ready',
+    al: '✓', trl: '✓', openrlhf: '~', verl: '✓', rllib: '✓',
+    detail: 'TRL, veRL, and RLlib are all production-tested at scale. Agent Lightning is newer (2025) but designed for production from the ground up — gRPC communication, checkpoint management, and prioritized experience replay are all built in.'
+  }
+];
+
+var compExpanded = new Array(compRows.length).fill(false);
+
+function toggleCompRow(idx) {
+  compExpanded[idx] = !compExpanded[idx];
+  renderCompTable();
+}
+
+function renderCompTable() {
+  var tbody = document.getElementById('comparison-tbody');
+  if (!tbody) return;
+  var html = '';
+  var alColor = 'var(--lightning)';
+
+  function cell(v) {
+    if (v === '✓') return '<td><span class="check">✓</span></td>';
+    if (v === '✗') return '<td><span class="cross">✗</span></td>';
+    return '<td><span class="partial">~</span></td>';
+  }
+
+  for (var i = 0; i < compRows.length; i++) {
+    var r = compRows[i];
+    var exp = compExpanded[i];
+    html += '<tr onclick="toggleCompRow(' + i + ')" style="cursor:pointer;" title="Click to expand">';
+    html += '<td style="display:flex;align-items:center;gap:6px;">'
+      + '<span style="font-size:10px;color:var(--muted);transition:transform 0.2s;display:inline-block;transform:rotate(' + (exp ? '90' : '0') + 'deg);">▶</span>'
+      + r.feature + '</td>';
+    html += cell(r.al) + cell(r.trl) + cell(r.openrlhf) + cell(r.verl) + cell(r.rllib);
+    html += '</tr>';
+    if (exp) {
+      html += '<tr><td colspan="6" style="padding:0 14px 14px;background:rgba(124,106,244,0.04);border-bottom:1px solid var(--border);">'
+        + '<div style="font-size:12px;color:var(--muted);line-height:1.6;padding:10px 0;border-left:3px solid var(--accent);padding-left:12px;">'
+        + r.detail + '</div></td></tr>';
+    }
+  }
+  tbody.innerHTML = html;
+}
+
+function initCompTable() {
+  renderCompTable();
+}
+
+/* =====================================================
+   ARCHITECTURE — ANIMATED DATA FLOW
+===================================================== */
+var archFlowAnimId = null;
+var archFlowT = 0;
+
+function drawArchFlowCanvas() {
+  var cv = document.getElementById('arch-flow-canvas');
+  if (!cv) return;
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // Layout: 3 clients on left, server on right
+  var serverX = W - 130, serverY = H/2 - 40, serverW = 110, serverH = 80;
+  var clients = [
+    { x: 30, y: 20,  label: 'Client 1', color: '#4ECDC4' },
+    { x: 30, y: 85,  label: 'Client 2', color: '#A29BFE' },
+    { x: 30, y: 150, label: 'Client 3', color: '#45B7D1' }
+  ];
+  var clientW = 100, clientH = 36;
+
+  // Server box
+  ctx.fillStyle = 'rgba(162,155,254,0.1)'; ctx.strokeStyle = 'var(--lightning)' || '#A29BFE';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(serverX, serverY, serverW, serverH, 8); else ctx.rect(serverX, serverY, serverW, serverH);
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#A29BFE'; ctx.font = 'bold 11px Inter,sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('⚡ Server', serverX + serverW/2, serverY + 22);
+  ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter,sans-serif';
+  ctx.fillText('Policy + Optimizer', serverX + serverW/2, serverY + 38);
+  ctx.fillText('gRPC endpoint', serverX + serverW/2, serverY + 52);
+
+  // Client boxes + packets
+  for (var ci = 0; ci < clients.length; ci++) {
+    var cl = clients[ci];
+    ctx.fillStyle = 'rgba(30,36,68,0.8)'; ctx.strokeStyle = cl.color; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(cl.x, cl.y, clientW, clientH, 6); else ctx.rect(cl.x, cl.y, clientW, clientH);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = cl.color; ctx.font = 'bold 10px Inter,sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(cl.label, cl.x + clientW/2, cl.y + 14);
+    ctx.fillStyle = '#8892b0'; ctx.font = '9px Inter,sans-serif';
+    ctx.fillText('rollout + reward', cl.x + clientW/2, cl.y + 27);
+
+    // Animated packet from client to server
+    var phase = (archFlowT + ci * 0.33) % 1;
+    var startX = cl.x + clientW, startY = cl.y + clientH/2;
+    var endX = serverX, endY = serverY + serverH/2;
+    var px = startX + (endX - startX) * phase;
+    var py = startY + (endY - startY) * phase;
+
+    // Trail line
+    ctx.strokeStyle = cl.color + '33'; ctx.lineWidth = 1; ctx.setLineDash([3,4]);
+    ctx.beginPath(); ctx.moveTo(startX, startY); ctx.lineTo(endX, endY); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Packet dot
+    ctx.fillStyle = cl.color;
+    ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI*2); ctx.fill();
+
+    // Label near packet
+    if (phase > 0.1 && phase < 0.9) {
+      ctx.fillStyle = cl.color; ctx.font = '8px JetBrains Mono,monospace'; ctx.textAlign = 'center';
+      ctx.fillText('trajectory', px, py - 8);
+    }
+  }
+
+  // Updated policy arrow back (dashed, server→clients)
+  ctx.strokeStyle = '#55efc4'; ctx.lineWidth = 1; ctx.setLineDash([5,5]);
+  ctx.beginPath();
+  ctx.moveTo(serverX, serverY + serverH/2);
+  ctx.lineTo(serverX - 30, serverY + serverH/2);
+  ctx.lineTo(serverX - 30, clients[1].y + clientH/2);
+  ctx.lineTo(clients[0].x + clientW, clients[1].y + clientH/2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#55efc4'; ctx.font = '9px Inter,sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('updated policy', serverX - 30, serverY + serverH/2 - 6);
+
+  // Caption
+  ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter,sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('All 3 clients run rollouts in parallel — server updates continuously as batches arrive', W/2, H - 6);
+}
+
+function tickArchFlow() {
+  archFlowT = (archFlowT + 0.004) % 1;
+  drawArchFlowCanvas();
+  archFlowAnimId = requestAnimationFrame(tickArchFlow);
+}
+
+function startArchFlow() {
+  if (!archFlowAnimId) tickArchFlow();
+}
+
+function stopArchFlow() {
+  if (archFlowAnimId) { cancelAnimationFrame(archFlowAnimId); archFlowAnimId = null; }
+}
+
+/* =====================================================
+   KEYBOARD NAVIGATION
+===================================================== */
+document.addEventListener('keydown', function(e) {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  var ids = sectionIds;
+  var current = null;
+  // find which section is most visible
+  var bestY = Infinity;
+  for (var i = 0; i < ids.length; i++) {
+    var el = document.getElementById(ids[i]);
+    if (!el) continue;
+    var rect = el.getBoundingClientRect();
+    if (rect.top >= -rect.height/2 && rect.top < bestY) {
+      bestY = rect.top; current = i;
+    }
+  }
+  if (current === null) current = 0;
+  if (e.key === 'ArrowRight' || e.key === 'j' || e.key === 'J') {
+    var next = Math.min(ids.length - 1, current + 1);
+    var el = document.getElementById(ids[next]);
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+    e.preventDefault();
+  } else if (e.key === 'ArrowLeft' || e.key === 'k' || e.key === 'K') {
+    var prev = Math.max(0, current - 1);
+    var el = document.getElementById(ids[prev]);
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+    e.preventDefault();
+  }
+});
+
+/* =====================================================
    INITIALIZE ALL
 ===================================================== */
 initWhyRL();
@@ -4006,7 +4292,18 @@ initStaleness();
 initLoop();
 initDE();
 initRF();
+initCompTable();
 initExperiments();
+// Start arch flow animation when section enters view
+(function() {
+  var cv = document.getElementById('arch-flow-canvas');
+  if (!cv) return;
+  var obs = new IntersectionObserver(function(entries) {
+    if (entries[0].isIntersecting) startArchFlow();
+    else stopArchFlow();
+  }, { threshold: 0.2 });
+  obs.observe(cv);
+})();
 </script>
 </body>
 </html>
