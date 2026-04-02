@@ -25,6 +25,9 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
 .nav-group-title { padding:0 18px 6px; font-size:10px; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); font-weight:600; }
 .nav-link { display:flex; align-items:center; gap:10px; padding:8px 18px; cursor:pointer; border-left:3px solid transparent; transition:all 0.2s; text-decoration:none; color:var(--muted); font-size:13px; }
 .nav-link:hover, .nav-link.active { background:rgba(124,106,244,0.1); color:var(--text); border-left-color:var(--accent); }
+.nav-link.visited .dot::after { content:'✓'; position:absolute; font-size:7px; color:#4ade80; font-weight:900; right:-3px; top:-3px; }
+.nav-link .dot { position:relative; }
+.nav-link.visited { color:var(--text); opacity:0.75; }
 .dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
 
 .main { margin-left:250px; flex:1; }
@@ -210,6 +213,16 @@ canvas { display:block; background:var(--bg); border-radius:8px; border:1px soli
 .rf-bar-track { flex:1; height:18px; background:var(--bg); border-radius:4px; overflow:hidden; position:relative; }
 .rf-bar-fill { height:100%; border-radius:4px; transition:width 0.4s ease; }
 .rf-bar-val { font-size:11px; font-family:'JetBrains Mono',monospace; min-width:36px; text-align:right; color:var(--text); }
+.ca-timeline { display:flex; gap:0; margin:20px 0 24px; position:relative; }
+.ca-timeline::before { content:''; position:absolute; top:28px; left:28px; right:28px; height:2px; background:var(--border); z-index:0; }
+.ca-step-node { flex:1; display:flex; flex-direction:column; align-items:center; position:relative; z-index:1; cursor:pointer; }
+.ca-node-circle { width:56px; height:56px; border-radius:50%; border:2px solid var(--border); background:var(--surface); display:flex; align-items:center; justify-content:center; font-size:20px; transition:all 0.25s; }
+.ca-step-node.active .ca-node-circle { border-color:#fd79a8; background:rgba(253,121,168,0.15); box-shadow:0 0 14px rgba(253,121,168,0.4); }
+.ca-step-node.done .ca-node-circle { border-color:#fd79a8; background:rgba(253,121,168,0.08); }
+.ca-node-label { font-size:10px; color:var(--muted); margin-top:8px; text-align:center; max-width:80px; line-height:1.4; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; }
+.ca-step-node.active .ca-node-label { color:#fd79a8; }
+.ca-detail { background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:22px 24px; min-height:160px; transition:border-color 0.2s; }
+.ca-detail.active { border-color:#fd79a8; }
 </style>
 </head>
 <body>
@@ -273,6 +286,7 @@ window.addEventListener('load',()=>{ const el=document.getElementById('pg-input'
     <div>
       <h1>Agent Lightning</h1>
       <p>arXiv:2508.03680 — Interactive Explorer</p>
+      <p id="sb-progress" style="font-size:10px;color:#4ade80;margin-top:2px;display:none;"></p>
     </div>
     <button class="sb-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')" style="display:none;" id="sb-toggle-btn">☰ Menu</button>
   </div>
@@ -499,6 +513,9 @@ window.addEventListener('resize', function() {
     <p><strong>Agent Lightning</strong> is built specifically for the multi-step agent world — it knows which step in a long tool-calling chain deserves credit when the final answer is right.</p>
     <a href="#overview" onclick="setActive(document.querySelector('[href=\'#overview\']'))" class="btn" style="white-space:nowrap;color:var(--accent);border-color:var(--accent);">See the Overview →</a>
   </div>
+  <div style="margin-top:28px;padding:12px 18px;border-left:3px solid #fdcb6e;background:rgba(253,203,110,0.05);border-radius:0 8px 8px 0;">
+    <p style="font-size:13px;color:var(--muted);line-height:1.6;">Now that we've seen why RL exists, let's formalise what the agent is actually learning. The next section introduces the Markov Decision Process — the mathematical structure that turns a flight conversation into a trainable sequence of decisions.</p>
+  </div>
 </section>
 
 <!-- ===== 1. OVERVIEW ===== -->
@@ -655,6 +672,9 @@ window.addEventListener('resize', function() {
         <span style="font-size:11px;color:var(--grpo);">Explore →</span>
       </div>
     </a>
+  </div>
+  <div style="margin-top:28px;padding:12px 18px;border-left:3px solid #FF6B6B;background:rgba(255,107,107,0.05);border-radius:0 8px 8px 0;">
+    <p style="font-size:13px;color:var(--muted);line-height:1.6;">With the MDP structure clear, the next three sections show how REINFORCE++, PPO, and GRPO each use it differently to update the agent's policy — same flight scenario, three different approaches to the same problem.</p>
   </div>
 </section>
 
@@ -860,6 +880,9 @@ L_GRPO = E_i [ min( r_i(θ)·A_i, clip(r_i(θ),1−ε,1+ε)·A_i ) ] − β·KL(
       <p>Agent Lightning uses β = 0.04 in most experiments — small enough to let the policy improve, large enough to prevent collapse. The paper notes β interacts with learning rate: larger models typically need smaller β to avoid destabilising the pretrained capabilities.</p>
     </div>
   </div>
+  <div style="margin-top:28px;padding:12px 18px;border-left:3px solid #a8edea;background:rgba(168,237,234,0.05);border-radius:0 8px 8px 0;">
+    <p style="font-size:13px;color:var(--muted);line-height:1.6;">You've now seen all three algorithms in action on the same flight scenario. The next section helps you decide which one to use for your own agent — and what trade-offs to expect in production.</p>
+  </div>
 </section>
 
 <!-- ===== ALGO CHOICE ===== -->
@@ -915,6 +938,9 @@ L_GRPO = E_i [ min( r_i(θ)·A_i, clip(r_i(θ),1−ε,1+ε)·A_i ) ] − β·KL(
 
   <div id="algo-recommendation" style="display:none;" class="card">
     <div id="algo-rec-content"></div>
+  </div>
+  <div style="margin-top:28px;padding:12px 18px;border-left:3px solid #fdcb6e;background:rgba(253,203,110,0.05);border-radius:0 8px 8px 0;">
+    <p style="font-size:13px;color:var(--muted);line-height:1.6;">With the algorithm chosen, the next section shows how Agent Lightning's Unified Data Interface converts any framework's raw trajectories into the structured MDP transitions these algorithms need — without touching your agent code.</p>
   </div>
 </section>
 
@@ -1084,14 +1110,22 @@ L_GRPO = E_i [ min( r_i(θ)·A_i, clip(r_i(θ),1−ε,1+ε)·A_i ) ] − β·KL(
   <div class="section-title" style="color:#fd79a8">Credit Assignment</div>
   <div class="section-sub">Assigning credit to individual actions in long agent trajectories is a core challenge. Agent Lightning introduces a structured 4-step credit assignment pipeline.</div>
 
-  <div class="ca-card" id="ca-card">
-    <div class="ca-title" id="ca-title"></div>
-    <div class="ca-body" id="ca-body"></div>
+  <!-- Interactive credit timeline -->
+  <div class="ca-timeline" id="ca-timeline"></div>
+  <div class="ca-detail" id="ca-detail">
+    <div class="ca-title" id="ca-title" style="font-size:17px;font-weight:700;margin-bottom:12px;color:#fd79a8;"></div>
+    <div class="ca-body" id="ca-body" style="font-size:13px;color:var(--muted);line-height:1.7;white-space:pre-wrap;"></div>
   </div>
-  <div class="ca-nav">
-    <button class="btn btn-outline" id="ca-prev" onclick="caStep(-1)">&#8592; Prev</button>
-    <div class="ca-dots" id="ca-dots"></div>
-    <button class="btn" id="ca-next" onclick="caStep(1)">Next &#8594;</button>
+  <div style="display:flex;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap;">
+    <button class="btn btn-outline" id="ca-prev" onclick="caStep(-1)">← Prev</button>
+    <div class="ca-dots" id="ca-dots" style="display:flex;gap:8px;"></div>
+    <button class="btn" id="ca-next" onclick="caStep(1)">Next →</button>
+    <span style="font-size:11px;color:var(--muted);margin-left:6px;">Click any node above to jump to that step</span>
+  </div>
+  <canvas id="ca-canvas" width="660" height="130" style="width:100%;max-width:660px;border-radius:8px;background:var(--bg);border:1px solid var(--border);display:block;margin-top:20px;"></canvas>
+  <p id="ca-canvas-caption" style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;"></p>
+  <div style="margin-top:28px;padding:12px 18px;border-left:3px solid #e84393;background:rgba(232,67,147,0.05);border-radius:0 8px 8px 0;">
+    <p style="font-size:13px;color:var(--muted);line-height:1.6;">Credit assignment tells us which steps to reinforce. AIR automates the reward signal that makes this possible — the next section shows exactly how tool return statuses become training signal, automatically.</p>
   </div>
 </section>
 
@@ -1239,6 +1273,9 @@ Each transition = one self-contained training example.</div>
     <div class="highlight-box">
       <p>In the paper's Text-to-SQL experiment, the 3-agent workflow (SQL writer + checker + rewriter) produces ~3–5 LLM calls per task. LightningRL extracts a transition from each — <strong>3–5× more gradient updates</strong> from the same compute budget, with no extra inference cost.</p>
     </div>
+  </div>
+  <div style="margin-top:28px;padding:12px 18px;border-left:3px solid #55efc4;background:rgba(85,239,196,0.05);border-radius:0 8px 8px 0;">
+    <p style="font-size:13px;color:var(--muted);line-height:1.6;">The algorithm is defined, the architecture is built. The next section shows the three real-world experiments from the paper — Text-to-SQL, multi-hop RAG, and Math QA — where all of this comes together on a live Llama-3.2-3B model.</p>
   </div>
 </section>
 
@@ -1418,9 +1455,25 @@ Each transition = one self-contained training example.</div>
 /* =====================================================
    UTILITIES
 ===================================================== */
+var visitedSections = new Set();
 function setActive(el) {
   document.querySelectorAll('.nav-link').forEach(function(l) { l.classList.remove('active'); });
   el.classList.add('active');
+}
+function markVisited(sectionId) {
+  visitedSections.add(sectionId);
+  document.querySelectorAll('.nav-link').forEach(function(l) {
+    var href = l.getAttribute('href');
+    if (href && visitedSections.has(href.slice(1)) && !l.classList.contains('active')) {
+      l.classList.add('visited');
+    }
+  });
+  var prog = document.getElementById('sb-progress');
+  if (prog) {
+    var pct = Math.round((visitedSections.size / sectionIds.length) * 100);
+    prog.textContent = pct + '% read (' + visitedSections.size + '/' + sectionIds.length + ' sections)';
+    prog.style.display = 'block';
+  }
 }
 
 /* =====================================================
@@ -2342,50 +2395,148 @@ function initMDP() {
 ===================================================== */
 var caSteps = [
   {
+    icon: '⚠️', label: 'Problem',
     title: 'Step 1 — The Problem: Sparse Terminal Reward',
-    body: 'In a multi-turn agent task, the reward only arrives at the very end — did the user reach Paris? But the agent took 5 actions to get there. Without structure, all 5 get the same reward signal — even if Memory (step 1) was the only decision that actually mattered. Standard RL has no way to distinguish which step was the key move.',
+    body: 'In a 5-turn flight agent, the reward only arrives at the very end — "Did the user reach Paris?" All 5 steps get the same sparse signal, even though Memory (step 1) was the only decision that mattered.\n\nThe canvas below shows all 5 steps receiving equal gradient — the policy has no idea which step was responsible.',
+    canvasMode: 'sparse'
   },
   {
+    icon: '✂️', label: 'Decompose',
     title: 'Step 2 — LightningRL: Decompose into Transitions',
-    body: 'LightningRL breaks the full trajectory into individual (input_t, output_t, r_t) transitions — one per LLM call. Each LLM call becomes its own training example. No masking needed.\n\nTrajectory → [(input₁, output₁, r₁), (input₂, output₂, r₂), ..., (inputₙ, outputₙ, rₙ)]\n\nThis is the core of the Unified Data Interface contribution: any multi-turn agent trajectory maps cleanly to a list of structured transitions.',
+    body: 'LightningRL breaks the full trajectory into individual (input_t, output_t, r_t) transitions — one per LLM call. Each becomes its own self-contained training example. No masking. No concatenation.\n\nTrajectory → [(input₁, out₁, r₁), (input₂, out₂, r₂), ..., (input₅, out₅, r₅)]\n\nNow each step can receive a different reward signal. The canvas shows the 5 transitions laid out independently.',
+    canvasMode: 'decompose'
   },
   {
+    icon: '🎯', label: 'AIR',
     title: 'Step 3 — AIR: Automatic Intermediate Rewarding',
-    body: 'Tool call return statuses are converted into intermediate reward signals automatically — no manual reward shaping needed.\n\n• Memory returns user itinerary → +0.3\n• Search returns 404 error → -0.1\n• Calculator returns valid result → +0.2\n• Final correct answer → +1.0\n\nThis makes the reward signal much denser. The agent gets feedback at every step, not just the end — dramatically speeding up learning.',
+    body: 'Tool return statuses are automatically converted into per-step rewards — no manual reward shaping needed.\n\n• Memory returns itinerary → r₁ = +0.30\n• Search returns flights → r₂ = +0.20\n• Calculator valid result → r₃ = +0.10\n• Draft answer sent → r₄ = +0.15\n• Final correct answer → r₅ = +1.00\n\nDense reward signal at every step. The canvas shows the reward magnitude for each transition.',
+    canvasMode: 'air'
   },
   {
-    title: 'Step 4 — Advantage Estimation: Plug in Any Algorithm',
-    body: 'Now that transitions are structured, any existing single-turn RL algorithm (PPO, GRPO, REINFORCE++) can compute advantages without modification. They just see individual (input, output, reward) tuples — not the full multi-turn trajectory. No special multi-turn support needed in the algorithm itself.\n\nThis is what makes Agent Lightning extensible: new algorithms automatically work without framework changes.',
+    icon: '📈', label: 'Advantage',
+    title: 'Step 4 — Advantage Estimation: Any Algorithm Works',
+    body: 'Now that every transition has its own (input, output, reward) tuple, standard RL algorithms — PPO, GRPO, REINFORCE++ — work unchanged. They see individual training samples, not multi-turn sequences.\n\nNo algorithm modification needed. This is what makes Agent Lightning extensible: swap the RL algorithm in one config line.\n\nThe canvas shows per-step advantages after normalisation — Memory and the final answer are reinforced most strongly.',
+    canvasMode: 'advantage'
   }
 ];
-
 var caCurrentStep = 0;
 
+function renderCATimeline() {
+  var tl = document.getElementById('ca-timeline');
+  if (!tl) return;
+  var html = '';
+  for (var i = 0; i < caSteps.length; i++) {
+    var cls = i === caCurrentStep ? 'active' : (i < caCurrentStep ? 'done' : '');
+    html += '<div class="ca-step-node ' + cls + '" onclick="caGoTo(' + i + ')">'
+      + '<div class="ca-node-circle">' + caSteps[i].icon + '</div>'
+      + '<div class="ca-node-label">' + caSteps[i].label + '</div>'
+      + '</div>';
+  }
+  tl.innerHTML = html;
+}
+
 function renderCA() {
+  renderCATimeline();
+  var s = caSteps[caCurrentStep];
   var title = document.getElementById('ca-title');
   var body = document.getElementById('ca-body');
+  var detail = document.getElementById('ca-detail');
   var dots = document.getElementById('ca-dots');
-  if (!title || !body || !dots) return;
-
-  title.style.color = '#fd79a8';
-  title.textContent = caSteps[caCurrentStep].title;
-  body.textContent = caSteps[caCurrentStep].body;
-
-  var dotsHtml = '';
-  for (var i = 0; i < caSteps.length; i++) {
-    dotsHtml += '<div class="ca-dot' + (i === caCurrentStep ? ' active' : '') + '"></div>';
+  if (title) title.textContent = s.title;
+  if (body) body.textContent = s.body;
+  if (detail) detail.className = 'ca-detail active';
+  if (dots) {
+    var dh = '';
+    for (var i = 0; i < caSteps.length; i++) {
+      dh += '<div class="ca-dot' + (i === caCurrentStep ? ' active' : '') + '"></div>';
+    }
+    dots.innerHTML = dh;
   }
-  dots.innerHTML = dotsHtml;
-
   var prev = document.getElementById('ca-prev');
   var next = document.getElementById('ca-next');
   if (prev) prev.disabled = caCurrentStep === 0;
   if (next) next.disabled = caCurrentStep === caSteps.length - 1;
+  drawCACanvas(s.canvasMode);
+}
+
+function caGoTo(idx) {
+  caCurrentStep = idx;
+  renderCA();
 }
 
 function caStep(dir) {
   caCurrentStep = Math.max(0, Math.min(caSteps.length - 1, caCurrentStep + dir));
   renderCA();
+}
+
+function drawCACanvas(mode) {
+  var cv = document.getElementById('ca-canvas');
+  var cap = document.getElementById('ca-canvas-caption');
+  if (!cv) return;
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var steps = ['🧠 Memory', '🔍 Search', '🧮 Calc', '✍️ Draft', '✅ Answer'];
+  var n = steps.length;
+  var padL = 40, padR = 20, padT = 20, padB = 36;
+  var slotW = (W - padL - padR) / n;
+  var maxH = H - padT - padB;
+
+  var values, colors, caption;
+  if (mode === 'sparse') {
+    values = [0.2, 0.2, 0.2, 0.2, 0.2];
+    colors = ['#4a5568','#4a5568','#4a5568','#4a5568','#4a5568'];
+    caption = 'Sparse reward: all 5 steps receive equal gradient signal (1/5 each). The policy cannot distinguish which step caused the good outcome.';
+  } else if (mode === 'decompose') {
+    values = [0.2, 0.2, 0.2, 0.2, 0.2];
+    colors = ['#A29BFE','#4ECDC4','#45B7D1','#fdcb6e','#55efc4'];
+    caption = 'Decomposed: each step is now a separate training sample (shown in different colours). Ready to receive individual rewards.';
+  } else if (mode === 'air') {
+    values = [0.30, 0.20, 0.10, 0.15, 1.00];
+    colors = ['#A29BFE','#4ECDC4','#45B7D1','#fdcb6e','#55efc4'];
+    caption = 'AIR rewards: each tool call automatically gets a reward from its return status. Final answer gets the task reward. Dense, differentiated signal.';
+  } else {
+    var raw = [0.30, 0.20, 0.10, 0.15, 1.00];
+    var mean = raw.reduce(function(a,b){return a+b;},0)/raw.length;
+    var std = Math.sqrt(raw.reduce(function(a,b){return a+(b-mean)*(b-mean);},0)/raw.length) || 1;
+    values = raw.map(function(r){return (r-mean)/std;});
+    colors = values.map(function(v){return v>=0?'#4ade80':'#f87171';});
+    caption = 'Normalised advantages: positive = reinforce this step, negative = discourage it. Memory and Answer have the highest advantages.';
+  }
+
+  var maxAbs = Math.max.apply(null, values.map(Math.abs)) || 1;
+  var zeroY = padT + (mode === 'advantage' ? maxH / 2 : maxH);
+
+  // zero line
+  ctx.strokeStyle = '#2a3060'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(padL, zeroY); ctx.lineTo(W - padR, zeroY); ctx.stroke();
+
+  for (var i = 0; i < n; i++) {
+    var bw = slotW * 0.55;
+    var bx = padL + i * slotW + (slotW - bw) / 2;
+    var v = values[i];
+    var bh = Math.abs(v) / maxAbs * (mode === 'advantage' ? maxH / 2 - 4 : maxH - 4);
+    bh = Math.max(bh, 3);
+    var by = v >= 0 ? zeroY - bh : zeroY;
+
+    ctx.fillStyle = colors[i];
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, v >= 0 ? [4,4,0,0] : [0,0,4,4]);
+    else ctx.rect(bx, by, bw, bh);
+    ctx.fill();
+
+    // value label
+    ctx.fillStyle = '#e2e8f0'; ctx.font = 'bold 10px JetBrains Mono,monospace'; ctx.textAlign = 'center';
+    var labelY = v >= 0 ? by - 3 : by + bh + 11;
+    ctx.fillText((mode === 'advantage' ? (v >= 0 ? '+' : '') + v.toFixed(2) : '+' + v.toFixed(2)), bx + bw / 2, labelY);
+
+    // step label
+    ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter,sans-serif';
+    ctx.fillText(steps[i], bx + bw / 2, H - 6);
+  }
+
+  if (cap) cap.textContent = caption;
 }
 
 /* =====================================================
@@ -2609,6 +2760,7 @@ function updateNavOnScroll() {
   document.querySelectorAll('.nav-link').forEach(function(link) {
     if (link.getAttribute('href') === '#' + current) {
       link.classList.add('active');
+      markVisited(current);
     } else {
       link.classList.remove('active');
     }
