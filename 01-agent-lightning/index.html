@@ -180,6 +180,17 @@ canvas { display:block; background:var(--bg); border-radius:8px; border:1px soli
 .di-trans-row { display:flex; gap:8px; align-items:flex-start; padding:3px 0; font-size:12px; }
 .di-key { font-family:'JetBrains Mono'; color:#e2b35e; min-width:60px; flex-shrink:0; }
 .di-val { color:var(--muted); font-family:'JetBrains Mono'; font-size:11px; }
+.scenario-card { background:var(--surface2); border:2px solid var(--border); border-radius:10px; padding:16px; cursor:pointer; transition:all 0.2s; }
+.scenario-card:hover { border-color:var(--accent); background:rgba(124,106,244,0.06); }
+.scenario-card.selected { border-color:var(--accent); background:rgba(124,106,244,0.12); }
+.scenario-icon { font-size:1.5rem; margin-bottom:8px; }
+.scenario-title { font-size:13px; font-weight:700; color:var(--text); margin-bottom:4px; }
+.scenario-desc { font-size:11px; color:var(--muted); line-height:1.5; }
+.rf-strategy { display:flex; align-items:center; gap:12px; margin:8px 0; }
+.rf-strategy-label { font-size:12px; color:var(--muted); min-width:290px; flex-shrink:0; }
+.rf-bar-track { flex:1; height:18px; background:var(--bg); border-radius:4px; overflow:hidden; position:relative; }
+.rf-bar-fill { height:100%; border-radius:4px; transition:width 0.4s ease; }
+.rf-bar-val { font-size:11px; font-family:'JetBrains Mono',monospace; min-width:36px; text-align:right; color:var(--text); }
 </style>
 </head>
 <body>
@@ -275,6 +286,9 @@ window.addEventListener('load',()=>{ const el=document.getElementById('pg-input'
   </div>
   <div class="nav-group">
     <div class="nav-group-title">Agent Lightning</div>
+    <a class="nav-link" href="#algochoice" onclick="setActive(this)">
+      <span class="dot" style="background:#a8edea"></span>Algorithm Chooser
+    </a>
     <a class="nav-link" href="#architecture" onclick="setActive(this)">
       <span class="dot" style="background:#A29BFE"></span>Architecture
     </a>
@@ -832,6 +846,78 @@ L_GRPO = E_i [ min( r_i(θ)·A_i, clip(r_i(θ),1−ε,1+ε)·A_i ) ] − β·KL(
       <p style="font-size:13px;color:var(--muted);line-height:1.6">Default algorithm for math, coding, and tool-use agent tasks in Agent Lightning experiments. The group size G is configurable — larger G gives a better baseline estimate but costs more compute. Agent Lightning uses G=4 to G=8 in its paper experiments.</p>
     </div>
   </div>
+
+  <div class="section-divider" style="margin-top:28px;"><hr><span>The KL Penalty — Keeping the Policy Grounded</span><hr></div>
+  <div class="card" style="margin-top:16px;">
+    <div class="card-title" style="color:var(--grpo);">β — The Reference Policy Anchor</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:16px;">The GRPO objective includes <span style="font-family:'JetBrains Mono';color:#e2b35e;">−β·KL(π_θ ‖ π_ref)</span> — a penalty that prevents the new policy from drifting too far from the original pretrained model. Without it, the policy could collapse: always calling Memory regardless of context. β controls the trade-off between learning speed and stability.</p>
+    <div class="sl-row" style="margin-bottom:16px;">
+      <span class="sl-lbl">β (KL weight)</span>
+      <input type="range" id="kl-beta-slider" min="0" max="50" value="10" style="width:180px;" oninput="updateKLDemo(this.value)">
+      <span class="sl-val" id="kl-beta-val">0.10</span>
+    </div>
+    <canvas id="kl-canvas" width="640" height="180" style="width:100%;max-width:640px;border-radius:8px;background:var(--bg);border:1px solid var(--border);display:block;margin-bottom:10px;"></canvas>
+    <div id="kl-caption" style="font-size:12px;line-height:1.5;min-height:20px;margin-bottom:12px;"></div>
+    <div class="highlight-box" style="border-color:rgba(69,183,209,0.3);">
+      <p>Agent Lightning uses β = 0.04 in most experiments — small enough to let the policy improve, large enough to prevent collapse. The paper notes β interacts with learning rate: larger models typically need smaller β to avoid destabilising the pretrained capabilities.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== ALGO CHOICE ===== -->
+<section class="section" id="algochoice">
+  <div class="section-tag">RL Algorithms</div>
+  <div class="section-title">Which Algorithm Should You Use?</div>
+  <div class="section-sub">REINFORCE++, PPO, and GRPO have different trade-offs. Agent Lightning supports all three through the same Unified Data Interface. Here's how to choose.</div>
+
+  <div class="table-wrap" style="margin-bottom:28px;">
+    <table>
+      <thead>
+        <tr>
+          <th>Property</th>
+          <th style="color:var(--reinforce);">REINFORCE++</th>
+          <th style="color:var(--ppo);">PPO</th>
+          <th style="color:var(--grpo);">GRPO</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Needs critic / value network?</td><td><span class="check">✗ No</span></td><td><span class="partial">~ Yes</span></td><td><span class="check">✗ No</span></td></tr>
+        <tr><td>Training stability</td><td><span style="color:#facc15;">Moderate</span></td><td><span style="color:#4ade80;">High</span></td><td><span style="color:#4ade80;">High</span></td></tr>
+        <tr><td>Compute overhead</td><td><span style="color:#4ade80;">Low</span></td><td><span style="color:#facc15;">Medium</span></td><td><span style="color:#facc15;">Medium</span></td></tr>
+        <tr><td>Implementation complexity</td><td><span style="color:#4ade80;">Simple</span></td><td><span style="color:#facc15;">Moderate</span></td><td><span style="color:#facc15;">Moderate</span></td></tr>
+        <tr><td>Requires multiple samples/prompt?</td><td><span class="check">✗ No</span></td><td><span class="check">✗ No</span></td><td><span class="partial">~ Recommended</span></td></tr>
+        <tr><td>KL regularization?</td><td><span class="cross">✗</span></td><td><span class="partial">~ Clip only</span></td><td><span class="check">✓ β·KL term</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card-title" style="margin-bottom:14px;">Pick Your Scenario — Get a Recommendation</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;margin-bottom:20px;">
+    <div class="scenario-card" id="sc-0" onclick="setScenario(0)">
+      <div class="scenario-icon">🚀</div>
+      <div class="scenario-title">Fast prototype</div>
+      <div class="scenario-desc">Small model, limited GPU, want quick iteration and minimal setup overhead</div>
+    </div>
+    <div class="scenario-card" id="sc-1" onclick="setScenario(1)">
+      <div class="scenario-icon">🏭</div>
+      <div class="scenario-title">Production training</div>
+      <div class="scenario-desc">Large model, need stability, reproducibility, no catastrophic forgetting</div>
+    </div>
+    <div class="scenario-card" id="sc-2" onclick="setScenario(2)">
+      <div class="scenario-icon">🎲</div>
+      <div class="scenario-title">Group comparison</div>
+      <div class="scenario-desc">Can sample 4–8 responses per prompt, want self-normalizing baseline, no critic</div>
+    </div>
+    <div class="scenario-card" id="sc-3" onclick="setScenario(3)">
+      <div class="scenario-icon">🔗</div>
+      <div class="scenario-title">Long multi-step agent</div>
+      <div class="scenario-desc">5–15 tool calls per trajectory, want per-step credit with LightningRL transitions</div>
+    </div>
+  </div>
+
+  <div id="algo-recommendation" style="display:none;" class="card">
+    <div id="algo-rec-content"></div>
+  </div>
 </section>
 
 <!-- ===== 8. ARCHITECTURE ===== -->
@@ -1128,6 +1214,39 @@ Each transition = one self-contained training example.</div>
       <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;">Fastest improvement, steepest curve. Shows AIR working — tool call success signals provide dense intermediate rewards.</div>
     </div>
 
+  </div>
+
+  <div class="card" style="margin-top:24px;">
+    <div class="card-title" style="color:#00cec9;">Reward Function Designer — What Does the Agent Actually Optimise?</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:16px;">Reward design determines what behaviour the agent learns. Adjust the weights below and watch which flight-agent strategy becomes the most rewarded — you may be surprised what a poorly tuned reward incentivises.</p>
+    <div class="g3" style="margin-bottom:16px;gap:12px;">
+      <div>
+        <div class="card-title" style="font-size:11px;color:#00cec9;">Task completion reward</div>
+        <div class="sl-row">
+          <input type="range" id="rf-completion" min="0" max="200" value="100" oninput="updateRF()">
+          <span class="sl-val" id="rf-completion-val">1.00</span>
+        </div>
+        <p style="font-size:10px;color:var(--muted);margin-top:4px;">Reward for a correct final answer</p>
+      </div>
+      <div>
+        <div class="card-title" style="font-size:11px;color:#00cec9;">Tool success (per call)</div>
+        <div class="sl-row">
+          <input type="range" id="rf-tool" min="0" max="50" value="20" oninput="updateRF()">
+          <span class="sl-val" id="rf-tool-val">0.20</span>
+        </div>
+        <p style="font-size:10px;color:var(--muted);margin-top:4px;">Reward per successful tool return</p>
+      </div>
+      <div>
+        <div class="card-title" style="font-size:11px;color:#00cec9;">Format bonus</div>
+        <div class="sl-row">
+          <input type="range" id="rf-format" min="0" max="50" value="10" oninput="updateRF()">
+          <span class="sl-val" id="rf-format-val">0.10</span>
+        </div>
+        <p style="font-size:10px;color:var(--muted);margin-top:4px;">Bonus for well-structured output</p>
+      </div>
+    </div>
+    <div id="rf-strategies" style="margin-bottom:12px;"></div>
+    <div id="rf-winner" style="font-size:13px;line-height:1.6;padding:10px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);"></div>
   </div>
 
   <div class="highlight-box" style="margin-top:24px;">
@@ -2416,7 +2535,7 @@ window.addEventListener('scroll', animateResultBars);
 /* =====================================================
    ACTIVE NAV LINK ON SCROLL
 ===================================================== */
-var sectionIds = ['why-rl','overview','datainterface','mdp','reinforce','ppo','grpo','architecture','credit','air','lightningrl','experiments','comparison','takeaways'];
+var sectionIds = ['why-rl','overview','datainterface','mdp','reinforce','ppo','grpo','algochoice','architecture','credit','air','lightningrl','experiments','comparison','takeaways'];
 
 function updateNavOnScroll() {
   var scrollY = window.scrollY + 100;
@@ -3433,6 +3552,204 @@ function initDE() {
 }
 
 /* =====================================================
+   KL PENALTY DEMO
+===================================================== */
+function updateKLDemo(val) {
+  var beta = parseFloat(val) / 100;
+  var el = document.getElementById('kl-beta-val');
+  if (el) el.textContent = beta.toFixed(2);
+  drawKLCanvas(beta);
+  var cap = document.getElementById('kl-caption');
+  if (cap) {
+    if (beta < 0.03) {
+      cap.innerHTML = '<span style="color:#f87171;font-weight:600;">β too low:</span> <span style="color:var(--muted);">Policy drifts freely from the reference. The flight agent may collapse to always calling Memory — high training reward, brittle in deployment.</span>';
+    } else if (beta > 0.3) {
+      cap.innerHTML = '<span style="color:#facc15;font-weight:600;">β too high:</span> <span style="color:var(--muted);">KL penalty dominates the objective. The policy barely updates — it stays too close to the reference and fails to learn Memory-first ordering.</span>';
+    } else {
+      cap.innerHTML = '<span style="color:#4ade80;font-weight:600;">Good range:</span> <span style="color:var(--muted);">Policy improves toward the reward signal while staying close enough to the pretrained reference to generalise well.</span>';
+    }
+  }
+}
+
+function drawKLCanvas(beta) {
+  var cv = document.getElementById('kl-canvas');
+  if (!cv) return;
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var refPolicy = [0.33, 0.40, 0.27];
+  var unconstrained = [0.85, 0.12, 0.03];
+  var t = Math.min(1, beta / 0.4);
+  var curr = refPolicy.map(function(r, i) { return t * r + (1 - t) * unconstrained[i]; });
+  var s = curr.reduce(function(a, b) { return a + b; }, 0);
+  curr = curr.map(function(v) { return v / s; });
+  var kl = curr.reduce(function(acc, p, i) {
+    return acc + (p > 0 && refPolicy[i] > 0 ? p * Math.log(p / refPolicy[i]) : 0);
+  }, 0);
+
+  var labels = ['🧠 Memory', '🔍 Search', '✍️ Answer'];
+  var colors = ['#A29BFE', '#4ECDC4', '#45B7D1'];
+  var panelW = (W - 60) / 2;
+  var padT = 44, padB = 28, barW = 54, gap = 16;
+  var groupW = labels.length * (barW + gap) - gap;
+
+  function drawBars(ox, policy, title, alpha) {
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#8892b0'; ctx.font = 'bold 11px Inter,sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(title, ox + panelW / 2, padT - 22);
+    for (var i = 0; i < policy.length; i++) {
+      var bx = ox + (panelW - groupW) / 2 + i * (barW + gap);
+      var bh = Math.max(2, policy[i] * (H - padT - padB - 28));
+      var by = H - padB - 24 - bh;
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = colors[i]; ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(bx, by, barW, bh, [4,4,0,0]); else ctx.rect(bx, by, barW, bh);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = alpha < 1 ? '#4a5568' : '#e2e8f0';
+      ctx.font = 'bold 11px JetBrains Mono,monospace'; ctx.textAlign = 'center';
+      ctx.fillText(Math.round(policy[i] * 100) + '%', bx + barW / 2, by - 4);
+      ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter,sans-serif';
+      ctx.fillText(labels[i], bx + barW / 2, H - padB - 6);
+    }
+  }
+
+  drawBars(0, refPolicy, 'π_ref — Reference (frozen)', 0.4);
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = '#2a3060'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(panelW + 30, padT - 32); ctx.lineTo(panelW + 30, H - padB); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter,sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('KL = ' + kl.toFixed(3), panelW + 30, H / 2 + 4);
+  drawBars(panelW + 60, curr, 'π_θ — Learned (β = ' + beta.toFixed(2) + ')', 1);
+
+  var klColor = beta < 0.03 ? '#f87171' : (beta > 0.3 ? '#facc15' : '#4ade80');
+  ctx.fillStyle = klColor; ctx.font = 'bold 10px Inter,sans-serif'; ctx.textAlign = 'right';
+  ctx.fillText(beta < 0.03 ? '⚠ diverging from reference' : (beta > 0.3 ? '⚠ learning suppressed' : '✓ balanced'), W - 8, H - 6);
+}
+
+function initKL() {
+  drawKLCanvas(0.10);
+  updateKLDemo(10);
+}
+
+/* =====================================================
+   ALGORITHM CHOOSER
+===================================================== */
+var algoScenarios = [
+  {
+    algo: 'REINFORCE++', color: '#FF6B6B',
+    headline: 'Use REINFORCE++ — Start Simple',
+    why: 'No critic network needed, minimal hyperparameters, fastest to iterate. The only key setting is the discount factor γ. For the flight agent with 3 tool calls, REINFORCE++ trains reliably and is easy to debug.',
+    when: 'Quick experiments, small models (&lt;7B), 2–5 tool calls per trajectory, limited GPU budget.',
+    tradeoff: 'Can be noisy on long trajectories. If your agent makes 8+ tool calls, consider PPO or GRPO for more stable updates.'
+  },
+  {
+    algo: 'PPO', color: '#4ECDC4',
+    headline: 'Use PPO — Most Stable for Production',
+    why: 'The clip ratio (ε) prevents catastrophic policy updates that could destabilise a large model mid-training. Well-studied with extensive literature on hyperparameter tuning. Most robust for long production runs.',
+    when: 'Large models (7B+), production training, when stability and reproducibility matter more than simplicity.',
+    tradeoff: 'Requires a value/critic network which adds ~40% memory overhead. More complex to implement from scratch — use an existing PPO library.'
+  },
+  {
+    algo: 'GRPO', color: '#45B7D1',
+    headline: 'Use GRPO — Best for Group Comparison',
+    why: 'No critic needed — the group of sampled trajectories acts as its own baseline. Particularly effective when trajectory quality varies widely. The β·KL term keeps the policy grounded. Agent Lightning uses GRPO in all paper experiments.',
+    when: 'Can afford 4–8 trajectories per prompt, diverse task types, multi-step tool-use agents, when you want the β·KL safety anchor.',
+    tradeoff: 'Requires sampling multiple trajectories per prompt, increasing inference cost. Group size (G=4–8) is a key hyperparameter to tune.'
+  },
+  {
+    algo: 'LightningRL + GRPO or PPO', color: '#55efc4',
+    headline: 'Use LightningRL Transitions + GRPO or PPO',
+    why: 'Decompose the long trajectory into individual (input, output, reward) transitions. Each LLM call becomes its own training sample — a 10-step trajectory yields 10 gradient updates instead of 1. Pair with GRPO or PPO for stable per-transition updates.',
+    when: 'Long trajectories (5–15 tool calls), complex multi-step reasoning, when you want per-step credit assignment without token masking.',
+    tradeoff: 'More gradient updates per task means faster convergence but higher risk of overfitting. Use moderate learning rates and the β·KL anchor.'
+  }
+];
+
+function setScenario(idx) {
+  document.querySelectorAll('.scenario-card').forEach(function(c) { c.classList.remove('selected'); });
+  var card = document.getElementById('sc-' + idx);
+  if (card) card.classList.add('selected');
+  var s = algoScenarios[idx];
+  var rec = document.getElementById('algo-recommendation');
+  var content = document.getElementById('algo-rec-content');
+  if (!rec || !content) return;
+  content.innerHTML =
+    '<div style="border-top:3px solid ' + s.color + ';border-radius:4px 4px 0 0;margin:-22px -22px 16px;padding:8px 22px 0;"></div>'
+    + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">'
+    + '<div class="card-title" style="color:' + s.color + ';margin-bottom:0;">💡 ' + s.headline + '</div></div>'
+    + '<p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:12px;">' + s.why + '</p>'
+    + '<div style="display:flex;gap:10px;flex-wrap:wrap;">'
+    + '<div style="flex:1;min-width:200px;background:rgba(74,222,128,0.07);border:1px solid rgba(74,222,128,0.2);border-radius:8px;padding:10px 14px;">'
+    + '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#4ade80;margin-bottom:6px;">When to use</div>'
+    + '<p style="font-size:12px;color:var(--text);line-height:1.5;">' + s.when + '</p></div>'
+    + '<div style="flex:1;min-width:200px;background:rgba(248,113,113,0.07);border:1px solid rgba(248,113,113,0.2);border-radius:8px;padding:10px 14px;">'
+    + '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#f87171;margin-bottom:6px;">Trade-off to know</div>'
+    + '<p style="font-size:12px;color:var(--text);line-height:1.5;">' + s.tradeoff + '</p></div>'
+    + '</div>';
+  rec.style.display = 'block';
+}
+
+/* =====================================================
+   REWARD FUNCTION DESIGNER
+===================================================== */
+var rfStrategies = [
+  { label: '🧠 Memory → 🔍 Search → ✅ Correct answer', desc: 'Ideal — 2 tool calls, correct',     tools: 2, correct: true,  format: 0.8 },
+  { label: '🔍 Search → 🧠 Memory → ✅ Correct answer', desc: 'Wrong order, still correct',         tools: 2, correct: true,  format: 0.5 },
+  { label: '🧠 Mem → 🔍 Search × 2 → ✅ Correct',      desc: 'Redundant extra search call',         tools: 3, correct: true,  format: 0.7 },
+  { label: '🧠 Memory → ❌ Wrong answer',                desc: 'Skips Search, gives wrong answer',   tools: 1, correct: false, format: 0.3 }
+];
+var rfColors = ['#55efc4', '#4ECDC4', '#f87171', '#636e72'];
+
+function updateRF() {
+  var comp = parseFloat(document.getElementById('rf-completion').value) / 100;
+  var tool = parseFloat(document.getElementById('rf-tool').value) / 100;
+  var fmt  = parseFloat(document.getElementById('rf-format').value)  / 100;
+  var cv = document.getElementById('rf-completion-val'); if (cv) cv.textContent = comp.toFixed(2);
+  var tv = document.getElementById('rf-tool-val');       if (tv) tv.textContent = tool.toFixed(2);
+  var fv = document.getElementById('rf-format-val');     if (fv) fv.textContent = fmt.toFixed(2);
+
+  var rewards = rfStrategies.map(function(s) {
+    return (s.correct ? comp : 0) + s.tools * tool + s.format * fmt;
+  });
+  var maxR = Math.max.apply(null, rewards);
+  var winIdx = rewards.indexOf(maxR);
+
+  var html = '';
+  for (var i = 0; i < rfStrategies.length; i++) {
+    var s = rfStrategies[i];
+    var pct = maxR > 0 ? (rewards[i] / maxR) * 100 : 0;
+    var isWin = (i === winIdx);
+    html += '<div class="rf-strategy">';
+    html += '<div class="rf-strategy-label">'
+      + (isWin ? '<strong style="color:' + rfColors[i] + ';">' : '<span style="color:var(--muted);">')
+      + s.label
+      + (isWin ? '</strong>' : '</span>')
+      + ' <span style="font-size:10px;color:#4a5568;">(' + s.desc + ')</span></div>';
+    html += '<div class="rf-bar-track"><div class="rf-bar-fill" style="width:' + pct.toFixed(1) + '%;background:' + rfColors[i] + ';"></div></div>';
+    html += '<div class="rf-bar-val">' + rewards[i].toFixed(2) + (isWin ? ' 🏆' : '') + '</div>';
+    html += '</div>';
+  }
+  var rfEl = document.getElementById('rf-strategies');
+  if (rfEl) rfEl.innerHTML = html;
+
+  var msgs = [
+    '<strong style="color:#55efc4;">✓ Ideal:</strong> The reward correctly incentivises the Memory-first, 2-call, correct trajectory. This matches the paper\'s RAG experiment setup (0.9×correctness + 0.1×format).',
+    '<strong style="color:#facc15;">⚠ Ordering blind:</strong> The reward doesn\'t penalise wrong tool order — Search-first earns the same completion reward. The agent may learn to call Search before Memory.',
+    '<strong style="color:#f87171;">⚠ Reward hacking:</strong> Tool success reward is too high relative to completion — making an extra Search call earns more total reward than stopping after 2. The agent learns to make <em>redundant tool calls</em>.',
+    '<strong style="color:#f87171;">⚠ Shortcut wins:</strong> With task completion weight low enough, even a wrong answer can compete — the agent learns to skip Search entirely.'
+  ];
+  var winEl = document.getElementById('rf-winner');
+  if (winEl) winEl.innerHTML = msgs[winIdx];
+}
+
+function initRF() {
+  updateRF();
+}
+
+/* =====================================================
    INITIALIZE ALL
 ===================================================== */
 initWhyRL();
@@ -3445,11 +3762,13 @@ drawPPOCanvas();
 renderGRPO();
 renderCA();
 initDI();
+initKL();
 initAIR();
 initArch();
 initStaleness();
 initLoop();
 initDE();
+initRF();
 initExperiments();
 </script>
 </body>
