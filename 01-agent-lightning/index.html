@@ -547,6 +547,28 @@ window.addEventListener('load',()=>{ const el=document.getElementById('pg-input'
     <p id="di-explanation-text"></p>
   </div>
 
+  <!-- How rewards are computed -->
+  <div class="card" style="margin-top:16px;">
+    <div class="card-title" style="color:#e84393;margin-bottom:12px;">How AIR Computes the Reward Values</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+      <div style="background:rgba(74,222,128,0.07);border:1px solid rgba(74,222,128,0.2);border-radius:8px;padding:12px;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#4ade80;margin-bottom:8px;">Tool success (non-null return)</div>
+        <div style="font-family:'JetBrains Mono';font-size:12px;color:#e2b35e;margin-bottom:6px;">r_t = +w_tool</div>
+        <p style="font-size:11px;color:var(--muted);line-height:1.5;">AIR reads the tool's return status. Non-null / status 200 → positive reward. The weight <em>w_tool</em> is configurable per tool type (Memory: 0.30, Search: 0.20, etc.).</p>
+      </div>
+      <div style="background:rgba(248,113,113,0.07);border:1px solid rgba(248,113,113,0.2);border-radius:8px;padding:12px;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#f87171;margin-bottom:8px;">Tool failure (exception / null)</div>
+        <div style="font-family:'JetBrains Mono';font-size:12px;color:#e2b35e;margin-bottom:6px;">r_t = −w_tool</div>
+        <p style="font-size:11px;color:var(--muted);line-height:1.5;">Exception, timeout, or null return → negative reward of the same magnitude. The agent learns to avoid tool calls that fail, without any manual reward shaping.</p>
+      </div>
+      <div style="background:rgba(162,155,254,0.07);border:1px solid rgba(162,155,254,0.2);border-radius:8px;padding:12px;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#A29BFE;margin-bottom:8px;">Terminal step (final answer)</div>
+        <div style="font-family:'JetBrains Mono';font-size:12px;color:#e2b35e;margin-bottom:6px;">r_T = evaluator(answer)</div>
+        <p style="font-size:11px;color:var(--muted);line-height:1.5;">The last step uses a task-specific evaluator (exact match, F1, LLM-as-judge). This is the only reward that exists in the sparse baseline — r₁ and r₂ are purely AIR's contribution.</p>
+      </div>
+    </div>
+  </div>
+
   <div class="highlight-box" style="margin-top:16px;border-color:rgba(253,203,110,0.4);background:rgba(253,203,110,0.07);">
     <p><strong style="color:#fdcb6e;">Zero agent code changes.</strong> The Data Interface works by intercepting the LLM API calls externally — it reads the request/response logs the agent already generates. Switch from LangChain to AutoGen? The Data Interface adapts; your RL training code stays identical.</p>
   </div>
@@ -3284,8 +3306,9 @@ var diTurnsData = [
     input: 'System prompt + User message',
     output: 'Memory.invoke("user_itinerary")',
     reward: '+0.30',
-    rewardNote: 'tool success (status 200)',
-    explanation: 'Turn 1: The Data Interface records the LLM output ("call Memory") as output₁, and the full context at that moment (system + user message) as input₁. Memory returned successfully — AIR converts that return status into r₁ = +0.30 automatically.'
+    rewardHow: 'AIR: Memory returned non-null → w_memory = 0.30',
+    rewardNote: 'tool success → AIR weight',
+    explanation: 'Turn 1: The Data Interface records the LLM output ("call Memory") as output₁. Memory returned a non-null result (status 200). AIR reads this return status automatically and looks up the configured reward weight for the Memory tool (w_memory = 0.30) — no manual reward engineering needed.'
   },
   {
     label: 'Turn 2 — Memory result + Search call',
@@ -3297,8 +3320,9 @@ var diTurnsData = [
     input: 'System + User + [Memory result]',
     output: 'Search.invoke("Paris trains tomorrow...")',
     reward: '+0.20',
-    rewardNote: 'tool success (status 200)',
-    explanation: 'Turn 2: input₂ now includes the Memory tool result — the context is growing. The decision to call Search becomes output₂. Each transition carries its own independent context snapshot, so no positional encoding corruption from masking.'
+    rewardHow: 'AIR: Search returned non-null → w_search = 0.20',
+    rewardNote: 'tool success → AIR weight',
+    explanation: 'Turn 2: Search also returned successfully. AIR assigns w_search = 0.20 — a lower weight than Memory because finding alternatives is less critical than knowing the user\'s constraints. Each tool type gets its own configurable weight. If Search had thrown an exception, AIR would assign −0.20 instead.'
   },
   {
     label: 'Turn 3 — Final answer',
@@ -3310,8 +3334,9 @@ var diTurnsData = [
     input: 'System + User + [Memory] + [Search results]',
     output: '"Take Eurostar 7am. £89. eurostar.com."',
     reward: '+1.00',
-    rewardNote: 'correct final answer',
-    explanation: 'Turn 3: The full accumulated context forms input₃. The final answer text is output₃. Answer verified correct → r₃ = +1.00 (terminal reward). Result: one 3-turn task → three clean, independent (input, output, reward) training samples.'
+    rewardHow: 'Task evaluator: answer verified correct → r_terminal = 1.00',
+    rewardNote: 'task evaluator (answer correct)',
+    explanation: 'Turn 3: This is the terminal step — no tool call, just the final answer. r₃ comes from a separate task evaluator (e.g. exact match, LLM-as-judge), not AIR. The evaluator checks correctness and returns 1.00. This is the only reward that exists in the sparse baseline — AIR\'s r₁ and r₂ are the added signal.'
   }
 ];
 
@@ -3340,7 +3365,12 @@ function renderDI() {
     if (converted) {
       transHTML += '<div class="di-trans-row"><span class="di-key">input' + (i+1) + '</span><span class="di-val">' + t.input + '</span></div>';
       transHTML += '<div class="di-trans-row"><span class="di-key">output' + (i+1) + '</span><span class="di-val">' + t.output + '</span></div>';
-      transHTML += '<div class="di-trans-row"><span class="di-key">r' + (i+1) + '</span><span class="di-val" style="color:#4ade80;">' + t.reward + ' <span style="color:var(--muted);font-size:10px;">(' + t.rewardNote + ')</span></span></div>';
+      transHTML += '<div class="di-trans-row" style="align-items:flex-start;">'
+        + '<span class="di-key">r' + (i+1) + '</span>'
+        + '<span class="di-val" style="color:#4ade80;line-height:1.6;">'
+        + t.reward
+        + '<br><span style="color:#4a5568;font-size:10px;">← ' + t.rewardHow + '</span>'
+        + '</span></div>';
     } else {
       transHTML += '<div style="font-size:11px;color:var(--border);font-family:\'JetBrains Mono\',monospace;padding:8px 0;text-align:center;">— not yet converted —</div>';
     }
