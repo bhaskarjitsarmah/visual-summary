@@ -548,22 +548,12 @@ window.addEventListener('resize', function() {
     </div>
   </div>
 
-  <div class="overview-grid" style="grid-template-columns: repeat(3, 1fr);">
-    <div class="contrib-card" style="border-top-color:var(--reinforce)">
-      <div class="card-title" style="color:var(--reinforce)">Unified Data Interface</div>
-      <p style="font-size:13px;color:var(--muted);line-height:1.6">Formalizes multi-turn agent trajectories as structured MDP transitions — one (input, output, reward) triple per LLM call. Works with any agent architecture.</p>
-    </div>
-    <div class="contrib-card" style="border-top-color:var(--ppo)">
-      <div class="card-title" style="color:var(--ppo)">LightningRL Algorithm</div>
-      <p style="font-size:13px;color:var(--muted);line-height:1.6">Supports REINFORCE++, PPO, and GRPO natively. Decomposes trajectories into clean transitions — no token masking needed. Includes AIR (Automatic Intermediate Rewarding).</p>
-    </div>
-    <div class="contrib-card" style="border-top-color:var(--grpo)">
-      <div class="card-title" style="color:var(--grpo)">Training-Agent Disaggregation</div>
-      <p style="font-size:13px;color:var(--muted);line-height:1.6">Async server-client design separates environment <span class="tooltip">rollouts<span class="tooltip-text">Complete agent episodes — the agent acts from a prompt until it produces a final answer</span></span> from policy optimization — Lightning Server exposes an OpenAI-like API, Lightning Client runs any agent framework.</p>
-    </div>
-  </div>
+  <!-- Interactive paper map -->
+  <div class="card-title" style="margin-bottom:12px;">Paper Map — Click any contribution to explore</div>
+  <canvas id="paper-map-canvas" width="660" height="220" style="width:100%;max-width:660px;border-radius:10px;background:var(--bg);border:1px solid var(--border);display:block;cursor:pointer;" onclick="paperMapClick(event)"></canvas>
+  <div id="paper-map-detail" style="margin-top:14px;min-height:80px;"></div>
 
-  <div class="highlight-box" style="margin-top:28px">
+  <div class="highlight-box" style="margin-top:24px">
     <p><strong>Core Insight:</strong> Remember the cancelled-flight scenario? Agent Lightning is built specifically for that world — multi-step tool-using agents where the right action ordering matters. It formalizes the entire chain as a structured MDP and decomposes reward back to each step that deserved credit.</p>
   </div>
 </section>
@@ -721,6 +711,24 @@ G_t = Σ_{k=0}^{T-t} γ^k · r_{t+k}   (discounted return from step t)</div>
         <span style="color:#A29BFE">↑</span> gradient arrows = policy update direction
       </p>
     </div>
+  </div>
+
+  <!-- Gradient flow animation -->
+  <div class="section-divider" style="margin-top:28px;"><hr><span>How Credit Flows Backwards</span><hr></div>
+  <div class="card" style="margin-top:16px;">
+    <div class="card-title" style="color:var(--reinforce);">Discounted Return — Animated Credit Flow</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:16px;">When the final answer scores +1.0, that credit flows <em>backwards</em> through the trajectory — discounted by γ at each step. Watch how the γ value controls how much earlier steps "share" in the terminal reward.</p>
+    <canvas id="gradient-flow-canvas" width="640" height="160" style="width:100%;max-width:640px;border-radius:8px;background:var(--bg);border:1px solid var(--border);display:block;margin-bottom:12px;"></canvas>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+      <button class="btn" id="gf-play-btn" onclick="toggleGradientFlow()">▶ Animate</button>
+      <button class="btn btn-outline" onclick="resetGradientFlow()">Reset</button>
+      <div class="sl-row" style="flex:1;min-width:200px;margin:0;">
+        <span class="sl-lbl" style="min-width:60px;">γ =</span>
+        <input type="range" id="gf-gamma-slider" min="50" max="100" value="90" style="flex:1;" oninput="updateGFGamma(this.value)">
+        <span class="sl-val" id="gf-gamma-val">0.90</span>
+      </div>
+    </div>
+    <div id="gf-caption" style="font-size:12px;color:var(--muted);line-height:1.5;min-height:16px;"></div>
   </div>
 
   <div class="g3" style="margin-top:24px">
@@ -1356,6 +1364,21 @@ Each transition = one self-contained training example.</div>
 
   <div class="highlight-box" style="margin-top:24px;">
     <p>All experiments use <strong>Llama-3.2-3B-Instruct</strong>. The paper reports relative reward improvement curves — no absolute benchmark numbers are claimed. Training consistently improves across all tasks and agent frameworks tested.</p>
+  </div>
+
+  <!-- What breaks simulator -->
+  <div class="section-divider" style="margin-top:28px;"><hr><span>What Breaks Without Each Feature?</span><hr></div>
+  <div class="card" style="margin-top:16px;">
+    <div class="card-title" style="color:#00cec9;">Ablation Simulator — Disable a Feature, See the Effect</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:16px;">Toggle each of Agent Lightning's three contributions off and watch what happens to the training curve. This shows why each feature is necessary — not just nice-to-have.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">
+      <button class="btn btn-outline active" id="wb-air-btn" onclick="toggleWB('air')">AIR — Intermediate Rewards</button>
+      <button class="btn btn-outline active" id="wb-lightning-btn" onclick="toggleWB('lightning')">LightningRL Transitions</button>
+      <button class="btn btn-outline active" id="wb-async-btn" onclick="toggleWB('async')">Async Rollout</button>
+      <button class="btn btn-outline" style="opacity:0.6;" onclick="resetWB()">Reset All On</button>
+    </div>
+    <canvas id="wb-canvas" width="640" height="200" style="width:100%;max-width:640px;border-radius:8px;background:var(--bg);border:1px solid var(--border);display:block;margin-bottom:12px;"></canvas>
+    <div id="wb-caption" style="font-size:12px;color:var(--muted);line-height:1.6;min-height:36px;padding:10px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);"></div>
   </div>
 </section>
 
@@ -4273,6 +4296,408 @@ document.addEventListener('keydown', function(e) {
 });
 
 /* =====================================================
+   GRADIENT FLOW ANIMATION
+===================================================== */
+var gfAnimId = null;
+var gfPlaying = false;
+var gfT = 0;
+var gfGamma = 0.90;
+var gfSteps = ['🧠 Memory', '🔍 Search', '✍️ Answer'];
+var gfRewards = [0.3, 0.2, 1.0];
+
+function updateGFGamma(val) {
+  gfGamma = parseFloat(val) / 100;
+  var el = document.getElementById('gf-gamma-val');
+  if (el) el.textContent = gfGamma.toFixed(2);
+  if (!gfPlaying) drawGFCanvas(0);
+}
+
+function drawGFCanvas(t) {
+  var cv = document.getElementById('gradient-flow-canvas');
+  if (!cv) return;
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var n = gfSteps.length;
+  var nodeR = 28;
+  var nodeY = H / 2 - 10;
+  var spacing = (W - 80) / (n - 1);
+  var startX = 60;
+  var nodeColors = ['#A29BFE', '#4ECDC4', '#FF6B6B'];
+
+  // Compute discounted returns
+  var G = new Array(n).fill(0);
+  var running = 0;
+  for (var i = n - 1; i >= 0; i--) {
+    running = gfRewards[i] + gfGamma * running;
+    G[i] = running;
+  }
+
+  // Draw connecting lines with animated credit flow
+  for (var i = n - 1; i > 0; i--) {
+    var x2 = startX + (i) * spacing;
+    var x1 = startX + (i - 1) * spacing;
+
+    // Base line
+    ctx.strokeStyle = '#2a3060'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x2 - nodeR, nodeY); ctx.lineTo(x1 + nodeR, nodeY); ctx.stroke();
+
+    // Animated credit pulse travelling right-to-left
+    if (gfPlaying || t > 0) {
+      // Each backward arrow animates with offset by step index
+      var segT = ((t * 1.5) - (n - 1 - i) * 0.4) % 1;
+      if (segT > 0 && segT < 1) {
+        var px = x2 - nodeR + (x1 + nodeR - x2 + nodeR) * segT;
+        var creditSize = Math.abs(G[i-1] - gfRewards[i-1]) / Math.max(...G) * 12 + 4;
+        ctx.fillStyle = '#fdcb6e';
+        ctx.globalAlpha = 1 - segT * 0.3;
+        ctx.beginPath(); ctx.arc(px, nodeY, creditSize, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+        // Arrow tip
+        ctx.fillStyle = '#fdcb6e';
+        ctx.beginPath();
+        ctx.moveTo(px - creditSize - 4, nodeY);
+        ctx.lineTo(px - creditSize + 4, nodeY - 4);
+        ctx.lineTo(px - creditSize + 4, nodeY + 4);
+        ctx.closePath(); ctx.fill();
+      }
+    }
+  }
+
+  // Draw nodes
+  for (var i = 0; i < n; i++) {
+    var nx = startX + i * spacing;
+
+    // Glow for active node during animation
+    var isLit = gfPlaying && (t * 1.5 % 1) > (i / n * 0.6);
+
+    ctx.fillStyle = isLit ? nodeColors[i] : 'rgba(30,36,68,0.9)';
+    ctx.strokeStyle = nodeColors[i];
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(nx, nodeY, nodeR, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+    ctx.fillStyle = isLit ? '#0d0f18' : nodeColors[i];
+    ctx.font = 'bold 16px Inter,sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(gfSteps[i].split(' ')[0], nx, nodeY + 6);
+
+    // Step label below
+    ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter,sans-serif';
+    ctx.fillText(gfSteps[i].split(' ')[1] || '', nx, nodeY + nodeR + 14);
+
+    // Reward above
+    ctx.fillStyle = '#4ade80'; ctx.font = 'bold 11px JetBrains Mono,monospace';
+    ctx.fillText('r=' + gfRewards[i].toFixed(1), nx, nodeY - nodeR - 16);
+
+    // G_t label
+    var gColor = '#fdcb6e';
+    ctx.fillStyle = gColor; ctx.font = 'bold 10px JetBrains Mono,monospace';
+    ctx.fillText('G=' + G[i].toFixed(2), nx, nodeY - nodeR - 4);
+  }
+
+  // γ labels on arrows
+  for (var i = 0; i < n - 1; i++) {
+    var mx = startX + i * spacing + spacing / 2;
+    ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter,sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('×γ=' + gfGamma.toFixed(2), mx, nodeY + nodeR + 14);
+  }
+
+  // Caption
+  var cap = document.getElementById('gf-caption');
+  if (cap) {
+    cap.textContent = 'G_Memory=' + G[0].toFixed(3) + '  (r=0.3 + γ×G_Search)    G_Search=' + G[1].toFixed(3) + '  (r=0.2 + γ×G_Answer)    G_Answer=' + G[2].toFixed(3) + '  (r=1.0)';
+  }
+}
+
+function gfTick() {
+  gfT += 0.018;
+  drawGFCanvas(gfT);
+  if (gfPlaying) gfAnimId = requestAnimationFrame(gfTick);
+}
+
+function toggleGradientFlow() {
+  var btn = document.getElementById('gf-play-btn');
+  gfPlaying = !gfPlaying;
+  if (gfPlaying) {
+    if (btn) btn.textContent = '⏸ Pause';
+    gfTick();
+  } else {
+    if (gfAnimId) cancelAnimationFrame(gfAnimId);
+    if (btn) btn.textContent = '▶ Animate';
+  }
+}
+
+function resetGradientFlow() {
+  gfPlaying = false;
+  if (gfAnimId) cancelAnimationFrame(gfAnimId);
+  gfT = 0;
+  var btn = document.getElementById('gf-play-btn');
+  if (btn) btn.textContent = '▶ Animate';
+  drawGFCanvas(0);
+}
+
+function initGF() {
+  drawGFCanvas(0);
+}
+
+/* =====================================================
+   WHAT BREAKS SIMULATOR
+===================================================== */
+var wbState = { air: true, lightning: true, async: true };
+
+var wbCurves = {
+  full:      [0.12,0.15,0.18,0.22,0.26,0.30,0.34,0.38,0.42,0.46,0.50,0.54,0.57,0.60,0.63,0.66,0.68,0.71,0.73,0.75,0.77,0.79,0.80,0.82,0.83,0.84,0.85,0.86,0.87,0.88,0.88,0.89,0.89,0.90,0.90,0.91,0.91,0.91,0.92,0.92],
+  noAir:     [0.12,0.13,0.14,0.15,0.16,0.17,0.18,0.19,0.20,0.21,0.23,0.24,0.25,0.26,0.28,0.29,0.30,0.31,0.33,0.34,0.36,0.37,0.38,0.40,0.41,0.42,0.44,0.45,0.46,0.47,0.48,0.49,0.50,0.51,0.52,0.53,0.54,0.55,0.55,0.56],
+  noLight:   [0.12,0.14,0.13,0.16,0.15,0.18,0.17,0.20,0.22,0.20,0.24,0.23,0.26,0.28,0.27,0.30,0.29,0.32,0.34,0.33,0.36,0.38,0.37,0.40,0.42,0.41,0.44,0.43,0.46,0.48,0.47,0.50,0.52,0.51,0.53,0.55,0.54,0.56,0.58,0.57],
+  noAsync:   [0.12,0.15,0.18,0.21,0.24,0.27,0.30,0.33,0.36,0.38,0.41,0.43,0.45,0.47,0.49,0.51,0.52,0.54,0.55,0.57,0.58,0.59,0.60,0.61,0.62,0.63,0.64,0.65,0.65,0.66,0.67,0.67,0.68,0.68,0.69,0.69,0.70,0.70,0.70,0.71]
+};
+
+function toggleWB(feature) {
+  wbState[feature] = !wbState[feature];
+  var btn = document.getElementById('wb-' + feature + '-btn');
+  if (btn) btn.classList.toggle('active', wbState[feature]);
+  drawWBCanvas();
+}
+
+function resetWB() {
+  wbState = { air: true, lightning: true, async: true };
+  ['air','lightning','async'].forEach(function(f) {
+    var btn = document.getElementById('wb-' + f + '-btn');
+    if (btn) btn.classList.add('active');
+  });
+  drawWBCanvas();
+}
+
+function drawWBCanvas() {
+  var cv = document.getElementById('wb-canvas');
+  if (!cv) return;
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var padL = 40, padR = 16, padT = 16, padB = 28;
+  var plotW = W - padL - padR, plotH = H - padT - padB;
+  var steps = wbCurves.full.length - 1;
+
+  function toX(i) { return padL + i / steps * plotW; }
+  function toY(v) { return padT + plotH - v * plotH; }
+
+  // Grid
+  ctx.strokeStyle = '#2a3060'; ctx.lineWidth = 0.5;
+  for (var g = 0; g <= 4; g++) {
+    var gy = padT + g * plotH / 4;
+    ctx.beginPath(); ctx.moveTo(padL, gy); ctx.lineTo(padL + plotW, gy); ctx.stroke();
+    ctx.fillStyle = '#8892b0'; ctx.font = '9px Inter,sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText((1 - g/4).toFixed(2), padL - 4, gy + 3);
+  }
+  ctx.fillStyle = '#8892b0'; ctx.font = '9px Inter,sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('Training steps →', padL + plotW/2, H - 4);
+
+  // Determine which curve to show based on state
+  var lines = [];
+  if (wbState.air && wbState.lightning && wbState.async) {
+    lines.push({ pts: wbCurves.full, color: '#55efc4', label: 'Full Agent Lightning', dash: [] });
+  } else {
+    lines.push({ pts: wbCurves.full, color: '#55efc4', label: 'Full Agent Lightning', dash: [4,4] });
+    if (!wbState.air)      lines.push({ pts: wbCurves.noAir,   color: '#f87171', label: 'Without AIR',         dash: [] });
+    if (!wbState.lightning) lines.push({ pts: wbCurves.noLight, color: '#fdcb6e', label: 'Without LightningRL', dash: [] });
+    if (!wbState.async)    lines.push({ pts: wbCurves.noAsync,  color: '#A29BFE', label: 'Without Async',       dash: [] });
+  }
+
+  lines.forEach(function(line) {
+    ctx.strokeStyle = line.color; ctx.lineWidth = line.dash.length ? 1.5 : 2.5;
+    ctx.setLineDash(line.dash);
+    ctx.beginPath();
+    for (var i = 0; i < line.pts.length; i++) {
+      var px = toX(i), py = toY(line.pts[i]);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // End label
+    var last = line.pts[line.pts.length - 1];
+    ctx.fillStyle = line.color; ctx.font = 'bold 10px Inter,sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText(line.label + ' (' + (last * 100).toFixed(0) + '%)', toX(steps) + 4, toY(last) + 3);
+  });
+
+  // Caption
+  var cap = document.getElementById('wb-caption');
+  if (!cap) return;
+  var msgs = [];
+  if (!wbState.air)       msgs.push('<strong style="color:#f87171;">Without AIR:</strong> Only the final answer gets a reward signal. Training is ~35% slower to converge — the agent gets no feedback on intermediate tool calls, making credit assignment nearly impossible.');
+  if (!wbState.lightning) msgs.push('<strong style="color:#fdcb6e;">Without LightningRL:</strong> Full trajectory is concatenated and masked. High gradient variance from irregular token patterns; final reward cap ~35% lower than full system.');
+  if (!wbState.async)     msgs.push('<strong style="color:#A29BFE;">Without Async:</strong> Server waits for all workers to finish each round. Throughput drops ~50% — the training curve is smoother but converges to a lower ceiling due to reduced sample diversity.');
+  if (msgs.length === 0)  msgs.push('All features enabled — this is the full Agent Lightning training curve. Toggle features off to see their individual contributions.');
+  cap.innerHTML = msgs.join('<br>');
+}
+
+function initWB() {
+  drawWBCanvas();
+}
+
+/* =====================================================
+   OVERVIEW PAPER MAP
+===================================================== */
+var pmNodes = [
+  { id: 'di',   x: 0.18, y: 0.35, label: '🗂️ Data Interface',       color: '#fdcb6e', section: '#datainterface',
+    desc: 'Converts any agent framework\'s raw trajectory into (input_t, output_t, r_t) transitions. The foundation everything else builds on.' },
+  { id: 'air',  x: 0.50, y: 0.18, label: '🎯 AIR',                   color: '#e84393', section: '#air',
+    desc: 'Automatic Intermediate Rewarding — converts tool return statuses into per-step rewards. Depends on the Data Interface to know which step produced which output.' },
+  { id: 'lrl',  x: 0.50, y: 0.55, label: '⚡ LightningRL',           color: '#55efc4', section: '#lightningrl',
+    desc: 'Trains on individual MDP transitions — no masking. Depends on the Data Interface for clean transitions and uses AIR rewards for dense signal.' },
+  { id: 'arch', x: 0.82, y: 0.35, label: '🔀 Disaggregation',        color: '#A29BFE', section: '#architecture',
+    desc: 'Async server-client architecture. Clients stream LightningRL transitions to the server asynchronously — depends on LightningRL for the transition format.' },
+];
+
+var pmEdges = [
+  { from: 'di',  to: 'air',  label: 'provides transitions' },
+  { from: 'di',  to: 'lrl',  label: 'provides transitions' },
+  { from: 'air', to: 'lrl',  label: 'provides rewards' },
+  { from: 'lrl', to: 'arch', label: 'streams transitions' },
+];
+
+var pmActive = null;
+var pmHover = null;
+
+function getPMCoords(node, W, H) {
+  return { x: node.x * W, y: node.y * H };
+}
+
+function drawPaperMap(active, hover) {
+  var cv = document.getElementById('paper-map-canvas');
+  if (!cv) return;
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var nodeR = 38;
+
+  // Draw edges first
+  pmEdges.forEach(function(e) {
+    var from = pmNodes.find(function(n){return n.id===e.from;});
+    var to   = pmNodes.find(function(n){return n.id===e.to;});
+    var fc = getPMCoords(from, W, H);
+    var tc = getPMCoords(to, W, H);
+
+    var isActive = (active === e.from || active === e.to);
+    ctx.strokeStyle = isActive ? from.color : '#2a3060';
+    ctx.lineWidth = isActive ? 2 : 1;
+    ctx.globalAlpha = isActive ? 1 : 0.4;
+    ctx.setLineDash(isActive ? [] : [4,4]);
+    ctx.beginPath(); ctx.moveTo(fc.x, fc.y); ctx.lineTo(tc.x, tc.y); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha = 1;
+
+    // Arrowhead
+    var angle = Math.atan2(tc.y - fc.y, tc.x - fc.x);
+    var ax = tc.x - Math.cos(angle) * (nodeR + 4);
+    var ay = tc.y - Math.sin(angle) * (nodeR + 4);
+    ctx.fillStyle = isActive ? from.color : '#2a3060';
+    ctx.globalAlpha = isActive ? 1 : 0.4;
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(ax - 10*Math.cos(angle-0.35), ay - 10*Math.sin(angle-0.35));
+    ctx.lineTo(ax - 10*Math.cos(angle+0.35), ay - 10*Math.sin(angle+0.35));
+    ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Edge label
+    if (isActive) {
+      var mx = (fc.x + tc.x)/2, my = (fc.y + tc.y)/2;
+      ctx.fillStyle = from.color; ctx.font = '9px Inter,sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(e.label, mx, my - 6);
+    }
+  });
+
+  // Draw nodes
+  pmNodes.forEach(function(node) {
+    var c = getPMCoords(node, W, H);
+    var isActive = active === node.id;
+    var isHover = hover === node.id;
+
+    // Glow
+    if (isActive || isHover) {
+      ctx.fillStyle = node.color + '22';
+      ctx.beginPath(); ctx.arc(c.x, c.y, nodeR + 10, 0, Math.PI*2); ctx.fill();
+    }
+
+    ctx.fillStyle = isActive ? node.color : (isHover ? node.color + '33' : '#1e2444');
+    ctx.strokeStyle = node.color;
+    ctx.lineWidth = isActive ? 2.5 : 1.5;
+    ctx.beginPath(); ctx.arc(c.x, c.y, nodeR, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+    // Icon + label
+    var parts = node.label.split(' ');
+    ctx.fillStyle = isActive ? '#0d0f18' : node.color;
+    ctx.font = 'bold 18px Inter,sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(parts[0], c.x, c.y - 6);
+    ctx.font = 'bold 10px Inter,sans-serif';
+    ctx.fillText(parts.slice(1).join(' '), c.x, c.y + 10);
+
+    // "click" hint
+    if (!isActive && !isHover) {
+      ctx.fillStyle = '#4a5568'; ctx.font = '8px Inter,sans-serif';
+      ctx.fillText('click →', c.x, c.y + nodeR + 12);
+    }
+
+    // Section link hint
+    if (isActive) {
+      ctx.fillStyle = node.color; ctx.font = 'bold 8px Inter,sans-serif';
+      ctx.fillText('→ go to section', c.x, c.y + nodeR + 14);
+    }
+  });
+
+  // Title
+  ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter,sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('Three contributions — click each to see how they connect', W/2, H - 8);
+}
+
+function paperMapClick(evt) {
+  var cv = document.getElementById('paper-map-canvas');
+  if (!cv) return;
+  var rect = cv.getBoundingClientRect();
+  var scaleX = cv.width / rect.width;
+  var scaleY = cv.height / rect.height;
+  var mx = (evt.clientX - rect.left) * scaleX;
+  var my = (evt.clientY - rect.top) * scaleY;
+  var nodeR = 38;
+
+  var hit = null;
+  pmNodes.forEach(function(node) {
+    var c = getPMCoords(node, cv.width, cv.height);
+    var dx = mx - c.x, dy = my - c.y;
+    if (Math.sqrt(dx*dx+dy*dy) < nodeR + 10) hit = node;
+  });
+
+  if (hit) {
+    if (pmActive === hit.id) {
+      // Second click — navigate to section
+      var el = document.querySelector(hit.section);
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+      pmActive = null;
+    } else {
+      pmActive = hit.id;
+    }
+    var detail = document.getElementById('paper-map-detail');
+    if (detail && hit) {
+      if (pmActive) {
+        detail.innerHTML = '<div class="highlight-box" style="border-color:' + hit.color + ';background:' + hit.color + '11;">'
+          + '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:' + hit.color + ';margin-bottom:6px;">' + hit.label + '</div>'
+          + '<p style="font-size:13px;color:var(--text);line-height:1.6;margin-bottom:8px;">' + hit.desc + '</p>'
+          + '<a href="' + hit.section + '" style="font-size:12px;color:' + hit.color + ';text-decoration:none;font-weight:600;">Go to interactive section ↗</a>'
+          + '</div>';
+      } else {
+        detail.innerHTML = '';
+      }
+    }
+  }
+  drawPaperMap(pmActive, null);
+}
+
+function initPaperMap() {
+  drawPaperMap(null, null);
+}
+
+/* =====================================================
    INITIALIZE ALL
 ===================================================== */
 initWhyRL();
@@ -4292,6 +4717,9 @@ initStaleness();
 initLoop();
 initDE();
 initRF();
+initGF();
+initWB();
+initPaperMap();
 initCompTable();
 initExperiments();
 // Start arch flow animation when section enters view
