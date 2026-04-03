@@ -159,17 +159,17 @@ window.addEventListener('load', function(){ var el=document.getElementById('pg-i
   </div>
   <div class="nav-group">
     <div class="nav-group-title">The Problem</div>
-    <a class="nav-link" href="#problem" onclick="setActive(this)"><span class="dot" style="background:#ff7675"></span>LLM Nondeterminism</a>
+    <a class="nav-link" href="#problem" onclick="setActive(this)"><span class="dot" style="background:#ff7675"></span>What’s Happening</a>
   </div>
   <div class="nav-group">
-    <div class="nav-group-title">Root Cause</div>
-    <a class="nav-link" href="#floating-point" onclick="setActive(this)"><span class="dot" style="background:#e17055"></span>Floating-Point Math</a>
-    <a class="nav-link" href="#myth" onclick="setActive(this)"><span class="dot" style="background:#fd79a8"></span>The Atomic Add Myth</a>
-    <a class="nav-link" href="#batch" onclick="setActive(this)"><span class="dot" style="background:#fdcb6e"></span>Batch Variance</a>
+    <div class="nav-group-title">Why It Happens</div>
+    <a class="nav-link" href="#batch" onclick="setActive(this)"><span class="dot" style="background:#fdcb6e"></span>The Root Cause</a>
+    <a class="nav-link" href="#myth" onclick="setActive(this)"><span class="dot" style="background:#fd79a8"></span>The Common Myth</a>
+    <a class="nav-link" href="#floating-point" onclick="setActive(this)"><span class="dot" style="background:#e17055"></span>The Math (Deep Dive)</a>
   </div>
   <div class="nav-group">
     <div class="nav-group-title">The Solution</div>
-    <a class="nav-link" href="#fix" onclick="setActive(this)"><span class="dot" style="background:#00b894"></span>Batch-Invariant Kernels</a>
+    <a class="nav-link" href="#fix" onclick="setActive(this)"><span class="dot" style="background:#00b894"></span>The Fix</a>
     <a class="nav-link" href="#results" onclick="setActive(this)"><span class="dot" style="background:#74b9ff"></span>Results</a>
   </div>
   <div class="nav-group">
@@ -183,8 +183,26 @@ window.addEventListener('load', function(){ var el=document.getElementById('pg-i
 <!-- ===== SECTION 1: PROBLEM ===== -->
 <section class="section" id="problem">
   <div class="section-tag">Motivation &nbsp;·&nbsp; <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;">~12 min read</span></div>
-  <div class="section-title" style="color:#ff7675">Your LLM Lies to You (At Temperature Zero)</div>
-  <div class="section-sub">At temperature=0, LLMs use greedy sampling — always picking the single highest-probability token. No randomness. No sampling. The output should be completely deterministic. And yet the same prompt, sent multiple times, often produces different answers. This article explains exactly why — and how to fix it.</div>
+  <div class="section-title" style="color:#ff7675">Same Prompt. Same Settings. Different Answer.</div>
+  <div class="section-sub">When you set an AI tool to its most “precise” mode — the mode that’s supposed to always pick the single most likely answer — you’d expect the same response every time. Same prompt, same result. That’s not what happens in practice.</div>
+
+  <div class="card" style="margin-bottom:24px;border-left:4px solid #ff7675;background:rgba(255,118,117,0.04);border-top:1px solid var(--border);border-right:1px solid var(--border);border-bottom:1px solid var(--border);">
+    <div class="card-title" style="color:#ff7675;">TL;DR &mdash; The Short Version (No Jargon)</div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div style="display:flex;gap:12px;align-items:flex-start;">
+        <div style="font-size:1.3rem;flex-shrink:0;">&#10067;</div>
+        <p style="font-size:14px;color:var(--text);line-height:1.7;"><strong>The problem:</strong> AI services handle many users at once and group requests together to save computation. The group size varies depending on how busy the server is at that moment.</p>
+      </div>
+      <div style="display:flex;gap:12px;align-items:flex-start;">
+        <div style="font-size:1.3rem;flex-shrink:0;">&#128268;</div>
+        <p style="font-size:14px;color:var(--text);line-height:1.7;"><strong>Why it causes variation:</strong> Different group sizes change the order in which the AI does its internal arithmetic. Computers can’t represent most decimals exactly, so rounding happens at every step — and different addition orders accumulate different rounding errors, enough to change which word the AI picks next.</p>
+      </div>
+      <div style="display:flex;gap:12px;align-items:flex-start;">
+        <div style="font-size:1.3rem;flex-shrink:0;">&#9989;</div>
+        <p style="font-size:14px;color:var(--text);line-height:1.7;"><strong>The fix:</strong> Rewrite the three most sensitive calculation routines to always use the same arithmetic order, no matter how many requests are running. Cost: ~1.6× slower. Result: perfectly consistent answers every time.</p>
+      </div>
+    </div>
+  </div>
 
   <div class="card" style="margin-bottom:24px;border-top:3px solid #ff7675;">
     <div class="card-title" style="color:#ff7675;">Same Prompt. Temp=0. Different Outputs.</div>
@@ -214,167 +232,22 @@ window.addEventListener('load', function(){ var el=document.getElementById('pg-i
   </div>
 
   <div class="section-bridge">
-    <span class="section-bridge-text">Next: understand the actual math behind this</span>
-    <a class="section-bridge-link" href="#floating-point" onclick="setActive(document.querySelector('[href=\'#floating-point\']'))">Floating-Point Math →</a>
-  </div>
-</section>
-
-<!-- ===== SECTION 2: FLOATING-POINT ===== -->
-<section class="section" id="floating-point">
-  <div class="section-tag">Root Cause</div>
-  <div class="section-title" style="color:#e17055">Floating-Point Math Isn't What You Think</div>
-  <div class="section-sub">In real arithmetic, addition is associative: (a+b)+c always equals a+(b+c). In floating-point arithmetic — the kind computers actually use — this is not true. The order you add numbers in produces different results.</div>
-
-  <div class="card" style="margin-bottom:24px;">
-    <div class="card-title" style="color:#e17055;">Interactive: See Non-Associativity Yourself</div>
-    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px;">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-family:'JetBrains Mono';font-size:13px;color:var(--muted);">a =</span>
-        <input type="number" id="fp-a" value="0.1" step="0.1" oninput="updateFP()">
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-family:'JetBrains Mono';font-size:13px;color:var(--muted);">b =</span>
-        <input type="number" id="fp-b" value="0.2" step="0.1" oninput="updateFP()">
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-family:'JetBrains Mono';font-size:13px;color:var(--muted);">c =</span>
-        <input type="number" id="fp-c" value="0.3" step="0.1" oninput="updateFP()">
-      </div>
-    </div>
-    <div class="g2" style="gap:16px;margin-bottom:16px;">
-      <div style="background:var(--bg);border:1px solid #e17055;border-radius:8px;padding:14px 16px;">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#e17055;margin-bottom:8px;">Order 1: (a + b) + c</div>
-        <div id="fp-order1-steps" style="font-family:'JetBrains Mono';font-size:12px;color:var(--muted);line-height:1.9;"></div>
-        <div id="fp-order1-result" style="font-family:'JetBrains Mono';font-size:16px;font-weight:700;color:#e17055;margin-top:8px;"></div>
-      </div>
-      <div style="background:var(--bg);border:1px solid #74b9ff;border-radius:8px;padding:14px 16px;">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#74b9ff;margin-bottom:8px;">Order 2: a + (b + c)</div>
-        <div id="fp-order2-steps" style="font-family:'JetBrains Mono';font-size:12px;color:var(--muted);line-height:1.9;"></div>
-        <div id="fp-order2-result" style="font-family:'JetBrains Mono';font-size:16px;font-weight:700;color:#74b9ff;margin-top:8px;"></div>
-      </div>
-    </div>
-    <div id="fp-diff-badge" style="text-align:center;font-size:13px;font-weight:600;padding:8px;border-radius:6px;"></div>
-  </div>
-
-  <div class="section-divider"><hr><span>How This Plays Out on a GPU</span><hr></div>
-  <div class="card" style="margin-bottom:24px;">
-    <div class="card-title" style="color:#e17055;">Why GPU Parallelism Makes This Worse</div>
-    <p style="font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:16px;">A GPU executes thousands of floating-point additions in parallel across CUDA cores. These additions are divided into <strong>work groups</strong> — and which values end up in the same work group depends on how the scheduler assigns work at runtime. When two runs of the same kernel assign work to cores in slightly different orders, the partial sums are grouped differently.</p>
-    <canvas id="fp-tree-canvas" width="640" height="180" style="width:100%;max-width:640px;"></canvas>
-    <div style="margin-top:10px;font-size:12px;color:var(--muted);line-height:1.6;">Both trees add the same four values. The tree structure (which pairs get added first) differs between left and right. Due to floating-point non-associativity, the final sums can differ.</div>
-  </div>
-
-  <div class="section-divider" style="margin-top:28px;"><hr><span>GPU Architecture: The Missing Context</span><hr></div>
-
-  <!-- GPU concept stepper -->
-  <div class="stepper" id="gpu-concept-stepper">
-    <button class="step-btn active" onclick="setGPUConcept(0,this)">⚙ Kernel</button>
-    <button class="step-btn" onclick="setGPUConcept(1,this)">🔲 CUDA Cores</button>
-    <button class="step-btn" onclick="setGPUConcept(2,this)">🗂 Work Groups</button>
-    <button class="step-btn" onclick="setGPUConcept(3,this)">🌳 Parallel Reduction</button>
-    <button class="step-btn" onclick="setGPUConcept(4,this)">🧵 Threads</button>
-  </div>
-  <div id="gpu-concept-panel" style="margin-bottom:24px;"></div>
-
-  <!-- Interactive GPU parallel reduction canvas -->
-  <div class="card" style="margin-bottom:24px;">
-    <div class="card-title" style="color:#e17055;">Interactive: GPU Parallel Reduction Simulator</div>
-    <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:8px;">Step through how a GPU kernel sums 8 values alternating between <strong style="color:#74b9ff;">A = 1&times;10&sup1;&sup5;</strong> (very large) and <strong style="color:#fdcb6e;">b = 0.01</strong> (tiny). Switch the work group size to see how different groupings cause the tiny values to be lost differently &mdash; producing genuinely different final sums.</p>
-    <div style="display:flex;gap:10px;margin-bottom:14px;align-items:center;flex-wrap:wrap;">
-      <span style="font-size:12px;color:var(--muted);font-weight:600;">Work group size:</span>
-      <button id="gpu-wg-btn-4" class="btn" style="font-size:12px;padding:6px 14px;background:#e17055;" onclick="setGPUWorkGroup(4)">4 cores / group</button>
-      <button id="gpu-wg-btn-2" class="btn btn-outline" style="font-size:12px;padding:6px 14px;" onclick="setGPUWorkGroup(2)">2 cores / group</button>
-    </div>
-    <canvas id="gpu-dispatch-canvas" width="640" height="280" style="width:100%;max-width:640px;"></canvas>
-    <div id="gpu-comparison" style="display:none;margin-top:10px;border-radius:8px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);font-size:12px;font-family:'JetBrains Mono',monospace;line-height:1.8;"></div>
-    <div style="display:flex;gap:10px;margin-top:12px;align-items:center;flex-wrap:wrap;">
-      <button class="btn" id="gpu-step-btn" onclick="gpuNextStep()" style="background:#e17055;">&#9658; Step Through &#8594;</button>
-      <button class="btn btn-outline" onclick="gpuReset()">&#8635; Reset</button>
-      <span id="gpu-step-label" style="font-size:12px;color:var(--muted);">Step 0 of 4 &#8212; 8 activation values waiting to be summed</span>
-    </div>
-  </div>
-
-  <div class="highlight-box">
-    <p>Every transformer forward pass — attention, MLP layers, layer norms — is a cascade of floating-point additions. If the order those additions happen in varies between runs, the final logits vary. The top-ranked token can flip. Even at temperature=0.</p>
-  </div>
-  <div class="section-bridge">
-    <span class="section-bridge-text">Next: why the common explanation is wrong</span>
-    <a class="section-bridge-link" href="#myth" onclick="setActive(document.querySelector('[href=\'#myth\']'))">The Atomic Add Myth →</a>
-  </div>
-</section>
-
-<!-- ===== SECTION 3: MYTH ===== -->
-<section class="section" id="myth">
-  <div class="section-tag">Common Misconception</div>
-  <div class="section-title" style="color:#fd79a8">The Myth: Atomic Adds Are the Culprit</div>
-  <div class="section-sub">Ask most ML engineers why LLM inference is nondeterministic at temp=0 and they'll say: "atomic add race conditions." This explanation is pervasive, plausible-sounding, and largely incorrect.</div>
-
-  <div class="g2" style="gap:20px;margin-bottom:28px;">
-    <div class="card" style="border-top:3px solid #f87171;">
-      <div class="card-title" style="color:#f87171;">❌ The Myth</div>
-      <div style="font-size:1.8rem;margin:12px 0;">⚡</div>
-      <p style="font-size:13px;color:var(--muted);line-height:1.7;">Multiple GPU threads simultaneously write partial sums back to the same memory location using <strong>atomic add</strong> instructions. Because these concurrent writes happen in unpredictable order, the accumulated total varies each run — creating race-condition nondeterminism.</p>
-      <div style="margin-top:12px;background:rgba(248,113,113,0.07);border:1px solid rgba(248,113,113,0.3);border-radius:8px;padding:10px 14px;font-size:12px;color:#f87171;">This sounds compelling. It's also the explanation you'll find in many blog posts, stack overflow answers, and framework docs.</div>
-    </div>
-    <div class="card" style="border-top:3px solid #4ade80;">
-      <div class="card-title" style="color:#4ade80;">✓ The Reality</div>
-      <div style="font-size:1.8rem;margin:12px 0;">🔬</div>
-      <p style="font-size:13px;color:var(--muted);line-height:1.7;">LLM forward passes <strong>don't require atomic add operations</strong> for most kernels. The batch dimension provides enough independent parallelism that work can be tiled across cores without any thread needing to write to a shared memory address. Atomic adds are largely unnecessary and not the source of variance.</p>
-      <div style="margin-top:12px;background:rgba(74,222,128,0.07);border:1px solid rgba(74,222,128,0.3);border-radius:8px;padding:10px 14px;font-size:12px;color:#4ade80;">The nondeterminism has a different cause entirely — one that requires a different fix.</div>
-    </div>
-  </div>
-
-  <div class="card" style="margin-bottom:20px;">
-    <div class="card-title" style="color:#fd79a8;">Why the Myth Persists</div>
-    <div style="display:flex;flex-direction:column;gap:12px;">
-      <div style="display:flex;gap:14px;align-items:flex-start;">
-        <div style="font-size:1.2rem;flex-shrink:0;margin-top:2px;">🧩</div>
-        <div>
-          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;">It's partially true in other domains</div>
-          <p style="font-size:13px;color:var(--muted);line-height:1.6;">Atomic add race conditions <em>do</em> cause nondeterminism in some GPU workloads — particularly sparse operations and custom reductions. Generalizing from there to LLM inference is an understandable but incorrect leap.</p>
-        </div>
-      </div>
-      <div style="display:flex;gap:14px;align-items:flex-start;">
-        <div style="font-size:1.2rem;flex-shrink:0;margin-top:2px;">🔧</div>
-        <div>
-          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;">The fix sounds the same</div>
-          <p style="font-size:13px;color:var(--muted);line-height:1.6;">Both the myth and the reality lead to "control the order of operations." The atomic add story and the batch-variance story both suggest fixing kernel execution order — but they point at <em>different</em> operations to fix.</p>
-        </div>
-      </div>
-      <div style="display:flex;gap:14px;align-items:flex-start;">
-        <div style="font-size:1.2rem;flex-shrink:0;margin-top:2px;">📊</div>
-        <div>
-          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;">The real cause is less obvious</div>
-          <p style="font-size:13px;color:var(--muted);line-height:1.6;">The actual culprit — batch size variation — requires understanding how inference servers work under load. It's a systems-level cause, not a kernel-level bug.</p>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card" style="margin-bottom:20px;border-top:3px solid #fd79a8;">
-    <div class="card-title" style="color:#fd79a8;">Animation: Two Mechanisms Side-by-Side</div>
-    <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center;flex-wrap:wrap;">
-      <button class="btn" id="myth-anim-btn" onclick="toggleMythAnim()" style="background:#fd79a8;color:#0d0f18;">&#9658; Animate</button>
-      <button class="btn btn-outline" onclick="resetMythAnim()">&#8635; Reset</button>
-      <span style="font-size:12px;color:var(--muted);">Left: atomic add race conditions. Right: batch variance causing different tiling.</span>
-    </div>
-    <canvas id="myth-anim-canvas" width="640" height="190" style="width:100%;max-width:640px;"></canvas>
-  </div>
-
-  <div class="highlight-box">
-    <p>The real culprit isn't concurrency within a single operation. It's that the <strong>batch size itself changes</strong> — and with it, which operations run together and in what floating-point order.</p>
-  </div>
-  <div class="section-bridge">
-    <span class="section-bridge-text">Next: the actual mechanism</span>
-    <a class="section-bridge-link" href="#batch" onclick="setActive(document.querySelector('[href=\'#batch\']'))">Batch Variance &#8594;</a>
+    <span class="section-bridge-text">Next: what’s actually causing this</span>
+    <a class="section-bridge-link" href="#batch" onclick="setActive(document.querySelector('[href=\'#batch\']'))">The Root Cause →</a>
   </div>
 </section>
 
 <!-- ===== SECTION 4: BATCH ===== -->
 <section class="section" id="batch">
-  <div class="section-tag">The Real Culprit</div>
-  <div class="section-title" style="color:#fdcb6e">Batch Variance: The Actual Cause</div>
-  <div class="section-sub">Production inference servers process requests in batches. When load is low, your request travels alone (batch=1). At peak load it shares a batch with dozens of others (batch=32). Different batch sizes cause kernels to tile their computation differently — changing which floating-point values get added together first.</div>
+  <div class="section-tag">Root Cause</div>
+  <div class="section-title" style="color:#fdcb6e">Why Your Requests Get Different Answers</div>
+  <div class="section-sub">Here’s the plain-English version: an AI service handles many users at once. It groups requests together to save computation. At 9am yours might travel alone; at 9pm yours shares a group with 24 others. That grouping — invisible to you — changes which numbers get added together inside the model, and in computer arithmetic the order you add numbers in can produce slightly different results.</div>
+
+  <div class="card" style="margin-bottom:20px;background:rgba(253,203,110,0.04);border-left:4px solid #fdcb6e;border-top:1px solid var(--border);border-right:1px solid var(--border);border-bottom:1px solid var(--border);">
+    <div class="card-title" style="color:#fdcb6e;">&#128065; Everyday Analogy</div>
+    <p style="font-size:14px;color:var(--text);line-height:1.7;margin-bottom:10px;">Imagine 10 people each adding the same long list of numbers, but each person splits the list into their own groups to divide the work. Because computers round at every step, different groupings accumulate different rounding errors. The totals don’t exactly match — even though everyone started with identical numbers.</p>
+    <p style="font-size:14px;color:var(--text);line-height:1.7;">Inside an AI model, this happens across <em>millions</em> of calculations in every response. Your request gets “grouped” with different co-requests depending on server load, and those different groupings compound into a measurably different final answer.</p>
+  </div>
 
   <div class="card" style="margin-bottom:20px;border-top:3px solid #fdcb6e;">
     <div class="card-title" style="color:#fdcb6e;">The Full Causal Chain &mdash; Click any step to jump to its section</div>
@@ -476,16 +349,180 @@ window.addEventListener('load', function(){ var el=document.getElementById('pg-i
   </div>
 
   <div class="section-bridge">
+    <span class="section-bridge-text">Next: the common wrong explanation, and why it’s wrong</span>
+    <a class="section-bridge-link" href="#myth" onclick="setActive(document.querySelector('[href=\'#myth\']'))">The Atomic Add Myth →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 3: MYTH ===== -->
+<section class="section" id="myth">
+  <div class="section-tag">Common Misconception</div>
+  <div class="section-title" style="color:#fd79a8">The Myth: Atomic Adds Are the Culprit</div>
+  <div class="section-sub">Ask most ML engineers why LLM inference is nondeterministic at temp=0 and they'll say: "atomic add race conditions." This explanation is pervasive, plausible-sounding, and largely incorrect.</div>
+
+  <div class="g2" style="gap:20px;margin-bottom:28px;">
+    <div class="card" style="border-top:3px solid #f87171;">
+      <div class="card-title" style="color:#f87171;">❌ The Myth</div>
+      <div style="font-size:1.8rem;margin:12px 0;">⚡</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.7;">Multiple GPU threads simultaneously write partial sums back to the same memory location using <strong>atomic add</strong> instructions. Because these concurrent writes happen in unpredictable order, the accumulated total varies each run — creating race-condition nondeterminism.</p>
+      <div style="margin-top:12px;background:rgba(248,113,113,0.07);border:1px solid rgba(248,113,113,0.3);border-radius:8px;padding:10px 14px;font-size:12px;color:#f87171;">This sounds compelling. It's also the explanation you'll find in many blog posts, stack overflow answers, and framework docs.</div>
+    </div>
+    <div class="card" style="border-top:3px solid #4ade80;">
+      <div class="card-title" style="color:#4ade80;">✓ The Reality</div>
+      <div style="font-size:1.8rem;margin:12px 0;">🔬</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.7;">LLM forward passes <strong>don't require atomic add operations</strong> for most kernels. The batch dimension provides enough independent parallelism that work can be tiled across cores without any thread needing to write to a shared memory address. Atomic adds are largely unnecessary and not the source of variance.</p>
+      <div style="margin-top:12px;background:rgba(74,222,128,0.07);border:1px solid rgba(74,222,128,0.3);border-radius:8px;padding:10px 14px;font-size:12px;color:#4ade80;">The nondeterminism has a different cause entirely — one that requires a different fix.</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-title" style="color:#fd79a8;">Why the Myth Persists</div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div style="display:flex;gap:14px;align-items:flex-start;">
+        <div style="font-size:1.2rem;flex-shrink:0;margin-top:2px;">🧩</div>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;">It's partially true in other domains</div>
+          <p style="font-size:13px;color:var(--muted);line-height:1.6;">Atomic add race conditions <em>do</em> cause nondeterminism in some GPU workloads — particularly sparse operations and custom reductions. Generalizing from there to LLM inference is an understandable but incorrect leap.</p>
+        </div>
+      </div>
+      <div style="display:flex;gap:14px;align-items:flex-start;">
+        <div style="font-size:1.2rem;flex-shrink:0;margin-top:2px;">🔧</div>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;">The fix sounds the same</div>
+          <p style="font-size:13px;color:var(--muted);line-height:1.6;">Both the myth and the reality lead to "control the order of operations." The atomic add story and the batch-variance story both suggest fixing kernel execution order — but they point at <em>different</em> operations to fix.</p>
+        </div>
+      </div>
+      <div style="display:flex;gap:14px;align-items:flex-start;">
+        <div style="font-size:1.2rem;flex-shrink:0;margin-top:2px;">📊</div>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;">The real cause is less obvious</div>
+          <p style="font-size:13px;color:var(--muted);line-height:1.6;">The actual culprit — batch size variation — requires understanding how inference servers work under load. It's a systems-level cause, not a kernel-level bug.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px;border-top:3px solid #fd79a8;">
+    <div class="card-title" style="color:#fd79a8;">Animation: Two Mechanisms Side-by-Side</div>
+    <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center;flex-wrap:wrap;">
+      <button class="btn" id="myth-anim-btn" onclick="toggleMythAnim()" style="background:#fd79a8;color:#0d0f18;">&#9658; Animate</button>
+      <button class="btn btn-outline" onclick="resetMythAnim()">&#8635; Reset</button>
+      <span style="font-size:12px;color:var(--muted);">Left: atomic add race conditions. Right: batch variance causing different tiling.</span>
+    </div>
+    <canvas id="myth-anim-canvas" width="640" height="190" style="width:100%;max-width:640px;"></canvas>
+  </div>
+
+  <div class="highlight-box">
+    <p>The real culprit isn't concurrency within a single operation. It's that the <strong>batch size itself changes</strong> — and with it, which operations run together and in what floating-point order.</p>
+  </div>
+  <div class="section-bridge">
+    <span class="section-bridge-text">Next: the math that explains why batch size matters</span>
+    <a class="section-bridge-link" href="#floating-point" onclick="setActive(document.querySelector('[href=\'#floating-point\']'))">The Math Deep Dive &#8594;</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 2: FLOATING-POINT ===== -->
+<section class="section" id="floating-point">
+  <div class="section-tag">Deep Dive — The Mechanism</div>
+  <div class="section-title" style="color:#e17055">Floating-Point Math Isn't What You Think</div>
+  <div class="section-sub">This section explains the exact mathematical mechanism behind batch variance. You don’t need it to understand the fix — but if you want to know <em>precisely</em> why different addition orders produce different results, this is the deep dive.</div>
+
+  <div class="card" style="margin-bottom:24px;background:rgba(225,112,85,0.04);border-left:4px solid #e17055;border-top:1px solid var(--border);border-right:1px solid var(--border);border-bottom:1px solid var(--border);">
+    <div class="card-title" style="color:#e17055;">&#127919; The Core Insight</div>
+    <p style="font-size:14px;color:var(--text);line-height:1.7;margin-bottom:10px;">In everyday math, 1 + 2 + 3 = 6 no matter which two numbers you add first. Computers use a compressed number format (called floating-point) where this stops being true — rounding happens at each intermediate step, so different addition orders accumulate different rounding errors and produce slightly different totals.</p>
+    <p style="font-size:14px;color:var(--text);line-height:1.7;">The interactive demo below makes this concrete. Try the numbers yourself, then explore how GPUs run thousands of these additions in parallel — and why that parallelism is exactly where the variance creeps in.</p>
+  </div>
+
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title" style="color:#e17055;">Interactive: See Non-Associativity Yourself</div>
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-family:'JetBrains Mono';font-size:13px;color:var(--muted);">a =</span>
+        <input type="number" id="fp-a" value="0.1" step="0.1" oninput="updateFP()">
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-family:'JetBrains Mono';font-size:13px;color:var(--muted);">b =</span>
+        <input type="number" id="fp-b" value="0.2" step="0.1" oninput="updateFP()">
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-family:'JetBrains Mono';font-size:13px;color:var(--muted);">c =</span>
+        <input type="number" id="fp-c" value="0.3" step="0.1" oninput="updateFP()">
+      </div>
+    </div>
+    <div class="g2" style="gap:16px;margin-bottom:16px;">
+      <div style="background:var(--bg);border:1px solid #e17055;border-radius:8px;padding:14px 16px;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#e17055;margin-bottom:8px;">Order 1: (a + b) + c</div>
+        <div id="fp-order1-steps" style="font-family:'JetBrains Mono';font-size:12px;color:var(--muted);line-height:1.9;"></div>
+        <div id="fp-order1-result" style="font-family:'JetBrains Mono';font-size:16px;font-weight:700;color:#e17055;margin-top:8px;"></div>
+      </div>
+      <div style="background:var(--bg);border:1px solid #74b9ff;border-radius:8px;padding:14px 16px;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#74b9ff;margin-bottom:8px;">Order 2: a + (b + c)</div>
+        <div id="fp-order2-steps" style="font-family:'JetBrains Mono';font-size:12px;color:var(--muted);line-height:1.9;"></div>
+        <div id="fp-order2-result" style="font-family:'JetBrains Mono';font-size:16px;font-weight:700;color:#74b9ff;margin-top:8px;"></div>
+      </div>
+    </div>
+    <div id="fp-diff-badge" style="text-align:center;font-size:13px;font-weight:600;padding:8px;border-radius:6px;"></div>
+  </div>
+
+  <div class="section-divider"><hr><span>How This Plays Out on a GPU</span><hr></div>
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title" style="color:#e17055;">Why GPU Parallelism Makes This Worse</div>
+    <p style="font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:16px;">A GPU executes thousands of floating-point additions in parallel across CUDA cores. These additions are divided into <strong>work groups</strong> — and which values end up in the same work group depends on how the scheduler assigns work at runtime. When two runs of the same kernel assign work to cores in slightly different orders, the partial sums are grouped differently.</p>
+    <canvas id="fp-tree-canvas" width="640" height="180" style="width:100%;max-width:640px;"></canvas>
+    <div style="margin-top:10px;font-size:12px;color:var(--muted);line-height:1.6;">Both trees add the same four values. The tree structure (which pairs get added first) differs between left and right. Due to floating-point non-associativity, the final sums can differ.</div>
+  </div>
+
+  <div class="section-divider" style="margin-top:28px;"><hr><span>GPU Architecture: The Full Picture <span style="font-weight:400;font-size:10px;color:var(--muted);">— for the technically curious</span></span><hr></div>
+
+  <div style="margin-bottom:16px;">
+    <button class="btn btn-outline" style="font-size:12px;padding:7px 16px;" onclick="toggleGPUSection(this)">&#9654; Show GPU architecture deep-dive</button>
+    <span style="font-size:12px;color:var(--muted);margin-left:10px;">Optional — skip to the fix if you prefer</span>
+  </div>
+  <div id="gpu-deep-dive" style="display:none;">
+  <!-- GPU concept stepper -->
+  <div class="stepper" id="gpu-concept-stepper">
+    <button class="step-btn active" onclick="setGPUConcept(0,this)">⚙ Kernel</button>
+    <button class="step-btn" onclick="setGPUConcept(1,this)">🔲 CUDA Cores</button>
+    <button class="step-btn" onclick="setGPUConcept(2,this)">🗂 Work Groups</button>
+    <button class="step-btn" onclick="setGPUConcept(3,this)">🌳 Parallel Reduction</button>
+    <button class="step-btn" onclick="setGPUConcept(4,this)">🧵 Threads</button>
+  </div>
+  <div id="gpu-concept-panel" style="margin-bottom:24px;"></div>
+
+  <!-- Interactive GPU parallel reduction canvas -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title" style="color:#e17055;">Interactive: GPU Parallel Reduction Simulator</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:8px;">Step through how a GPU kernel sums 8 values alternating between <strong style="color:#74b9ff;">A = 1&times;10&sup1;&sup5;</strong> (very large) and <strong style="color:#fdcb6e;">b = 0.01</strong> (tiny). Switch the work group size to see how different groupings cause the tiny values to be lost differently &mdash; producing genuinely different final sums.</p>
+    <div style="display:flex;gap:10px;margin-bottom:14px;align-items:center;flex-wrap:wrap;">
+      <span style="font-size:12px;color:var(--muted);font-weight:600;">Work group size:</span>
+      <button id="gpu-wg-btn-4" class="btn" style="font-size:12px;padding:6px 14px;background:#e17055;" onclick="setGPUWorkGroup(4)">4 cores / group</button>
+      <button id="gpu-wg-btn-2" class="btn btn-outline" style="font-size:12px;padding:6px 14px;" onclick="setGPUWorkGroup(2)">2 cores / group</button>
+    </div>
+    <canvas id="gpu-dispatch-canvas" width="640" height="280" style="width:100%;max-width:640px;"></canvas>
+    <div id="gpu-comparison" style="display:none;margin-top:10px;border-radius:8px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);font-size:12px;font-family:'JetBrains Mono',monospace;line-height:1.8;"></div>
+    <div style="display:flex;gap:10px;margin-top:12px;align-items:center;flex-wrap:wrap;">
+      <button class="btn" id="gpu-step-btn" onclick="gpuNextStep()" style="background:#e17055;">&#9658; Step Through &#8594;</button>
+      <button class="btn btn-outline" onclick="gpuReset()">&#8635; Reset</button>
+      <span id="gpu-step-label" style="font-size:12px;color:var(--muted);">Step 0 of 4 &#8212; 8 activation values waiting to be summed</span>
+    </div>
+  </div>
+
+  </div><!-- end gpu-deep-dive -->
+
+  <div class="highlight-box">
+    <p>Every AI response is the product of millions of floating-point additions. Different batch sizes change which additions happen together — and those tiny ordering differences compound through hundreds of layers until the “most likely next word” ranking flips. That’s the complete mechanism.</p>
+  </div>
+  <div class="section-bridge">
     <span class="section-bridge-text">Next: how to actually fix this</span>
-    <a class="section-bridge-link" href="#fix" onclick="setActive(document.querySelector('[href=\'#fix\']'))">Batch-Invariant Kernels →</a>
+    <a class="section-bridge-link" href="#fix" onclick="setActive(document.querySelector('[href=\'#fix\']'))">The Fix →</a>
   </div>
 </section>
 
 <!-- ===== SECTION 5: FIX ===== -->
 <section class="section" id="fix">
   <div class="section-tag">The Solution</div>
-  <div class="section-title" style="color:#00b894">Batch-Invariant Kernels</div>
-  <div class="section-sub">The fix isn't to eliminate batching — that would destroy throughput. The fix is to write kernels whose floating-point reduction order stays the same regardless of batch size. Three operations need attention: RMSNorm, MatMul, and Attention.</div>
+  <div class="section-title" style="color:#00b894">The Fix: Lock the Arithmetic Order</div>
+  <div class="section-sub">The fix is conceptually simple: <strong>always do the arithmetic in the same order</strong>, no matter how many requests are running at the same time. In practice, this requires rewriting three specific calculation routines inside the model. The explorer below shows what changes in each one &mdash; and why those specific three matter most.</div>
 
   <div class="card" style="margin-bottom:24px;">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
@@ -543,7 +580,7 @@ window.addEventListener('load', function(){ var el=document.getElementById('pg-i
   <div class="section-divider" style="margin-top:0;"><hr><span>What Did Those 80 Variants Look Like?</span><hr></div>
   <div class="card" style="margin-bottom:24px;">
     <div class="card-title" style="color:#74b9ff;">Completion Diversity &mdash; Hover over each chip to read it</div>
-    <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px;">From 1,000 identical runs, 80 unique completions emerged. Color shows how far each diverges from the modal response: <span style="color:#4ade80;">green</span> = small diff, <span style="color:#fdcb6e;">yellow</span> = moderate, <span style="color:#f87171;">red</span> = large divergence.</p>
+    <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px;">From 1,000 runs of the same prompt at temp=0, 80 distinct responses emerged — 8% of runs gave a different answer. Each chip represents one unique completion. <span style="color:#4ade80;">Green</span> = nearly identical wording to the most common answer, <span style="color:#fdcb6e;">yellow</span> = noticeably different phrasing, <span style="color:#f87171;">red</span> = substantially different response. Hover to read each.</p>
     <canvas id="variants-canvas" width="620" height="128" style="width:100%;max-width:620px;cursor:pointer;" onmousemove="variantsHover(event)" onmouseleave="variantsHoverOut()"></canvas>
     <div id="variants-detail" style="margin-top:8px;min-height:32px;font-size:12px;color:var(--muted);line-height:1.5;font-family:'JetBrains Mono',monospace;">Hover over a chip to read its completion</div>
   </div>
@@ -601,11 +638,12 @@ window.addEventListener('load', function(){ var el=document.getElementById('pg-i
   </div>
 </section>
 
+
 </div><!-- end .main -->
 
 <script>
 // ===== UTILITY =====
-var sectionIds = ['problem','floating-point','myth','batch','fix','results','implications'];
+var sectionIds = ['problem','batch','myth','floating-point','fix','results','implications'];
 var visitedSections = new Set();
 
 function setActive(el) {
@@ -1855,6 +1893,16 @@ function implDecisionClick(evt) {
 }
 
 function initImplications() { drawImplDecision(); }
+
+function toggleGPUSection(btn) {
+  var div = document.getElementById('gpu-deep-dive');
+  if (!div) return;
+  var open = div.style.display !== 'none';
+  div.style.display = open ? 'none' : 'block';
+  btn.textContent = open ? '▶ Show GPU architecture deep-dive' : '▼ Hide GPU architecture deep-dive';
+  if (!open) initGPUSection();
+}
+
 
 // ===== SECTION 3: MYTH ANIMATION =====
 var mythAnimPlaying = false, mythAnimRAF = null, mythAnimT = 0;
