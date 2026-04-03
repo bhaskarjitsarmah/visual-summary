@@ -92,6 +92,10 @@ canvas { display:block; background:var(--bg); border-radius:8px; border:1px soli
   .g3 { grid-template-columns:1fr !important; }
   canvas { max-width:100% !important; }
 }
+.section-bridge { margin-top:48px; padding-top:24px; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+.section-bridge-text { font-size:13px; color:var(--muted); }
+.section-bridge-link { font-size:13px; color:var(--accent); text-decoration:none; font-weight:600; transition:opacity 0.2s; }
+.section-bridge-link:hover { opacity:0.8; }
 </style>
 </head>
 <body>
@@ -249,6 +253,10 @@ Task: {task}</div>
   <div class="highlight-box">
     <p>The model already has the capability — it just needs the right instructions to activate it. GEPA's job is to <strong>automatically discover those instructions</strong> by letting the model read its own failures and write better prompts. No fine-tuning. No reward model. Just reflection.</p>
   </div>
+  <div class="section-bridge">
+    <span class="section-bridge-text">Next: see how all the pieces fit together</span>
+    <a class="section-bridge-link" href="#overview" onclick="setActive(document.querySelector('[href=\'#overview\']'))">Paper Overview →</a>
+  </div>
 </section>
 
 <!-- ===== SECTION 2: OVERVIEW ===== -->
@@ -277,6 +285,10 @@ Task: {task}</div>
         <tr><td>Transferability</td><td><span style="color:#facc15;">Partial — policy tied to one model</span></td><td><span style="color:#4ade80;">Strong — prompts work across models</span></td></tr>
       </tbody>
     </table>
+  </div>
+  <div class="section-bridge">
+    <span class="section-bridge-text">Next: understand the evolutionary algorithm that powers GEPA</span>
+    <a class="section-bridge-link" href="#evolution" onclick="setActive(document.querySelector('[href=\'#evolution\']'))">Evolutionary Algorithms →</a>
   </div>
 </section>
 
@@ -369,6 +381,10 @@ Task: {task}</div>
   <div class="highlight-box" style="margin-top:20px;">
     <p>Traditional evolutionary algorithms use <strong>random mutation</strong>: random word swaps, insertions, deletions. GEPA's mutation is <strong>guided</strong> — the model reads its failure cases and writes targeted improvements. This is what makes GEPA sample-efficient.</p>
   </div>
+  <div class="section-bridge">
+    <span class="section-bridge-text">Next: see the full GEPA algorithm step by step</span>
+    <a class="section-bridge-link" href="#gepa" onclick="setActive(document.querySelector('[href=\'#gepa\']'))">How GEPA Works →</a>
+  </div>
 </section>
 
 <!-- ===== SECTION 4: GEPA ===== -->
@@ -421,6 +437,99 @@ Task: {task}</div>
     <p style="font-size:14px;color:var(--muted);line-height:1.7;">Repeat Evaluate → Reflect → Mutate → Select until convergence or the compute budget is exhausted. GEPA typically converges in 5–10 generations. The final best prompt in the population is returned as the optimized output.</p></div>
   </div>
 
+  <div class="section-divider" style="margin-top:28px;"><hr><span>How the Prompt Text Actually Evolves</span><hr></div>
+  <div class="card" style="margin-top:16px;margin-bottom:8px;">
+    <div class="card-title" style="color:#fdcb6e;">Prompt Evolution Timeline — Generation 0 → 3 → 6</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:18px;">Each generation, GEPA reads failure cases and rewrites the prompt. Watch how a generic two-word instruction grows into a precise, task-specific guide.</p>
+    <div class="g3" style="gap:14px;">
+      <div style="position:relative;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#f87171;margin-bottom:8px;">Generation 0 — Baseline</div>
+        <div style="background:var(--bg);border:1px solid #f87171;border-radius:8px;padding:12px;font-family:'JetBrains Mono';font-size:11px;color:#e2b35e;line-height:1.7;min-height:160px;">Solve the problem:
+{problem}</div>
+        <div style="margin-top:8px;font-size:11px;color:#f87171;">Score: 46.6%</div>
+      </div>
+      <div style="position:relative;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#fdcb6e;margin-bottom:8px;">Generation 3 — Improving</div>
+        <div style="background:var(--bg);border:1px solid #fdcb6e;border-radius:8px;padding:12px;font-family:'JetBrains Mono';font-size:11px;color:#e2b35e;line-height:1.7;min-height:160px;">Solve step by step.
+Show all intermediate
+values clearly.
+Verify your answer.
+
+Problem: {problem}</div>
+        <div style="margin-top:8px;font-size:11px;color:#fdcb6e;">Score: 53.2%</div>
+      </div>
+      <div style="position:relative;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#00b894;margin-bottom:8px;">Generation 6 — Optimized</div>
+        <div style="background:var(--bg);border:1px solid #00b894;border-radius:8px;padding:12px;font-family:'JetBrains Mono';font-size:11px;color:#e2b35e;line-height:1.7;min-height:160px;">Solve step by step:
+1. Identify formula/method
+2. Substitute values
+3. Show each calculation
+4. Verify result against
+   all constraints
+
+Problem: {problem}</div>
+        <div style="margin-top:8px;font-size:11px;color:#00b894;">Score: 60.0% ✓</div>
+      </div>
+    </div>
+    <div class="highlight-box" style="margin-top:16px;">
+      <p style="font-size:13px;">The prompt text is the only thing that changed. Same model, same weights — but the instructions went from 4 words to a structured checklist, guided entirely by the model's own failure analysis.</p>
+    </div>
+  </div>
+  <div class="section-divider" style="margin-top:28px;"><hr><span>One Full Generation — Step by Step</span><hr></div>
+  <div class="card" style="margin-top:16px;">
+    <div class="card-title" style="color:#fdcb6e;">What Happens Inside a Single Generation</div>
+    <div class="stepper" id="gen-stepper">
+      <button class="step-btn active" onclick="setGenStep(0,this)">1 · Prompt</button>
+      <button class="step-btn" onclick="setGenStep(1,this)">2 · Evaluate</button>
+      <button class="step-btn" onclick="setGenStep(2,this)">3 · Reflect</button>
+      <button class="step-btn" onclick="setGenStep(3,this)">4 · Mutate</button>
+      <button class="step-btn" onclick="setGenStep(4,this)">5 · Select</button>
+    </div>
+    <div id="gen-step-0">
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px;">We start with the current best prompt. In generation 1, this is the baseline. By generation 5, it already contains reflection-guided improvements.</p>
+      <div style="background:var(--bg);border:1px solid #fdcb6e;border-radius:8px;padding:14px;font-family:'JetBrains Mono';font-size:12px;color:#e2b35e;line-height:1.7;">Current best prompt:
+"Solve step by step. Show all intermediate values. Problem: {problem}"
+
+Population size: 3 prompts  |  Generation: 3 of 10</div>
+    </div>
+    <div id="gen-step-1" style="display:none;">
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px;">Run the current best prompt on the validation set. Each example is scored as pass ✓ or fail ✗. The accuracy is the fitness score for this prompt.</p>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.3);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--text);font-family:'JetBrains Mono';">✓  Q: "A train travels 60mph for 2h. Distance?" → "120 miles" ✓</div>
+        <div style="background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.3);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--text);font-family:'JetBrains Mono';">✓  Q: "Solve x² - 5x + 6 = 0" → "x=2, x=3" ✓</div>
+        <div style="background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.3);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--text);font-family:'JetBrains Mono';">✓  Q: "Area of circle r=7?" → "153.94" ✓</div>
+        <div style="background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.3);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--text);font-family:'JetBrains Mono';">✗  Q: "In isosceles ABC, AB=AC=5, BC=6. Find height." → "4.5" ✗ (correct: 4)</div>
+        <div style="background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.3);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--text);font-family:'JetBrains Mono';">✗  Q: "Ratio problem: A:B=2:3, B:C=4:5. Find A:C." → "8:15" ✗ (correct: 8:15... miscalculated)</div>
+      </div>
+      <div style="margin-top:12px;font-size:13px;color:#fdcb6e;font-weight:600;">Score: 3/5 = 60% — 2 failures to analyse</div>
+    </div>
+    <div id="gen-step-2" style="display:none;">
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px;">The model reads the 2 failed examples and diagnoses what the prompt is missing. This is the reflection — written in natural language, fully readable.</p>
+      <div style="background:rgba(225,112,85,0.06);border:1px solid rgba(225,112,85,0.3);border-radius:8px;padding:14px 18px;font-size:13px;color:var(--text);line-height:1.7;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#e17055;margin-bottom:8px;">Model Reflection Output</div>
+        "The prompt asks to show intermediate values, but doesn't specify how to handle geometry problems (where shape properties must be confirmed first) or ratio chains (where each ratio must be normalised before combining). The prompt should explicitly require: (1) confirming shape type and properties before applying formulas, (2) normalising ratios to a common term before computing compound ratios."
+      </div>
+    </div>
+    <div id="gen-step-3" style="display:none;">
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px;">Using the reflection, the model generates 3 new prompt candidates. Each addresses the identified weaknesses in a slightly different way.</p>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:'JetBrains Mono';font-size:11px;color:#e2b35e;line-height:1.7;">Candidate A: "Solve step by step. For geometry: confirm shape type first. For ratios: normalise to common term. Show all values. Problem: {problem}"</div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:'JetBrains Mono';font-size:11px;color:#e2b35e;line-height:1.7;">Candidate B: "Identify problem type (geometry/algebra/ratio). Apply type-specific rules. Show each calculation. Verify result. Problem: {problem}"</div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:'JetBrains Mono';font-size:11px;color:#e2b35e;line-height:1.7;">Candidate C: "Step-by-step solution: (1) identify formula/method for this problem type, (2) substitute known values, (3) compute carefully, (4) verify. Problem: {problem}"</div>
+      </div>
+    </div>
+    <div id="gen-step-4" style="display:none;">
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px;">All 3 new candidates + the 3 existing survivors are evaluated on the validation set. The top 3 by score become the next generation's population.</p>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.4);border-radius:8px;padding:10px 14px;font-size:12px;display:flex;justify-content:space-between;align-items:center;"><span style="font-family:'JetBrains Mono';color:#e2b35e;">Candidate A</span><span style="color:#4ade80;font-weight:700;">80% ✓ KEPT</span></div>
+        <div style="background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.4);border-radius:8px;padding:10px 14px;font-size:12px;display:flex;justify-content:space-between;align-items:center;"><span style="font-family:'JetBrains Mono';color:#e2b35e;">Candidate B</span><span style="color:#4ade80;font-weight:700;">75% ✓ KEPT</span></div>
+        <div style="background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.4);border-radius:8px;padding:10px 14px;font-size:12px;display:flex;justify-content:space-between;align-items:center;"><span style="font-family:'JetBrains Mono';color:#e2b35e;">Previous best</span><span style="color:#4ade80;font-weight:700;">60% ✓ KEPT</span></div>
+        <div style="opacity:0.4;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:12px;display:flex;justify-content:space-between;align-items:center;"><span style="font-family:'JetBrains Mono';color:var(--muted);">Candidate C</span><span style="color:#f87171;">55% ✗ DROPPED</span></div>
+        <div style="opacity:0.4;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:12px;display:flex;justify-content:space-between;align-items:center;"><span style="font-family:'JetBrains Mono';color:var(--muted);">Other survivors</span><span style="color:#f87171;">50% ✗ DROPPED</span></div>
+      </div>
+      <div style="margin-top:12px;font-size:13px;color:#00b894;font-weight:600;">Generation complete. Best prompt improved from 60% → 80%. Next generation begins.</div>
+    </div>
+  </div>
   <div class="section-divider" style="margin-top:28px;"><hr><span>Algorithm Pseudocode</span><hr></div>
   <div class="formula" style="line-height:1.8;font-size:13px;">GEPA(task, baseline_prompt, budget):  <span style="color:#8892b0;"># budget = max number of generations (e.g. 10)</span>
   population = [baseline_prompt]
@@ -443,6 +552,10 @@ Task: {task}</div>
   </div>
   <div class="highlight-box" style="margin-top:12px;">
     <p>No reward model. No policy gradient. No value function. No backpropagation. Just the model <strong>reading its own mistakes</strong> and writing better instructions. Every component is a forward-pass LLM call.</p>
+  </div>
+  <div class="section-bridge">
+    <span class="section-bridge-text">Next: dive deeper into the reflection mechanism</span>
+    <a class="section-bridge-link" href="#reflection" onclick="setActive(document.querySelector('[href=\'#reflection\']'))">The Reflection Mechanism →</a>
   </div>
 </section>
 
@@ -511,6 +624,10 @@ Fix: Require step-by-step entity resolution before answering.</div>
   <div class="highlight-box" style="margin-top:20px;">
     <p>This is why GEPA is interpretable: you can <strong>read the reflection and understand exactly why the prompt changed</strong>. RL-based methods update weights invisibly — GEPA updates prompts visibly.</p>
   </div>
+  <div class="section-bridge">
+    <span class="section-bridge-text">Next: see how GEPA performs on real benchmarks</span>
+    <a class="section-bridge-link" href="#experiments" onclick="setActive(document.querySelector('[href=\'#experiments\']'))">Experiments →</a>
+  </div>
 </section>
 
 <!-- ===== SECTION 6: EXPERIMENTS ===== -->
@@ -540,11 +657,24 @@ Fix: Require step-by-step entity resolution before answering.</div>
     <div id="exp-caption" style="margin-top:10px;font-size:13px;color:var(--muted);"></div>
   </div>
 
+  <div class="section-divider"><hr><span>Compute Efficiency vs. RL Methods</span><hr></div>
+  <div class="card" style="margin-top:16px;margin-bottom:24px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
+      <div class="card-title" style="color:#74b9ff;margin-bottom:0;">Rollout Count Comparison (HotpotQA task)</div>
+      <span style="background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:10px;color:var(--muted);">Numbers from paper (HotpotQA with Qwen3-8B)</span>
+    </div>
+    <canvas id="efficiency-canvas" width="580" height="180" style="width:100%;max-width:580px;"></canvas>
+    <div style="margin-top:12px;font-size:13px;color:var(--muted);line-height:1.6;">GEPA achieves better results using <strong style="color:#74b9ff;">6,438 rollouts</strong> vs GRPO's <strong style="color:#f87171;">24,000 rollouts</strong> — nearly <strong style="color:#74b9ff;">4× more efficient</strong>. Each rollout = one model inference call. Fewer rollouts = lower API cost and faster optimization.</div>
+  </div>
   <div class="section-divider"><hr><span>Cross-Model Prompt Transfer</span><hr></div>
   <div class="card" style="margin-top:16px;">
     <div class="card-title" style="color:#74b9ff;">Optimized prompts transfer across model families</div>
     <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:16px;">A prompt optimized on GPT-4 retains most of its gains when applied to Qwen-3-8B, and vice versa. This suggests GEPA discovers task-level improvements, not model-specific hacks.</p>
     <canvas id="transfer-canvas" width="480" height="140" style="width:100%;max-width:480px;"></canvas>
+  </div>
+  <div class="section-bridge">
+    <span class="section-bridge-text">Next: see what happens when you remove each component</span>
+    <a class="section-bridge-link" href="#ablations" onclick="setActive(document.querySelector('[href=\'#ablations\']'))">Ablations →</a>
   </div>
 </section>
 
@@ -579,6 +709,10 @@ Fix: Require step-by-step entity resolution before answering.</div>
       <div class="card-title" style="color:#74b9ff;">📊 Validation Eval</div>
       <p style="font-size:13px;color:var(--muted);line-height:1.6;">Without a fitness signal, there's no direction. The algorithm performs random walks — no better than chance after the first generation.</p>
     </div>
+  </div>
+  <div class="section-bridge">
+    <span class="section-bridge-text">Next: key lessons and limitations</span>
+    <a class="section-bridge-link" href="#takeaways" onclick="setActive(document.querySelector('[href=\'#takeaways\']'))">Key Takeaways →</a>
   </div>
 </section>
 
@@ -620,6 +754,12 @@ Fix: Require step-by-step entity resolution before answering.</div>
     </div>
   </div>
 
+  <div class="section-divider"><hr><span>When Should You Use GEPA?</span><hr></div>
+  <div class="card" style="margin-top:16px;margin-bottom:24px;">
+    <div class="card-title" style="color:#a29bfe;">Decision Guide — Is GEPA Right for Your Task?</div>
+    <canvas id="decision-canvas" width="620" height="260" style="width:100%;max-width:620px;cursor:pointer;" onclick="decisionClick(event)"></canvas>
+    <div id="decision-detail" style="margin-top:12px;min-height:36px;font-size:13px;color:var(--muted);line-height:1.5;"></div>
+  </div>
   <div class="section-divider"><hr><span>Before vs. After GEPA Optimization</span><hr></div>
   <div class="card" style="margin-top:16px;margin-bottom:24px;">
     <div class="card-title" style="color:#a29bfe;">Prompt Quality Over Time</div>
@@ -1509,8 +1649,159 @@ window.addEventListener('resize', function() {
   if (window.innerWidth>768) document.querySelector('.sidebar').classList.remove('open');
 });
 
+/* =====================================================
+   GEN STEPPER (One Full Generation)
+===================================================== */
+function setGenStep(idx, btn) {
+  for (var i = 0; i < 5; i++) {
+    var el = document.getElementById('gen-step-' + i);
+    if (el) el.style.display = (i === idx) ? 'block' : 'none';
+  }
+  document.querySelectorAll('#gen-stepper .step-btn').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+}
+
+/* =====================================================
+   EFFICIENCY CHART
+===================================================== */
+function initEfficiency() {
+  var cv = document.getElementById('efficiency-canvas'); if (!cv) return;
+  var ctx = cv.getContext('2d'); var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+  var data = [
+    { label: 'GEPA', value: 6438,  color: '#74b9ff', note: '6,438' },
+    { label: 'GRPO', value: 24000, color: '#f87171', note: '24,000' },
+  ];
+  var maxVal = 24000;
+  var padL = 80, padR = 100, padT = 20, padB = 40;
+  var plotW = W - padL - padR, plotH = H - padT - padB;
+  var barH = 50, gap = 30;
+  data.forEach(function(d, i) {
+    var y = padT + i * (barH + gap);
+    var bw = (d.value / maxVal) * plotW;
+    // Background track
+    ctx.fillStyle = '#1e2444';
+    ctx.beginPath(); ctx.roundRect(padL, y, plotW, barH, 6); ctx.fill();
+    // Bar
+    ctx.save(); ctx.shadowColor = d.color; ctx.shadowBlur = d.label === 'GEPA' ? 12 : 0;
+    ctx.fillStyle = d.color;
+    ctx.beginPath(); ctx.roundRect(padL, y, bw, barH, 6); ctx.fill();
+    ctx.restore();
+    // Label left
+    ctx.fillStyle = d.color; ctx.font = 'bold 13px Inter,sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(d.label, padL - 10, y + barH / 2 + 5);
+    // Value right
+    ctx.fillStyle = d.color; ctx.font = 'bold 13px JetBrains Mono,monospace'; ctx.textAlign = 'left';
+    ctx.fillText(d.note + ' rollouts', padL + bw + 10, y + barH / 2 + 5);
+  });
+  // Delta annotation
+  ctx.fillStyle = '#4ade80'; ctx.font = 'bold 12px Inter,sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('GEPA uses 3.7× fewer rollouts for better results', W / 2, H - 8);
+}
+
+/* =====================================================
+   DECISION TREE CANVAS
+===================================================== */
+var decisionNodes = [
+  { id: 'q1', x: 0.5,  y: 0.08, text: 'Do you have labelled\nexamples with correct answers?', type: 'question', color: '#a29bfe' },
+  { id: 'q2', x: 0.72, y: 0.42, text: 'Is correctness\nobjectively measurable?', type: 'question', color: '#a29bfe' },
+  { id: 'q3', x: 0.72, y: 0.75, text: 'Do you have API or\nweight access to the model?', type: 'question', color: '#a29bfe' },
+  { id: 'no1', x: 0.2, y: 0.42, text: '⚠ GEPA not suitable\nNo fitness signal\nwithout ground truth', type: 'no',  color: '#f87171' },
+  { id: 'no2', x: 0.25, y: 0.75, text: '⚠ Difficult to apply\nNeed a scoring model\nor human judges', type: 'no',  color: '#facc15' },
+  { id: 'yes', x: 0.72, y: 1.05, text: '✓ GEPA is a\ngood fit!', type: 'yes', color: '#00b894' },
+];
+var decisionEdges = [
+  { from: 'q1', to: 'no1', label: 'No' },
+  { from: 'q1', to: 'q2',  label: 'Yes' },
+  { from: 'q2', to: 'no2', label: 'No' },
+  { from: 'q2', to: 'q3',  label: 'Yes' },
+  { from: 'q3', to: 'yes', label: 'Yes' },
+];
+
+function drawDecisionTree() {
+  var cv = document.getElementById('decision-canvas'); if (!cv) return;
+  var ctx = cv.getContext('2d'); var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  function pos(node) { return { x: node.x * W, y: node.y * H }; }
+
+  // Draw edges first
+  decisionEdges.forEach(function(e) {
+    var fn = decisionNodes.find(function(n) { return n.id === e.from; });
+    var tn = decisionNodes.find(function(n) { return n.id === e.to; });
+    if (!fn || !tn) return;
+    var p1 = pos(fn), p2 = pos(tn);
+    ctx.beginPath(); ctx.moveTo(p1.x, p1.y + 24); ctx.lineTo(p2.x, p2.y - 24);
+    ctx.strokeStyle = '#2a3060'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]); ctx.stroke();
+    ctx.setLineDash([]);
+    // Arrowhead
+    var ang = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+    var ax = p2.x - 10 * Math.cos(ang), ay = p2.y - 24 - 6;
+    ctx.beginPath();
+    ctx.moveTo(p2.x, p2.y - 24);
+    ctx.lineTo(p2.x - 8 * Math.cos(ang - 0.4), p2.y - 24 - 8 * Math.sin(ang - 0.4));
+    ctx.lineTo(p2.x - 8 * Math.cos(ang + 0.4), p2.y - 24 - 8 * Math.sin(ang + 0.4));
+    ctx.closePath(); ctx.fillStyle = '#2a3060'; ctx.fill();
+    // Edge label
+    var mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
+    ctx.fillStyle = '#8892b0'; ctx.font = '11px Inter,sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(e.label, mx + 10, my);
+  });
+
+  // Draw nodes
+  decisionNodes.forEach(function(node) {
+    var p = pos(node);
+    var lines = node.text.split('\n');
+    var nw = 150, nh = lines.length * 16 + 16;
+    var nx = p.x - nw / 2, ny = p.y - nh / 2;
+    if (node.type === 'question') {
+      ctx.save(); ctx.shadowColor = node.color; ctx.shadowBlur = 8;
+      ctx.fillStyle = '#1e2444'; ctx.strokeStyle = node.color; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.roundRect(nx, ny, nw, nh, 8); ctx.fill(); ctx.stroke();
+      ctx.restore();
+    } else {
+      ctx.fillStyle = node.color + '18'; ctx.strokeStyle = node.color; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.roundRect(nx, ny, nw, nh, 8); ctx.fill(); ctx.stroke();
+    }
+    ctx.fillStyle = node.type === 'question' ? node.color : (node.type === 'yes' ? node.color : '#e2e8f0');
+    ctx.font = node.type === 'yes' ? 'bold 12px Inter,sans-serif' : '11px Inter,sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    lines.forEach(function(line, i) {
+      ctx.fillText(line, p.x, ny + 12 + i * 16);
+    });
+  });
+}
+
+function decisionClick(evt) {
+  var cv = document.getElementById('decision-canvas'); if (!cv) return;
+  var rect = cv.getBoundingClientRect();
+  var scaleX = cv.width / rect.width, scaleY = cv.height / rect.height;
+  var mx = (evt.clientX - rect.left) * scaleX;
+  var my = (evt.clientY - rect.top) * scaleY;
+  var detail = document.getElementById('decision-detail');
+  var msgs = {
+    'q1': 'Ground truth labels are required to score prompts. Without them, GEPA has no way to measure whether one prompt is better than another.',
+    'q2': 'If your task has a measurable correct answer (math, code, QA), GEPA works well. If quality is subjective, you need a judge model — which adds complexity.',
+    'q3': 'GEPA only needs inference access (API calls). You do not need model weights. It works on GPT-4o, Claude, or any API-accessible model.',
+    'no1': 'Without labelled examples, there is no fitness signal. Consider collecting a small labelled set (even 20–50 examples can be enough).',
+    'no2': 'For subjective tasks, consider using a judge LLM (e.g. GPT-4 as evaluator) or human ratings — but this reintroduces complexity GEPA was designed to avoid.',
+    'yes': 'You have ground truth, measurable correctness, and API access. GEPA is well-suited to your task. Start with a small validation set of 20–50 examples.',
+  };
+  decisionNodes.forEach(function(node) {
+    var p = { x: node.x * cv.width, y: node.y * cv.height };
+    var nw = 150, nh = node.text.split('\n').length * 16 + 16;
+    if (mx >= p.x - nw/2 && mx <= p.x + nw/2 && my >= p.y - nh/2 && my <= p.y + nh/2) {
+      if (detail && msgs[node.id]) detail.textContent = msgs[node.id];
+    }
+  });
+}
+
+function initDecision() { drawDecisionTree(); }
+
 // ===== INIT ALL =====
 initPaperMap();
+initEfficiency();
+initDecision();
 initEvolution();
 initGEPA();
 initReflection();
