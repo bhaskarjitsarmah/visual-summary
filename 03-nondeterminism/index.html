@@ -88,6 +88,8 @@ canvas { display:block; background:var(--bg); border-radius:8px; border:1px soli
 .section-bridge-link:hover { opacity:0.8; }
 input[type=number] { background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-family:'JetBrains Mono',monospace; font-size:13px; width:80px; outline:none; }
 input[type=number]:focus { border-color:var(--accent); }
+input[type=range] { -webkit-appearance:none; height:6px; border-radius:3px; background:var(--surface2); border:1px solid var(--border); outline:none; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:#fdcb6e; cursor:pointer; border:2px solid var(--bg); }
 </style>
 </head>
 <body>
@@ -192,9 +194,12 @@ window.addEventListener('load', function(){ var el=document.getElementById('pg-i
     </div>
     <div id="sim-responses" style="display:flex;flex-direction:column;gap:8px;min-height:60px;margin-bottom:16px;"></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-      <button class="btn" id="sim-run-btn" onclick="runSimulator()" style="background:#ff7675;">▶ Run 5 times →</button>
-      <button class="btn btn-outline" onclick="resetSimulator()">↺ Reset</button>
+      <button class="btn" id="sim-run-btn" onclick="runSimulator()" style="background:#ff7675;">&#9658; Run 5 times &#8594;</button>
+      <button class="btn btn-outline" onclick="resetSimulator()">&#8635; Reset</button>
       <span id="sim-status" style="font-size:12px;color:var(--muted);"></span>
+    </div>
+    <div style="margin-top:10px;font-size:11px;color:var(--muted);line-height:1.5;">
+      <mark style="background:rgba(253,203,110,0.25);border-radius:3px;padding:1px 5px;color:#fdcb6e;">highlighted tokens</mark> = words that changed vs. Run 1 &mdash; same prompt, temperature=0, but different output
     </div>
   </div>
 
@@ -346,12 +351,22 @@ window.addEventListener('load', function(){ var el=document.getElementById('pg-i
     </div>
   </div>
 
+  <div class="card" style="margin-bottom:20px;border-top:3px solid #fd79a8;">
+    <div class="card-title" style="color:#fd79a8;">Animation: Two Mechanisms Side-by-Side</div>
+    <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center;flex-wrap:wrap;">
+      <button class="btn" id="myth-anim-btn" onclick="toggleMythAnim()" style="background:#fd79a8;color:#0d0f18;">&#9658; Animate</button>
+      <button class="btn btn-outline" onclick="resetMythAnim()">&#8635; Reset</button>
+      <span style="font-size:12px;color:var(--muted);">Left: atomic add race conditions. Right: batch variance causing different tiling.</span>
+    </div>
+    <canvas id="myth-anim-canvas" width="640" height="190" style="width:100%;max-width:640px;"></canvas>
+  </div>
+
   <div class="highlight-box">
     <p>The real culprit isn't concurrency within a single operation. It's that the <strong>batch size itself changes</strong> — and with it, which operations run together and in what floating-point order.</p>
   </div>
   <div class="section-bridge">
     <span class="section-bridge-text">Next: the actual mechanism</span>
-    <a class="section-bridge-link" href="#batch" onclick="setActive(document.querySelector('[href=\'#batch\']'))">Batch Variance →</a>
+    <a class="section-bridge-link" href="#batch" onclick="setActive(document.querySelector('[href=\'#batch\']'))">Batch Variance &#8594;</a>
   </div>
 </section>
 
@@ -361,8 +376,14 @@ window.addEventListener('load', function(){ var el=document.getElementById('pg-i
   <div class="section-title" style="color:#fdcb6e">Batch Variance: The Actual Cause</div>
   <div class="section-sub">Production inference servers process requests in batches. When load is low, your request travels alone (batch=1). At peak load it shares a batch with dozens of others (batch=32). Different batch sizes cause kernels to tile their computation differently — changing which floating-point values get added together first.</div>
 
+  <div class="card" style="margin-bottom:20px;border-top:3px solid #fdcb6e;">
+    <div class="card-title" style="color:#fdcb6e;">The Full Causal Chain &mdash; Click any step to jump to its section</div>
+    <canvas id="causal-chain-canvas" width="640" height="92" style="width:100%;max-width:640px;cursor:pointer;" onclick="causalChainClick(event)"></canvas>
+    <div id="causal-chain-detail" style="margin-top:8px;font-size:12px;color:var(--muted);min-height:16px;text-align:center;font-style:italic;"></div>
+  </div>
+
   <div class="card" style="margin-bottom:24px;">
-    <div class="card-title" style="color:#fdcb6e;">The Causal Chain</div>
+    <div class="card-title" style="color:#fdcb6e;">Step-by-Step: How It Happens</div>
     <div class="stepper" id="batch-stepper">
       <button class="step-btn active" onclick="setBatchStep(0,this)">1 · Same Input</button>
       <button class="step-btn" onclick="setBatchStep(1,this)">2 · Load Varies</button>
@@ -388,21 +409,17 @@ window.addEventListener('load', function(){ var el=document.getElementById('pg-i
       </div>
     </div>
     <div id="batch-step-1" style="display:none;">
-      <div class="g2" style="gap:16px;align-items:flex-start;">
-        <div>
-          <div class="card-title" style="color:#fdcb6e;">📈 Server Load Varies</div>
-          <p style="font-size:14px;color:var(--muted);line-height:1.7;">Inference servers are shared infrastructure. At 9am there might be 2 concurrent users. At 9pm there might be 200. The server's batching system groups incoming requests together to maximize GPU utilization.</p>
+      <div>
+        <div class="card-title" style="color:#fdcb6e;">&#128200; Live Server Load Simulator &mdash; Drag the slider</div>
+        <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:12px;">Inference servers batch incoming requests to maximize GPU utilization. Drag the slider to change arrival rate — watch your request (&#9733;) end up with different co-travellers as load increases.</p>
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+          <span style="font-size:12px;color:var(--muted);font-weight:600;">Arrival rate:</span>
+          <input type="range" id="load-slider" min="1" max="20" value="3" style="flex:1;min-width:120px;max-width:220px;accent-color:#fdcb6e;cursor:pointer;" oninput="updateLoadCanvas()">
+          <span id="load-rate-label" style="font-size:12px;font-family:'JetBrains Mono';color:#fdcb6e;min-width:70px;">3 req/s</span>
+          <span id="load-batch-label" style="font-size:13px;font-weight:700;font-family:'JetBrains Mono';color:#74b9ff;min-width:100px;">batch &asymp; 3</span>
         </div>
-        <div style="display:flex;flex-direction:column;gap:10px;">
-          <div style="background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.3);border-radius:8px;padding:12px;font-size:12px;color:var(--text);">
-            <strong style="color:#4ade80;">9:00am — Low traffic</strong><br>
-            <span style="color:var(--muted);">2 requests queued → batch size 2</span>
-          </div>
-          <div style="background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.3);border-radius:8px;padding:12px;font-size:12px;color:var(--text);">
-            <strong style="color:#f87171;">9:00pm — Peak traffic</strong><br>
-            <span style="color:var(--muted);">24 requests queued → batch size 24</span>
-          </div>
-        </div>
+        <canvas id="load-canvas" width="580" height="148" style="width:100%;max-width:580px;"></canvas>
+        <div style="margin-top:8px;font-size:11px;color:var(--muted);">&#9733; = your request. As load rises, it shares a batch with more requests &mdash; changing the FP reduction order through all transformer layers.</div>
       </div>
     </div>
     <div id="batch-step-2" style="display:none;">
@@ -523,12 +540,20 @@ window.addEventListener('load', function(){ var el=document.getElementById('pg-i
     </div>
   </div>
 
+  <div class="section-divider" style="margin-top:0;"><hr><span>What Did Those 80 Variants Look Like?</span><hr></div>
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title" style="color:#74b9ff;">Completion Diversity &mdash; Hover over each chip to read it</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px;">From 1,000 identical runs, 80 unique completions emerged. Color shows how far each diverges from the modal response: <span style="color:#4ade80;">green</span> = small diff, <span style="color:#fdcb6e;">yellow</span> = moderate, <span style="color:#f87171;">red</span> = large divergence.</p>
+    <canvas id="variants-canvas" width="620" height="128" style="width:100%;max-width:620px;cursor:pointer;" onmousemove="variantsHover(event)" onmouseleave="variantsHoverOut()"></canvas>
+    <div id="variants-detail" style="margin-top:8px;min-height:32px;font-size:12px;color:var(--muted);line-height:1.5;font-family:'JetBrains Mono',monospace;">Hover over a chip to read its completion</div>
+  </div>
+
   <div class="highlight-box">
-    <p>A 1.6× slowdown is real. But for use cases that <strong>require</strong> reproducibility — RL training, compliance, debugging — it's not a trade-off. It's the cost of correctness. And unlike nondeterminism, latency can be optimized further.</p>
+    <p>A 1.6&times; slowdown is real. But for use cases that <strong>require</strong> reproducibility &mdash; RL training, compliance, debugging &mdash; it's not a trade-off. It's the cost of correctness. And unlike nondeterminism, latency can be optimized further.</p>
   </div>
   <div class="section-bridge">
     <span class="section-bridge-text">Next: why this matters beyond reproducibility</span>
-    <a class="section-bridge-link" href="#implications" onclick="setActive(document.querySelector('[href=\'#implications\']'))">Implications →</a>
+    <a class="section-bridge-link" href="#implications" onclick="setActive(document.querySelector('[href=\'#implications\']'))">Implications &#8594;</a>
   </div>
 </section>
 
@@ -642,11 +667,37 @@ function drawArrow(ctx, x1, y1, x2, y2, color, lw) {
 
 // ===== SECTION 1: PROBLEM SIMULATOR =====
 var simResponses = [
-  { text: 'The transformer architecture introduced multi-head self-attention, enabling models to capture long-range dependencies in sequences in parallel.', variant: false },
-  { text: 'Transformers introduced scaled dot-product attention and positional encodings, replacing recurrence with parallelizable sequence modeling.', variant: true },
-  { text: 'The transformer architecture introduced the attention mechanism, allowing models to weigh the relevance of different tokens when making predictions.', variant: false },
-  { text: 'The transformer introduced multi-head attention and a feed-forward sub-layer, enabling parallel processing of sequences without recurrence.', variant: true },
-  { text: 'Transformers proposed a fully attention-based encoder-decoder architecture that parallelizes sequence processing and captures global dependencies.', variant: true }
+  {
+    segs: [{t:'The transformer architecture introduced multi-head self-attention, enabling models to capture long-range dependencies in sequences in parallel.',d:false}],
+    variant: false
+  },
+  {
+    segs: [
+      {t:'Transformers',d:true},{t:' introduced ',d:false},
+      {t:'scaled dot-product attention and positional encodings',d:true},
+      {t:', replacing recurrence with ',d:true},{t:'parallelizable sequence modeling',d:true},{t:'.',d:false}
+    ],
+    variant: true
+  },
+  {
+    segs: [{t:'The transformer architecture introduced the attention mechanism, allowing models to weigh the relevance of different tokens when making predictions.',d:false}],
+    variant: false
+  },
+  {
+    segs: [
+      {t:'The transformer introduced ',d:true},
+      {t:'multi-head attention and a feed-forward sub-layer',d:true},
+      {t:', enabling ',d:false},{t:'parallel processing of sequences without recurrence',d:true},{t:'.',d:false}
+    ],
+    variant: true
+  },
+  {
+    segs: [
+      {t:'Transformers proposed a ',d:true},{t:'fully attention-based encoder-decoder architecture',d:true},
+      {t:' that ',d:false},{t:'parallelizes sequence processing and captures global dependencies',d:true},{t:'.',d:false}
+    ],
+    variant: true
+  }
 ];
 var simRunning = false;
 var simShown = 0;
@@ -684,7 +735,8 @@ function showNextResponse() {
   var container = document.getElementById('sim-responses');
   var div = document.createElement('div');
   div.style.cssText = 'background:' + (r.variant ? 'rgba(253,203,110,0.07)' : 'rgba(74,222,128,0.06)') + ';border:1px solid ' + (r.variant ? 'rgba(253,203,110,0.3)' : 'rgba(74,222,128,0.2)') + ';border-radius:8px;padding:10px 14px;font-size:13px;color:var(--text);line-height:1.6;opacity:0;transition:opacity 0.3s;';
-  div.innerHTML = '<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:' + (r.variant ? '#fdcb6e' : '#4ade80') + ';margin-right:8px;">Run ' + simShown + (r.variant ? ' ⚠ differs' : ' ✓') + '</span>' + r.text;
+  var segHtml = r.segs.map(function(s){ return s.d ? '<mark style="background:rgba(253,203,110,0.28);border-radius:3px;padding:1px 3px;color:#fdcb6e;font-weight:600;">'+s.t+'</mark>' : s.t; }).join('');
+  div.innerHTML = '<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:' + (r.variant ? '#fdcb6e' : '#4ade80') + ';margin-right:8px;">Run ' + simShown + (r.variant ? ' \u26a0 differs' : ' \u2713') + '</span>' + segHtml;
   container.appendChild(div);
   requestAnimationFrame(function(){ div.style.opacity='1'; });
   setTimeout(showNextResponse, 600);
@@ -1372,6 +1424,7 @@ function setBatchStep(idx, btn) {
   document.querySelectorAll('#batch-stepper .step-btn').forEach(function(b){ b.classList.remove('active'); });
   btn.classList.add('active');
   if (idx === 2) drawTileCanvas();
+  if (idx === 1) drawLoadCanvas();
 }
 
 function drawTileCanvas() {
@@ -1411,7 +1464,10 @@ function drawTileCanvas() {
   ctx.fillText('different grouping → different FP order', 3*W/4, padT+116);
 }
 
-function initBatch() { /* stepper starts on step 0, no canvas there */ }
+function initBatch() {
+  drawCausalChain();
+  drawLoadCanvas();
+}
 
 // ===== SECTION 5: FIX — KERNEL TABS =====
 var kernelData = {
@@ -1712,6 +1768,7 @@ function drawPerfCanvas() {
 function initResults() {
   drawResultsCanvas(0);
   drawPerfCanvas();
+  drawVariantsCanvas();
 }
 
 // ===== SECTION 7: IMPLICATIONS DECISION CANVAS =====
@@ -1799,6 +1856,378 @@ function implDecisionClick(evt) {
 
 function initImplications() { drawImplDecision(); }
 
+// ===== SECTION 3: MYTH ANIMATION =====
+var mythAnimPlaying = false, mythAnimRAF = null, mythAnimT = 0;
+
+function toggleMythAnim() {
+  if (mythAnimT >= 1) resetMythAnim();
+  mythAnimPlaying = !mythAnimPlaying;
+  var btn = document.getElementById('myth-anim-btn');
+  if (btn) btn.textContent = mythAnimPlaying ? '\u23f8 Pause' : '\u25b6 Animate';
+  if (mythAnimPlaying) animateMythCanvas();
+  else cancelAnimationFrame(mythAnimRAF);
+}
+
+function resetMythAnim() {
+  mythAnimPlaying = false; mythAnimT = 0;
+  cancelAnimationFrame(mythAnimRAF);
+  var btn = document.getElementById('myth-anim-btn');
+  if (btn) btn.textContent = '\u25b6 Animate';
+  drawMythCanvas(0);
+}
+
+function animateMythCanvas() {
+  mythAnimT = Math.min(1, mythAnimT + 0.012);
+  drawMythCanvas(mythAnimT);
+  if (mythAnimT < 1 && mythAnimPlaying) mythAnimRAF = requestAnimationFrame(animateMythCanvas);
+  else if (mythAnimT >= 1) {
+    mythAnimPlaying = false;
+    var btn = document.getElementById('myth-anim-btn');
+    if (btn) btn.textContent = '\u25b6 Animate';
+  }
+}
+
+function drawMythCanvas(t) {
+  var cv = document.getElementById('myth-anim-canvas'); if (!cv) return;
+  var ctx = cv.getContext('2d'); var W=cv.width, H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var half = W/2;
+
+  // Divider
+  ctx.strokeStyle='#2a3060'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+  ctx.beginPath(); ctx.moveTo(half,0); ctx.lineTo(half,H); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // === LEFT: Atomic Add Myth ===
+  ctx.fillStyle='#f87171'; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('Atomic Add (the myth)', half/2, 14);
+  ctx.fillStyle='#555e7a'; ctx.font='10px Inter,sans-serif';
+  ctx.fillText('Multiple threads race to write to shared memory', half/2, 28);
+
+  // Shared counter box
+  var ctrX = half/2-28, ctrY = H/2-4;
+  drawRoundedRect(ctx, ctrX, ctrY, 56, 34, 5, 'rgba(248,113,113,0.18)', '#f87171', 2);
+  ctx.fillStyle='#f87171'; ctx.font='bold 16px JetBrains Mono,monospace'; ctx.textAlign='center';
+  var counterVal = Math.floor(t * 7);
+  ctx.fillText('' + counterVal, half/2, ctrY+22);
+  ctx.fillStyle='#555e7a'; ctx.font='9px Inter,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('shared counter', half/2, ctrY+46);
+
+  // Three threads racing
+  var threadDefs = [
+    { startX: half/2-72, startY: 44, color: '#74b9ff' },
+    { startX: half/2-20, startY: 38, color: '#fd79a8' },
+    { startX: half/2+32, startY: 46, color: '#fdcb6e' }
+  ];
+  threadDefs.forEach(function(td, i) {
+    var phase = Math.min(1, Math.max(0, (t - i*0.12) * 2.2));
+    var tx = td.startX + (ctrX+10 - td.startX) * phase;
+    var ty = td.startY + (ctrY+4 - td.startY) * phase;
+    // trail
+    if (phase > 0 && phase < 1) {
+      ctx.strokeStyle = td.color+'55'; ctx.lineWidth=1; ctx.setLineDash([2,3]);
+      ctx.beginPath(); ctx.moveTo(td.startX, td.startY); ctx.lineTo(tx, ty); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    drawRoundedRect(ctx, tx-13, ty-10, 26, 20, 4, td.color+'30', td.color, 1.5);
+    ctx.fillStyle=td.color; ctx.font='bold 9px JetBrains Mono,monospace'; ctx.textAlign='center';
+    ctx.fillText('T'+i, tx, ty+4);
+  });
+
+  // Race condition question mark
+  if (t > 0.65) {
+    var qa = Math.min(1, (t-0.65)*2.8);
+    ctx.globalAlpha = qa;
+    ctx.fillStyle='#f87171'; ctx.font='bold 22px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('?', half/2, ctrY-16);
+    ctx.fillStyle='#f87171'; ctx.font='10px Inter,sans-serif';
+    ctx.fillText('nondeterministic order!', half/2, H-10);
+    ctx.globalAlpha=1;
+  }
+
+  // === RIGHT: Batch Variance Reality ===
+  ctx.fillStyle='#4ade80'; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('Batch Variance (reality)', half+half/2, 14);
+  ctx.fillStyle='#555e7a'; ctx.font='10px Inter,sans-serif';
+  ctx.fillText('Same token, different co-travellers = different sum', half+half/2, 28);
+
+  var colA='#74b9ff', colB='#fd79a8', colC='#fdcb6e', colD='#e17055';
+
+  // Scenario A: batch=1
+  var ax = half+18, ay=44, aph = Math.min(1, t*2.5);
+  ctx.fillStyle='#555e7a'; ctx.font='9px Inter,sans-serif'; ctx.textAlign='left';
+  ctx.fillText('batch=1:', ax, ay+8);
+  drawRoundedRect(ctx, ax+46, ay, 28, 22, 3, colA+'33', colA, 1.5);
+  ctx.fillStyle=colA; ctx.font='9px JetBrains Mono,monospace'; ctx.textAlign='center';
+  ctx.fillText('x\u2081', ax+60, ay+14);
+  if (aph > 0.4) {
+    ctx.strokeStyle=colA+'77'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(ax+60, ay+22); ctx.lineTo(ax+60, ay+42); ctx.stroke();
+    drawRoundedRect(ctx, ax+40, ay+42, 40, 20, 3, 'rgba(0,184,148,0.2)', '#00b894', 1.5);
+    ctx.fillStyle='#00b894'; ctx.font='9px JetBrains Mono,monospace'; ctx.textAlign='center';
+    ctx.fillText('sum\u2081', ax+60, ay+56);
+    ctx.fillStyle='#4ade80'; ctx.font='bold 9px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('order A', ax+60, ay+76);
+  }
+
+  // Scenario B: batch=4
+  var bx = half+half/2-14, by=44, bph = Math.min(1, Math.max(0,(t-0.18)*2.5));
+  ctx.fillStyle='#555e7a'; ctx.font='9px Inter,sans-serif'; ctx.textAlign='left';
+  ctx.fillText('batch=4:', bx-46, by+8);
+  var bColors=['#74b9ff','#fd79a8','#fdcb6e','#e17055'];
+  for (var bi=0; bi<4; bi++) {
+    drawRoundedRect(ctx, bx+bi*14-4, by, 12, 22, 2, bColors[bi]+'33', bColors[bi], 1);
+    ctx.fillStyle=bColors[bi]; ctx.font='7px JetBrains Mono,monospace'; ctx.textAlign='center';
+    ctx.fillText('x'+(bi+1), bx+bi*14+2, by+15);
+  }
+  if (bph > 0.4) {
+    ctx.strokeStyle='#fd79a877'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(bx+24, by+22); ctx.lineTo(bx+24, by+42); ctx.stroke();
+    drawRoundedRect(ctx, bx+4, by+42, 40, 20, 3, 'rgba(253,121,168,0.2)', '#fd79a8', 1.5);
+    ctx.fillStyle='#fd79a8'; ctx.font='9px JetBrains Mono,monospace'; ctx.textAlign='center';
+    ctx.fillText('sum\u2081', bx+24, by+56);
+    ctx.fillStyle='#f87171'; ctx.font='bold 9px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('order B \u2260 A!', bx+24, by+76);
+  }
+
+  // Result badge
+  if (t > 0.7) {
+    var ra = Math.min(1, (t-0.7)*3.3);
+    ctx.globalAlpha=ra;
+    ctx.fillStyle='#f87171'; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('\u26a0 Different FP reduction order \u2192 different logit', half+half/2, H-10);
+    ctx.globalAlpha=1;
+  }
+}
+
+// ===== SECTION 4: CAUSAL CHAIN =====
+var causalNodes = [
+  { label:'Load\nvaries',       section:'batch',          color:'#fdcb6e', desc:'Server receives different numbers of requests at different times — nondeterministic by nature.' },
+  { label:'Batch\nsize\nchanges', section:'batch',        color:'#e17055', desc:'Batching groups requests together. Low load: batch=1. Peak load: batch=24. Same request, different context.' },
+  { label:'Tiling\nshifts',    section:'batch',           color:'#fd79a8', desc:'GPU kernels tile work to match batch size. Different batch \u2192 different work group sizes and layout.' },
+  { label:'FP order\nchanges', section:'floating-point',  color:'#e17055', desc:'Different tiles \u2192 different floating-point reduction trees \u2192 different partial sums accumulate.' },
+  { label:'Token\nflips!',     section:'problem',         color:'#ff7675', desc:'Accumulated FP differences shift logits enough that a different token wins greedy selection at temp=0.' }
+];
+
+function drawCausalChain() {
+  var cv = document.getElementById('causal-chain-canvas'); if (!cv) return;
+  var ctx = cv.getContext('2d'); var W=cv.width, H=cv.height;
+  ctx.clearRect(0,0,W,H);
+
+  var n = causalNodes.length;
+  var nodeW=94, nodeH=58, gap=20;
+  var totalW = n*nodeW + (n-1)*gap;
+  var startX = (W - totalW)/2;
+  var cy = H/2 + 4;
+
+  // Edges first
+  for (var i=0; i<n-1; i++) {
+    var x1 = startX + i*(nodeW+gap) + nodeW + 2;
+    var x2 = startX + (i+1)*(nodeW+gap) - 2;
+    ctx.beginPath(); ctx.moveTo(x1, cy); ctx.lineTo(x2-8, cy);
+    ctx.strokeStyle='#2a3060'; ctx.lineWidth=2; ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x2-2, cy);
+    ctx.lineTo(x2-10, cy-5);
+    ctx.lineTo(x2-10, cy+5);
+    ctx.closePath(); ctx.fillStyle='#2a3060'; ctx.fill();
+  }
+
+  // Nodes
+  causalNodes.forEach(function(node, i) {
+    var nx = startX + i*(nodeW+gap);
+    var ny = cy - nodeH/2;
+    ctx.save();
+    ctx.shadowColor=node.color; ctx.shadowBlur=12;
+    drawRoundedRect(ctx, nx, ny, nodeW, nodeH, 8, node.color+'20', node.color, 2);
+    ctx.restore();
+
+    ctx.fillStyle=node.color; ctx.font='bold 10px Inter,sans-serif'; ctx.textAlign='center';
+    var lines=node.label.split('\n'), lh=14;
+    var textY = ny + nodeH/2 - (lines.length*lh)/2 + lh - 2;
+    lines.forEach(function(line, li){ ctx.fillText(line, nx+nodeW/2, textY+li*lh); });
+
+    ctx.fillStyle=node.color+'99'; ctx.font='8px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('click', nx+nodeW/2, ny+nodeH+12);
+  });
+}
+
+function causalChainClick(evt) {
+  var cv = document.getElementById('causal-chain-canvas'); if (!cv) return;
+  var rect = cv.getBoundingClientRect();
+  var mx=(evt.clientX-rect.left)*(cv.width/rect.width);
+  var my=(evt.clientY-rect.top)*(cv.height/rect.height);
+  var n=causalNodes.length, nodeW=94, nodeH=58, gap=20;
+  var totalW=n*nodeW+(n-1)*gap, startX=(cv.width-totalW)/2, cy=cv.height/2+4;
+  for (var i=0; i<n; i++) {
+    var nx=startX+i*(nodeW+gap), ny=cy-nodeH/2;
+    if (mx>=nx && mx<=nx+nodeW && my>=ny && my<=ny+nodeH) {
+      var node=causalNodes[i];
+      var det=document.getElementById('causal-chain-detail');
+      if (det) det.textContent=node.desc;
+      var tgt=document.getElementById(node.section);
+      if (tgt) tgt.scrollIntoView({behavior:'smooth'});
+      return;
+    }
+  }
+}
+
+// ===== SECTION 4: LOAD ANIMATION =====
+function updateLoadCanvas() {
+  var slider=document.getElementById('load-slider'); if (!slider) return;
+  var rate=parseInt(slider.value);
+  var batchSize=Math.max(1, Math.min(24, Math.round(rate*1.3)));
+  var rl=document.getElementById('load-rate-label'), bl=document.getElementById('load-batch-label');
+  if (rl) rl.textContent=rate+' req/s';
+  if (bl) bl.textContent='batch \u2248 '+batchSize;
+  drawLoadCanvas(rate, batchSize);
+}
+
+function drawLoadCanvas(rate, batchSize) {
+  var cv=document.getElementById('load-canvas'); if (!cv) return;
+  var ctx=cv.getContext('2d'); var W=cv.width, H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  if (rate===undefined) {
+    var sl=document.getElementById('load-slider');
+    rate=sl ? parseInt(sl.value) : 3;
+    batchSize=Math.max(1,Math.round(rate*1.3));
+  }
+  var uColors=['#74b9ff','#fd79a8','#a29bfe','#4ade80','#e17055','#fdcb6e','#00b894','#f87171'];
+  var numReq=Math.min(rate,16);
+  var loadPct=rate/20;
+  var loadColor=loadPct<=0.25?'#4ade80':loadPct<=0.6?'#fdcb6e':'#f87171';
+
+  // Queue box (left)
+  var qX=10, qW=W*0.42, qY=18, qH=H-36;
+  drawRoundedRect(ctx, qX, qY, qW, qH, 6, 'rgba(30,36,68,0.6)', '#2a3060', 1.5);
+  ctx.fillStyle='#8892b0'; ctx.font='10px Inter,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('Request Queue', qX+qW/2, qY+14);
+
+  var cols=4, cR=9, rowH=24;
+  for (var i=0; i<numReq; i++) {
+    var col=i%cols, row=Math.floor(i/cols);
+    var cx=qX+18+col*((qW-30)/cols), cy2=qY+24+row*rowH;
+    ctx.beginPath(); ctx.arc(cx, cy2, cR, 0, Math.PI*2);
+    ctx.fillStyle=(i===0)?'#fdcb6e':uColors[i%uColors.length]+'88'; ctx.fill();
+    if (i===0) {
+      ctx.strokeStyle='#fdcb6e'; ctx.lineWidth=2; ctx.stroke();
+      ctx.fillStyle='#0d0f18'; ctx.font='bold 8px Inter,sans-serif'; ctx.textAlign='center';
+      ctx.fillText('\u2605', cx, cy2+3);
+    }
+  }
+
+  // Arrow
+  var ax1=qX+qW+4, ax2=W*0.62-4, aY=H/2;
+  ctx.strokeStyle=loadColor; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(ax1,aY); ctx.lineTo(ax2-8,aY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(ax2-2,aY); ctx.lineTo(ax2-10,aY-5); ctx.lineTo(ax2-10,aY+5); ctx.closePath();
+  ctx.fillStyle=loadColor; ctx.fill();
+  ctx.fillStyle=loadColor; ctx.font='bold 11px JetBrains Mono,monospace'; ctx.textAlign='center';
+  ctx.fillText('batch='+batchSize, (ax1+ax2)/2, aY-9);
+
+  // GPU box (right)
+  var gX=W*0.62, gW=W-gX-10, gY=qY, gH=qH;
+  drawRoundedRect(ctx, gX, gY, gW, gH, 6, loadColor+'15', loadColor, 1.5);
+  ctx.fillStyle=loadColor; ctx.font='bold 10px Inter,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('GPU', gX+gW/2, gY+14);
+
+  var bShow=Math.min(batchSize,8), bR=8, bCols=Math.min(bShow,4);
+  for (var j=0; j<bShow; j++) {
+    var bCol=j%bCols, bRow=Math.floor(j/bCols);
+    var bx=gX+10+bCol*((gW-18)/bCols)+bR, by2=gY+24+bRow*22;
+    ctx.beginPath(); ctx.arc(bx,by2,bR,0,Math.PI*2);
+    ctx.fillStyle=(j===0)?'#fdcb6e':uColors[j%uColors.length]+'88'; ctx.fill();
+    if (j===0) { ctx.strokeStyle='#fdcb6e'; ctx.lineWidth=2; ctx.stroke(); ctx.fillStyle='#0d0f18'; ctx.font='bold 7px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText('\u2605',bx,by2+2.5); }
+  }
+  if (batchSize>8) { ctx.fillStyle='#8892b0'; ctx.font='9px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText('+'+(batchSize-8)+' more',gX+gW/2,gY+gH-10); }
+
+  ctx.fillStyle='#fdcb6e'; ctx.font='9px Inter,sans-serif'; ctx.textAlign='left';
+  ctx.fillText('\u2605 = your request', qX+8, H-6);
+  ctx.fillStyle=loadColor; ctx.font='bold 10px Inter,sans-serif'; ctx.textAlign='right';
+  ctx.fillText(loadPct<=0.25?'Low load':loadPct<=0.6?'Medium load':'High load', W-12, H-6);
+}
+
+// ===== SECTION 6: VARIANTS VISUALIZATION =====
+var variantChips = [
+  'The transformer architecture introduced multi-head self-attention, enabling parallel sequence modeling.',
+  'Transformers introduced scaled dot-product attention and positional encodings, replacing recurrence.',
+  'The key innovation was the attention mechanism, allowing models to weigh token relevance globally.',
+  'Transformers replaced recurrent networks with self-attention, enabling fully parallelizable training.',
+  'Multi-head attention allowed the model to jointly attend to information at different positions.',
+  'The encoder-decoder architecture with self-attention enabled parallelizable sequence transduction.',
+  'Transformers enabled parallelizable training via self-attention, achieving superior long-range modeling.',
+  'Self-attention lets each token directly attend to all others, capturing global context in one pass.',
+  'The transformer removed recurrence entirely, relying solely on attention mechanisms for dependencies.',
+  'Scaled dot-product attention was the core insight: compute Q\xb7K\u1d40 / \u221ad then apply softmax over V.',
+  'Transformers process sequences in parallel using attention, overcoming the sequential bottleneck of RNNs.',
+  'Positional encodings combined with self-attention gave transformers order-awareness without recurrence.',
+  'The transformer proposed multi-head attention with residual connections and layer normalization.',
+  'Feed-forward sublayers combined with multi-head attention form the backbone of transformer blocks.',
+  'Transformers achieved state-of-the-art by scaling self-attention across many layers and heads.',
+  'Residual connections with layer norm allow transformers to train very deep networks stably.',
+  'Layer normalization combined with attention and feed-forward blocks enables deep transformer stacks.',
+  'Self-attention captures long-range token dependencies in O(1) operations, unlike O(n) in RNNs.',
+  'The transformer architecture enabled large-scale pretraining by removing sequential computation.',
+  'Multi-head attention with different projection matrices captures diverse linguistic relationships.'
+];
+
+function drawVariantsCanvas() {
+  var cv=document.getElementById('variants-canvas'); if (!cv) return;
+  var ctx=cv.getContext('2d'); var W=cv.width, H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var cols=10, rows=2, pad=10;
+  var chipW=(W-pad*(cols+1))/cols, chipH=(H-pad*(rows+1))/rows;
+
+  for (var r=0; r<rows; r++) {
+    for (var c=0; c<cols; c++) {
+      var idx=r*cols+c;
+      var x=pad+c*(chipW+pad), y=pad+r*(chipH+pad);
+      var div=idx/(cols*rows-1);
+      var col=div<0.35?'#4ade80':div<0.65?'#fdcb6e':'#f87171';
+      drawRoundedRect(ctx, x, y, chipW, chipH, 5, col+'20', col, 1.5);
+      ctx.fillStyle=col; ctx.font='bold 10px Inter,sans-serif'; ctx.textAlign='center';
+      ctx.fillText('#'+(idx+1), x+chipW/2, y+chipH/2+4);
+    }
+  }
+  ctx.fillStyle='#555e7a'; ctx.font='9px Inter,sans-serif'; ctx.textAlign='left';
+  ctx.fillText('Each chip = 1 of 80 unique completions from 1,000 identical runs at temp=0', pad, H-3);
+}
+
+function variantsHover(evt) {
+  var cv=document.getElementById('variants-canvas'); if (!cv) return;
+  var rect=cv.getBoundingClientRect();
+  var mx=(evt.clientX-rect.left)*(cv.width/rect.width);
+  var my=(evt.clientY-rect.top)*(cv.height/rect.height);
+  var cols=10, rows=2, pad=10;
+  var chipW=(cv.width-pad*(cols+1))/cols, chipH=(cv.height-pad*(rows+1))/rows;
+  for (var r=0; r<rows; r++) {
+    for (var c=0; c<cols; c++) {
+      var idx=r*cols+c;
+      var x=pad+c*(chipW+pad), y=pad+r*(chipH+pad);
+      if (mx>=x && mx<=x+chipW && my>=y && my<=y+chipH) {
+        // Highlight hovered chip
+        var ctx2=cv.getContext('2d'); var W=cv.width, H=cv.height;
+        drawVariantsCanvas();
+        var div=idx/(cols*rows-1);
+        var col=div<0.35?'#4ade80':div<0.65?'#fdcb6e':'#f87171';
+        drawRoundedRect(ctx2, x, y, chipW, chipH, 5, col+'40', col, 2.5);
+        ctx2.fillStyle=col; ctx2.font='bold 10px Inter,sans-serif'; ctx2.textAlign='center';
+        ctx2.fillText('#'+(idx+1), x+chipW/2, y+chipH/2+4);
+
+        var det=document.getElementById('variants-detail');
+        if (det && variantChips[idx]) det.textContent='Completion #'+(idx+1)+': "'+variantChips[idx]+'"';
+        return;
+      }
+    }
+  }
+}
+
+function variantsHoverOut() {
+  drawVariantsCanvas();
+  var det=document.getElementById('variants-detail');
+  if (det) det.textContent='Hover over a chip to read its completion';
+}
+
 // ===== KEYBOARD NAVIGATION =====
 document.addEventListener('keydown', function(e) {
   if (e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
@@ -1836,6 +2265,7 @@ initBatch();
 initFix();
 initResults();
 initImplications();
+drawMythCanvas(0);
 updateNavOnScroll();
 </script>
 </body>
