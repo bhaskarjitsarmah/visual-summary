@@ -425,12 +425,17 @@ Task: {task}</div>
   <div class="formula" style="line-height:1.8;font-size:13px;">GEPA(task, baseline_prompt, budget):  <span style="color:#8892b0;"># budget = max number of generations (e.g. 10)</span>
   population = [baseline_prompt]
   for gen in range(budget):            <span style="color:#8892b0;"># each iteration = 1 generation of LLM calls</span>
-    scores   = evaluate(population, val_set)
+    scores   = evaluate(population, val_set)   <span style="color:#8892b0;">← needs ground truth labels</span>
     failures = get_failures(best(population), val_set)
     refl     = reflect(model, failures)        <span style="color:#8892b0;">← no reward model</span>
     new_prompts = mutate(model, best(population), refl, M=5)
     population  = select_top_k(population + new_prompts, k=3)
   return best(population)</div>
+
+  <div style="background:rgba(250,204,21,0.07);border:1px solid rgba(250,204,21,0.3);border-radius:10px;padding:16px 20px;margin:16px 0;">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#facc15;margin-bottom:8px;">⚠ Ground Truth Required</div>
+    <p style="font-size:13px;color:var(--text);line-height:1.7;">GEPA needs a <strong>labelled validation set</strong> — example inputs paired with known correct answers — to score each prompt. The fitness signal is simply: <em>how many examples did this prompt get right?</em> This means GEPA works best for tasks with clear, measurable correctness: math, QA, code generation, instruction following. For open-ended tasks like creative writing or summarization where there is no single correct answer, applying GEPA is significantly harder.</p>
+  </div>
 
   <div style="background:rgba(0,184,148,0.08);border:2px solid rgba(0,184,148,0.4);border-radius:10px;padding:18px 22px;margin:16px 0;">
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#00b894;margin-bottom:10px;">⚠ Important: GEPA does NOT update model weights</div>
@@ -583,7 +588,7 @@ Fix: Require step-by-step entity resolution before answering.</div>
   <div class="section-title" style="color:#a29bfe">What GEPA Teaches Us</div>
   <div class="section-sub">GEPA's success challenges a common assumption: that complex optimization requires complex machinery. Sometimes the model's own reasoning is the best optimizer.</div>
 
-  <div class="g3" style="gap:16px;margin-bottom:28px;">
+  <div class="g3" style="gap:16px;margin-bottom:20px;">
     <div class="card" style="border-top:3px solid #00b894;">
       <div style="font-size:1.8rem;margin-bottom:10px;">🌱</div>
       <div class="card-title" style="color:#00b894;">Simple ≠ Worse</div>
@@ -598,6 +603,20 @@ Fix: Require step-by-step entity resolution before answering.</div>
       <div style="font-size:1.8rem;margin-bottom:10px;">🔀</div>
       <div class="card-title" style="color:#74b9ff;">Prompts Are Portable</div>
       <p style="font-size:13px;color:var(--muted);line-height:1.6;">Prompts evolved for one model transfer effectively to other model families. GEPA finds task-level improvements, not model-specific tricks.</p>
+    </div>
+  </div>
+
+  <div class="section-divider"><hr><span>Known Limitations</span><hr></div>
+  <div class="g2" style="gap:16px;margin-bottom:28px;">
+    <div class="card" style="border-top:3px solid #facc15;">
+      <div style="font-size:1.8rem;margin-bottom:10px;">🏷️</div>
+      <div class="card-title" style="color:#facc15;">Requires Ground Truth Labels</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;">GEPA scores prompts by measuring accuracy on a labelled validation set — inputs paired with known correct answers. Without ground truth, there is no fitness signal to guide evolution. This limits GEPA to tasks where correctness is measurable: math, QA, code, structured instruction-following.</p>
+    </div>
+    <div class="card" style="border-top:3px solid #facc15;">
+      <div style="font-size:1.8rem;margin-bottom:10px;">✍️</div>
+      <div class="card-title" style="color:#facc15;">Hard to Apply to Open-Ended Tasks</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;">For subjective tasks — creative writing, summarization, open-ended dialogue — there is no single correct answer to compare against. GEPA cannot easily evaluate whether one prompt produces "better" creative output than another without a human judge or a separate scoring model, which reintroduces the complexity it was designed to avoid.</p>
     </div>
   </div>
 
