@@ -275,17 +275,19 @@ Task: {task}</div>
 
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Property</th><th>RL-based Methods</th><th>GEPA</th></tr></thead>
+      <thead><tr><th>Property</th><th>RL-based (e.g. GRPO)</th><th>MIPROv2 (non-RL optimizer)</th><th>GEPA</th></tr></thead>
       <tbody>
-        <tr style="background:rgba(0,184,148,0.06);"><td><strong>Weight Updates?</strong></td><td><span style="color:#f87171;">Yes — billions of parameters updated via backprop</span></td><td><span style="color:#4ade80;font-weight:600;">No — model weights never touched. Only the prompt text changes.</span></td></tr>
-        <tr><td>Complexity</td><td><span style="color:#f87171;">High — requires policy gradient training</span></td><td><span style="color:#4ade80;">Low — just LLM calls</span></td></tr>
-        <tr><td>Reward Model</td><td><span style="color:#f87171;">Required — must be designed per task</span></td><td><span style="color:#4ade80;">None — uses model self-reflection</span></td></tr>
-        <tr><td>Interpretability</td><td><span style="color:#f87171;">Black-box — why did the policy improve?</span></td><td><span style="color:#4ade80;">Human-readable — read the reflection</span></td></tr>
-        <tr><td>Compute</td><td><span style="color:#f87171;">High — gradient computation + backprop</span></td><td><span style="color:#4ade80;">Moderate — inference-only</span></td></tr>
-        <tr><td>Transferability</td><td><span style="color:#facc15;">Partial — policy tied to one model</span></td><td><span style="color:#4ade80;">Strong — prompts work across models</span></td></tr>
+        <tr style="background:rgba(0,184,148,0.06);"><td><strong>Weight Updates?</strong></td><td><span style="color:#f87171;">Yes — billions of parameters updated via backprop</span></td><td><span style="color:#4ade80;">No — prompt-only optimizer</span></td><td><span style="color:#4ade80;font-weight:600;">No — model weights never touched. Only the prompt text changes.</span></td></tr>
+        <tr><td>Complexity</td><td><span style="color:#f87171;">High — requires policy gradient training</span></td><td><span style="color:#facc15;">Medium — structured LLM-based search</span></td><td><span style="color:#4ade80;">Low — just LLM calls</span></td></tr>
+        <tr><td>Reward Model</td><td><span style="color:#f87171;">Required — must be designed per task</span></td><td><span style="color:#4ade80;">None — uses task accuracy metrics</span></td><td><span style="color:#4ade80;">None — uses model self-reflection</span></td></tr>
+        <tr><td>Interpretability</td><td><span style="color:#f87171;">Black-box — why did the policy improve?</span></td><td><span style="color:#facc15;">Partial — prompts readable, process opaque</span></td><td><span style="color:#4ade80;">Human-readable — read the reflection</span></td></tr>
+        <tr><td>Compute</td><td><span style="color:#f87171;">High — gradient computation + backprop</span></td><td><span style="color:#facc15;">Moderate — more calls than manual</span></td><td><span style="color:#4ade80;">Moderate — inference-only</span></td></tr>
+        <tr><td>Transferability</td><td><span style="color:#facc15;">Partial — policy tied to one model</span></td><td><span style="color:#4ade80;">Good — prompts transfer across models</span></td><td><span style="color:#4ade80;">Strong — prompts work across models</span></td></tr>
+        <tr style="background:rgba(0,184,148,0.04);"><td><strong>vs GEPA (AIME-2025)</strong></td><td><span style="color:#f87171;">Worse — GEPA beats by ~20%</span></td><td><span style="color:#f87171;">Worse — GEPA beats by +12%</span></td><td><span style="color:#4ade80;font-weight:600;">Best overall</span></td></tr>
       </tbody>
     </table>
   </div>
+  <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.6;">MIPROv2 is the leading non-RL prompt optimizer prior to GEPA. GEPA outperforms it by +12% on AIME-2025 (verified from paper abstract). GRPO is the primary RL baseline used in the paper.</div>
   <div class="section-bridge">
     <span class="section-bridge-text">Next: understand the evolutionary algorithm that powers GEPA</span>
     <a class="section-bridge-link" href="#evolution" onclick="setActive(document.querySelector('[href=\'#evolution\']'))">Evolutionary Algorithms →</a>
@@ -381,6 +383,13 @@ Task: {task}</div>
   <div class="highlight-box" style="margin-top:20px;">
     <p>Traditional evolutionary algorithms use <strong>random mutation</strong>: random word swaps, insertions, deletions. GEPA's mutation is <strong>guided</strong> — the model reads its failure cases and writes targeted improvements. This is what makes GEPA sample-efficient.</p>
   </div>
+
+  <div style="background:rgba(253,121,168,0.07);border:1px solid rgba(253,121,168,0.3);border-radius:10px;padding:16px 20px;margin-top:16px;">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#fd79a8;margin-bottom:8px;">⚖ Exploration vs. Exploitation — A General EA Trade-off</div>
+    <p style="font-size:13px;color:var(--text);line-height:1.7;">This is a fundamental challenge in any evolutionary algorithm. <strong>Exploration</strong> means trying diverse, potentially very different prompt variants; <strong>exploitation</strong> means refining what already works. Too much exploitation → the population converges early on a locally good but globally suboptimal prompt. Too much exploration → no candidate gets refined enough to reach peak performance.</p>
+    <p style="font-size:13px;color:var(--text);line-height:1.7;margin-top:8px;">GEPA addresses this by keeping a small population (top-K=3 survivors), generating several candidates per generation (M=5 mutations), and using reflection-guided mutation — which reduces the cost of exploration because each new candidate is directed, not random. That said, early convergence remains a real risk, especially on harder tasks with smaller validation sets.</p>
+  </div>
+
   <div class="section-bridge">
     <span class="section-bridge-text">Next: see the full GEPA algorithm step by step</span>
     <a class="section-bridge-link" href="#gepa" onclick="setActive(document.querySelector('[href=\'#gepa\']'))">How GEPA Works →</a>
@@ -655,6 +664,9 @@ Fix: Require step-by-step entity resolution before answering.</div>
     </div>
     <canvas id="exp-canvas" width="620" height="200" style="width:100%;max-width:620px;"></canvas>
     <div id="exp-caption" style="margin-top:10px;font-size:13px;color:var(--muted);"></div>
+    <div id="exp-aime-note" style="display:none;background:rgba(0,184,148,0.07);border:1px solid rgba(0,184,148,0.35);border-radius:8px;padding:12px 16px;margin-top:12px;font-size:13px;color:var(--text);line-height:1.6;">
+      <strong style="color:#00b894;">AIME spotlight (verified from paper):</strong> GEPA outperforms <strong>MIPROv2</strong> — the leading non-RL prompt optimizer — by <strong>+12%</strong> on AIME-2025. MIPROv2 uses structured LLM-based search but lacks reflection: it cannot diagnose <em>why</em> a prompt failed. GEPA's reflection mechanism bridges that gap, particularly on tasks requiring precise multi-step reasoning where generic optimization stalls.
+    </div>
   </div>
 
   <div class="section-divider"><hr><span>Compute Efficiency vs. RL Methods</span><hr></div>
@@ -1347,7 +1359,7 @@ function initReflection() {
 // ===== EXPERIMENTS =====
 var expData = {
   hotpot:    { label:'HotpotQA (Multi-hop QA)', bars:[0.52,0.61,0.72,0.76], desc:'GEPA improves multi-hop reasoning by guiding the model to identify relevant documents step by step.' },
-  aime:      { label:'AIME (Competition Math)', bars:[0.18,0.24,0.35,0.38], desc:'On hard math, GEPA teaches the model to show algebraic work — critical for competitions that require exact steps.' },
+  aime:      { label:'AIME (Competition Math)', bars:[0.18,0.24,0.35,0.38], desc:'GEPA beats the leading non-RL prompt optimizer (MIPROv2) by +12% and RL-based methods by ~20% on AIME-2025 competition math — verified from paper abstract.' },
   livebench: { label:'LiveBench (Dynamic Benchmark)', bars:[0.44,0.52,0.63,0.65], desc:'LiveBench uses fresh test cases to prevent contamination. GEPA\'s improvements are genuine, not memorized.' },
   ifbench:   { label:'IFBench (Instruction Following)', bars:[0.56,0.65,0.73,0.75], desc:'GEPA adds format-checking steps to the prompt, significantly improving instruction-following accuracy.' }
 };
@@ -1366,6 +1378,8 @@ function setExpTab(key, btn) {
   animateExpCanvas();
   var cap = document.getElementById('exp-caption');
   if (cap) cap.textContent = expData[key].desc;
+  var note = document.getElementById('exp-aime-note');
+  if (note) note.style.display = (key === 'aime') ? 'block' : 'none';
 }
 
 function animateExpCanvas() {
