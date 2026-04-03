@@ -259,6 +259,35 @@ window.addEventListener('load', function(){ var el=document.getElementById('pg-i
     <div style="margin-top:10px;font-size:12px;color:var(--muted);line-height:1.6;">Both trees add the same four values. The tree structure (which pairs get added first) differs between left and right. Due to floating-point non-associativity, the final sums can differ.</div>
   </div>
 
+  <div class="section-divider" style="margin-top:28px;"><hr><span>GPU Architecture: The Missing Context</span><hr></div>
+
+  <!-- GPU concept stepper -->
+  <div class="stepper" id="gpu-concept-stepper">
+    <button class="step-btn active" onclick="setGPUConcept(0,this)">⚙ Kernel</button>
+    <button class="step-btn" onclick="setGPUConcept(1,this)">🔲 CUDA Cores</button>
+    <button class="step-btn" onclick="setGPUConcept(2,this)">🗂 Work Groups</button>
+    <button class="step-btn" onclick="setGPUConcept(3,this)">🌳 Parallel Reduction</button>
+  </div>
+  <div id="gpu-concept-panel" style="margin-bottom:24px;"></div>
+
+  <!-- Interactive GPU parallel reduction canvas -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title" style="color:#e17055;">Interactive: GPU Parallel Reduction Simulator</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px;">Step through how a GPU kernel sums 8 activation values. Switch the work group size to see how the reduction tree changes — and whether the floating-point result changes too.</p>
+    <div style="display:flex;gap:10px;margin-bottom:14px;align-items:center;flex-wrap:wrap;">
+      <span style="font-size:12px;color:var(--muted);font-weight:600;">Work group size:</span>
+      <button id="gpu-wg-btn-4" class="btn" style="font-size:12px;padding:6px 14px;background:#e17055;" onclick="setGPUWorkGroup(4)">4 cores / group</button>
+      <button id="gpu-wg-btn-2" class="btn btn-outline" style="font-size:12px;padding:6px 14px;" onclick="setGPUWorkGroup(2)">2 cores / group</button>
+    </div>
+    <canvas id="gpu-dispatch-canvas" width="640" height="280" style="width:100%;max-width:640px;"></canvas>
+    <div id="gpu-comparison" style="display:none;margin-top:10px;border-radius:8px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);font-size:12px;font-family:'JetBrains Mono',monospace;line-height:1.8;"></div>
+    <div style="display:flex;gap:10px;margin-top:12px;align-items:center;flex-wrap:wrap;">
+      <button class="btn" id="gpu-step-btn" onclick="gpuNextStep()" style="background:#e17055;">&#9658; Step Through &#8594;</button>
+      <button class="btn btn-outline" onclick="gpuReset()">&#8635; Reset</button>
+      <span id="gpu-step-label" style="font-size:12px;color:var(--muted);">Step 0 of 4 &#8212; 8 activation values waiting to be summed</span>
+    </div>
+  </div>
+
   <div class="highlight-box">
     <p>Every transformer forward pass — attention, MLP layers, layer norms — is a cascade of floating-point additions. If the order those additions happen in varies between runs, the final logits vary. The top-ranked token can flip. Even at temperature=0.</p>
   </div>
@@ -758,6 +787,236 @@ function drawFPTreeCanvas(a, b, c) {
 
 function initFloatingPoint() { updateFP(); }
 
+// ===== GPU ARCHITECTURE SECTION =====
+var gpuConceptData = [
+  {
+    color: '#e17055',
+    title: '&#9881; What is a Kernel?',
+    body: "A <strong>kernel</strong> is a function written in CUDA &mdash; NVIDIA&apos;s GPU programming model &mdash; that runs on thousands of GPU cores simultaneously. When a transformer layer computes RMSNorm, matrix multiplication, or attention, it <em>launches a kernel</em>: one piece of code executed in parallel by thousands of cores, each on a different slice of the input data. The GPU scheduler decides which core handles which slice &mdash; and that scheduling decision determines the <em>order</em> of floating-point operations. Order matters because FP addition is not associative."
+  },
+  {
+    color: '#74b9ff',
+    title: '&#9726; CUDA Cores',
+    body: "A modern GPU has thousands of small arithmetic units called <strong>CUDA cores</strong> (NVIDIA) or shader processors (AMD). An A100 has 6,912; an H100 has 16,896; an RTX 4090 has 16,384. Each core executes one floating-point operation &mdash; add, multiply, or fused multiply-add &mdash; per clock cycle. They are simple and independent: no core has visibility into what other cores are doing. This independence is what enables the massive parallelism that makes inference fast. But it also means the grouping of values into addition trees is decided at dispatch time, not written into the model code."
+  },
+  {
+    color: '#fdcb6e',
+    title: '&#128449; Work Groups (Thread Blocks)',
+    body: "Before a kernel runs, the GPU partitions the work into <strong>thread blocks</strong> (also called work groups). Each block is a cluster of threads that share fast on-chip shared memory and can synchronise with each other. The critical detail: <strong>work group sizes adapt to the data</strong>. A batch of 4 sequences may use blocks of 4 threads; a batch of 24 may use blocks of 16. The same input value ends up in a different work group depending on the batch &mdash; grouped with different neighbours &mdash; so it participates in a different set of additions and produces a different partial sum."
+  },
+  {
+    color: '#fd79a8',
+    title: '&#127795; Parallel Tree Reduction',
+    body: "To sum N numbers in parallel, GPUs use <strong>tree reduction</strong>. Round 1: all adjacent pairs are added simultaneously across all cores in the work group. Round 2: those partial sums are paired and added again. This repeats until one total remains per work group. Work group results are then combined in a final cross-group reduction. The tree structure &mdash; which values get paired in which round &mdash; depends entirely on work group size. Different work group sizes produce different trees, different addition sequences, and potentially different floating-point results."
+  }
+];
+
+function setGPUConcept(idx, btn) {
+  document.querySelectorAll('#gpu-concept-stepper .step-btn').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  var d = gpuConceptData[idx];
+  var panel = document.getElementById('gpu-concept-panel');
+  if (panel) {
+    panel.innerHTML = '<div class="card" style="border-left:4px solid '+d.color+';margin-top:14px;">'
+      + '<div class="card-title" style="color:'+d.color+';">'+d.title+'</div>'
+      + '<p style="font-size:14px;color:var(--muted);line-height:1.7;">'+d.body+'</p>'
+      + '</div>';
+  }
+}
+
+var gpuWorkGroupSize = 4;
+var gpuCurrentStep = 0;
+var gpuStepLabels = [
+  'Step 0 of 4 \u2014 8 activation values waiting to be summed',
+  'Step 1 of 4 \u2014 Kernel launches: CUDA cores become available',
+  'Step 2 of 4 \u2014 Scheduler dispatches values to cores, work groups form',
+  'Step 3 of 4 \u2014 Each work group sums its values independently in parallel',
+  'Step 4 of 4 \u2014 Group results combine into final sum'
+];
+
+function setGPUWorkGroup(size) {
+  gpuWorkGroupSize = size;
+  gpuCurrentStep = 0;
+  var b4 = document.getElementById('gpu-wg-btn-4');
+  var b2 = document.getElementById('gpu-wg-btn-2');
+  if (b4) { b4.className = size===4 ? 'btn' : 'btn btn-outline'; b4.style.background = size===4 ? '#e17055' : 'transparent'; }
+  if (b2) { b2.className = size===2 ? 'btn' : 'btn btn-outline'; b2.style.background = size===2 ? '#e17055' : 'transparent'; }
+  var cmpDiv = document.getElementById('gpu-comparison');
+  if (cmpDiv) cmpDiv.style.display = 'none';
+  drawGPUCanvas();
+  updateGPUStepLabel();
+}
+
+function gpuNextStep() {
+  if (gpuCurrentStep < 4) gpuCurrentStep++;
+  drawGPUCanvas();
+  updateGPUStepLabel();
+}
+
+function gpuReset() {
+  gpuCurrentStep = 0;
+  var cmpDiv = document.getElementById('gpu-comparison');
+  if (cmpDiv) cmpDiv.style.display = 'none';
+  drawGPUCanvas();
+  updateGPUStepLabel();
+}
+
+function updateGPUStepLabel() {
+  var lbl = document.getElementById('gpu-step-label');
+  if (lbl) lbl.textContent = gpuStepLabels[gpuCurrentStep];
+  var btn = document.getElementById('gpu-step-btn');
+  if (btn) btn.innerHTML = gpuCurrentStep >= 4 ? '&#10003; Done \u2014 reset to replay' : '&#9658; Step Through &#8594;';
+}
+
+function drawGPUCanvas() {
+  var cv = document.getElementById('gpu-dispatch-canvas'); if (!cv) return;
+  var ctx = cv.getContext('2d'); var W=cv.width, H=cv.height;
+  ctx.clearRect(0,0,W,H);
+
+  var step = gpuCurrentStep;
+  var wgSize = gpuWorkGroupSize;
+  var nGroups = 8 / wgSize;
+  var vals = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8];
+  var gColors = ['#74b9ff','#fd79a8','#fdcb6e','#e17055'];
+
+  // Layout (y = box tops)
+  var yVal=24, valW=44, valH=26;
+  var yCore=105, coreW=36, coreH=30;
+  var yPartial=185, partW=60, partH=26;
+  var yFinal=245, finW=120, finH=28;
+
+  function cx(i) { return Math.round(40 + i * ((W-80)/7)); }
+
+  function sLabel(text, y) {
+    ctx.fillStyle='#555e7a'; ctx.font='bold 9px Inter,sans-serif'; ctx.textAlign='left';
+    ctx.fillText(text, 10, y);
+  }
+
+  // --- INPUT VALUES ---
+  sLabel('INPUT VALUES  (8 activation values to sum)', yVal-5);
+  for (var i=0; i<8; i++) {
+    var x=cx(i);
+    var gi=Math.floor(i/wgSize);
+    var colored = step>=2;
+    drawRoundedRect(ctx, x-valW/2, yVal, valW, valH, 4,
+      colored ? gColors[gi]+'28' : '#1e2444',
+      colored ? gColors[gi] : '#2a3060', 1.5);
+    ctx.fillStyle = colored ? gColors[gi] : '#8892b0';
+    ctx.font='bold 11px JetBrains Mono,monospace'; ctx.textAlign='center';
+    ctx.fillText('v'+(i+1), x, yVal+17);
+  }
+
+  // --- Step 0: idle ---
+  if (step===0) {
+    ctx.fillStyle='#555e7a'; ctx.font='italic 12px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('Kernel not yet launched \u2014 cores are idle', W/2, yCore+22);
+    return;
+  }
+
+  // --- CUDA CORES ---
+  sLabel('CUDA CORES  (8 of ~6,912 available on an A100)', yCore-5);
+  for (var i=0; i<8; i++) {
+    var x=cx(i);
+    var gi=Math.floor(i/wgSize);
+    var assigned=step>=2;
+    drawRoundedRect(ctx, x-coreW/2, yCore, coreW, coreH, 5,
+      assigned ? gColors[gi]+'22' : '#1a1f38',
+      assigned ? gColors[gi] : '#444e70', assigned?2:1);
+    ctx.fillStyle = assigned ? gColors[gi] : '#555e7a';
+    ctx.font='bold 9px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('C'+(i+1), x, yCore+19);
+  }
+
+  // --- Step 2+: dispatch lines + work group brackets ---
+  if (step>=2) {
+    for (var i=0; i<8; i++) {
+      var x=cx(i), gi=Math.floor(i/wgSize);
+      ctx.beginPath(); ctx.moveTo(x,yVal+valH); ctx.lineTo(x,yCore-2);
+      ctx.strokeStyle=gColors[gi]+'88'; ctx.lineWidth=1.5; ctx.setLineDash([3,2]); ctx.stroke(); ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(x,yCore-2); ctx.lineTo(x-4,yCore-9); ctx.lineTo(x+4,yCore-9);
+      ctx.closePath(); ctx.fillStyle=gColors[gi]; ctx.fill();
+    }
+    for (var g=0; g<nGroups; g++) {
+      var si=g*wgSize, ei=si+wgSize-1;
+      var bx1=cx(si)-coreW/2-4, bx2=cx(ei)+coreW/2+4, by=yCore+coreH+4;
+      ctx.strokeStyle=gColors[g]; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(bx1,by); ctx.lineTo(bx1,by+6); ctx.lineTo(bx2,by+6); ctx.lineTo(bx2,by); ctx.stroke();
+      ctx.fillStyle=gColors[g]; ctx.font='bold 9px Inter,sans-serif'; ctx.textAlign='center';
+      ctx.fillText('Work Group '+(g+1)+'  ('+wgSize+' cores)', (bx1+bx2)/2, by+16);
+    }
+  }
+
+  // --- Step 3+: partial sums ---
+  if (step>=3) {
+    sLabel('PARTIAL SUMS  (computed simultaneously, one per work group)', yPartial-5);
+    for (var g=0; g<nGroups; g++) {
+      var psum=0; for (var k=g*wgSize; k<(g+1)*wgSize; k++) psum+=vals[k];
+      var si=g*wgSize, ei=si+wgSize-1;
+      var gcx=(cx(si)+cx(ei))/2;
+      ctx.beginPath(); ctx.moveTo(gcx,yCore+coreH+22); ctx.lineTo(gcx,yPartial-2);
+      ctx.strokeStyle=gColors[g]+'88'; ctx.lineWidth=1.5; ctx.stroke();
+      drawRoundedRect(ctx, gcx-partW/2, yPartial, partW, partH, 4, gColors[g]+'22', gColors[g], 2);
+      ctx.fillStyle=gColors[g]; ctx.font='bold 11px JetBrains Mono,monospace'; ctx.textAlign='center';
+      ctx.fillText(psum.toFixed(2), gcx, yPartial+17);
+    }
+  }
+
+  // --- Step 4: final result + DOM comparison ---
+  if (step>=4) {
+    sLabel('FINAL RESULT  (partial sums combined)', yFinal-5);
+
+    // Compute result using current wgSize reduction order
+    var curResult=0;
+    for (var g=0; g<nGroups; g++) {
+      var gs=0; for (var k=g*wgSize; k<(g+1)*wgSize; k++) gs+=vals[k]; curResult+=gs;
+    }
+
+    // Lines from partial sums to final box
+    for (var g=0; g<nGroups; g++) {
+      var si=g*wgSize, ei=si+wgSize-1;
+      var gcx=(cx(si)+cx(ei))/2;
+      ctx.beginPath(); ctx.moveTo(gcx,yPartial+partH); ctx.lineTo(W/2,yFinal-2);
+      ctx.strokeStyle=gColors[g]+'66'; ctx.lineWidth=1.5; ctx.stroke();
+    }
+
+    ctx.save(); ctx.shadowColor='#00b894'; ctx.shadowBlur=14;
+    drawRoundedRect(ctx, W/2-finW/2, yFinal, finW, finH, 6, 'rgba(0,184,148,0.15)', '#00b894', 2.5);
+    ctx.restore();
+    ctx.fillStyle='#00b894'; ctx.font='bold 13px JetBrains Mono,monospace'; ctx.textAlign='center';
+    ctx.fillText(curResult.toPrecision(15), W/2, yFinal+19);
+
+    // Compute both WG=4 and WG=2 results for comparison
+    var r4=0;
+    for (var g=0; g<2; g++) { var gs=0; for (var k=g*4; k<(g+1)*4; k++) gs+=vals[k]; r4+=gs; }
+    var r2=0;
+    var g2groups=4;
+    for (var g=0; g<g2groups; g++) { var gs=0; for (var k=g*2; k<(g+1)*2; k++) gs+=vals[k]; r2+=gs; }
+
+    var differ = (r4.toPrecision(15) !== r2.toPrecision(15));
+    var cmpDiv = document.getElementById('gpu-comparison');
+    if (cmpDiv) {
+      cmpDiv.style.display='block';
+      var diffColor = differ ? '#f87171' : '#4ade80';
+      var diffLabel = differ
+        ? '<span style="color:#f87171;font-weight:700;">&#9888; DIFFER by ' + Math.abs(r4-r2).toExponential(3) + '</span>'
+        : '<span style="color:#4ade80;">&#10003; Identical for these 8 values</span>';
+      cmpDiv.innerHTML =
+        '<div style="color:#8892b0;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Reduction order comparison</div>'
+        + '<div>WG=4 result: <span style="color:#74b9ff;">' + r4.toPrecision(15) + '</span></div>'
+        + '<div>WG=2 result: <span style="color:#fd79a8;">' + r2.toPrecision(15) + '</span></div>'
+        + '<div style="margin-top:6px;">' + diffLabel + '</div>'
+        + (differ ? '' : '<div style="color:#555e7a;font-size:11px;margin-top:4px;">Real transformer activations use float16 \u2014 differences appear across thousands of additions.</div>');
+    }
+  }
+}
+
+function initGPUSection() {
+  var firstBtn = document.querySelector('#gpu-concept-stepper .step-btn');
+  if (firstBtn) setGPUConcept(0, firstBtn);
+  drawGPUCanvas();
+  updateGPUStepLabel();
+}
+
 // ===== SECTION 4: BATCH STEPPER =====
 function setBatchStep(idx, btn) {
   for (var i = 0; i < 5; i++) {
@@ -1226,6 +1485,7 @@ window.addEventListener('resize', function() {
 
 // ===== INIT ALL =====
 initFloatingPoint();
+initGPUSection();
 initBatch();
 initFix();
 initResults();
