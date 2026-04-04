@@ -178,8 +178,9 @@ window.addEventListener('load',function(){ var el=document.getElementById('pg-in
     <button class="sb-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')" style="display:none;" id="sb-toggle-btn">☰ Menu</button>
   </div>
   <div class="nav-group">
-    <div class="nav-group-title">The Problem</div>
-    <a class="nav-link" href="#s-problem" onclick="setActive(this)"><span class="dot" style="background:#7c6af4"></span>The Memory Crisis</a>
+    <div class="nav-group-title">The Two Problems</div>
+    <a class="nav-link" href="#s-problem" onclick="setActive(this)"><span class="dot" style="background:#7c6af4"></span>Why Compression Matters</a>
+    <a class="nav-link" href="#s-vecdbs" onclick="setActive(this)"><span class="dot" style="background:#fd79a8"></span>Online Vector Quantization</a>
   </div>
   <div class="nav-group">
     <div class="nav-group-title">The Method (3 Steps)</div>
@@ -202,13 +203,13 @@ window.addEventListener('load',function(){ var el=document.getElementById('pg-in
 
 <!-- ===== SECTION 1: s-problem ===== -->
 <section class="section" id="s-problem">
-  <div class="section-tag" style="color:#7c6af4">The Problem &nbsp;·&nbsp; <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;">~10 min read</span></div>
-  <div class="section-title" style="color:#7c6af4">The Memory Crisis</div>
-  <div class="section-sub">Every time an AI reads a long document, it stores a massive table of numbers called a KV cache. At 128,000 words, that cache uses 4GB of expensive GPU memory — per model layer. TurboQuant squeezes it down to 1GB with zero quality loss.</div>
+  <div class="section-tag" style="color:#7c6af4">The Two Problems &nbsp;·&nbsp; <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;">~12 min read</span></div>
+  <div class="section-title" style="color:#7c6af4">Why Vector Compression Matters</div>
+  <div class="section-sub">Two completely different AI applications share the same bottleneck: millions of high-dimensional floating-point vectors are eating memory and slowing search. TurboQuant solves both with one algorithm — and does it 50,000× faster than prior methods.</div>
 
   <div style="background:rgba(124,106,244,0.07);border:1px solid rgba(124,106,244,0.3);border-radius:10px;padding:16px 20px;margin-bottom:24px;">
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#7c6af4;margin-bottom:8px;">TL;DR — What this paper does</div>
-    <p style="font-size:14px;color:var(--text);line-height:1.7;">AI models store millions of numbers as "memory" when reading long documents. These numbers need to be compressed 4× to fit on practical hardware. TurboQuant proves you can do this with zero quality loss — using a simple 3-step pipeline — and it builds the compression index in <strong>0.001 seconds</strong> versus 37–497 seconds for the best prior methods.</p>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#7c6af4;margin-bottom:8px;">TL;DR — Two problems, one fix</div>
+    <p style="font-size:14px;color:var(--text);line-height:1.7;">When ChatGPT reads your 100-page document, it stores up to <strong>4GB of float16 vectors per layer</strong> just to answer one question. When Spotify searches 100 million songs for "similar to this one," it must scan <strong>600GB of embeddings</strong> in milliseconds. Both come down to the same question: <em>can we compress high-dimensional vectors 4× without losing quality?</em> TurboQuant answers yes — provably, in 0.001 seconds per vector.</p>
   </div>
 
   <div class="stat-row">
@@ -217,40 +218,185 @@ window.addEventListener('load',function(){ var el=document.getElementById('pg-in
     <div class="stat"><div class="stat-val" style="color:#f7b731">50,000×</div><div class="stat-lbl">Faster index building than best competitor</div></div>
   </div>
 
-  <div class="section-divider"><hr><span>How KV Cache Memory Grows</span><hr></div>
+  <!-- SCENARIO 1 -->
+  <div class="section-divider"><hr><span>Scenario 1 — ChatGPT reads your document (KV Cache)</span><hr></div>
 
-  <div class="card" style="margin-bottom:24px;">
-    <div class="card-title">KV Cache Memory vs Sequence Length — adjust hidden dimension below</div>
-    <canvas id="canvas-kvcache-growth" width="620" height="180" style="width:100%;max-width:620px;cursor:crosshair;" onmousemove="kvGrowthHover(event)" onmouseleave="kvGrowthHoverOut()"></canvas>
-    <div id="kv-hover-label" style="font-size:12px;color:var(--muted);min-height:18px;margin-top:6px;font-family:'JetBrains Mono';"></div>
-    <div class="sl-row" style="margin-top:12px;">
-      <span class="sl-lbl">Hidden dimension</span>
-      <input type="range" id="kv-dim-slider" min="512" max="8192" step="512" value="4096" oninput="drawKVGrowth()">
-      <span class="sl-val" id="kv-dim-val">4096</span>
+  <div class="g2" style="gap:20px;margin-bottom:22px;align-items:flex-start;">
+    <div>
+      <p style="font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:12px;">You upload a 100-page contract to an LLM and ask: <em>"Are there any auto-renewal clauses?"</em> Before it can answer, the model must <strong>read every word</strong>.</p>
+      <p style="font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:12px;">For each word (token), the model computes a <strong>key vector</strong> and a <strong>value vector</strong> — each a list of 4,096 numbers in float16 (2 bytes each). Together these are the <strong>KV cache</strong> — the model's working memory for your conversation.</p>
+      <p style="font-size:14px;color:var(--muted);line-height:1.7;">At 128,000 tokens (≈100 pages), the KV cache alone consumes <strong>4GB of GPU memory per layer</strong>. A 32-layer model: <strong>128GB</strong>. That's an entire A100 GPU just for one conversation.</p>
+    </div>
+    <div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#7c6af4;font-weight:700;margin-bottom:12px;">Memory math for Llama-3.1-8B</div>
+        <div class="formula" style="font-size:12px;margin:0;">tokens × dim × 2 (K+V) × 2 bytes
+= tokens × 4096 × 2 × 2 bytes
+
+4k tokens   →   64 MB
+32k tokens  →  512 MB
+128k tokens →    2 GB  ← per layer
+× 32 layers →   64 GB  ← total</div>
+        <div style="font-size:12px;color:#ff6b6b;margin-top:10px;line-height:1.5;">With TurboQuant at 3.5 bits: 64 GB → <strong style="color:#51cf66;">14 GB</strong> — fits on a single GPU.</div>
+      </div>
     </div>
   </div>
 
-  <div class="section-divider"><hr><span>What Is a Vector? (and why compress it?)</span><hr></div>
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Interactive — watch KV cache memory grow as tokens arrive</div>
+    <canvas id="canvas-kvcache-story" width="620" height="200" style="width:100%;max-width:620px;"></canvas>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center;">
+      <button class="btn" onclick="storyAddTokens(5000)">+ 5,000 tokens</button>
+      <button class="btn btn-outline" onclick="storyReset()">Reset</button>
+      <div id="story-stats" style="font-size:12px;font-family:'JetBrains Mono';color:var(--muted);margin-left:10px;"></div>
+    </div>
+    <div class="canvas-label">Each click adds ~4 pages of text. Watch memory (violet = FP16, green = TurboQuant 3.5-bit) grow toward the 4GB GPU limit.</div>
+  </div>
 
+  <!-- SCENARIO 2 -->
+  <div class="section-divider"><hr><span>Scenario 2 — Spotify finds your next song (Vector Database)</span><hr></div>
+
+  <div class="g2" style="gap:20px;margin-bottom:22px;align-items:flex-start;">
+    <div>
+      <p style="font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:12px;">Spotify's recommendation engine converts every song into a <strong>512-number embedding</strong> — a point in 512-dimensional space where similar songs are close together. When you press "go to song radio," it finds the 50 nearest songs to the one you're playing.</p>
+      <p style="font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:12px;">At 100 million songs × 512 dimensions × 4 bytes = <strong>200GB of embeddings</strong>. Searching this naively means computing 100M distances per query — in real time, for millions of concurrent users.</p>
+      <p style="font-size:14px;color:var(--muted);line-height:1.7;">Quantizing from 32-bit float to 4-bit (8× compression): 200GB → <strong>25GB</strong>. Distance computations are 8× cheaper. Same recommendations, fraction of the hardware.</p>
+    </div>
+    <div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#fd79a8;font-weight:700;margin-bottom:12px;">Vector DB scale at major companies</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;justify-content:space-between;font-size:13px;padding:8px 10px;background:var(--surface2);border-radius:6px;">
+            <span style="color:#fd79a8;">Spotify</span><span style="color:var(--muted);">100M songs, 512-dim → 200GB</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;padding:8px 10px;background:var(--surface2);border-radius:6px;">
+            <span style="color:#fd79a8;">Google Photos</span><span style="color:var(--muted);">4B+ images, 2048-dim → 32TB</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;padding:8px 10px;background:var(--surface2);border-radius:6px;">
+            <span style="color:#fd79a8;">Pinterest</span><span style="color:var(--muted);">10B pins, 256-dim → 10TB</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;padding:8px 10px;background:rgba(81,207,102,0.1);border-radius:6px;border:1px solid rgba(81,207,102,0.3);">
+            <span style="color:#51cf66;">With 4-bit quant</span><span style="color:#51cf66;">8× less memory + 8× faster search</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Interactive — vector similarity search in 2D (click "Search" to find nearest songs)</div>
+    <canvas id="canvas-vecdb-story" width="580" height="280" style="width:100%;max-width:580px;cursor:crosshair;" onmousemove="vecdbHover(event)" onmouseleave="vecdbHoverOut()" onclick="vecdbClick(event)"></canvas>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center;">
+      <button class="btn" id="vecdb-search-btn" onclick="vecdbSearch()">Search nearest songs</button>
+      <button class="btn btn-outline" onclick="vecdbReset()">New query</button>
+      <div id="vecdb-stats" style="font-size:12px;font-family:'JetBrains Mono';color:var(--muted);margin-left:10px;"></div>
+    </div>
+    <div class="canvas-label">Each dot = a song in 2D embedding space. Clusters = genres. Gold star = your current song. Click Search to find the 5 nearest neighbors.</div>
+  </div>
+
+  <!-- What is a vector -->
+  <div class="section-divider"><hr><span>What exactly is a "vector"?</span><hr></div>
   <div class="g2" style="gap:20px;margin-bottom:24px;align-items:flex-start;">
     <div>
-      <p style="font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:14px;">An attention key vector is just a list of numbers — one per dimension of the model. For Llama-3.1-8B that's 4,096 numbers per token. Quantization replaces each 16-bit float with a 3–4 bit integer — losing a tiny bit of precision but saving 4–5× memory.</p>
-      <p style="font-size:14px;color:var(--muted);line-height:1.7;">The canvas on the right shows a 16-dimensional key vector before and after 3.5-bit quantization. The bars should look nearly identical — that's the point.</p>
+      <p style="font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:14px;">A vector is just a list of numbers. For an LLM key vector, each number encodes one abstract feature of a token's meaning. For a song embedding, each number encodes one aspect of the song's musical style.</p>
+      <p style="font-size:14px;color:var(--muted);line-height:1.7;">In both cases: more numbers = more expressive = harder to store. A 4,096-dimension LLM key stored as float16 = <strong>8,192 bytes per token</strong>. Quantizing to 3.5 bits = <strong>1,792 bytes</strong>. Same meaning, 4.6× smaller.</p>
     </div>
     <div>
       <canvas id="canvas-vector-demo" width="340" height="200" style="width:100%;max-width:340px;cursor:pointer;" onclick="rerandomizeVector()"></canvas>
-      <div class="canvas-label">Click to randomize vector · FP16 (blue) vs 3.5-bit TurboQuant (green)</div>
+      <div class="canvas-label">Click to randomize · Violet = FP16 original · Green = 3.5-bit TurboQuant</div>
       <div id="vec-mse" style="font-size:12px;color:var(--muted);text-align:center;margin-top:6px;font-family:'JetBrains Mono';"></div>
     </div>
   </div>
 
   <div class="analogy-card">
     <div class="analogy-label">Everyday analogy</div>
-    <p>Like saving a photo as JPEG instead of RAW. JPEG is 10× smaller, looks the same to your eye. TurboQuant does the same for AI memory — provably near the best possible quality. The key insight: with the right mathematical preparation, you can determine <em>exactly</em> how to place the compression bins.</p>
+    <p>Think of a vector like GPS coordinates — but instead of 2 numbers (lat, long), you have 4,096. Each number pins down a different abstract "direction" in meaning-space. Compressing it is like rounding your GPS from 6 decimal places to 2: you still end up on the right street, just not the exact centimeter. TurboQuant proves you can do this rounding <em>optimally</em> — no more precision lost than mathematically necessary.</p>
   </div>
 
   <div class="section-bridge">
-    <span class="section-bridge-text">The compression exists. The question is how. Step 1 of 3: make the data easy to compress.</span>
+    <span class="section-bridge-text">Both problems need the same thing: compress vectors fast, without losing quality. But what does "online" compression mean — and why is speed the real breakthrough?</span>
+    <a class="section-bridge-link" href="#s-vecdbs" onclick="setActive(document.querySelector('[href=\'#s-vecdbs\']'))">Online Vector Quantization →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 2: s-vecdbs ===== -->
+<section class="section" id="s-vecdbs">
+  <div class="section-tag" style="color:#fd79a8">Online Vector Quantization</div>
+  <div class="section-title" style="color:#fd79a8">What Does "Online" Mean — and Why It Changes Everything</div>
+  <div class="section-sub">Most quantization methods need to train a codebook on millions of vectors first — taking hours. TurboQuant is "online": it compresses any vector <em>immediately</em>, with no prior training, using a mathematically derived codebook. This makes it practical for real-time LLM inference and streaming vector databases.</div>
+
+  <div style="background:rgba(253,121,168,0.07);border:1px solid rgba(253,121,168,0.3);border-radius:10px;padding:16px 20px;margin-bottom:28px;">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#fd79a8;margin-bottom:8px;">The key distinction</div>
+    <p style="font-size:14px;color:var(--text);line-height:1.7;"><strong>Offline quantization</strong> (Product Quantization, RabitQ): <em>train first</em> — scan your full dataset, cluster it, build a codebook. Only then can you compress new vectors. Takes 37–497 seconds. Useless if data arrives in real time.<br><br><strong>Online quantization</strong> (TurboQuant): <em>no training</em> — the compression formula is derived purely from mathematics (random rotation + Beta distribution + Lloyd-Max). Each new vector is compressed independently, instantly. Works in 0.001 seconds per vector, on any vector, any time.</p>
+  </div>
+
+  <div class="section-divider"><hr><span>Offline vs Online: Interactive Comparison</span><hr></div>
+
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Watch vectors arrive in real time — offline methods wait, TurboQuant compresses immediately</div>
+    <canvas id="canvas-online-stream" width="640" height="260" style="width:100%;max-width:640px;"></canvas>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center;">
+      <button class="btn" id="stream-start-btn" onclick="toggleStream()">▶ Start stream</button>
+      <button class="btn btn-outline" onclick="resetStream()">Reset</button>
+      <div id="stream-stats" style="font-size:12px;font-family:'JetBrains Mono';color:var(--muted);margin-left:10px;min-height:18px;"></div>
+    </div>
+    <div class="canvas-label">Left panel = Offline (PQ): vectors pile up waiting for training to complete. Right panel = Online (TurboQuant): each vector is compressed the moment it arrives.</div>
+  </div>
+
+  <div class="section-divider"><hr><span>The Approximate Nearest Neighbor (ANN) Search Problem</span><hr></div>
+
+  <div class="g2" style="gap:20px;margin-bottom:22px;align-items:flex-start;">
+    <div>
+      <p style="font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:12px;">To find the most similar vector in a database of N vectors, the naive approach computes the distance to all N vectors — <strong>O(N × d)</strong> operations. At 100M songs with 512 dimensions: <strong>51 billion multiplications per query</strong>.</p>
+      <p style="font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:12px;">Approximate Nearest Neighbor (ANN) search accepts a small quality loss in exchange for speed. Quantization is the key enabler: compressed vectors are smaller → fit in CPU cache → fewer cache misses → faster comparisons.</p>
+      <p style="font-size:14px;color:var(--muted);line-height:1.7;">The tradeoff: compress more → faster search but lower recall. TurboQuant hits the sweet spot — better recall than Product Quantization at the same compression ratio.</p>
+    </div>
+    <div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#fd79a8;font-weight:700;margin-bottom:12px;">Exact vs ANN search</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="padding:10px 12px;background:rgba(255,107,107,0.1);border-radius:6px;border-left:3px solid #ff6b6b;">
+            <div style="font-size:12px;font-weight:700;color:#ff6b6b;margin-bottom:4px;">Exact Search</div>
+            <div style="font-size:12px;color:var(--muted);">Compare every vector. 100% correct. 51B ops per query. Too slow for real-time.</div>
+          </div>
+          <div style="padding:10px 12px;background:rgba(247,183,49,0.1);border-radius:6px;border-left:3px solid #f7b731;">
+            <div style="font-size:12px;font-weight:700;color:#f7b731;margin-bottom:4px;">ANN + Product Quantization</div>
+            <div style="font-size:12px;color:var(--muted);">~80–90% recall. Fast. But needs 37–497s training. Fails on new/streaming data.</div>
+          </div>
+          <div style="padding:10px 12px;background:rgba(81,207,102,0.1);border-radius:6px;border-left:3px solid #51cf66;">
+            <div style="font-size:12px;font-weight:700;color:#51cf66;margin-bottom:4px;">ANN + TurboQuant</div>
+            <div style="font-size:12px;color:var(--muted);">Better recall than PQ. 0.001s index build. Works on streaming data. Near-optimal.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Interactive ANN search — adjust compression and see the recall tradeoff</div>
+    <canvas id="canvas-ann-search" width="620" height="300" style="width:100%;max-width:620px;cursor:pointer;" onclick="annSearchClick(event)"></canvas>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;align-items:center;">
+      <div class="sl-row" style="flex:1;min-width:220px;">
+        <span class="sl-lbl">Compression bits</span>
+        <input type="range" id="ann-bits" min="1" max="8" step="1" value="4" oninput="drawANNSearch()">
+        <span class="sl-val" id="ann-bits-val">4 bits</span>
+      </div>
+      <div class="toggle-group" id="ann-method-toggle">
+        <button class="toggle-btn active" onclick="setANNMethod('tq',this)">TurboQuant</button>
+        <button class="toggle-btn" onclick="setANNMethod('pq',this)">Product Quant.</button>
+      </div>
+    </div>
+    <div id="ann-stats" style="font-size:12px;color:var(--muted);margin-top:8px;font-family:'JetBrains Mono';min-height:18px;"></div>
+    <div class="canvas-label">Click any dot to set it as the query. The k-nearest neighbors (true = gold circles, found = colored) show recall visually. Compression reduces memory usage; lower bits = smaller vectors but more misses.</div>
+  </div>
+
+  <div class="analogy-card" style="border-color:rgba(253,121,168,0.3);background:rgba(253,121,168,0.05);">
+    <div class="analogy-label" style="color:#fd79a8;">Everyday analogy</div>
+    <p>"Online" is like a coffee shop barista who memorized the recipes (math) and can make any drink immediately. "Offline" is like a barista who has to attend a 10-hour training course before serving the first customer. For a busy airport café (real-time vector DB), the offline barista is useless — you need someone who can start serving the moment doors open.</p>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">Now we know the problem. How does TurboQuant actually solve it? The answer starts with a surprisingly elegant trick: scramble the vector with a random rotation.</span>
     <a class="section-bridge-link" href="#s-rotation" onclick="setActive(document.querySelector('[href=\'#s-rotation\']'))">Step 1: Random Rotation →</a>
   </div>
 </section>
@@ -633,7 +779,7 @@ Each rotated coordinate (Rx)_i has the same expected squared magnitude.</div>
 /* =====================================================
    SECTION IDS + NAV UTILITIES
 ===================================================== */
-var sectionIds = ['s-problem','s-rotation','s-beta','s-quant','s-bias','s-results','s-bigpicture'];
+var sectionIds = ['s-problem','s-vecdbs','s-rotation','s-beta','s-quant','s-bias','s-results','s-bigpicture'];
 var visitedSections = new Set();
 
 function setActive(el) {
@@ -2114,6 +2260,564 @@ function animateLandscape() {
 }
 
 /* =====================================================
+   SECTION 1: KV CACHE STORY ANIMATION
+===================================================== */
+var storyTokens = 0;
+var storyAnimRAF = null;
+
+function storyReset() {
+  storyTokens = 0;
+  drawKVCacheStory();
+}
+
+function storyAddTokens(n) {
+  var from = storyTokens;
+  var to = Math.min(storyTokens + n, 140000);
+  if (from === to) return;
+  cancelAnimationFrame(storyAnimRAF);
+  var start = null, duration = 800;
+  function step(ts) {
+    if (!start) start = ts;
+    var t = Math.min((ts - start) / duration, 1);
+    storyTokens = Math.round(lerp(from, to, easeInOut(t)));
+    drawKVCacheStory();
+    if (t < 1) storyAnimRAF = requestAnimationFrame(step);
+  }
+  storyAnimRAF = requestAnimationFrame(step);
+}
+
+function drawKVCacheStory() {
+  var cv = document.getElementById('canvas-kvcache-story'); if (!cv) return;
+  var ctx = cv.getContext('2d'); var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var GPU_LIMIT_MB = 4096; // 4GB
+  var dim = 4096;
+  var fp16MB = storyTokens * dim * 2 * 2 / 1e6;
+  var tqMB   = fp16MB * 3.5 / 16;
+  var fp16Frac = Math.min(fp16MB / GPU_LIMIT_MB, 1);
+  var tqFrac   = Math.min(tqMB  / GPU_LIMIT_MB, 1);
+
+  var padL = 30, padR = 30, padT = 20, padB = 40;
+  var barY = padT + 30, barH = 40, barW = W - padL - padR;
+
+  // Token chips at top
+  var tokenWords = ['The','contract','states','that','renewal','is','automatic','unless','terminated','by','written','notice','...'];
+  var chipX = padL, chipY = padT - 2;
+  ctx.font = '11px JetBrains Mono,monospace';
+  var visWords = Math.min(Math.floor(storyTokens / 1000) + 1, tokenWords.length);
+  for (var i = 0; i < visWords; i++) {
+    var tw = ctx.measureText(tokenWords[i]).width + 10;
+    if (chipX + tw > W - padR - 40) break;
+    var col = i < visWords - 1 ? '#2a3060' : '#7c6af4';
+    drawRoundedRect(ctx, chipX, chipY, tw, 20, 4, col + (i < visWords-1?'':'88'), col, 1);
+    ctx.fillStyle = i < visWords-1 ? '#8892b0' : '#e2e8f0'; ctx.textAlign = 'left';
+    ctx.fillText(tokenWords[i], chipX + 5, chipY + 14);
+    chipX += tw + 4;
+  }
+  if (storyTokens > (visWords * 1000)) {
+    ctx.fillStyle = '#8892b0'; ctx.fillText('...+' + Math.max(0,storyTokens - visWords*1000).toLocaleString() + ' more', chipX, chipY + 14);
+  }
+
+  // Arrow down
+  ctx.strokeStyle = '#2a3060'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(W/2, padT + 22); ctx.lineTo(W/2, barY - 6); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(W/2, barY - 4); ctx.lineTo(W/2 - 5, barY - 12); ctx.lineTo(W/2 + 5, barY - 12); ctx.closePath();
+  ctx.fillStyle = '#2a3060'; ctx.fill();
+
+  // Background bar (GPU limit)
+  drawRoundedRect(ctx, padL, barY, barW, barH, 6, '#1e2444', '#2a3060', 1);
+  ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter,sans-serif'; ctx.textAlign = 'right';
+  ctx.fillText('GPU limit (4 GB)', padL + barW, barY - 6);
+
+  // FP16 bar
+  var fp16Color = fp16Frac > 0.85 ? '#ff6b6b' : fp16Frac > 0.6 ? '#f7b731' : '#7c6af4';
+  if (fp16Frac > 0) {
+    drawRoundedRect(ctx, padL + 2, barY + 2, Math.max(4, (barW - 4) * fp16Frac), (barH / 2) - 3, 4, fp16Color + 'aa', fp16Color, 1);
+  }
+
+  // TurboQuant bar
+  if (tqFrac > 0) {
+    drawRoundedRect(ctx, padL + 2, barY + barH/2 + 1, Math.max(4, (barW - 4) * tqFrac), (barH / 2) - 3, 4, '#51cf66aa', '#51cf66', 1);
+  }
+
+  // Labels on bars
+  ctx.font = 'bold 10px Inter,sans-serif'; ctx.textAlign = 'left';
+  ctx.fillStyle = fp16Color; ctx.fillText('FP16', padL + 6, barY + 15);
+  ctx.fillStyle = '#51cf66'; ctx.fillText('TurboQuant 3.5-bit', padL + 6, barY + barH - 5);
+
+  // Memory labels
+  ctx.font = '11px JetBrains Mono,monospace'; ctx.textAlign = 'right';
+  var fp16Str = fp16MB >= 1024 ? (fp16MB/1024).toFixed(1) + ' GB' : fp16MB.toFixed(0) + ' MB';
+  var tqStr   = tqMB  >= 1024 ? (tqMB /1024).toFixed(1) + ' GB' : tqMB.toFixed(0)  + ' MB';
+  ctx.fillStyle = fp16Color; ctx.fillText(fp16Str, padL + barW - 4, barY + 15);
+  ctx.fillStyle = '#51cf66'; ctx.fillText(tqStr,  padL + barW - 4, barY + barH - 5);
+
+  // "EXCEEDS GPU" warning
+  if (fp16Frac >= 1) {
+    ctx.fillStyle = '#ff6b6b'; ctx.font = 'bold 11px Inter,sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('⚠ FP16 exceeds GPU memory! TurboQuant still fits.', W/2, barY + barH + 18);
+  }
+
+  // Token and savings stats
+  var statsEl = document.getElementById('story-stats');
+  if (statsEl) {
+    var saved = fp16MB - tqMB;
+    statsEl.textContent = storyTokens.toLocaleString() + ' tokens  |  FP16: ' + fp16Str + '  |  TurboQuant: ' + tqStr + '  |  Saved: ' + (saved >= 1024 ? (saved/1024).toFixed(1)+'GB' : saved.toFixed(0)+'MB');
+  }
+
+  // X-axis tokens scale
+  var markers = [0, 32000, 64000, 96000, 128000];
+  ctx.strokeStyle = '#2a3060'; ctx.lineWidth = 1; ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter,sans-serif'; ctx.textAlign = 'center';
+  markers.forEach(function(m) {
+    var mx = padL + (m / 140000) * barW;
+    ctx.beginPath(); ctx.moveTo(mx, barY + barH + 2); ctx.lineTo(mx, barY + barH + 7); ctx.stroke();
+    ctx.fillText((m/1000)+'k', mx, barY + barH + 18);
+  });
+  ctx.textAlign = 'center'; ctx.fillText('tokens', W/2, barY + barH + 30);
+}
+
+/* =====================================================
+   SECTION 1: VECDB STORY — SONG SEARCH
+===================================================== */
+var vecdbPoints = [], vecdbQuery = null, vecdbNeighbors = [], vecdbSearchDone = false, vecdbHoverIdx = -1;
+var VECDB_GENRES = [
+  {name:'Pop',color:'#fd79a8'},
+  {name:'Rock',color:'#ff6b6b'},
+  {name:'Jazz',color:'#f7b731'},
+  {name:'Classical',color:'#74c0fc'},
+  {name:'Electronic',color:'#4ecdc4'},
+];
+var SONG_NAMES = ['Blinding Lights','Bohemian Rhapsody','Take Five','Moonlight Sonata','Strobe',
+  'Shape of You','Stairway','Blue in Green','Clair de Lune','Levels',
+  'Levitating','Back in Black','All Blues','La Campanella','Sandstorm',
+  'Peaches','Smells Like Teen Spirit','Round Midnight','Gymnopédie No.1','Around the World',
+  'Stay','Enter Sandman','Giant Steps','Symphony No.5','Windowlicker',
+  'Butter','Kashmir','Autumn Leaves','Piano Sonata K.331','Oxygene',
+  'Dynamite','Paranoid','Nardis','Nocturne Op.9','Aphex Twin Mix',
+  'Permission to Dance','Sweet Child','So What','Für Elise','Derezzed'];
+
+function buildVecDBPoints() {
+  vecdbPoints = [];
+  var centers = [{x:0.22,y:0.28},{x:0.72,y:0.22},{x:0.25,y:0.72},{x:0.72,y:0.72},{x:0.5,y:0.5}];
+  var idx = 0;
+  centers.forEach(function(c, gi) {
+    for (var i = 0; i < 8; i++) {
+      vecdbPoints.push({
+        x: c.x + (gaussRand() * 0.08),
+        y: c.y + (gaussRand() * 0.08),
+        genre: gi, name: SONG_NAMES[idx++ % SONG_NAMES.length]
+      });
+    }
+  });
+  vecdbQuery = vecdbPoints[0];
+  vecdbNeighbors = [];
+  vecdbSearchDone = false;
+}
+
+function vecdbSearch() {
+  if (!vecdbQuery) return;
+  var dists = vecdbPoints.map(function(p, i) {
+    var dx = p.x - vecdbQuery.x, dy = p.y - vecdbQuery.y;
+    return {i: i, d: dx*dx + dy*dy};
+  });
+  dists.sort(function(a,b){ return a.d-b.d; });
+  vecdbNeighbors = dists.slice(1, 6).map(function(d){ return d.i; });
+  vecdbSearchDone = true;
+  var statsEl = document.getElementById('vecdb-stats');
+  if (statsEl) statsEl.textContent = 'Searched ' + vecdbPoints.length + ' vectors · Found 5 nearest · Query: "' + vecdbQuery.name + '"';
+  drawVecDBStory();
+}
+
+function vecdbReset() {
+  vecdbQuery = vecdbPoints[Math.floor(Math.random() * vecdbPoints.length)];
+  vecdbNeighbors = []; vecdbSearchDone = false;
+  document.getElementById('vecdb-stats').textContent = '';
+  drawVecDBStory();
+}
+
+function vecdbClick(evt) {
+  var cv = document.getElementById('canvas-vecdb-story'); if (!cv) return;
+  var rect = cv.getBoundingClientRect();
+  var mx = (evt.clientX - rect.left) * (cv.width / rect.width) / cv.width;
+  var my = (evt.clientY - rect.top)  * (cv.height / rect.height) / cv.height;
+  var best = -1, bestD = 999;
+  vecdbPoints.forEach(function(p, i) {
+    var d = Math.hypot(p.x - mx, p.y - my);
+    if (d < bestD) { bestD = d; best = i; }
+  });
+  if (best >= 0 && bestD < 0.04) {
+    vecdbQuery = vecdbPoints[best]; vecdbNeighbors = []; vecdbSearchDone = false;
+    document.getElementById('vecdb-stats').textContent = 'Query set: "' + vecdbQuery.name + '" — click Search';
+    drawVecDBStory();
+  }
+}
+
+function vecdbHover(evt) {
+  var cv = document.getElementById('canvas-vecdb-story'); if (!cv) return;
+  var rect = cv.getBoundingClientRect();
+  var mx = (evt.clientX - rect.left) * (cv.width / rect.width) / cv.width;
+  var my = (evt.clientY - rect.top)  * (cv.height / rect.height) / cv.height;
+  var best = -1, bestD = 999;
+  vecdbPoints.forEach(function(p, i) {
+    var d = Math.hypot(p.x - mx, p.y - my);
+    if (d < bestD) { bestD = d; best = i; }
+  });
+  vecdbHoverIdx = (bestD < 0.04) ? best : -1;
+  cv.style.cursor = vecdbHoverIdx >= 0 ? 'pointer' : 'default';
+  drawVecDBStory();
+}
+function vecdbHoverOut() { vecdbHoverIdx = -1; drawVecDBStory(); }
+
+function drawVecDBStory() {
+  var cv = document.getElementById('canvas-vecdb-story'); if (!cv) return;
+  var ctx = cv.getContext('2d'); var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var padL = 20, padR = 130, padT = 20, padB = 20;
+  var plotW = W - padL - padR, plotH = H - padT - padB;
+  function toX(v){ return padL + v * plotW; }
+  function toY(v){ return padT + v * plotH; }
+
+  // Grid background
+  ctx.fillStyle = '#161a2e'; drawRoundedRect(ctx, padL, padT, plotW, plotH, 8, '#161a2e', '#2a3060', 1);
+
+  // Genre zone labels (faint)
+  var centers = [{x:0.22,y:0.28},{x:0.72,y:0.22},{x:0.25,y:0.72},{x:0.72,y:0.72},{x:0.5,y:0.5}];
+  VECDB_GENRES.forEach(function(g, gi) {
+    ctx.fillStyle = g.color + '18';
+    ctx.beginPath(); ctx.arc(toX(centers[gi].x), toY(centers[gi].y), 55, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = g.color + '55'; ctx.font = 'bold 10px Inter,sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(g.name, toX(centers[gi].x), toY(centers[gi].y) - 44);
+  });
+
+  // Connection lines to neighbors
+  if (vecdbSearchDone && vecdbQuery) {
+    vecdbNeighbors.forEach(function(ni) {
+      var p = vecdbPoints[ni];
+      ctx.strokeStyle = 'rgba(255,211,59,0.3)'; ctx.lineWidth = 1; ctx.setLineDash([4,3]);
+      ctx.beginPath(); ctx.moveTo(toX(vecdbQuery.x), toY(vecdbQuery.y)); ctx.lineTo(toX(p.x), toY(p.y)); ctx.stroke();
+      ctx.setLineDash([]);
+    });
+  }
+
+  // Points
+  vecdbPoints.forEach(function(p, i) {
+    var col = VECDB_GENRES[p.genre].color;
+    var isQuery = vecdbQuery && i === vecdbPoints.indexOf(vecdbQuery);
+    var isNeighbor = vecdbNeighbors.includes(i);
+    var isHover = i === vecdbHoverIdx;
+    var r = isQuery ? 10 : isNeighbor ? 7 : 5;
+
+    if (isNeighbor) {
+      ctx.strokeStyle = '#ffd43b'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(toX(p.x), toY(p.y), r + 5, 0, Math.PI*2); ctx.stroke();
+    }
+    ctx.save();
+    if (isQuery || isHover) { ctx.shadowColor = isQuery ? '#ffd43b' : col; ctx.shadowBlur = 12; }
+    ctx.fillStyle = isQuery ? '#ffd43b' : col + (isNeighbor ? 'ff' : '99');
+    ctx.beginPath(); ctx.arc(toX(p.x), toY(p.y), r, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+
+    // Hover tooltip
+    if (isHover || isQuery) {
+      var tx = toX(p.x) + 12, ty = toY(p.y);
+      var label = (isQuery ? '★ ' : '') + p.name;
+      var tw = ctx.measureText(label).width + 12;
+      if (tx + tw > padL + plotW) tx = toX(p.x) - tw - 4;
+      drawRoundedRect(ctx, tx, ty - 10, tw, 20, 4, '#1e2444', col, 1);
+      ctx.fillStyle = col; ctx.font = 'bold 10px Inter,sans-serif'; ctx.textAlign = 'left';
+      ctx.fillText(label, tx + 6, ty + 4);
+    }
+  });
+
+  // Query star label
+  if (vecdbQuery) {
+    ctx.fillStyle = '#ffd43b'; ctx.font = 'bold 11px Inter,sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('★ Now playing', toX(vecdbQuery.x), toY(vecdbQuery.y) + 20);
+  }
+
+  // Legend
+  var lx = W - padR + 14, ly = padT + 14;
+  ctx.font = 'bold 10px Inter,sans-serif'; ctx.fillStyle = '#8892b0'; ctx.textAlign = 'left';
+  ctx.fillText('Genres:', lx, ly); ly += 14;
+  VECDB_GENRES.forEach(function(g) {
+    ctx.fillStyle = g.color; ctx.beginPath(); ctx.arc(lx + 5, ly, 4, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#8892b0'; ctx.fillText(g.name, lx + 14, ly + 4); ly += 16;
+  });
+  ly += 6;
+  ctx.fillStyle = '#ffd43b'; ctx.beginPath(); ctx.arc(lx + 5, ly, 5, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#8892b0'; ctx.fillText('Query song', lx + 14, ly + 4); ly += 16;
+  if (vecdbSearchDone) {
+    ctx.strokeStyle = '#ffd43b'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(lx+5,ly,6,0,Math.PI*2); ctx.stroke();
+    ctx.fillStyle = '#8892b0'; ctx.fillText('Nearest 5', lx + 14, ly + 4);
+  }
+}
+
+/* =====================================================
+   SECTION 2: ONLINE STREAM ANIMATION
+===================================================== */
+var streamRunning = false, streamRAF = null;
+var streamVecsLeft = [], streamVecsRight = [], streamTrainPct = 0;
+var STREAM_CAPACITY = 12;
+
+function resetStream() {
+  streamRunning = false; cancelAnimationFrame(streamRAF);
+  streamVecsLeft = []; streamVecsRight = []; streamTrainPct = 0;
+  document.getElementById('stream-start-btn').textContent = '▶ Start stream';
+  document.getElementById('stream-stats').textContent = '';
+  drawOnlineStream();
+}
+
+function toggleStream() {
+  streamRunning = !streamRunning;
+  document.getElementById('stream-start-btn').textContent = streamRunning ? '⏸ Pause' : '▶ Start stream';
+  if (streamRunning) runStream();
+}
+
+var streamTick = 0;
+function runStream() {
+  if (!streamRunning) return;
+  streamTick++;
+  if (streamTick % 18 === 0) {
+    // New vector arrives
+    var newVec = { x: Math.random(), color: VECDB_GENRES[Math.floor(Math.random() * 5)].color, age: 0 };
+    // Left (offline PQ): accumulate until training done
+    if (streamTrainPct < 1) {
+      streamVecsLeft.push({ ...newVec, pending: true });
+    } else {
+      if (streamVecsLeft.length < STREAM_CAPACITY) streamVecsLeft.push({ ...newVec, pending: false, compressed: true });
+    }
+    // Right (TurboQuant): always compress immediately
+    if (streamVecsRight.length < STREAM_CAPACITY) streamVecsRight.push({ ...newVec, pending: false, compressed: true });
+    // Update training progress
+    streamTrainPct = Math.min(1, streamTrainPct + 0.05);
+  }
+  streamVecsLeft.forEach(function(v){ v.age = Math.min(v.age + 1, 60); });
+  streamVecsRight.forEach(function(v){ v.age = Math.min(v.age + 1, 60); });
+  drawOnlineStream();
+  streamRAF = requestAnimationFrame(runStream);
+}
+
+function drawOnlineStream() {
+  var cv = document.getElementById('canvas-online-stream'); if (!cv) return;
+  var ctx = cv.getContext('2d'); var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var halfW = W / 2 - 10;
+
+  function drawPanel(offX, title, titleColor, vecs, trainPct, isOnline) {
+    // Panel border
+    drawRoundedRect(ctx, offX, 10, halfW, H - 20, 8, '#161a2e', '#2a3060', 1);
+
+    // Title
+    ctx.fillStyle = titleColor; ctx.font = 'bold 12px Inter,sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(title, offX + halfW / 2, 30);
+
+    if (!isOnline) {
+      // Training progress bar
+      var barY = 42, barH = 14, barW = halfW - 40;
+      drawRoundedRect(ctx, offX + 20, barY, barW, barH, 4, '#1e2444', '#2a3060', 1);
+      if (trainPct > 0) drawRoundedRect(ctx, offX + 20, barY, barW * trainPct, barH, 4, trainPct >= 1 ? '#51cf66' : '#f7b731', null);
+      ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter,sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(trainPct >= 1 ? 'Training complete ✓' : 'Training… ' + Math.round(trainPct * 100) + '%', offX + halfW / 2, barY + 10);
+
+      // Pending vectors (waiting)
+      var pendingVecs = vecs.filter(function(v){ return v.pending; });
+      ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter,sans-serif'; ctx.textAlign = 'center';
+      if (pendingVecs.length > 0 && trainPct < 1) ctx.fillText('⏳ ' + pendingVecs.length + ' vector(s) waiting', offX + halfW/2, 75);
+    } else {
+      ctx.fillStyle = '#51cf66'; ctx.font = '11px Inter,sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('No training needed — compresses instantly ✓', offX + halfW / 2, 55);
+    }
+
+    // Compressed vector slots
+    var slotY = isOnline ? 70 : 88;
+    var slotH = 22, slotGap = 4, slotW = halfW - 28;
+    var readyVecs = vecs.filter(function(v){ return !v.pending || isOnline; });
+    for (var i = 0; i < STREAM_CAPACITY; i++) {
+      var sy = slotY + i * (slotH + slotGap);
+      if (sy + slotH > H - 30) break;
+      var v = readyVecs[i];
+      if (v) {
+        var alpha = Math.min(v.age / 30, 1);
+        ctx.globalAlpha = alpha;
+        drawRoundedRect(ctx, offX + 14, sy, slotW, slotH, 4, v.color + '33', v.color, 1);
+        // Mini bar chart inside
+        var nBars = 8;
+        for (var b = 0; b < nBars; b++) {
+          var bh = 4 + Math.random() * (slotH - 8);
+          ctx.fillStyle = v.color + 'aa';
+          ctx.fillRect(offX + 18 + b * (slotW / nBars - 1), sy + slotH - bh - 2, slotW / nBars - 2, bh);
+        }
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = v.color; ctx.font = 'bold 9px JetBrains Mono,monospace'; ctx.textAlign = 'right';
+        ctx.fillText(isOnline ? '4-bit' : (trainPct >= 1 ? '4-bit' : 'raw'), offX + 14 + slotW - 4, sy + 14);
+      } else {
+        drawRoundedRect(ctx, offX + 14, sy, slotW, slotH, 4, '#1e2444', '#2a3060' + '44', 1);
+        ctx.fillStyle = '#2a3060'; ctx.font = '9px Inter,sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('empty slot', offX + 14 + slotW/2, sy + 14);
+      }
+    }
+
+    // Time label at bottom
+    ctx.fillStyle = titleColor; ctx.font = 'bold 10px JetBrains Mono,monospace'; ctx.textAlign = 'center';
+    ctx.fillText(isOnline ? 'Index: 0.001s per vector' : (trainPct >= 1 ? 'Index: built after training' : 'Index: not ready yet'), offX + halfW/2, H - 10);
+  }
+
+  drawPanel(8, 'Offline (Product Quantization)', '#f7b731', streamVecsLeft, streamTrainPct, false);
+
+  // Divider
+  ctx.strokeStyle = '#2a3060'; ctx.lineWidth = 1; ctx.setLineDash([4,3]);
+  ctx.beginPath(); ctx.moveTo(W/2, 10); ctx.lineTo(W/2, H-10); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = '#8892b0'; ctx.font = 'bold 10px Inter,sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('vs', W/2, H/2 + 4);
+
+  drawPanel(W/2 + 12, 'Online (TurboQuant)', '#51cf66', streamVecsRight, 1, true);
+
+  // Stats
+  var statsEl = document.getElementById('stream-stats');
+  if (statsEl && streamRunning) {
+    var compressedLeft = streamVecsLeft.filter(function(v){ return !v.pending; }).length;
+    statsEl.textContent = 'PQ: ' + compressedLeft + ' compressed, ' + streamVecsLeft.filter(function(v){return v.pending;}).length + ' waiting  |  TurboQuant: ' + streamVecsRight.length + ' compressed';
+  }
+}
+
+/* =====================================================
+   SECTION 2: ANN SEARCH INTERACTIVE
+===================================================== */
+var annPoints = [], annQuery = null, annMethod = 'tq';
+var ANN_RECALL_TQ   = {1:0.52, 2:0.71, 3:0.82, 4:0.91, 5:0.95, 6:0.97, 7:0.99, 8:1.00};
+var ANN_RECALL_PQ   = {1:0.40, 2:0.58, 3:0.70, 4:0.82, 5:0.88, 6:0.93, 7:0.97, 8:1.00};
+var ANN_COMPRESS_R  = {1:16, 2:8, 3:5.3, 4:4, 5:3.2, 6:2.7, 7:2.3, 8:2};
+
+function buildANNPoints() {
+  annPoints = [];
+  var centers = [{x:0.2,y:0.2},{x:0.7,y:0.25},{x:0.2,y:0.75},{x:0.7,y:0.75},{x:0.45,y:0.5}];
+  centers.forEach(function(c, gi) {
+    for (var i = 0; i < 10; i++) {
+      annPoints.push({ x: Math.max(0.02, Math.min(0.98, c.x + gaussRand()*0.1)), y: Math.max(0.02, Math.min(0.98, c.y + gaussRand()*0.1)), genre: gi });
+    }
+  });
+  annQuery = annPoints[Math.floor(Math.random() * annPoints.length)];
+}
+
+function setANNMethod(m, el) {
+  annMethod = m;
+  document.querySelectorAll('#ann-method-toggle .toggle-btn').forEach(function(b){ b.classList.remove('active'); });
+  if (el) el.classList.add('active');
+  drawANNSearch();
+}
+
+function annSearchClick(evt) {
+  var cv = document.getElementById('canvas-ann-search'); if (!cv) return;
+  var rect = cv.getBoundingClientRect();
+  var padL = 20, padT = 20;
+  var plotW = cv.width - padL - 160, plotH = cv.height - padT - 50;
+  var mx = ((evt.clientX - rect.left) * (cv.width / rect.width) - padL) / plotW;
+  var my = ((evt.clientY - rect.top)  * (cv.height / rect.height) - padT) / plotH;
+  var best = -1, bestD = 999;
+  annPoints.forEach(function(p, i) {
+    var d = Math.hypot(p.x - mx, p.y - my);
+    if (d < bestD) { bestD = d; best = i; }
+  });
+  if (best >= 0 && bestD < 0.06) { annQuery = annPoints[best]; drawANNSearch(); }
+}
+
+function drawANNSearch() {
+  var cv = document.getElementById('canvas-ann-search'); if (!cv) return;
+  var ctx = cv.getContext('2d'); var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var bits = parseInt(document.getElementById('ann-bits').value);
+  document.getElementById('ann-bits-val').textContent = bits + ' bits';
+  var recall = (annMethod === 'tq' ? ANN_RECALL_TQ : ANN_RECALL_PQ)[bits];
+  var compress = ANN_COMPRESS_R[bits];
+  var methodColor = annMethod === 'tq' ? '#74c0fc' : '#f7b731';
+  var methodLabel = annMethod === 'tq' ? 'TurboQuant' : 'Product Quantization';
+
+  var padL = 20, padR = 160, padT = 20, padB = 50;
+  var plotW = W - padL - padR, plotH = H - padT - padB;
+  function toX(v){ return padL + v * plotW; }
+  function toY(v){ return padT + v * plotH; }
+
+  drawRoundedRect(ctx, padL, padT, plotW, plotH, 6, '#161a2e', '#2a3060', 1);
+
+  // True nearest neighbors (sorted by distance from query)
+  var dists = annQuery ? annPoints.map(function(p,i){
+    return {i:i, d: Math.hypot(p.x-annQuery.x, p.y-annQuery.y)};
+  }).sort(function(a,b){return a.d-b.d;}).slice(1,6) : [];
+  var trueNeighbors = dists.map(function(d){return d.i;});
+
+  // Approximate neighbors (drop some based on recall)
+  var k = Math.round(5 * recall);
+  var foundNeighbors = trueNeighbors.slice(0, k);
+
+  // Genre colors
+  var gColors = ['#fd79a8','#ff6b6b','#f7b731','#74c0fc','#4ecdc4'];
+
+  // Connection lines
+  if (annQuery) {
+    trueNeighbors.forEach(function(ni) {
+      var p = annPoints[ni];
+      ctx.strokeStyle = 'rgba(255,211,59,0.25)'; ctx.lineWidth = 1; ctx.setLineDash([3,3]);
+      ctx.beginPath(); ctx.moveTo(toX(annQuery.x),toY(annQuery.y)); ctx.lineTo(toX(p.x),toY(p.y)); ctx.stroke();
+      ctx.setLineDash([]);
+    });
+  }
+
+  // Points
+  annPoints.forEach(function(p, i) {
+    var col = gColors[p.genre];
+    var isQuery = annQuery && i === annPoints.indexOf(annQuery);
+    var isTrue = trueNeighbors.includes(i);
+    var isFound = foundNeighbors.includes(i);
+    var r = isQuery ? 9 : 5;
+
+    if (isTrue) {
+      ctx.strokeStyle = '#ffd43b'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(toX(p.x),toY(p.y),r+5,0,Math.PI*2); ctx.stroke();
+    }
+    if (isFound && !isTrue) {
+      ctx.strokeStyle = methodColor; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(toX(p.x),toY(p.y),r+5,0,Math.PI*2); ctx.stroke();
+    }
+    ctx.fillStyle = isQuery ? '#ffd43b' : col + (isTrue||isFound ? 'ff' : '88');
+    ctx.beginPath(); ctx.arc(toX(p.x),toY(p.y),r,0,Math.PI*2); ctx.fill();
+  });
+
+  // Right panel
+  var rx = padL + plotW + 14, ry = padT + 10;
+  ctx.fillStyle = '#8892b0'; ctx.font = 'bold 10px Inter,sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText(methodLabel, rx, ry); ry += 18;
+  ctx.fillStyle = methodColor; ctx.font = 'bold 22px JetBrains Mono,monospace';
+  ctx.fillText((recall * 100).toFixed(0) + '%', rx, ry + 16); ry += 28;
+  ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter,sans-serif';
+  ctx.fillText('Recall@5', rx, ry); ry += 20;
+  ctx.fillStyle = methodColor; ctx.font = 'bold 22px JetBrains Mono,monospace';
+  ctx.fillText(compress.toFixed(1) + '×', rx, ry + 16); ry += 28;
+  ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter,sans-serif';
+  ctx.fillText('Compression', rx, ry); ry += 20;
+  ctx.fillText('('+bits+'-bit)', rx, ry); ry += 20;
+
+  // Legend
+  ctx.fillStyle = '#ffd43b'; ctx.beginPath(); ctx.arc(rx+4, ry+4, 5, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = '#ffd43b'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(rx+4,ry+4,10,0,Math.PI*2); ctx.stroke();
+  ctx.fillStyle = '#8892b0'; ctx.font='10px Inter,sans-serif'; ctx.fillText('True k-NN', rx+14, ry+8); ry += 18;
+  ctx.fillStyle = methodColor; ctx.beginPath(); ctx.arc(rx+4, ry+4, 5, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#8892b0'; ctx.fillText('Found by ANN', rx+14, ry+8);
+
+  // X-axis
+  ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter,sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('Embedding space (2D projection)', padL + plotW/2, padT + plotH + 16);
+  ctx.fillText('Click a dot to set as query', padL + plotW/2, padT + plotH + 30);
+
+  // Stats
+  var statsEl = document.getElementById('ann-stats');
+  if (statsEl) statsEl.textContent = methodLabel + ' at ' + bits + ' bits: Recall = ' + (recall*100).toFixed(0) + '%  |  Compression = ' + compress.toFixed(1) + '×  |  Memory saved = ' + ((1-1/compress)*100).toFixed(0) + '%';
+}
+
+/* =====================================================
    INIT ALL
 ===================================================== */
 // Build initial data
@@ -2121,8 +2825,14 @@ buildRotData();
 buildRot2DPoints();
 buildQJLVec();
 rerandomizeVector();
+buildVecDBPoints();
+buildANNPoints();
 
 // Draw all initial canvases
+drawKVCacheStory();
+drawVecDBStory();
+drawOnlineStream();
+drawANNSearch();
 drawKVGrowth();
 drawVectorDemo();
 drawRotationHist();
