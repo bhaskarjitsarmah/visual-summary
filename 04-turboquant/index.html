@@ -404,49 +404,113 @@ window.addEventListener('load',function(){ var el=document.getElementById('pg-in
 <!-- ===== SECTION 2: s-rotation ===== -->
 <section class="section" id="s-rotation">
   <div class="section-tag" style="color:#4ecdc4">Method — Step 1 of 3</div>
-  <div class="section-title" style="color:#4ecdc4">Step 1 — Scramble the Vector</div>
-  <div class="section-sub">Real embedding vectors cluster and spike — a few coordinates dominate, making naive compression wasteful. A random rotation spreads energy evenly across all coordinates, making each one equally compressible.</div>
+  <div class="section-title" style="color:#4ecdc4">Step 1 — Random Rotation</div>
+  <div class="section-sub">Before we compress anything, we need to understand <em>what's inside</em> a vector — and why most of those numbers are actually very unequal. This section explains coordinates, energy, and why a simple rotation unlocks near-perfect compression.</div>
 
-  <div style="background:rgba(78,205,196,0.07);border:1px solid rgba(78,205,196,0.3);border-radius:10px;padding:16px 20px;margin-bottom:24px;">
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#4ecdc4;margin-bottom:8px;">The core idea</div>
-    <p style="font-size:14px;color:var(--text);line-height:1.7;">Before rotation, a few coordinates carry most of the information. Compressing equally is wasteful — some bins cover noise, others cover crucial signal. After a random rotation matrix <strong>R</strong>, every coordinate carries exactly <strong>‖x‖²/d</strong> energy. They all become equally important, and equally easy to compress.</p>
+  <!-- ── Concept 1: What is a coordinate ── -->
+  <div class="section-divider"><hr><span>Concept 1 — What exactly is a "coordinate"?</span><hr></div>
+
+  <p style="font-size:14px;color:var(--muted);line-height:1.7;max-width:640px;margin-bottom:16px;">When ChatGPT reads your contract and encounters the word <strong>"renewal"</strong>, it doesn't store the word itself — it stores a list of ~4,096 numbers called a <strong>key vector</strong>. Each number (= one coordinate) measures how strongly that token activates one abstract "detector" the model learned during training.</p>
+
+  <div class="g2" style="gap:20px;margin-bottom:24px;align-items:start;">
+    <div>
+      <p style="font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:12px;">You can think of them like a nutrition label — each row is a different dimension of meaning. Some dimensions are highly activated ("renewal" strongly triggers legal-term detectors), others are near zero (it barely activates colour or food detectors).</p>
+      <p style="font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:12px;">Click any word below to see its key vector. Notice how different words light up completely different coordinates — and how some coordinates are always much bigger than others.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;" id="word-btn-row">
+        <button class="btn btn-outline" onclick="setCoordWord('renewal',this)" style="border-color:#4ecdc4;color:#4ecdc4;">renewal</button>
+        <button class="btn btn-outline" onclick="setCoordWord('party',this)">party</button>
+        <button class="btn btn-outline" onclick="setCoordWord('shall',this)">shall</button>
+        <button class="btn btn-outline" onclick="setCoordWord('terminate',this)">terminate</button>
+        <button class="btn btn-outline" onclick="setCoordWord('30',this)">30</button>
+        <button class="btn btn-outline" onclick="setCoordWord('days',this)">days</button>
+      </div>
+    </div>
+    <div>
+      <canvas id="canvas-coord-explainer" width="340" height="280" style="width:100%;max-width:340px;"></canvas>
+      <div class="canvas-label">Each bar = one coordinate. Tall bar = that "detector" fires strongly for this word.</div>
+    </div>
   </div>
 
-  <div class="section-divider"><hr><span>Distribution Shape: Before vs After Rotation</span><hr></div>
+  <!-- ── Concept 2: What is "energy" ── -->
+  <div class="section-divider"><hr><span>Concept 2 — What does "energy" mean?</span><hr></div>
+
+  <p style="font-size:14px;color:var(--muted);line-height:1.7;max-width:640px;margin-bottom:16px;">"Energy" in a coordinate just means its squared value — how much it contributes to the total size of the vector. If coordinate #3 has value 3.2, its energy is 3.2² = 10.24. If coordinate #7 has value 0.1, its energy is only 0.01.</p>
 
   <div class="card" style="margin-bottom:24px;">
-    <div class="card-title">Coordinate value histograms — Before rotation (coral) vs After rotation (teal)</div>
+    <div class="card-title">Energy distribution across coordinates — click any word to compare</div>
+    <canvas id="canvas-energy-dist" width="620" height="220" style="width:100%;max-width:620px;"></canvas>
+    <div id="energy-insight" style="font-size:13px;color:var(--muted);margin-top:10px;line-height:1.6;min-height:36px;"></div>
+    <div class="canvas-label">Bar height = % of total vector energy held by that coordinate. A few tall bars = "spiky". Equal bars = ideal for compression.</div>
+  </div>
+
+  <div style="background:rgba(78,205,196,0.07);border:1px solid rgba(78,205,196,0.3);border-radius:10px;padding:16px 20px;margin-bottom:24px;">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#4ecdc4;margin-bottom:8px;">The problem in plain English</div>
+    <p style="font-size:14px;color:var(--text);line-height:1.7;">For the word "renewal", maybe <strong>3 coordinates hold 70% of all the energy</strong>, and the other 4,093 coordinates hold the remaining 30%. This is called a <strong>spiky distribution</strong>. It's a disaster for compression — because the model has to handle both the big spikes and the tiny near-zero values with the same compression scheme.</p>
+  </div>
+
+  <!-- ── Concept 3: Naive compression ── -->
+  <div class="section-divider"><hr><span>Concept 3 — Why "naive compression" fails on spiky vectors</span><hr></div>
+
+  <p style="font-size:14px;color:var(--muted);line-height:1.7;max-width:640px;margin-bottom:16px;">The simplest way to compress a number is to round it to the nearest step — like rounding 3.247 to 3.2. You divide the possible range into equally-spaced "bins" and store which bin the value falls in. This is called <strong>uniform quantization</strong>.</p>
+
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Naive (uniform) compression on a spiky vector — watch bins get wasted</div>
+    <canvas id="canvas-naive-quant" width="640" height="260" style="width:100%;max-width:640px;cursor:pointer;" onmousemove="naiveQuantHover(event)" onmouseleave="naiveQuantHoverOut()"></canvas>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center;">
+      <div class="sl-row" style="flex:1;min-width:200px;">
+        <span class="sl-lbl">Bins (2ᵇ)</span>
+        <input type="range" id="naive-bins" min="2" max="16" step="1" value="4" oninput="drawNaiveQuant()">
+        <span class="sl-val" id="naive-bins-val">4 bins</span>
+      </div>
+      <div class="toggle-group">
+        <button class="toggle-btn active" id="nq-spiky-btn" onclick="setNaiveMode('spiky',this)">Spiky (before rotation)</button>
+        <button class="toggle-btn" id="nq-even-btn" onclick="setNaiveMode('even',this)">Even (after rotation)</button>
+      </div>
+    </div>
+    <div id="naive-quant-stats" style="font-size:12px;color:var(--muted);margin-top:8px;font-family:\'JetBrains Mono\';min-height:36px;line-height:1.6;'"></div>
+    <div class="canvas-label">Hover over a bin to see how many values fall in it. Red bins = mostly wasted (too few values). Green bins = well-used. Toggle between spiky (before rotation) and even (after rotation) to see the difference.</div>
+  </div>
+
+  <!-- ── Concept 4: What rotation actually does ── -->
+  <div class="section-divider"><hr><span>Concept 4 — What the random rotation actually does</span><hr></div>
+
+  <p style="font-size:14px;color:var(--muted);line-height:1.7;max-width:640px;margin-bottom:16px;">A rotation doesn't change the meaning of the vector — it just mixes the coordinates together. Think of it like stirring a glass of water with red food dye at the bottom: the total amount of dye (energy) stays the same, but it spreads evenly throughout the glass.</p>
+
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Step through the rotation — from spiky contract vector to evenly-spread rotated vector</div>
+    <div class="stepper" id="rot-story-stepper">
+      <button class="step-btn active" onclick="setRotStoryStep(0,this)">1 — Raw vector</button>
+      <button class="step-btn" onclick="setRotStoryStep(1,this)">2 — Start mixing</button>
+      <button class="step-btn" onclick="setRotStoryStep(2,this)">3 — After rotation</button>
+      <button class="step-btn" onclick="setRotStoryStep(3,this)">4 — Now compress</button>
+    </div>
+    <canvas id="canvas-rot-story" width="640" height="240" style="width:100%;max-width:640px;"></canvas>
+    <div id="rot-story-desc" style="font-size:13px;color:var(--muted);margin-top:12px;line-height:1.6;min-height:52px;"></div>
+  </div>
+
+  <div class="analogy-card">
+    <div class="analogy-label">Everyday analogy — the spice rack</div>
+    <p>Imagine storing a recipe as a rack of 16 spice jars. For "renewal", jar #3 (legal-ness) is completely full, jar #1 (formality) is half full, and most jars are almost empty. If you compress this with equal-sized labels, you waste 14 labels on near-empty jars.<br><br>The rotation is like pouring all the spices into a blender, mixing them into 16 equal portions, and refilling the jars. Now every jar is equally full — so every label carries equal value. Compression works perfectly on equal jars.</p>
+  </div>
+
+  <!-- ── Original histograms (now as confirmation) ── -->
+  <div class="section-divider"><hr><span>Seeing it across many tokens: the histogram view</span><hr></div>
+
+  <p style="font-size:14px;color:var(--muted);line-height:1.7;max-width:640px;margin-bottom:16px;">The single-vector view above shows one token. Let's zoom out: here are the coordinate values across <em>all 500 tokens</em> in your contract. Each token has its own vector, and we're plotting all coordinate values in one histogram. The shape of this histogram is what determines compression quality.</p>
+
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Histogram of coordinate values — before vs after rotation across 500 tokens</div>
     <canvas id="canvas-rotation-hist" width="640" height="260" style="width:100%;max-width:640px;"></canvas>
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px;align-items:center;">
       <button class="btn" id="rot-toggle-btn" onclick="toggleRotation()">Apply Rotation</button>
       <div class="sl-row" style="flex:1;min-width:200px;">
-        <span class="sl-lbl">Dimension d</span>
+        <span class="sl-lbl">Tokens (d)</span>
         <input type="range" id="rot-dim-slider" min="8" max="512" step="8" value="64" oninput="onRotDimChange()">
         <span class="sl-val" id="rot-dim-val">64</span>
       </div>
     </div>
     <div id="rot-gap-scores" style="font-size:12px;color:var(--muted);margin-top:10px;font-family:'JetBrains Mono';"></div>
-  </div>
-
-  <div class="section-divider"><hr><span>2D View: Isotropic Spread After Rotation</span><hr></div>
-
-  <div class="card" style="margin-bottom:24px;">
-    <div class="card-title">200 points from an elongated cluster — rotate with slider</div>
-    <canvas id="canvas-rotation-2d" width="560" height="260" style="width:100%;max-width:560px;"></canvas>
-    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px;align-items:center;">
-      <div class="sl-row" style="flex:1;min-width:200px;">
-        <span class="sl-lbl">Rotation angle θ</span>
-        <input type="range" id="rot2d-angle" min="0" max="360" step="1" value="0" oninput="drawRotation2D()">
-        <span class="sl-val" id="rot2d-angle-val">0°</span>
-      </div>
-      <button class="btn btn-outline" onclick="randomizeRotation2D()">Randomize θ</button>
-    </div>
-    <div class="canvas-label">Before: elongated ellipse (non-isotropic) → After rotation: circular spread (isotropic)</div>
-  </div>
-
-  <div class="analogy-card">
-    <div class="analogy-label">Everyday analogy</div>
-    <p>Rotating the data is like shuffling a deck of cards before compression — it distributes information evenly so no single card carries too much importance. After shuffling, every card is equally likely to be "important," so you can compress all cards with the same quality.</p>
+    <p style="font-size:13px;color:var(--muted);margin-top:8px;line-height:1.6;"><strong style="color:#ff6b6b;">Before (coral):</strong> most values cluster near 0, with a few huge spikes — like the spice rack. Compressing this wastes most bins on the crowded center.<br><strong style="color:#4ecdc4;">After (teal):</strong> a smooth bell curve — no spikes, no wasted bins. Every compression bin covers roughly the same number of values.</p>
   </div>
 
   <div style="margin-bottom:20px;">
@@ -461,7 +525,7 @@ Each rotated coordinate (Rx)_i has the same expected squared magnitude.</div>
   </div>
 
   <div class="section-bridge">
-    <span class="section-bridge-text">Equal energy per coordinate gives every coordinate the same statistical shape. Step 2 shows what that shape is — and why it's a gift.</span>
+    <span class="section-bridge-text">After rotation every coordinate has the same variance. Step 2 identifies the exact mathematical shape of that distribution — and why knowing it precisely is the key to optimal compression.</span>
     <a class="section-bridge-link" href="#s-beta" onclick="setActive(document.querySelector('[href=\'#s-beta\']'))">Step 2: Beta Distribution →</a>
   </div>
 </section>
@@ -1086,6 +1150,309 @@ function drawVectorDemo() {
   var mse = vecOrig.reduce(function(acc,v,i){ return acc + Math.pow(v-vecQuant[i],2); },0) / n;
   var el = document.getElementById('vec-mse');
   if (el) el.textContent = 'MSE distortion: ' + mse.toFixed(5) + ' (lower is better)';
+}
+
+/* =====================================================
+   SECTION s-rotation: COORDINATE EXPLAINER
+===================================================== */
+// Simulated key vector profiles for 6 words from a contract
+var COORD_LABELS = ['Legal-ness','Formality','Noun-ness','Time-ref','Number-ref','Action','Negation','Ownership','Duration','Condition','Party-ref','Obligation','Money-ref','Future-tense','Clause-mark','Risk'];
+var COORD_PROFILES = {
+  'renewal':    [0.08,0.05,0.32,0.28,0.04,0.02,0.01,0.03,0.42,0.12,0.05,0.18,-0.03,0.35,0.22,0.06],
+  'party':      [0.06,0.04,0.28,0.02,0.01,0.03,0.00,0.38,0.03,0.05,0.52,0.22,0.08,0.02,0.15,0.04],
+  'shall':      [0.12,0.22,0.08,0.03,0.01,0.35,0.05,0.04,0.02,0.28,0.06,0.48,0.02,0.12,0.18,0.09],
+  'terminate':  [0.18,0.12,0.25,0.05,0.02,0.42,0.32,0.08,0.38,0.28,0.12,0.35,0.05,0.08,0.22,0.38],
+  '30':         [0.02,0.01,0.04,0.12,0.62,0.02,0.00,0.01,0.44,0.05,0.01,0.04,0.08,0.04,0.03,0.01],
+  'days':       [0.03,0.02,0.22,0.58,0.08,0.01,0.00,0.02,0.52,0.08,0.02,0.06,0.01,0.12,0.05,0.02],
+};
+var coordWord = 'renewal';
+
+function setCoordWord(word, btn) {
+  coordWord = word;
+  document.querySelectorAll('#word-btn-row button').forEach(function(b){ b.style.borderColor=''; b.style.color=''; });
+  if (btn) { btn.style.borderColor='#4ecdc4'; btn.style.color='#4ecdc4'; }
+  drawCoordExplainer();
+  drawEnergyDist();
+}
+
+function drawCoordExplainer() {
+  var cv = document.getElementById('canvas-coord-explainer'); if (!cv) return;
+  var ctx = cv.getContext('2d'); var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+  var vals = COORD_PROFILES[coordWord] || COORD_PROFILES['renewal'];
+  var n = vals.length;
+  var barH = (H - 60) / n - 2;
+  var maxV = Math.max.apply(null, vals.map(Math.abs)) * 1.1;
+  var midX = W * 0.42;
+
+  ctx.font = '10px Inter,sans-serif';
+  vals.forEach(function(v, i) {
+    var y = 16 + i * (barH + 2);
+    var bw = (Math.abs(v) / maxV) * (W - midX - 10);
+    var col = v > 0.2 ? '#4ecdc4' : v > 0.08 ? '#f7b731' : '#2a3060';
+    // label
+    ctx.fillStyle = v > 0.08 ? '#e2e8f0' : '#8892b0'; ctx.textAlign = 'right';
+    ctx.fillText(COORD_LABELS[i], midX - 4, y + barH * 0.72);
+    // bar
+    drawRoundedRect(ctx, midX + 2, y, Math.max(bw, 1), barH, 2, col, null);
+    // value
+    ctx.fillStyle = col; ctx.textAlign = 'left';
+    ctx.fillText(v.toFixed(2), midX + bw + 6, y + barH * 0.72);
+  });
+
+  ctx.fillStyle = '#4ecdc4'; ctx.font = 'bold 11px Inter,sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('"' + coordWord + '" key vector (16 of 4096 dims)', W / 2, H - 6);
+}
+
+function drawEnergyDist() {
+  var cv = document.getElementById('canvas-energy-dist'); if (!cv) return;
+  var ctx = cv.getContext('2d'); var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+  var vals = COORD_PROFILES[coordWord] || COORD_PROFILES['renewal'];
+  var n = vals.length;
+  var energies = vals.map(function(v){ return v * v; });
+  var totalE = energies.reduce(function(a,b){ return a+b; }, 0) || 1;
+  var pcts = energies.map(function(e){ return e / totalE; });
+  var maxP = Math.max.apply(null, pcts) * 1.15;
+
+  var padL = 30, padR = 10, padT = 20, padB = 50;
+  var plotW = W - padL - padR, plotH = H - padT - padB;
+  var barW = plotW / n - 2;
+  var idealPct = 1 / n;
+
+  // Ideal line
+  var idealY = padT + plotH - (idealPct / maxP) * plotH;
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1; ctx.setLineDash([6, 3]);
+  ctx.beginPath(); ctx.moveTo(padL, idealY); ctx.lineTo(padL + plotW, idealY); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.font = '10px Inter,sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText('Ideal = ' + (idealPct * 100).toFixed(1) + '% each (after rotation)', padL + 4, idealY - 4);
+
+  pcts.forEach(function(p, i) {
+    var bx = padL + i * (barW + 2);
+    var bh = (p / maxP) * plotH;
+    var by = padT + plotH - bh;
+    var isSpike = p > idealPct * 2.5;
+    var col = isSpike ? '#ff6b6b' : p > idealPct * 1.2 ? '#f7b731' : '#4ecdc4';
+    drawRoundedRect(ctx, bx, by, barW, bh, 2, col + '99', col, 1);
+    ctx.fillStyle = col; ctx.font = 'bold 9px JetBrains Mono,monospace'; ctx.textAlign = 'center';
+    if (p > 0.04) ctx.fillText((p * 100).toFixed(0) + '%', bx + barW / 2, by - 3);
+    ctx.fillStyle = '#8892b0'; ctx.font = '8px Inter,sans-serif';
+    ctx.fillText(COORD_LABELS[i].slice(0, 5), bx + barW / 2, padT + plotH + 12);
+    if (i % 2 === 0) ctx.fillText(COORD_LABELS[i].slice(0, 5), bx + barW / 2, padT + plotH + 22);
+  });
+
+  // Top coordinate summary
+  var sorted = pcts.map(function(p,i){return{p:p,i:i};}).sort(function(a,b){return b.p-a.p;});
+  var top3pct = (sorted[0].p + sorted[1].p + sorted[2].p) * 100;
+  var insightEl = document.getElementById('energy-insight');
+  if (insightEl) {
+    insightEl.innerHTML = '<strong style="color:#ff6b6b;">For "' + coordWord + '":</strong> the top 3 coordinates hold <strong style="color:#ff6b6b;">' + top3pct.toFixed(0) + '%</strong> of all energy. ' +
+      'The ideal after rotation would be <strong style="color:#4ecdc4;">' + (idealPct * 100 * 3).toFixed(1) + '%</strong> — perfectly equal. ' +
+      'Red bars are "dominant" coordinates — the ones naive compression wastes bits on.';
+  }
+}
+
+/* =====================================================
+   SECTION s-rotation: NAIVE QUANTIZATION DEMO
+===================================================== */
+var naiveMode = 'spiky';
+
+function setNaiveMode(mode, el) {
+  naiveMode = mode;
+  document.querySelectorAll('.toggle-group .toggle-btn').forEach(function(b){ b.classList.remove('active'); });
+  if (el) el.classList.add('active');
+  drawNaiveQuant();
+}
+
+function drawNaiveQuant() {
+  var cv = document.getElementById('canvas-naive-quant'); if (!cv) return;
+  var ctx = cv.getContext('2d'); var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var nBins = parseInt(document.getElementById('naive-bins').value);
+  document.getElementById('naive-bins-val').textContent = nBins + ' bins';
+
+  var padL = 40, padR = 20, padT = 30, padB = 60;
+  var plotW = W - padL - padR, plotH = H - padT - padB;
+
+  // Generate value distribution
+  var N = 2000;
+  var vals = [];
+  if (naiveMode === 'spiky') {
+    // Spiky: mixture — 70% near 0, 20% moderate, 10% large
+    for (var i = 0; i < N; i++) {
+      var r = Math.random();
+      if (r < 0.70) vals.push(gaussRand() * 0.15);
+      else if (r < 0.90) vals.push(gaussRand() * 0.6);
+      else vals.push(gaussRand() * 0.3 + (Math.random() > 0.5 ? 2.0 : -2.0));
+    }
+  } else {
+    // Even: after rotation — bell curve
+    for (var i = 0; i < N; i++) vals.push(gaussRand() * 0.6);
+  }
+
+  var lo = -3.5, hi = 3.5;
+  var binW = (hi - lo) / nBins;
+  var binCounts = new Array(nBins).fill(0);
+  vals.forEach(function(v) {
+    var bi = Math.floor((v - lo) / binW);
+    if (bi >= 0 && bi < nBins) binCounts[bi]++;
+  });
+  var maxCount = Math.max.apply(null, binCounts) || 1;
+  var wasted = binCounts.filter(function(c){ return c < N * 0.02; }).length;
+  var wellUsed = nBins - wasted;
+
+  function toX(v){ return padL + (v - lo) / (hi - lo) * plotW; }
+
+  // Draw bins
+  binCounts.forEach(function(c, i) {
+    var bx = padL + (i / nBins) * plotW;
+    var bwPx = plotW / nBins - 1;
+    var bh = (c / maxCount) * plotH;
+    var by = padT + plotH - bh;
+    var isEmpty = c < N * 0.02;
+    var isWasted = c < N * 0.02;
+    var col = isWasted ? '#ff6b6b' : c > N * 0.1 ? '#51cf66' : '#4ecdc4';
+    drawRoundedRect(ctx, bx, by, bwPx, Math.max(bh, 2), 2, col + (isWasted ? '44' : '88'), col, 1);
+    // Bin number
+    ctx.fillStyle = col; ctx.font = '9px JetBrains Mono,monospace'; ctx.textAlign = 'center';
+    ctx.fillText('bin ' + (i + 1), bx + bwPx / 2, padT + plotH + 13);
+    ctx.fillText(c, bx + bwPx / 2, padT + plotH + 24);
+  });
+
+  // Value distribution overlay (smooth curve)
+  ctx.beginPath();
+  for (var xi = 0; xi <= 200; xi++) {
+    var xv = lo + (xi / 200) * (hi - lo);
+    var density;
+    if (naiveMode === 'spiky') {
+      density = 0.70 * Math.exp(-0.5*(xv/0.15)**2)/(0.15*Math.sqrt(2*Math.PI)) * 0.3 +
+                0.20 * Math.exp(-0.5*(xv/0.6)**2)/(0.6*Math.sqrt(2*Math.PI)) * 0.3 +
+                0.05 * Math.exp(-0.5*((xv-2.0)/0.3)**2)/(0.3*Math.sqrt(2*Math.PI)) * 0.3 +
+                0.05 * Math.exp(-0.5*((xv+2.0)/0.3)**2)/(0.3*Math.sqrt(2*Math.PI)) * 0.3;
+    } else {
+      density = Math.exp(-0.5*(xv/0.6)**2)/(0.6*Math.sqrt(2*Math.PI));
+    }
+    var px = toX(xv);
+    var py = padT + plotH - (density / (naiveMode==='spiky'?1.2:0.67)) * plotH * 0.88;
+    if (xi === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.strokeStyle = naiveMode==='spiky'?'#ff6b6b':'#4ecdc4'; ctx.lineWidth = 2; ctx.stroke();
+
+  // Axis labels
+  ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter,sans-serif'; ctx.textAlign = 'center';
+  [-3,-2,-1,0,1,2,3].forEach(function(v){ ctx.fillText(v, toX(v), padT+plotH+36); });
+  ctx.fillText('Coordinate value', padL+plotW/2, padT+plotH+50);
+
+  // Legend
+  ctx.fillStyle = '#ff6b6b'; ctx.font = 'bold 11px Inter,sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText('■ Wasted bins (< 2% of values) = ' + wasted + ' of ' + nBins, padL, padT - 12);
+  ctx.fillStyle = '#51cf66';
+  ctx.fillText('■ Well-used bins = ' + wellUsed, padL + 220, padT - 12);
+
+  // Stats
+  var statsEl = document.getElementById('naive-quant-stats');
+  if (statsEl) {
+    var wastedPct = (wasted / nBins * 100).toFixed(0);
+    var mode = naiveMode === 'spiky' ? 'BEFORE rotation (spiky)' : 'AFTER rotation (even)';
+    statsEl.innerHTML = '<strong style="color:#4ecdc4;">' + mode + ':</strong> ' + wasted + ' of ' + nBins + ' bins (' + wastedPct + '%) are nearly empty — ' +
+      (naiveMode==='spiky' ? '<strong style="color:#ff6b6b;">wasted bits. The compressor "reserves" space for values that almost never appear.</strong>' :
+      '<strong style="color:#51cf66;">almost no waste. Each bin covers roughly equal probability mass after rotation.</strong>');
+  }
+}
+// Stub for hover (optional detail)
+function naiveQuantHover(evt) {}
+function naiveQuantHoverOut() {}
+
+/* =====================================================
+   SECTION s-rotation: ROTATION STORY STEPPER
+===================================================== */
+var rotStoryStep = 0;
+var rotStoryVec = [];
+var rotStoryRotVec = [];
+
+function buildRotStoryVec() {
+  // Spiky contract-like vector (16 dims)
+  rotStoryVec = COORD_PROFILES['renewal'].slice();
+  // Rotated version: all values become similar magnitude
+  var totalE = rotStoryVec.reduce(function(a,v){return a+v*v;},0);
+  var avgE = totalE / rotStoryVec.length;
+  rotStoryRotVec = rotStoryVec.map(function(){ return (Math.random()>0.5?1:-1)*Math.sqrt(avgE) * (0.7+Math.random()*0.6); });
+}
+
+function setRotStoryStep(idx, btn) {
+  rotStoryStep = idx;
+  document.querySelectorAll('#rot-story-stepper .step-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  drawRotStory();
+}
+
+function drawRotStory() {
+  var cv = document.getElementById('canvas-rot-story'); if (!cv) return;
+  var ctx = cv.getContext('2d'); var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var descs = [
+    '<strong style="color:#4ecdc4;">Raw key vector for "renewal".</strong> 16 coordinates. Notice coordinate #3 (Legal-ness=0.32), #9 (Duration=0.42), #14 (Future-tense=0.35) dominate. Most others are tiny. This is the spiky problem.',
+    '<strong style="color:#f7b731;">The rotation matrix mixes coordinates together.</strong> Think of it like blending: each output coordinate becomes a weighted combination of ALL input coordinates. The big spikes start to spread their energy into the small slots.',
+    '<strong style="color:#51cf66;">After rotation — all coordinates are now roughly equal.</strong> No single coordinate dominates. The total energy (sum of squares) is unchanged, but it\'s now shared evenly. Every coordinate is at ~0.1–0.2.',
+    '<strong style="color:#74c0fc;">Now compress with uniform bins — no waste!</strong> Because all values are in the same range (~−0.3 to +0.3), every bin covers roughly equal probability. Compression error is minimal and predictable across all coordinates.',
+  ];
+  document.getElementById('rot-story-desc').innerHTML = descs[rotStoryStep];
+
+  var n = rotStoryVec.length;
+  var t = rotStoryStep / 3; // 0→1
+  var blended = rotStoryVec.map(function(v,i){ return lerp(v, rotStoryRotVec[i], easeInOut(Math.min(t*1.5,1))); });
+
+  var padL = 40, padT = 30, padR = 10, padB = 50;
+  var plotW = W - padL - padR, plotH = H - padT - padB;
+  var barW = plotW / n - 3;
+  var maxV = Math.max(Math.max.apply(null,rotStoryVec.map(Math.abs)), Math.max.apply(null,rotStoryRotVec.map(Math.abs))) * 1.15;
+  var midY = padT + plotH / 2;
+
+  // Zero line
+  ctx.strokeStyle = '#2a3060'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(padL, midY); ctx.lineTo(padL+plotW, midY); ctx.stroke();
+
+  // Compression range box (step 3+)
+  if (rotStoryStep >= 3) {
+    var rangeH = (0.35 / maxV) * (plotH / 2);
+    ctx.fillStyle = 'rgba(116,192,252,0.08)'; ctx.strokeStyle='rgba(116,192,252,0.4)'; ctx.lineWidth=1; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.rect(padL, midY-rangeH, plotW, rangeH*2); ctx.fill(); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle='#74c0fc'; ctx.font='10px Inter,sans-serif'; ctx.textAlign='right';
+    ctx.fillText('Compression bins cover this range — uniform, no waste', padL+plotW, midY-rangeH-4);
+  }
+
+  blended.forEach(function(v, i) {
+    var bx = padL + i * (barW + 3);
+    var bh = (Math.abs(v) / maxV) * (plotH / 2);
+    var by = v >= 0 ? midY - bh : midY;
+    var isSpike = rotStoryStep < 2 && Math.abs(rotStoryVec[i]) > 0.25;
+    var col = rotStoryStep >= 2 ? '#51cf66' : (isSpike ? '#ff6b6b' : '#7c6af4');
+    if (rotStoryStep >= 3) col = '#74c0fc';
+    drawRoundedRect(ctx, bx, by, barW, Math.max(bh, 1), 2, col + 'aa', col, 1);
+
+    // Label
+    ctx.fillStyle = Math.abs(v) > 0.1 ? col : '#2a3060';
+    ctx.font = '9px Inter,sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(COORD_LABELS[i].slice(0,6), bx + barW/2, padT + plotH + 14);
+    if (Math.abs(v) > 0.15) {
+      ctx.fillStyle = col; ctx.font = 'bold 9px JetBrains Mono,monospace';
+      ctx.fillText(v.toFixed(2), bx + barW/2, v >= 0 ? by - 3 : by + bh + 11);
+    }
+    // Spike annotation on step 0
+    if (rotStoryStep === 0 && isSpike) {
+      ctx.fillStyle='#ff6b6b'; ctx.font='bold 9px Inter,sans-serif';
+      ctx.fillText('▲ spike', bx + barW/2, by - 13);
+    }
+  });
+
+  // Energy share label
+  var energies = blended.map(function(v){return v*v;});
+  var totalE = energies.reduce(function(a,b){return a+b;},0)||1;
+  var maxShare = Math.max.apply(null,energies)/totalE*100;
+  ctx.fillStyle='#8892b0'; ctx.font='10px Inter,sans-serif'; ctx.textAlign='right';
+  ctx.fillText('Max energy in one coord: '+(maxShare).toFixed(0)+'%  |  Ideal: '+(100/n).toFixed(1)+'%', padL+plotW, padT-10);
 }
 
 /* =====================================================
@@ -2827,12 +3194,17 @@ buildQJLVec();
 rerandomizeVector();
 buildVecDBPoints();
 buildANNPoints();
+buildRotStoryVec();
 
 // Draw all initial canvases
 drawKVCacheStory();
 drawVecDBStory();
 drawOnlineStream();
 drawANNSearch();
+drawCoordExplainer();
+drawEnergyDist();
+drawNaiveQuant();
+drawRotStory();
 drawKVGrowth();
 drawVectorDemo();
 drawRotationHist();
