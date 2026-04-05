@@ -517,6 +517,81 @@ window.addEventListener('load', function(){ var el=document.getElementById('pg-i
     </div>
   </div>
 
+  <!-- HOW LOGITS ARE COMPUTED -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">How Does the Model Compute Logits?</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:16px;">Every time the model needs to pick the next word, it runs through a pipeline: compress the entire conversation into a single vector, then score every word in the vocabulary against that vector. Here's the full journey:</p>
+
+    <!-- Full pipeline diagram -->
+    <canvas id="canvas-llm-pipeline" width="640" height="130" style="width:100%;max-width:640px;margin-bottom:20px;"></canvas>
+
+    <!-- The formula -->
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin-bottom:20px;">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#f7b731;margin-bottom:14px;">The Logit Formula (One Line)</div>
+      <div class="formula" style="font-size:15px;letter-spacing:0.5px;">logit(word_i)  =  h · W_i  =  h₁×W_i₁ + h₂×W_i₂ + … + h_d×W_id</div>
+      <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div style="font-family:'JetBrains Mono';font-size:13px;color:#74c0fc;min-width:30px;font-weight:700;">h</div>
+          <div style="font-size:13px;color:var(--muted);line-height:1.6;">The <strong style="color:var(--text);">hidden state</strong> — a vector of ~4,096 numbers that summarises everything the model knows about the context so far ("what should come next?"). It's the output of the transformer layers.</div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div style="font-family:'JetBrains Mono';font-size:13px;color:#f78fb3;min-width:30px;font-weight:700;">W_i</div>
+          <div style="font-size:13px;color:var(--muted);line-height:1.6;">The <strong style="color:var(--text);">word embedding row</strong> for word i — also a vector of ~4,096 numbers, one row in the giant vocabulary weight matrix W. It encodes "what this word looks like in context." Learned during training.</div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div style="font-family:'JetBrains Mono';font-size:13px;color:#f7b731;min-width:30px;font-weight:700;">·</div>
+          <div style="font-size:13px;color:var(--muted);line-height:1.6;">The <strong style="color:var(--text);">dot product</strong> — multiply matching elements, then sum them all up. Higher result = h and W_i point in the "same direction" = word i fits this context well.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Intuition -->
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;">Intuition: What Does the Dot Product Actually Measure?</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:16px;">Think of each of the ~4,096 dimensions as a "feature" — like "geography-ness", "food-ness", "action-ness". The hidden state h says <em>"I need a word that scores high on geography and low on food."</em> The dot product measures how well each word's feature profile matches that need.</p>
+
+    <!-- Interactive dot product -->
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">Interactive: Watch the Dot Product Compute a Logit</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Simplified to <strong>4 dimensions</strong> for clarity (real models use ~4,096). Context: <span style="font-family:'JetBrains Mono';color:var(--text);">"The capital of France is ___"</span>. Select a word to see how its dot product with the context vector is computed.</p>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;" id="word-select-btns">
+      <button class="btn" style="background:#7c6af4;" onclick="setDotWord('Paris',this)">Paris</button>
+      <button class="btn btn-outline" onclick="setDotWord('city',this)">city</button>
+      <button class="btn btn-outline" onclick="setDotWord('located',this)">located</button>
+      <button class="btn btn-outline" onclick="setDotWord('banana',this)">banana</button>
+    </div>
+
+    <canvas id="canvas-dot-product" width="640" height="300" style="width:100%;max-width:640px;margin-bottom:12px;"></canvas>
+    <div id="dot-product-verdict" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);"></div>
+
+    <!-- Where do W weights come from -->
+    <div style="background:rgba(124,106,244,0.07);border:1px solid rgba(124,106,244,0.3);border-radius:10px;padding:14px 18px;margin-top:16px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#7c6af4;margin-bottom:8px;">Where Do the Weights W Come From?</div>
+      <p style="font-size:13px;color:var(--text);line-height:1.7;">The weight matrix W is <strong>learned during training</strong> on billions of examples. Every time the model predicted the wrong word, the training process slightly adjusted the weights to score the correct word higher. After training on trillions of tokens, the weights encode a rich understanding of language — which words tend to appear in which contexts.</p>
+      <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+        <div style="background:var(--bg);border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:20px;margin-bottom:4px;">📚</div>
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px;">Llama-3 (8B)</div>
+          <div style="font-size:11px;color:var(--muted);">h = 4,096 dims<br>W = 128k × 4,096<br>= ~500M logit weights</div>
+        </div>
+        <div style="background:var(--bg);border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:20px;margin-bottom:4px;">🧠</div>
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px;">GPT-4 class</div>
+          <div style="font-size:11px;color:var(--muted);">h ≈ 12,288 dims<br>W ≈ 100k × 12,288<br>= ~1.2B logit weights</div>
+        </div>
+        <div style="background:var(--bg);border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:20px;margin-bottom:4px;">⏱</div>
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px;">Per token</div>
+          <div style="font-size:11px;color:var(--muted);">All ~50k–100k dot<br>products computed<br>in one GPU step</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="analogy-card" style="margin-top:16px;">
+      <div class="analogy-label">Everyday Analogy</div>
+      <p>"Imagine you're a matchmaker. You have a client profile h ('wants: outdoorsy, funny, tall'). You have a database of candidates, each with their own profile W_i ('is: outdoorsy 8/10, funny 6/10, tall 9/10'). The dot product is the compatibility score — multiply each trait match and add them up. The candidate with the highest score is your top recommendation. That's exactly what the model does, except with 4,096 traits and 50,000 candidates, in milliseconds."</p>
+    </div>
+  </div>
+
   <!-- MATH DEEP DIVE -->
   <div class="card" style="margin-bottom:24px;">
     <div class="card-title">The Mathematics — How Temperature Actually Works</div>
@@ -1941,6 +2016,185 @@ function scatterClick(evt) {
 }
 
 /* =====================================================
+   HOW LOGITS ARE COMPUTED
+===================================================== */
+function drawLLMPipeline() {
+  var cv = document.getElementById('canvas-llm-pipeline'); if (!cv) return;
+  var ctx = cv.getContext('2d'); var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var steps = [
+    { label:'Prompt text',      sub:'"The capital\nof France is"', color:'#8892b0', icon:'💬' },
+    { label:'Tokenizer',        sub:'splits into\nword pieces',    color:'#f7b731', icon:'✂' },
+    { label:'Transformer\nLayers', sub:'attention +\nfeed-forward', color:'#74c0fc', icon:'🔄' },
+    { label:'Hidden state h',   sub:'~4,096 numbers\n"context summary"', color:'#4ecdc4', icon:'📦' },
+    { label:'× Weight matrix W',sub:'50k rows ×\n4,096 cols',     color:'#f78fb3', icon:'🔢' },
+    { label:'Logits',           sub:'50k scores\none per word',    color:'#ff6b6b', icon:'📊' }
+  ];
+
+  var n = steps.length;
+  var boxW = 88, boxH = 72, gap = (W - n*boxW) / (n+1);
+  var y0 = (H - boxH) / 2;
+
+  steps.forEach(function(s, i) {
+    var x = gap + i*(boxW+gap);
+    drawRoundedRect(ctx, x, y0, boxW, boxH, 8, s.color+'18', s.color, 1.5);
+
+    // Icon
+    ctx.font = '18px serif'; ctx.textAlign = 'center';
+    ctx.fillText(s.icon, x+boxW/2, y0+22);
+
+    // Label
+    ctx.fillStyle = s.color; ctx.font = 'bold 10px Inter'; ctx.textAlign = 'center';
+    var lines = s.label.split('\n');
+    lines.forEach(function(l, li){ ctx.fillText(l, x+boxW/2, y0+36+li*12); });
+
+    // Sub-label
+    ctx.fillStyle = '#8892b0'; ctx.font = '9px Inter';
+    var subs = s.sub.split('\n');
+    subs.forEach(function(l, li){ ctx.fillText(l, x+boxW/2, y0+boxH-18+li*10); });
+
+    // Arrow
+    if (i < n-1) {
+      var ax = x+boxW+3, ay = y0+boxH/2;
+      drawArrow(ctx, ax, ay, ax+gap-6, ay, '#2a3060', 1.5);
+    }
+  });
+
+  // Highlight the logit output box
+  var lastX = gap + (n-1)*(boxW+gap);
+  ctx.strokeStyle = '#ff6b6b'; ctx.lineWidth = 2.5;
+  ctx.strokeRect(lastX-1, y0-1, boxW+2, boxH+2);
+  ctx.beginPath(); ctx.arc(lastX-1, y0-1, 4, 0, Math.PI*2); ctx.fillStyle='#ff6b6b'; ctx.fill();
+}
+
+// Dot product demo data
+var DOT_WORDS = {
+  'Paris':   { W:[0.90, 0.82,-0.85, 0.72], color:'#7c6af4' },
+  'city':    { W:[0.60, 0.88,-0.65, 0.52], color:'#74c0fc' },
+  'located': { W:[0.38, 0.28,-0.42, 0.88], color:'#4ecdc4' },
+  'banana':  { W:[-0.52,-0.68, 0.92,-0.35], color:'#ff6b6b' }
+};
+var DOT_H = [0.88, 0.72, -0.80, 0.58]; // context: "The capital of France is ___"
+var DOT_DIM_LABELS = ['Geography\n(place-ness)', 'Noun\n(thing-ness)', 'Food\n(edible-ness)', 'Location\n(position-ness)'];
+var currentDotWord = 'Paris';
+
+function setDotWord(word, btn) {
+  currentDotWord = word;
+  document.querySelectorAll('#word-select-btns button').forEach(function(b){
+    b.classList.add('btn-outline'); b.classList.remove('btn');
+    b.style.background = ''; b.style.borderColor = '';
+  });
+  btn.classList.remove('btn-outline'); btn.classList.add('btn');
+  btn.style.background = DOT_WORDS[word].color;
+  drawDotProduct();
+}
+
+function drawDotProduct() {
+  var cv = document.getElementById('canvas-dot-product'); if (!cv) return;
+  var ctx = cv.getContext('2d'); var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var word = currentDotWord;
+  var wordData = DOT_WORDS[word];
+  var Wi = wordData.W;
+  var d = DOT_H.length;
+  var products = DOT_H.map(function(h, i){ return h * Wi[i]; });
+  var logit = products.reduce(function(a,b){ return a+b; }, 0);
+
+  // Layout: 3 row sections
+  // Row 1 (y≈30): h bars
+  // Row 2 (y≈120): W_i bars
+  // Row 3 (y≈210): product bars + sum
+  var padL = 52, padR = 60, padT = 18;
+  var colW = (W - padL - padR) / d;
+  var rowH = 70, rowGap = 22;
+
+  // Row labels
+  var rowLabels = [
+    { text:'h  (context vector)', color:'#74c0fc', y: padT },
+    { text:'W_i  (word: "'+word+'")', color: wordData.color, y: padT + rowH + rowGap },
+    { text:'h × W_i  (element products)', color:'#f7b731', y: padT + 2*(rowH+rowGap) }
+  ];
+  rowLabels.forEach(function(r){
+    ctx.fillStyle = r.color; ctx.font = 'bold 11px Inter'; ctx.textAlign = 'left';
+    ctx.fillText(r.text, 0, r.y + 12);
+  });
+
+  // Draw the three rows of bars
+  [DOT_H, Wi, products].forEach(function(vals, row) {
+    var rowY = padT + row*(rowH+rowGap);
+    var col = row===0 ? '#74c0fc' : row===1 ? wordData.color : '#f7b731';
+    var maxAbs = 1.0;
+
+    vals.forEach(function(v, i) {
+      var cx = padL + i*colW + colW/2;
+      var bww = colW*0.55;
+      var bx = cx - bww/2;
+      var midY = rowY + rowH*0.5;
+      var scale = rowH * 0.38;
+      var bh = Math.abs(v) * scale;
+      var by = v >= 0 ? midY - bh : midY;
+
+      // Zero line
+      ctx.strokeStyle = '#2a3060'; ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(padL, midY); ctx.lineTo(W-padR, midY); ctx.stroke();
+
+      drawRoundedRect(ctx, bx, by, bww, Math.max(bh,2), 3, col+'55', col, 1.5);
+
+      // Value
+      ctx.fillStyle = col; ctx.font = 'bold 10px JetBrains Mono'; ctx.textAlign='center';
+      ctx.fillText(v.toFixed(2), cx, v>=0 ? by-4 : by+bh+11);
+
+      // Dimension label (only on last row)
+      if (row === 2) {
+        ctx.fillStyle = '#8892b0'; ctx.font = '9px Inter'; ctx.textAlign='center';
+        DOT_DIM_LABELS[i].split('\n').forEach(function(l, li){
+          ctx.fillText(l, cx, rowY+rowH+8+li*10);
+        });
+      }
+
+      // ×  and + signs between rows
+      if (row < 2) {
+        ctx.fillStyle = '#8892b0'; ctx.font = '14px Inter'; ctx.textAlign='center';
+        ctx.fillText(row===0?'×':'+', cx, padT+(row+1)*(rowH+rowGap)-8);
+      }
+    });
+  });
+
+  // Summation: draw Σ and = logit box on the right
+  var sumY = padT + 2*(rowH+rowGap) + rowH*0.5;
+  var sumX = W - padR + 8;
+  ctx.fillStyle = '#8892b0'; ctx.font = '16px serif'; ctx.textAlign = 'left';
+  ctx.fillText('Σ =', sumX, sumY+6);
+  var logitColor = logit > 1.5 ? '#51cf66' : logit > 0 ? '#f7b731' : '#ff6b6b';
+  drawRoundedRect(ctx, sumX, sumY+12, padR-10, 24, 6, logitColor+'22', logitColor, 2);
+  ctx.fillStyle = logitColor; ctx.font = 'bold 13px JetBrains Mono'; ctx.textAlign = 'center';
+  ctx.fillText(logit.toFixed(2), sumX+(padR-10)/2, sumY+28);
+  ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter'; ctx.textAlign='center';
+  ctx.fillText('logit', sumX+(padR-10)/2, sumY+46);
+
+  // Verdict
+  var allLogits = {};
+  Object.keys(DOT_WORDS).forEach(function(w){
+    var wProds = DOT_H.map(function(h,i){ return h*DOT_WORDS[w].W[i]; });
+    allLogits[w] = wProds.reduce(function(a,b){return a+b;},0);
+  });
+  var sorted = Object.keys(allLogits).sort(function(a,b){ return allLogits[b]-allLogits[a]; });
+  var rank = sorted.indexOf(word)+1;
+
+  var vEl = document.getElementById('dot-product-verdict');
+  var prodStr = DOT_H.map(function(h,i){ return '('+h.toFixed(2)+'×'+Wi[i].toFixed(2)+')'; }).join(' + ');
+  vEl.innerHTML =
+    '<strong style="color:'+wordData.color+';">"'+word+'"</strong> logit = '+prodStr+' = <strong style="color:'+logitColor+';">'+logit.toFixed(3)+'</strong>'+
+    '<br>Rank among these 4 words: <strong>#'+rank+'</strong> — '+
+    (rank===1 ? '✓ Highest logit, highest probability after softmax.'
+               : 'Lower logit than "'+sorted[0]+'". After softmax, this word gets a lower probability.')+
+    '<br><span style="color:var(--muted);font-size:12px;">All logits: '+sorted.map(function(w){ return w+'='+allLogits[w].toFixed(2); }).join(', ')+'</span>';
+  vEl.style.borderColor = wordData.color+'55';
+}
+
+/* =====================================================
    LOGITS EXPLAINER CANVASES
 ===================================================== */
 var LOGIT_WORDS = ['Paris','located','city','the','cheese','banana'];
@@ -2284,6 +2538,8 @@ function drawTempExtreme() {
 drawVocabProbs();
 drawGreedyProbs();
 drawBeamTree();
+drawLLMPipeline();
+drawDotProduct();
 drawLogitsRaw();
 drawLogitsProbs();
 drawLogitInteractive();
