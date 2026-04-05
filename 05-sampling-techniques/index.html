@@ -448,9 +448,119 @@ window.addEventListener('load', function(){ var el=document.getElementById('pg-i
     <p><strong style="color:#4ecdc4;">Key weakness:</strong> Temperature is a one-size-fits-all knob. It reshapes ALL the probabilities by the same amount, regardless of whether the current word slot is obvious (only one good choice) or ambiguous (many equally good choices). It needs a smarter companion.</p>
   </div>
 
-  <div class="section-bridge">
-    <span class="section-bridge-text">What if we only allowed the AI to choose from a fixed number of top words?</span>
-    <a class="section-bridge-link" href="#s-topk">④ Top-K Sampling →</a>
+  <!-- MATH DEEP DIVE -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">The Mathematics — How Temperature Actually Works</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:16px;">Every AI language model produces raw scores called <strong>logits</strong> — one number per word in the vocabulary. Temperature reshapes these scores before converting them to probabilities. Here's the exact formula:</p>
+
+    <!-- Formula display -->
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:20px 24px;margin-bottom:20px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#4ecdc4;margin-bottom:14px;">The Temperature Formula (Step by Step)</div>
+
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <!-- Step 1 -->
+        <div style="display:flex;gap:14px;align-items:flex-start;">
+          <div style="min-width:28px;height:28px;border-radius:50%;background:rgba(78,205,196,0.2);border:1px solid #4ecdc4;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#4ecdc4;flex-shrink:0;">1</div>
+          <div>
+            <div style="font-size:13px;color:var(--text);margin-bottom:4px;font-weight:600;">Start with raw logits (model's raw scores)</div>
+            <div class="formula" style="margin:0;font-size:13px;">z₁, z₂, z₃, ... , z_V   (one score per word in vocabulary V)</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:4px;">Example: z_Paris = 4.2,  z_city = 1.6,  z_cheese = -1.4</div>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div style="display:flex;gap:14px;align-items:flex-start;">
+          <div style="min-width:28px;height:28px;border-radius:50%;background:rgba(78,205,196,0.2);border:1px solid #4ecdc4;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#4ecdc4;flex-shrink:0;">2</div>
+          <div>
+            <div style="font-size:13px;color:var(--text);margin-bottom:4px;font-weight:600;">Divide every logit by temperature T</div>
+            <div class="formula" style="margin:0;font-size:13px;">scaled logit = zᵢ / T</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:4px;">T &lt; 1 → dividing by a small number makes the scores <em>more extreme</em> (gaps get bigger)<br>T &gt; 1 → dividing by a large number makes the scores <em>closer together</em> (gaps shrink)<br>T = 1 → scores unchanged</div>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div style="display:flex;gap:14px;align-items:flex-start;">
+          <div style="min-width:28px;height:28px;border-radius:50%;background:rgba(78,205,196,0.2);border:1px solid #4ecdc4;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#4ecdc4;flex-shrink:0;">3</div>
+          <div>
+            <div style="font-size:13px;color:var(--text);margin-bottom:4px;font-weight:600;">Apply softmax to convert to probabilities (0–100% each, all summing to 100%)</div>
+            <div class="formula" style="margin:0;font-size:14px;">         exp(zᵢ / T)
+p(word_i) = ─────────────────
+             Σⱼ exp(zⱼ / T)</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:4px;">exp() = e^x, a standard math function. The denominator sums over <em>all</em> words, ensuring probabilities add to 1.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- What happens at the extremes -->
+    <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--text);">Why T Can Go From 0 to Infinity — and What Happens at the Extremes</div>
+    <canvas id="canvas-temp-extremes" width="640" height="260" style="width:100%;max-width:640px;margin-bottom:16px;"></canvas>
+
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px;" id="temp-extreme-labels">
+      <div style="text-align:center;padding:8px 4px;background:rgba(116,192,252,0.08);border:1px solid rgba(116,192,252,0.3);border-radius:8px;">
+        <div style="font-size:18px;">→ 0</div>
+        <div style="font-size:11px;font-weight:700;color:#74c0fc;margin:4px 0;">T → 0</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.4;">One word gets 100%. Identical to Greedy.</div>
+      </div>
+      <div style="text-align:center;padding:8px 4px;background:rgba(78,205,196,0.08);border:1px solid rgba(78,205,196,0.3);border-radius:8px;">
+        <div style="font-size:18px;">🥶</div>
+        <div style="font-size:11px;font-weight:700;color:#4ecdc4;margin:4px 0;">T = 0.5</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.4;">Sharper than original. Top word very dominant.</div>
+      </div>
+      <div style="text-align:center;padding:8px 4px;background:rgba(81,207,102,0.08);border:1px solid rgba(81,207,102,0.3);border-radius:8px;">
+        <div style="font-size:18px;">✓</div>
+        <div style="font-size:11px;font-weight:700;color:#51cf66;margin:4px 0;">T = 1.0</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.4;">Original distribution. No change.</div>
+      </div>
+      <div style="text-align:center;padding:8px 4px;background:rgba(255,107,107,0.08);border:1px solid rgba(255,107,107,0.3);border-radius:8px;">
+        <div style="font-size:18px;">🔥</div>
+        <div style="font-size:11px;font-weight:700;color:#ff6b6b;margin:4px 0;">T = 2.0</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.4;">Flatter. All words more equally likely.</div>
+      </div>
+      <div style="text-align:center;padding:8px 4px;background:rgba(255,107,107,0.12);border:1px solid rgba(255,107,107,0.5);border-radius:8px;">
+        <div style="font-size:18px;">💥</div>
+        <div style="font-size:11px;font-weight:700;color:#ff6b6b;margin:4px 0;">T → ∞</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.4;">Perfectly uniform. All words equally likely.</div>
+      </div>
+    </div>
+
+    <!-- T = infinity explainer -->
+    <div style="background:rgba(255,107,107,0.07);border:1px solid rgba(255,107,107,0.35);border-radius:10px;padding:16px 18px;margin-bottom:16px;">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#ff6b6b;margin-bottom:10px;">What Happens at T = ∞?</div>
+      <p style="font-size:13px;color:var(--text);line-height:1.7;margin-bottom:10px;">As T grows very large, every logit <span style="font-family:'JetBrains Mono'">zᵢ/T → 0</span>. And <span style="font-family:'JetBrains Mono'">exp(0) = 1</span> for every word. So every word gets the same numerator, and the formula becomes:</p>
+      <div class="formula" style="font-size:13px;">p(word_i) = 1 / |V|    (identical for every word)</div>
+      <p style="font-size:13px;color:var(--text);line-height:1.7;margin-top:10px;">With a vocabulary of ~50,000 words, each word gets exactly <strong>0.002% probability</strong>. The AI is rolling a 50,000-sided die. "Paris" has the exact same chance as "banana" or "seventeen" or any nonsense word. The model's learned knowledge becomes completely irrelevant — it's pure noise.</p>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap;">
+        <div style="background:var(--bg);border-radius:8px;padding:10px 14px;font-size:13px;flex:1;min-width:180px;">
+          <span style="color:var(--muted);">At T=1:</span> "Paris" = <span style="color:#7c6af4;font-weight:700;">52%</span>, "banana" = <span style="color:#ff6b6b;">0.001%</span>
+        </div>
+        <div style="font-size:16px;color:var(--muted);">→</div>
+        <div style="background:var(--bg);border-radius:8px;padding:10px 14px;font-size:13px;flex:1;min-width:180px;">
+          <span style="color:var(--muted);">At T=∞:</span> "Paris" = <span style="color:#ff6b6b;font-weight:700;">0.002%</span>, "banana" = <span style="color:#ff6b6b;font-weight:700;">0.002%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- T = 0 explainer -->
+    <div style="background:rgba(116,192,252,0.07);border:1px solid rgba(116,192,252,0.35);border-radius:10px;padding:16px 18px;">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#74c0fc;margin-bottom:10px;">What Happens at T → 0?</div>
+      <p style="font-size:13px;color:var(--text);line-height:1.7;">As T shrinks toward 0, dividing by a tiny number amplifies score gaps enormously. The highest-scoring word's probability approaches <strong>100%</strong>; all others approach <strong>0%</strong>. This is exactly greedy decoding — always picking the single most likely word, no randomness.</p>
+      <div class="formula" style="font-size:13px;">As T → 0:  p(argmax word) → 1.0,  p(all others) → 0.0</div>
+      <p style="font-size:12px;color:var(--muted);margin-top:8px;">This is why T=0 is impossible to compute directly (division by zero) — but T=0.01 is effectively identical to greedy decoding in practice.</p>
+    </div>
+  </div>
+
+  <!-- Interactive T=∞ demo -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Interactive: Extend the Slider to Extremes</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">The slider below extends to T=50 so you can watch the distribution flatten toward uniformity. Compare what you see to the standard 0–2 range above.</p>
+    <div class="sl-row">
+      <span class="sl-lbl">Temperature T</span>
+      <input type="range" id="temp-extreme-slider" min="0.01" max="50" step="0.1" value="1.0" oninput="drawTempExtreme()">
+      <span class="sl-val" id="temp-extreme-val">T = 1.00</span>
+    </div>
+    <canvas id="canvas-temp-extreme-live" width="640" height="200" style="width:100%;max-width:640px;margin-top:8px;"></canvas>
+    <div id="temp-extreme-verdict" style="margin-top:10px;font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);"></div>
   </div>
 </section>
 
@@ -1762,12 +1872,151 @@ function scatterClick(evt) {
 }
 
 /* =====================================================
+   TEMPERATURE EXTREMES PANEL (5 columns)
+===================================================== */
+function drawTempExtremes() {
+  var cv = document.getElementById('canvas-temp-extremes'); if (!cv) return;
+  var ctx = cv.getContext('2d'); var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var temps   = [0.05, 0.5, 1.0, 2.0, 999];
+  var labels  = ['T → 0', 'T = 0.5', 'T = 1.0', 'T = 2.0', 'T → ∞'];
+  var colors  = ['#74c0fc', '#4ecdc4', '#51cf66', '#f7b731', '#ff6b6b'];
+  var n = temps.length;
+  var panelW = W / n;
+  var WORDS = ['found','walked','saw','built','ran','flew','danced','vanished'];
+
+  temps.forEach(function(T, ti) {
+    var probs = softmaxTemp(TEMP_LOGITS, T);
+    var panelX = ti * panelW;
+    var padL = panelX + 8, padR = panelX + panelW - 8;
+    var bw = (panelW - 16) / WORDS.length;
+    var padT = 36, padB = 44;
+    var maxH = H - padT - padB;
+    var maxP = T < 0.1 ? 1.0 : (T > 100 ? 0.2 : Math.max.apply(null, probs));
+
+    // Panel bg
+    ctx.fillStyle = colors[ti]+'11';
+    ctx.fillRect(panelX, 0, panelW, H);
+    if (ti < n-1) {
+      ctx.strokeStyle = '#2a3060'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(panelX+panelW, 0); ctx.lineTo(panelX+panelW, H); ctx.stroke();
+    }
+
+    // Title
+    ctx.fillStyle = colors[ti]; ctx.font = 'bold 12px Inter'; ctx.textAlign = 'center';
+    ctx.fillText(labels[ti], panelX + panelW/2, 18);
+
+    // Bars
+    probs.forEach(function(p, i) {
+      var displayP = T > 100 ? 1/WORDS.length : p;
+      var bh = (displayP / Math.max(maxP, 0.001)) * maxH * 0.85;
+      var x = padL + i * bw + bw*0.1;
+      var bww = bw * 0.8;
+      var y = H - padB - bh;
+      drawRoundedRect(ctx, x, y, bww, Math.max(bh,1), 2, colors[ti]+'55', colors[ti], 1);
+    });
+
+    // Highlight T=0 case — single dominant bar
+    if (T < 0.1) {
+      ctx.fillStyle = '#74c0fc'; ctx.font = '10px Inter'; ctx.textAlign = 'center';
+      ctx.fillText('100%', padL + 0*bw + bw*0.5, H-padB - maxH*0.85 - 6);
+    }
+
+    // Uniform line for T=∞
+    if (T > 100) {
+      var uniformH = (1/WORDS.length / maxP) * maxH * 0.85;
+      ctx.strokeStyle = '#ff6b6b'; ctx.lineWidth = 1.5; ctx.setLineDash([3,3]);
+      ctx.beginPath(); ctx.moveTo(panelX+8, H-padB-uniformH); ctx.lineTo(panelX+panelW-8, H-padB-uniformH); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#ff6b6b'; ctx.font = '10px Inter'; ctx.textAlign = 'center';
+      ctx.fillText('all equal', panelX+panelW/2, H-padB-uniformH-6);
+    }
+
+    // Bottom caption
+    var maxPct = T < 0.1 ? '100' : (T > 100 ? (100/WORDS.length).toFixed(1) : (probs[0]*100).toFixed(0));
+    ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter'; ctx.textAlign = 'center';
+    ctx.fillText('top word: ' + maxPct + '%', panelX + panelW/2, H-8);
+  });
+}
+
+/* =====================================================
+   TEMPERATURE EXTREME LIVE SLIDER
+===================================================== */
+function drawTempExtreme() {
+  var cv = document.getElementById('canvas-temp-extreme-live'); if (!cv) return;
+  var ctx = cv.getContext('2d'); var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var T = parseFloat(document.getElementById('temp-extreme-slider').value);
+  document.getElementById('temp-extreme-val').textContent = T >= 50 ? 'T → ∞ (50+)' : 'T = '+T.toFixed(2);
+
+  var probs = softmaxTemp(TEMP_LOGITS, T);
+  var n = probs.length;
+  var padL = 48, padR = 20, padT = 20, padB = 46;
+  var bw = (W-padL-padR)/n;
+  var maxH = H-padT-padB;
+
+  // Axes
+  ctx.strokeStyle = '#2a3060'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(padL,padT); ctx.lineTo(padL,H-padB); ctx.lineTo(W-padR,H-padB); ctx.stroke();
+
+  // Uniform reference line (1/n)
+  var uniformY = (H-padB) - (1/n)/0.7*maxH;
+  ctx.strokeStyle = '#8892b0'; ctx.lineWidth = 1; ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(padL, uniformY); ctx.lineTo(W-padR, uniformY); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter'; ctx.textAlign = 'left';
+  ctx.fillText('uniform (T=∞): '+(100/n).toFixed(1)+'% each', padL+4, uniformY-4);
+
+  // Determine color zone
+  var barColor = T < 0.5 ? '#74c0fc' : T < 1.2 ? '#4ecdc4' : T < 5 ? '#f7b731' : '#ff6b6b';
+
+  probs.forEach(function(p, i) {
+    var bh = (p/0.7)*maxH;
+    var x = padL+i*bw+bw*0.15;
+    var bww = bw*0.7;
+    var y = H-padB-bh;
+    drawRoundedRect(ctx, x, y, bww, bh, 3, barColor+'66', barColor, 1.5);
+    ctx.fillStyle = barColor; ctx.font='10px JetBrains Mono'; ctx.textAlign='center';
+    ctx.fillText((p*100).toFixed(1)+'%', x+bww/2, y-5);
+    ctx.save();
+    ctx.translate(x+bww/2, H-padB+8);
+    ctx.rotate(Math.PI/6);
+    ctx.fillStyle='#8892b0'; ctx.font='10px Inter'; ctx.textAlign='left';
+    ctx.fillText(TEMP_WORDS[i], 0, 0);
+    ctx.restore();
+  });
+
+  // Verdict
+  var vEl = document.getElementById('temp-extreme-verdict');
+  var topPct = (probs[0]*100).toFixed(1);
+  var botPct = (probs[n-1]*100).toFixed(1);
+  var uniformPct = (100/n).toFixed(1);
+  if (T < 0.1) {
+    vEl.innerHTML = '<strong style="color:#74c0fc;">T ≈ 0 (effectively Greedy).</strong> Top word "'+TEMP_WORDS[0]+'" gets ~100%. This is why T=0 equals greedy decoding.';
+  } else if (T < 0.5) {
+    vEl.innerHTML = '<strong style="color:#74c0fc;">Cold.</strong> Top word has <strong>'+topPct+'%</strong>, last word has <strong>'+botPct+'%</strong>. Very focused on the most likely choice.';
+  } else if (T <= 1.2) {
+    vEl.innerHTML = '<strong style="color:#4ecdc4;">Balanced.</strong> Top word has <strong>'+topPct+'%</strong>, last word has <strong>'+botPct+'%</strong>. Natural probability distribution preserved.';
+  } else if (T < 10) {
+    vEl.innerHTML = '<strong style="color:#f7b731;">Hot.</strong> Top word at <strong>'+topPct+'%</strong>, last word at <strong>'+botPct+'%</strong>. Gap between words is shrinking. Uniform is <strong>'+uniformPct+'%</strong>.';
+  } else if (T < 40) {
+    vEl.innerHTML = '<strong style="color:#ff6b6b;">Very hot.</strong> Top word at <strong>'+topPct+'%</strong>. Approaching uniform (<strong>'+uniformPct+'%</strong>). The model\'s learned preferences almost completely erased.';
+  } else {
+    vEl.innerHTML = '<strong style="color:#ff6b6b;">T → ∞.</strong> All words ≈ <strong>'+uniformPct+'%</strong>. The AI\'s learned knowledge is irrelevant. Rolling a '+n+'-sided die. In a real 50,000-word vocabulary, every word would have 0.002%.';
+  }
+}
+
+/* =====================================================
    INIT ALL
 ===================================================== */
 drawVocabProbs();
 drawGreedyProbs();
 drawBeamTree();
 drawTempDist();
+drawTempExtremes();
+drawTempExtreme();
 drawTopK();
 drawNucleus();
 drawTail();
