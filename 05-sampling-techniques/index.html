@@ -172,6 +172,7 @@ window.addEventListener('load', function(){ var el=document.getElementById('pg-i
   <div class="nav-group">
     <div class="nav-group-title">The Problem</div>
     <a class="nav-link" href="#s-problem" onclick="setActive(this)"><span class="dot" style="background:#ff6b6b"></span>Why AI Writing Goes Wrong</a>
+    <a class="nav-link" href="#s-foundation" onclick="setActive(this)"><span class="dot" style="background:#f78fb3"></span>How the Model Works</a>
   </div>
   <div class="nav-group">
     <div class="nav-group-title">Deterministic Methods</div>
@@ -198,6 +199,8 @@ window.addEventListener('load', function(){ var el=document.getElementById('pg-i
 <!-- PIPELINE MAP -->
 <div class="pipeline-map" id="pipeline-map">
   <a class="pipe-step" href="#s-problem"><span class="pipe-dot" style="background:#ff6b6b"></span>The Problem</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-foundation"><span class="pipe-dot" style="background:#f78fb3"></span>How It Works</a>
   <span class="pipe-arrow">›</span>
   <a class="pipe-step" href="#s-greedy"><span class="pipe-dot" style="background:#f7b731"></span>① Greedy</a>
   <span class="pipe-arrow">›</span>
@@ -282,7 +285,143 @@ window.addEventListener('load', function(){ var el=document.getElementById('pg-i
   </div>
 </section>
 
-<!-- ===== SECTION 2: s-greedy ===== -->
+<!-- ===== SECTION 2: s-foundation ===== -->
+<section class="section" id="s-foundation">
+  <div class="section-tag" style="color:#f78fb3">Foundation — Before the 6 Techniques</div>
+  <div class="section-title" style="color:#f78fb3">How the Model Picks Its Next Word</div>
+  <div class="section-sub">Before comparing strategies, you need to understand the machinery underneath. Every sampling technique works with two things: <strong>logits</strong> (raw scores the model produces) and <strong>probabilities</strong> (what sampling actually uses). Here's where both come from.</div>
+
+  <!-- HOW LOGITS ARE COMPUTED -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">The Full Pipeline: From Your Prompt to a Probability Score</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:16px;">Every time the model needs to pick the next word, it runs through this pipeline — compress the entire conversation into a single vector, then score every word in the vocabulary against it:</p>
+    <canvas id="canvas-llm-pipeline" width="640" height="130" style="width:100%;max-width:640px;margin-bottom:20px;"></canvas>
+
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin-bottom:20px;">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#f7b731;margin-bottom:14px;">The Logit Formula (One Line)</div>
+      <div class="formula" style="font-size:15px;letter-spacing:0.5px;">logit(word_i)  =  h · W_i  =  h₁×W_i₁ + h₂×W_i₂ + … + h_d×W_id</div>
+      <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div style="font-family:'JetBrains Mono';font-size:13px;color:#74c0fc;min-width:30px;font-weight:700;">h</div>
+          <div style="font-size:13px;color:var(--muted);line-height:1.6;">The <strong style="color:var(--text);">hidden state</strong> — a vector of ~4,096 numbers that summarises everything the model knows about the context so far. It's the output of all the transformer layers.</div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div style="font-family:'JetBrains Mono';font-size:13px;color:#f78fb3;min-width:30px;font-weight:700;">W_i</div>
+          <div style="font-size:13px;color:var(--muted);line-height:1.6;">The <strong style="color:var(--text);">word weight row</strong> for word i — also ~4,096 numbers, one row of the vocabulary weight matrix. Encodes "what this word looks like." Learned during training.</div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div style="font-family:'JetBrains Mono';font-size:13px;color:#f7b731;min-width:30px;font-weight:700;">·</div>
+          <div style="font-size:13px;color:var(--muted);line-height:1.6;">The <strong style="color:var(--text);">dot product</strong> — multiply matching elements, sum them all. Higher = word i fits this context well.</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">Interactive: Watch the Dot Product Compute a Logit</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Simplified to <strong>4 dimensions</strong> (real models use ~4,096). Context: <span style="font-family:'JetBrains Mono';color:var(--text);">"The capital of France is ___"</span>. Select a word to see its dot product with the context vector computed step by step.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;" id="word-select-btns">
+      <button class="btn" style="background:#7c6af4;" onclick="setDotWord('Paris',this)">Paris</button>
+      <button class="btn btn-outline" onclick="setDotWord('city',this)">city</button>
+      <button class="btn btn-outline" onclick="setDotWord('located',this)">located</button>
+      <button class="btn btn-outline" onclick="setDotWord('banana',this)">banana</button>
+    </div>
+    <canvas id="canvas-dot-product" width="640" height="300" style="width:100%;max-width:640px;margin-bottom:12px;"></canvas>
+    <div id="dot-product-verdict" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);"></div>
+
+    <div style="background:rgba(124,106,244,0.07);border:1px solid rgba(124,106,244,0.3);border-radius:10px;padding:14px 18px;margin-top:16px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#7c6af4;margin-bottom:8px;">Where Do the Weights W Come From?</div>
+      <p style="font-size:13px;color:var(--text);line-height:1.7;">W is <strong>learned during training</strong>. Every time the model predicted the wrong word, training slightly adjusted the weights so the correct word scores higher. After trillions of tokens, the weights encode a deep understanding of which words follow which contexts.</p>
+      <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+        <div style="background:var(--bg);border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:20px;margin-bottom:4px;">📚</div>
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px;">Llama-3 (8B)</div>
+          <div style="font-size:11px;color:var(--muted);">h = 4,096 dims<br>W = 128k × 4,096<br>= ~500M logit weights</div>
+        </div>
+        <div style="background:var(--bg);border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:20px;margin-bottom:4px;">🧠</div>
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px;">GPT-4 class</div>
+          <div style="font-size:11px;color:var(--muted);">h ≈ 12,288 dims<br>W ≈ 100k × 12,288<br>= ~1.2B logit weights</div>
+        </div>
+        <div style="background:var(--bg);border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:20px;margin-bottom:4px;">⏱</div>
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px;">Per token</div>
+          <div style="font-size:11px;color:var(--muted);">All ~50k–100k dot<br>products computed<br>in one GPU step</div>
+        </div>
+      </div>
+    </div>
+    <div class="analogy-card" style="margin-top:16px;">
+      <div class="analogy-label">Everyday Analogy</div>
+      <p>"Imagine you're a matchmaker. You have a client profile h ('wants: outdoorsy, funny, tall'). You have a database of candidates, each with their own profile W_i. The dot product is the compatibility score. The candidate with the highest score is your top pick. That's what the model does — with 4,096 traits and 50,000 candidates, in milliseconds."</p>
+    </div>
+  </div>
+
+  <!-- WHAT ARE LOGITS -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">What Are Logits — and How Do They Become Probabilities?</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:16px;">The dot products above are called <strong>logits</strong> — raw confidence scores, one per word. They can't be used directly for sampling because they can be negative and don't sum to 100%. <strong>Softmax</strong> converts them:</p>
+
+    <div class="g2" style="gap:16px;margin-bottom:16px;">
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#ff6b6b;margin-bottom:8px;">Logits — Raw scores (NOT probabilities)</div>
+        <canvas id="canvas-logits-raw" width="300" height="200" style="width:100%;max-width:300px;"></canvas>
+        <div style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5;">✗ Can be negative<br>✗ Don't add up to 100%<br>✗ Can't be used directly</div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#51cf66;margin-bottom:8px;">After Softmax — Probabilities</div>
+        <canvas id="canvas-logits-probs" width="300" height="200" style="width:100%;max-width:300px;"></canvas>
+        <div style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5;">✓ Always between 0% and 100%<br>✓ All words sum to exactly 100%<br>✓ Ready to use for sampling</div>
+      </div>
+    </div>
+
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:16px;">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#f7b731;margin-bottom:12px;">3 Key Properties of Logits</div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div style="min-width:24px;height:24px;border-radius:50%;background:rgba(247,183,49,0.2);border:1px solid #f7b731;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#f7b731;flex-shrink:0;">1</div>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">Any real number — positive or negative</div>
+            <div style="font-size:12px;color:var(--muted);">A word with logit -5.0 has very low (but nonzero) probability. A word with logit +5.0 has a high probability.</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div style="min-width:24px;height:24px;border-radius:50%;background:rgba(247,183,49,0.2);border:1px solid #f7b731;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#f7b731;flex-shrink:0;">2</div>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">Only the <em>gaps</em> between logits matter</div>
+            <div style="font-size:12px;color:var(--muted);">[4, 2, -1] gives identical probabilities to [104, 102, 99]. Temperature works by dividing (shrinking gaps), not adding.</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div style="min-width:24px;height:24px;border-radius:50%;background:rgba(247,183,49,0.2);border:1px solid #f7b731;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#f7b731;flex-shrink:0;">3</div>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">Softmax converts logits → probabilities</div>
+            <div style="font-size:12px;color:var(--muted);">Squashes any set of numbers into values between 0 and 1 that sum to exactly 1.0 (100%). The bridge between raw scores and usable probabilities.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">Interactive: Logit Gaps Control the Probability Distribution</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Compress or expand the logit gaps. Zero gaps → all words equal. Large gaps → one word dominates. This is the core mechanic that temperature sampling manipulates.</p>
+    <div class="sl-row" style="margin-bottom:4px;">
+      <span class="sl-lbl">Logit gap (spread)</span>
+      <input type="range" id="logit-gap-slider" min="0" max="3" step="0.05" value="1.0" oninput="drawLogitInteractive()">
+      <span class="sl-val" id="logit-gap-val">gap = 1.0×</span>
+    </div>
+    <canvas id="canvas-logit-interactive" width="640" height="260" style="width:100%;max-width:640px;margin-bottom:10px;"></canvas>
+    <div id="logit-gap-verdict" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);"></div>
+
+    <div class="analogy-card" style="margin-top:16px;">
+      <div class="analogy-label">Everyday Analogy</div>
+      <p>"Logits are like raw exam scores before grading. Student A: 85, B: 72, C: 40. Those numbers can't tell you the pass rate directly — you need to normalise them (softmax). And if all scores are within 1 point (small gap), it's a near-tie. If one student scores 200 points above everyone (large gap), they dominate — just like a high-logit word dominates probability."</p>
+    </div>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">Foundation set. Now let's explore what each strategy does with these probability scores:</span>
+    <a class="section-bridge-link" href="#s-foundation">How the Model Works →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 2: s-foundation ===== -->
 <section class="section" id="s-greedy">
   <div class="section-tag" style="color:#f7b731">Technique ① of 6</div>
   <div class="section-title" style="color:#f7b731">Greedy Decoding</div>
@@ -448,154 +587,10 @@ window.addEventListener('load', function(){ var el=document.getElementById('pg-i
     <p><strong style="color:#4ecdc4;">Key weakness:</strong> Temperature is a one-size-fits-all knob. It reshapes ALL the probabilities by the same amount, regardless of whether the current word slot is obvious (only one good choice) or ambiguous (many equally good choices). It needs a smarter companion.</p>
   </div>
 
-  <!-- LOGITS EXPLAINER -->
-  <div class="card" style="margin-bottom:24px;">
-    <div class="card-title">First: What Are Logits?</div>
-    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:16px;">Before any sampling happens, the AI model produces raw numbers called <strong>logits</strong> — one number for every word in the vocabulary (~50,000 words). Think of them as the model's raw "confidence votes" — not yet probabilities, just scores. They can be positive, negative, or zero.</p>
-
-    <!-- Logits vs Probs side by side -->
-    <div class="g2" style="gap:16px;margin-bottom:16px;">
-      <div>
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#ff6b6b;margin-bottom:8px;">Logits — Raw scores (NOT probabilities)</div>
-        <canvas id="canvas-logits-raw" width="300" height="200" style="width:100%;max-width:300px;"></canvas>
-        <div style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5;">
-          ✗ Can be negative<br>✗ Don't add up to 100%<br>✗ Can't be used directly
-        </div>
-      </div>
-      <div>
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#51cf66;margin-bottom:8px;">After Softmax — Probabilities</div>
-        <canvas id="canvas-logits-probs" width="300" height="200" style="width:100%;max-width:300px;"></canvas>
-        <div style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5;">
-          ✓ Always between 0% and 100%<br>✓ All words sum to exactly 100%<br>✓ Ready to use for sampling
-        </div>
-      </div>
-    </div>
-
-    <!-- Key properties -->
-    <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:16px;">
-      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#f7b731;margin-bottom:12px;">3 Key Properties of Logits</div>
-      <div style="display:flex;flex-direction:column;gap:12px;">
-        <div style="display:flex;gap:12px;align-items:flex-start;">
-          <div style="min-width:24px;height:24px;border-radius:50%;background:rgba(247,183,49,0.2);border:1px solid #f7b731;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#f7b731;flex-shrink:0;">1</div>
-          <div>
-            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">Any real number — positive or negative</div>
-            <div style="font-size:12px;color:var(--muted);">There's no rule that logits must be positive. A word with logit -5.0 simply has a very low (but nonzero) probability. A word with logit +5.0 has a high probability.</div>
-          </div>
-        </div>
-        <div style="display:flex;gap:12px;align-items:flex-start;">
-          <div style="min-width:24px;height:24px;border-radius:50%;background:rgba(247,183,49,0.2);border:1px solid #f7b731;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#f7b731;flex-shrink:0;">2</div>
-          <div>
-            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">Only the <em>gaps</em> between logits matter — not the absolute values</div>
-            <div style="font-size:12px;color:var(--muted);">Adding the same number to every logit produces identical probabilities. [4, 2, -1] gives the same result as [104, 102, 99]. This is why temperature works by <em>dividing</em> (changing gaps), not adding.</div>
-          </div>
-        </div>
-        <div style="display:flex;gap:12px;align-items:flex-start;">
-          <div style="min-width:24px;height:24px;border-radius:50%;background:rgba(247,183,49,0.2);border:1px solid #f7b731;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#f7b731;flex-shrink:0;">3</div>
-          <div>
-            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">Softmax converts logits → probabilities</div>
-            <div style="font-size:12px;color:var(--muted);">The softmax function squashes any set of numbers into values between 0 and 1 that sum to exactly 1.0 (100%). It's the bridge between raw scores and usable probabilities.</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Interactive: gap slider -->
-    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;">Interactive: Watch Logit Gaps Control the Probability Distribution</div>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Drag the <strong>Gap</strong> slider to spread or compress the logit values. Notice: <strong>larger gaps → more lopsided probabilities</strong>. Zero gaps → all words equally likely. This is exactly how temperature works — it changes the effective gap size.</p>
-
-    <div class="sl-row" style="margin-bottom:4px;">
-      <span class="sl-lbl">Logit gap (spread)</span>
-      <input type="range" id="logit-gap-slider" min="0" max="3" step="0.05" value="1.0" oninput="drawLogitInteractive()">
-      <span class="sl-val" id="logit-gap-val">gap = 1.0×</span>
-    </div>
-    <canvas id="canvas-logit-interactive" width="640" height="260" style="width:100%;max-width:640px;margin-bottom:10px;"></canvas>
-    <div id="logit-gap-verdict" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);"></div>
-
-    <div class="analogy-card" style="margin-top:16px;">
-      <div class="analogy-label">Everyday Analogy</div>
-      <p>"Logits are like raw exam scores before grading. Student A scored 85, B scored 72, C scored 40. Those raw numbers don't directly tell you the <em>percentage</em> pass rate — you need to convert them first (like softmax does). And if everyone's scores were all within 1 point of each other (small gaps), it would be a near-tie. If one student scored 200 points above everyone (large gap), they dominate — just like a high-logit word dominates the probability."</p>
-    </div>
-  </div>
-
-  <!-- HOW LOGITS ARE COMPUTED -->
-  <div class="card" style="margin-bottom:24px;">
-    <div class="card-title">How Does the Model Compute Logits?</div>
-    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:16px;">Every time the model needs to pick the next word, it runs through a pipeline: compress the entire conversation into a single vector, then score every word in the vocabulary against that vector. Here's the full journey:</p>
-
-    <!-- Full pipeline diagram -->
-    <canvas id="canvas-llm-pipeline" width="640" height="130" style="width:100%;max-width:640px;margin-bottom:20px;"></canvas>
-
-    <!-- The formula -->
-    <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin-bottom:20px;">
-      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#f7b731;margin-bottom:14px;">The Logit Formula (One Line)</div>
-      <div class="formula" style="font-size:15px;letter-spacing:0.5px;">logit(word_i)  =  h · W_i  =  h₁×W_i₁ + h₂×W_i₂ + … + h_d×W_id</div>
-      <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px;">
-        <div style="display:flex;gap:12px;align-items:flex-start;">
-          <div style="font-family:'JetBrains Mono';font-size:13px;color:#74c0fc;min-width:30px;font-weight:700;">h</div>
-          <div style="font-size:13px;color:var(--muted);line-height:1.6;">The <strong style="color:var(--text);">hidden state</strong> — a vector of ~4,096 numbers that summarises everything the model knows about the context so far ("what should come next?"). It's the output of the transformer layers.</div>
-        </div>
-        <div style="display:flex;gap:12px;align-items:flex-start;">
-          <div style="font-family:'JetBrains Mono';font-size:13px;color:#f78fb3;min-width:30px;font-weight:700;">W_i</div>
-          <div style="font-size:13px;color:var(--muted);line-height:1.6;">The <strong style="color:var(--text);">word embedding row</strong> for word i — also a vector of ~4,096 numbers, one row in the giant vocabulary weight matrix W. It encodes "what this word looks like in context." Learned during training.</div>
-        </div>
-        <div style="display:flex;gap:12px;align-items:flex-start;">
-          <div style="font-family:'JetBrains Mono';font-size:13px;color:#f7b731;min-width:30px;font-weight:700;">·</div>
-          <div style="font-size:13px;color:var(--muted);line-height:1.6;">The <strong style="color:var(--text);">dot product</strong> — multiply matching elements, then sum them all up. Higher result = h and W_i point in the "same direction" = word i fits this context well.</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Intuition -->
-    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;">Intuition: What Does the Dot Product Actually Measure?</div>
-    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:16px;">Think of each of the ~4,096 dimensions as a "feature" — like "geography-ness", "food-ness", "action-ness". The hidden state h says <em>"I need a word that scores high on geography and low on food."</em> The dot product measures how well each word's feature profile matches that need.</p>
-
-    <!-- Interactive dot product -->
-    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">Interactive: Watch the Dot Product Compute a Logit</div>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Simplified to <strong>4 dimensions</strong> for clarity (real models use ~4,096). Context: <span style="font-family:'JetBrains Mono';color:var(--text);">"The capital of France is ___"</span>. Select a word to see how its dot product with the context vector is computed.</p>
-
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;" id="word-select-btns">
-      <button class="btn" style="background:#7c6af4;" onclick="setDotWord('Paris',this)">Paris</button>
-      <button class="btn btn-outline" onclick="setDotWord('city',this)">city</button>
-      <button class="btn btn-outline" onclick="setDotWord('located',this)">located</button>
-      <button class="btn btn-outline" onclick="setDotWord('banana',this)">banana</button>
-    </div>
-
-    <canvas id="canvas-dot-product" width="640" height="300" style="width:100%;max-width:640px;margin-bottom:12px;"></canvas>
-    <div id="dot-product-verdict" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);"></div>
-
-    <!-- Where do W weights come from -->
-    <div style="background:rgba(124,106,244,0.07);border:1px solid rgba(124,106,244,0.3);border-radius:10px;padding:14px 18px;margin-top:16px;">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#7c6af4;margin-bottom:8px;">Where Do the Weights W Come From?</div>
-      <p style="font-size:13px;color:var(--text);line-height:1.7;">The weight matrix W is <strong>learned during training</strong> on billions of examples. Every time the model predicted the wrong word, the training process slightly adjusted the weights to score the correct word higher. After training on trillions of tokens, the weights encode a rich understanding of language — which words tend to appear in which contexts.</p>
-      <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
-        <div style="background:var(--bg);border-radius:8px;padding:10px;text-align:center;">
-          <div style="font-size:20px;margin-bottom:4px;">📚</div>
-          <div style="font-size:12px;font-weight:600;margin-bottom:4px;">Llama-3 (8B)</div>
-          <div style="font-size:11px;color:var(--muted);">h = 4,096 dims<br>W = 128k × 4,096<br>= ~500M logit weights</div>
-        </div>
-        <div style="background:var(--bg);border-radius:8px;padding:10px;text-align:center;">
-          <div style="font-size:20px;margin-bottom:4px;">🧠</div>
-          <div style="font-size:12px;font-weight:600;margin-bottom:4px;">GPT-4 class</div>
-          <div style="font-size:11px;color:var(--muted);">h ≈ 12,288 dims<br>W ≈ 100k × 12,288<br>= ~1.2B logit weights</div>
-        </div>
-        <div style="background:var(--bg);border-radius:8px;padding:10px;text-align:center;">
-          <div style="font-size:20px;margin-bottom:4px;">⏱</div>
-          <div style="font-size:12px;font-weight:600;margin-bottom:4px;">Per token</div>
-          <div style="font-size:11px;color:var(--muted);">All ~50k–100k dot<br>products computed<br>in one GPU step</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="analogy-card" style="margin-top:16px;">
-      <div class="analogy-label">Everyday Analogy</div>
-      <p>"Imagine you're a matchmaker. You have a client profile h ('wants: outdoorsy, funny, tall'). You have a database of candidates, each with their own profile W_i ('is: outdoorsy 8/10, funny 6/10, tall 9/10'). The dot product is the compatibility score — multiply each trait match and add them up. The candidate with the highest score is your top recommendation. That's exactly what the model does, except with 4,096 traits and 50,000 candidates, in milliseconds."</p>
-    </div>
-  </div>
-
   <!-- MATH DEEP DIVE -->
   <div class="card" style="margin-bottom:24px;">
     <div class="card-title">The Mathematics — How Temperature Actually Works</div>
-    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:16px;">Now that we know what logits are, here's exactly how temperature reshapes them before converting to probabilities:</p>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:16px;">You've seen in the Foundation section that logits are raw scores and softmax converts them to probabilities. Temperature adds one step <em>between</em> them — dividing every logit by T before softmax is applied:</p>
 
     <!-- Formula display -->
     <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:20px 24px;margin-bottom:20px;">
@@ -1063,7 +1058,7 @@ function drawArrow(ctx, x1, y1, x2, y2, color, lw) {
 /* =====================================================
    NAV / SCROLL TRACKING
 ===================================================== */
-var sectionIds = ['s-problem','s-greedy','s-beam','s-temperature','s-topk','s-nucleus','s-compare'];
+var sectionIds = ['s-problem','s-foundation','s-greedy','s-beam','s-temperature','s-topk','s-nucleus','s-compare'];
 
 function setActive(el) {
   document.querySelectorAll('.nav-link').forEach(function(l){ l.classList.remove('active'); });
