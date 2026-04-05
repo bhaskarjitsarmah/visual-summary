@@ -1,0 +1,1796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How AI Generates Text — 6 Sampling Techniques Explained</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0d0f18; --surface:#161a2e; --surface2:#1e2444;
+  --border:#2a3060; --text:#e2e8f0; --muted:#8892b0; --accent:#7c6af4;
+  --teal:#4ecdc4; --amber:#f7b731; --coral:#ff6b6b;
+  --mint:#51cf66; --sky:#74c0fc; --gold:#ffd43b; --pink:#f78fb3;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); display:flex; min-height:100vh; }
+.sidebar { width:250px; background:var(--surface); border-right:1px solid var(--border); position:fixed; top:0; left:0; height:100vh; overflow-y:auto; z-index:100; }
+.sb-header { padding:20px; border-bottom:1px solid var(--border); }
+.sb-header h1 { font-size:14px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:1px; }
+.sb-header p { font-size:11px; color:var(--muted); margin-top:4px; }
+.nav-group { padding:10px 0; border-bottom:1px solid var(--border); }
+.nav-group-title { padding:0 18px 6px; font-size:10px; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); font-weight:600; }
+.nav-link { display:flex; align-items:center; gap:10px; padding:8px 18px; cursor:pointer; border-left:3px solid transparent; transition:all 0.2s; text-decoration:none; color:var(--muted); font-size:13px; }
+.nav-link:hover, .nav-link.active { background:rgba(124,106,244,0.1); color:var(--text); border-left-color:var(--accent); }
+.nav-link.visited .dot::after { content:'✓'; position:absolute; font-size:7px; color:#4ade80; font-weight:900; right:-3px; top:-3px; }
+.nav-link .dot { position:relative; }
+.nav-link.visited { color:var(--text); opacity:0.75; }
+.dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.main { margin-left:250px; flex:1; }
+.section { min-height:100vh; padding:56px 48px; border-bottom:1px solid var(--border); }
+.section-tag { font-size:11px; text-transform:uppercase; letter-spacing:2px; color:var(--accent); font-weight:600; margin-bottom:10px; }
+.section-title { font-size:30px; font-weight:700; margin-bottom:8px; line-height:1.2; }
+.section-sub { font-size:15px; color:var(--muted); max-width:640px; line-height:1.6; margin-bottom:36px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:22px; }
+.card-title { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:14px; }
+.g2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+.g3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:18px; }
+.formula { font-family:'JetBrains Mono',monospace; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:14px 18px; font-size:13px; margin:14px 0; color:#e2b35e; white-space:pre-wrap; overflow-x:auto; }
+.sl-row { display:flex; align-items:center; gap:10px; margin:10px 0; }
+.sl-lbl { font-size:12px; color:var(--muted); min-width:140px; }
+.sl-val { font-family:'JetBrains Mono'; font-size:12px; color:var(--accent); min-width:60px; text-align:right; }
+input[type=range] { -webkit-appearance:none; flex:1; height:6px; border-radius:3px; background:var(--surface2); border:1px solid var(--border); outline:none; cursor:pointer; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:var(--accent); cursor:pointer; border:2px solid var(--bg); }
+.btn { background:var(--accent); color:#fff; border:none; border-radius:8px; padding:10px 20px; font-size:13px; font-weight:600; cursor:pointer; transition:opacity 0.2s; font-family:'Inter',sans-serif; }
+.btn:hover { opacity:0.85; }
+.btn-outline { background:transparent; border:1px solid var(--border); color:var(--text); }
+.btn-outline:hover { background:var(--surface2); opacity:1; }
+.stepper { display:flex; gap:0; margin-bottom:28px; }
+.step-btn { flex:1; padding:12px 8px; border:1px solid var(--border); background:var(--surface); color:var(--muted); cursor:pointer; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; transition:all 0.2s; font-family:'Inter',sans-serif; }
+.step-btn:first-child { border-radius:8px 0 0 8px; }
+.step-btn:last-child { border-radius:0 8px 8px 0; }
+.step-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+.tab-bar { display:flex; gap:2px; margin-bottom:20px; background:var(--bg); border-radius:10px; padding:4px; }
+.tab { padding:8px 18px; border-radius:8px; cursor:pointer; font-size:13px; font-weight:500; color:var(--muted); transition:all 0.2s; border:none; background:transparent; font-family:'Inter',sans-serif; }
+.tab.active { background:var(--surface2); color:var(--text); }
+.toggle-group { display:flex; gap:0; }
+.toggle-btn { padding:8px 16px; border:1px solid var(--border); background:var(--surface); color:var(--muted); cursor:pointer; font-size:12px; font-weight:600; transition:all 0.2s; font-family:'Inter',sans-serif; }
+.toggle-btn:first-child { border-radius:6px 0 0 6px; }
+.toggle-btn:last-child { border-radius:0 6px 6px 0; }
+.toggle-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+canvas { display:block; background:var(--bg); border-radius:8px; border:1px solid var(--border); }
+.analogy-card { background:rgba(78,205,196,0.07); border:1px solid rgba(78,205,196,0.3); border-radius:10px; padding:16px 20px; margin:20px 0; }
+.analogy-card p { font-size:14px; color:var(--text); line-height:1.6; }
+.analogy-card .analogy-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--teal); margin-bottom:8px; }
+.highlight-box { background:rgba(124,106,244,0.07); border:1px solid rgba(124,106,244,0.3); border-radius:10px; padding:16px 20px; margin:16px 0; }
+.highlight-box p { font-size:14px; color:var(--text); line-height:1.6; }
+.stat-row { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:28px; }
+.stat { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px 20px; flex:1; min-width:150px; }
+.stat-val { font-size:26px; font-weight:700; font-family:'JetBrains Mono'; }
+.stat-lbl { font-size:11px; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:0.5px; }
+.section-bridge { margin-top:48px; padding-top:24px; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+.section-bridge-text { font-size:13px; color:var(--muted); }
+.section-bridge-link { font-size:13px; color:var(--accent); text-decoration:none; font-weight:600; }
+.section-bridge-link:hover { opacity:0.8; }
+.accordion-item { border:1px solid var(--border); border-radius:8px; margin-bottom:8px; overflow:hidden; }
+.accordion-header { padding:14px 18px; cursor:pointer; font-size:13px; font-weight:600; display:flex; justify-content:space-between; align-items:center; background:var(--surface); }
+.accordion-header:hover { background:var(--surface2); }
+.accordion-body { display:none; padding:14px 18px; font-size:13px; color:var(--muted); line-height:1.6; border-top:1px solid var(--border); }
+.accordion-item.open .accordion-body { display:block; }
+.accordion-item.open .accordion-chevron { transform:rotate(180deg); }
+.accordion-chevron { transition:transform 0.2s; }
+/* Pipeline map */
+.pipeline-map { display:flex; align-items:center; flex-wrap:wrap; gap:2px; background:var(--surface); border-bottom:1px solid var(--border); padding:8px 20px; position:sticky; top:0; z-index:50; }
+.pipe-step { display:flex; align-items:center; gap:6px; padding:5px 10px; border-radius:6px; font-size:11px; font-weight:600; color:var(--muted); transition:all 0.25s; text-decoration:none; border:1px solid transparent; white-space:nowrap; }
+.pipe-step:hover { background:var(--surface2); color:var(--text); }
+.pipe-step.active { background:var(--surface2); color:var(--text); border-color:currentColor; }
+.pipe-step .pipe-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.pipe-arrow { font-size:12px; color:var(--border); padding:0 1px; }
+/* Glossary */
+.g-term { border-bottom:1px dotted rgba(124,106,244,0.6); cursor:help; display:inline; }
+#g-tooltip { position:fixed; z-index:9999; background:#1e2444; border:1px solid var(--accent); border-radius:10px; padding:10px 14px; font-size:12px; color:var(--text); max-width:270px; line-height:1.6; pointer-events:none; opacity:0; transition:opacity 0.15s; box-shadow:0 8px 32px #00000099; }
+#g-tooltip.show { opacity:1; }
+#g-tooltip .g-term-head { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--accent); margin-bottom:5px; }
+/* Text output boxes */
+.output-box { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:16px 18px; font-size:14px; line-height:1.8; color:var(--text); font-family:'JetBrains Mono',monospace; min-height:90px; position:relative; }
+.output-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
+.output-badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-left:8px; vertical-align:middle; }
+/* Method cards */
+.method-card { border:2px solid var(--border); border-radius:12px; padding:20px; transition:border-color 0.2s; cursor:pointer; }
+.method-card:hover { border-color:var(--accent); }
+.method-card.selected { border-color:var(--accent); background:rgba(124,106,244,0.06); }
+.method-icon { font-size:2rem; margin-bottom:10px; }
+.method-name { font-size:15px; font-weight:700; margin-bottom:6px; }
+.method-desc { font-size:13px; color:var(--muted); line-height:1.5; }
+/* Generated word highlighting */
+.gen-word { display:inline-block; padding:2px 6px; border-radius:4px; margin:2px; font-family:'JetBrains Mono',monospace; font-size:13px; transition:all 0.3s; }
+.gen-word.picked { background:rgba(247,183,49,0.25); border:1px solid rgba(247,183,49,0.5); color:#f7b731; }
+.gen-word.rejected { opacity:0.35; }
+@media (max-width:768px) {
+  .sidebar { width:100%; height:auto; position:relative; border-right:none; border-bottom:1px solid var(--border); }
+  .sidebar .nav-group { display:none; }
+  .sb-header { padding:14px 18px; display:flex; align-items:center; justify-content:space-between; }
+  .sb-toggle { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); cursor:pointer; background:none; border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-family:'Inter',sans-serif; }
+  .sidebar.open .nav-group { display:block; }
+  body { flex-direction:column; }
+  .main { margin-left:0; }
+  .section { padding:32px 20px; min-height:unset; }
+  .g2 { grid-template-columns:1fr !important; }
+  .g3 { grid-template-columns:1fr !important; }
+  canvas { max-width:100% !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===== PASSWORD GATE ===== -->
+<div id="pg-overlay" style="position:fixed;inset:0;z-index:99999;background:linear-gradient(135deg,#0d1117 0%,#161b22 100%);display:flex;align-items:center;justify-content:center;font-family:system-ui,-apple-system,sans-serif;">
+  <div style="background:#161b22;border:1px solid #30363d;border-radius:16px;padding:48px 40px;max-width:420px;width:90%;text-align:center;box-shadow:0 24px 80px #00000088;">
+    <div style="font-size:3rem;margin-bottom:16px;">🔒</div>
+    <div style="font-size:1.4rem;font-weight:700;color:#c9d1d9;margin-bottom:8px;">Visual Summary</div>
+    <div style="font-size:0.85rem;color:#8b949e;margin-bottom:6px;">How AI Generates Text — Sampling Techniques</div>
+    <div style="font-size:0.8rem;color:#8b949e;margin-bottom:28px;line-height:1.6;">This interactive tool is exclusive to <b style="color:#c9d1d9;">paid subscribers</b>.<br>Enter the password from your subscriber email to unlock.</div>
+    <input id="pg-input" type="password" placeholder="Enter subscriber password" onkeydown="if(event.key==='Enter')pgUnlock()" style="width:100%;padding:12px 16px;font-size:0.95rem;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:8px;outline:none;margin-bottom:12px;transition:border-color 0.2s;">
+    <div id="pg-error" style="font-size:0.78rem;color:#f85149;min-height:18px;margin-bottom:10px;"></div>
+    <button onclick="pgUnlock()" style="width:100%;padding:12px;font-size:0.95rem;font-weight:600;background:linear-gradient(135deg,#7c6fcd,#5a4fcf);color:#fff;border:none;border-radius:8px;cursor:pointer;">Unlock →</button>
+    <div style="margin-top:20px;font-size:0.75rem;color:#8b949e;">Not a subscriber yet? <a href="https://visualsummary.substack.com" target="_blank" style="color:#7c6fcd;text-decoration:none;">Join Visual Summary →</a></div>
+  </div>
+</div>
+<script>
+const PG_PASSWORD = 'visual2025';
+function pgUnlock() {
+  var val = document.getElementById('pg-input').value.trim();
+  var err = document.getElementById('pg-error');
+  if (val === PG_PASSWORD) {
+    sessionStorage.setItem('pg_unlocked_05','1');
+    var o = document.getElementById('pg-overlay');
+    o.style.transition='opacity 0.4s'; o.style.opacity='0';
+    setTimeout(function(){ o.remove(); }, 420);
+  } else {
+    err.textContent = 'Incorrect password. Check your subscriber email.';
+    var inp = document.getElementById('pg-input');
+    inp.style.borderColor='#f85149';
+    setTimeout(function(){ inp.style.borderColor='#30363d'; }, 1500);
+  }
+}
+if (sessionStorage.getItem('pg_unlocked_05')==='1') document.getElementById('pg-overlay').remove();
+window.addEventListener('load', function(){ var el=document.getElementById('pg-input'); if(el) el.focus(); });
+</script>
+
+<!-- SIDEBAR -->
+<nav class="sidebar" id="sidebar">
+  <div class="sb-header">
+    <div>
+      <h1>Sampling Techniques</h1>
+      <p>arXiv:1904.09751 — Interactive Explorer</p>
+      <p id="sb-progress" style="font-size:10px;color:#4ade80;margin-top:2px;display:none;"></p>
+    </div>
+    <button class="sb-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')" style="display:none;" id="sb-toggle-btn">☰ Menu</button>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">The Problem</div>
+    <a class="nav-link" href="#s-problem" onclick="setActive(this)"><span class="dot" style="background:#ff6b6b"></span>Why AI Writing Goes Wrong</a>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">Deterministic Methods</div>
+    <a class="nav-link" href="#s-greedy" onclick="setActive(this)"><span class="dot" style="background:#f7b731"></span>① Greedy Decoding</a>
+    <a class="nav-link" href="#s-beam" onclick="setActive(this)"><span class="dot" style="background:#74c0fc"></span>② Beam Search</a>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">Sampling Methods</div>
+    <a class="nav-link" href="#s-temperature" onclick="setActive(this)"><span class="dot" style="background:#4ecdc4"></span>③ Temperature Sampling</a>
+    <a class="nav-link" href="#s-topk" onclick="setActive(this)"><span class="dot" style="background:#51cf66"></span>④ Top-K Sampling</a>
+    <a class="nav-link" href="#s-nucleus" onclick="setActive(this)"><span class="dot" style="background:#7c6af4"></span>⑤ Nucleus (Top-p)</a>
+  </div>
+  <div class="nav-group">
+    <a class="nav-link" href="#s-compare" onclick="setActive(this)"><span class="dot" style="background:#ffd43b"></span>Side-by-Side Compare</a>
+  </div>
+</nav>
+
+<!-- TOOLTIP -->
+<div id="g-tooltip"><div class="g-term-head" id="g-tooltip-head"></div><div id="g-tooltip-body"></div></div>
+
+<!-- MAIN CONTENT -->
+<div class="main">
+
+<!-- PIPELINE MAP -->
+<div class="pipeline-map" id="pipeline-map">
+  <a class="pipe-step" href="#s-problem"><span class="pipe-dot" style="background:#ff6b6b"></span>The Problem</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-greedy"><span class="pipe-dot" style="background:#f7b731"></span>① Greedy</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-beam"><span class="pipe-dot" style="background:#74c0fc"></span>② Beam Search</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-temperature"><span class="pipe-dot" style="background:#4ecdc4"></span>③ Temperature</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-topk"><span class="pipe-dot" style="background:#51cf66"></span>④ Top-K</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-nucleus"><span class="pipe-dot" style="background:#7c6af4"></span>⑤ Nucleus</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-compare"><span class="pipe-dot" style="background:#ffd43b"></span>Compare All</a>
+</div>
+
+<!-- ===== SECTION 1: s-problem ===== -->
+<section class="section" id="s-problem">
+  <div class="section-tag" style="color:#ff6b6b">The Problem &nbsp;·&nbsp; <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;">~15 min read</span></div>
+  <div class="section-title" style="color:#ff6b6b">Why AI Writing Goes Wrong</div>
+  <div class="section-sub">AI language models are excellent at understanding text, but something goes wrong the moment they start generating it. Even the smartest models — the same ones that ace reading comprehension tests — produce repetitive, robotic, or nonsensical text. Why? And what's the fix?</div>
+
+  <div style="background:rgba(255,107,107,0.07);border:1px solid rgba(255,107,107,0.3);border-radius:10px;padding:16px 20px;margin-bottom:28px;">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#ff6b6b;margin-bottom:8px;">TL;DR — The Paper in One Paragraph</div>
+    <p style="font-size:14px;color:var(--text);line-height:1.7;">In 2019, researchers at University of Washington discovered that the way AI picks its next word — the <em>decoding strategy</em> — matters more than the model itself. They showed that 6 different strategies produce wildly different text from the same model, and proposed <strong>Nucleus Sampling</strong> as the fix that gets closest to human-like writing. This interactive explorer lets you see exactly why each method works or fails.</p>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat">
+      <div class="stat-val" style="color:#ff6b6b">6</div>
+      <div class="stat-lbl">Decoding strategies compared</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" style="color:#f7b731">~0%</div>
+      <div class="stat-lbl">Repetition with Nucleus Sampling</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" style="color:#74c0fc">98%</div>
+      <div class="stat-lbl">Greedy text is repetitive by 200 tokens</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" style="color:#7c6af4">2019</div>
+      <div class="stat-lbl">Year — still used in every LLM today</div>
+    </div>
+  </div>
+
+  <!-- Degeneration Demo -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Watch the Degeneration Happen</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Both texts start with the same prompt: <em>"Once upon a time, there was a curious robot who"</em>. Press Generate to see how a human continues the story vs what an AI does when it only picks the most likely word each time.</p>
+    <div class="g2" style="gap:16px;margin-bottom:16px;">
+      <div>
+        <div class="output-label" style="color:#4ade80">Human Writer</div>
+        <div class="output-box" id="human-output" style="border-color:rgba(74,222,128,0.3);min-height:130px;font-family:'Inter',sans-serif;font-size:13px;line-height:1.8;"></div>
+      </div>
+      <div>
+        <div class="output-label" style="color:#ff6b6b">AI (Greedy — always picks most likely word)</div>
+        <div class="output-box" id="ai-output" style="border-color:rgba(255,107,107,0.3);min-height:130px;font-family:'Inter',sans-serif;font-size:13px;line-height:1.8;"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <button class="btn" onclick="startDegenDemo()" id="degen-btn">▶ Generate Both</button>
+      <button class="btn btn-outline" onclick="resetDegenDemo()">↺ Reset</button>
+      <span id="degen-status" style="font-size:12px;color:var(--muted);"></span>
+    </div>
+  </div>
+
+  <!-- What is a decoding strategy -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">What is a "Decoding Strategy"?</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:16px;">Every time an AI writes a word, it first computes a <strong>probability score</strong> for every word in its vocabulary (often 50,000+ words). The scores look like this:</p>
+    <canvas id="canvas-vocab-probs" width="640" height="200" style="width:100%;max-width:640px;"></canvas>
+    <p style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.6;">The AI assigns each word a score. A <strong>decoding strategy</strong> is the rule for which word to pick next. Should you always pick the top one? Pick randomly? Pick from only the top 10? The answer changes everything.</p>
+  </div>
+
+  <div class="analogy-card">
+    <div class="analogy-label">Everyday Analogy</div>
+    <p>"Imagine you're finishing someone's sentence and you have a dictionary in front of you with a score next to each word. The <em>strategy</em> is your rule: always pick the highest score? Roll a dice? Only consider the top 5? Each rule gives a completely different result — even though the dictionary (the AI model) is identical."</p>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">Now let's explore each strategy one by one, starting with the simplest:</span>
+    <a class="section-bridge-link" href="#s-greedy">① Greedy Decoding →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 2: s-greedy ===== -->
+<section class="section" id="s-greedy">
+  <div class="section-tag" style="color:#f7b731">Technique ① of 6</div>
+  <div class="section-title" style="color:#f7b731">Greedy Decoding</div>
+  <div class="section-sub">The simplest rule: at every step, pick the word with the highest probability. No randomness. No planning. Just always take the "safest" choice.</div>
+
+  <div style="background:rgba(247,183,49,0.07);border:1px solid rgba(247,183,49,0.3);border-radius:10px;padding:14px 18px;margin-bottom:24px;">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#f7b731;margin-bottom:6px;">The Rule in Plain English</div>
+    <p style="font-size:14px;line-height:1.7;">Look at all the word scores. Find the highest one. Pick that word. Move to the next word. Repeat. Forever.</p>
+  </div>
+
+  <!-- Interactive step-by-step greedy demo -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Step-by-Step Greedy Generation</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Seed: <span style="font-family:'JetBrains Mono';color:var(--text);">"Once upon a time, a curious robot"</span> — press Next Word to see greedy pick at each step.</p>
+    <div id="greedy-words-built" style="font-size:14px;font-family:'JetBrains Mono';color:var(--text);background:var(--bg);border-radius:8px;padding:12px 16px;margin-bottom:14px;min-height:44px;line-height:1.8;border:1px solid var(--border);">Once upon a time, a curious robot</div>
+    <canvas id="canvas-greedy-probs" width="640" height="220" style="width:100%;max-width:640px;margin-bottom:14px;"></canvas>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <button class="btn" style="background:#f7b731;color:#0d0f18;" onclick="greedyNextWord()">Next Word →</button>
+      <button class="btn btn-outline" onclick="resetGreedy()">↺ Start Over</button>
+      <span id="greedy-step-label" style="font-size:12px;color:var(--muted);">Step 0 of 8</span>
+    </div>
+  </div>
+
+  <!-- Repetition problem -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">The Repetition Trap</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:14px;">Here's what happens after 50+ words. Greedy gets trapped in a loop — the same high-probability phrase keeps winning, over and over:</p>
+    <div class="output-box" style="border-color:rgba(255,107,107,0.4);color:#ff6b6b;">
+      "The robot walked to the door . The door was very big . The door was very big . The door was very big . The door was very big . <span style="opacity:0.6;">The door was very big . The door was very big . The door was very big .</span>"
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-top:10px;">This is called <strong>neural text degeneration</strong> — the model isn't broken, it's just doing exactly what it was told. "Very big" is always the highest-probability continuation, so it gets picked every single time.</p>
+  </div>
+
+  <div class="analogy-card">
+    <div class="analogy-label">Everyday Analogy</div>
+    <p>"Greedy decoding is like texting with predictive text and <em>always</em> tapping the first suggestion. Your message quickly becomes 'the the the the the' — grammatically correct, completely meaningless. The phone is doing exactly what you asked; the rule is just bad."</p>
+  </div>
+
+  <div class="highlight-box" style="border-color:rgba(247,183,49,0.3);background:rgba(247,183,49,0.05);">
+    <p><strong style="color:#f7b731;">Key weakness:</strong> Greedy never looks more than one word ahead. It can't see that picking a slightly-less-likely word now might lead to a much better sentence overall. It's the ultimate short-sighted strategy.</p>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">What if the AI planned several words ahead at once?</span>
+    <a class="section-bridge-link" href="#s-beam">② Beam Search →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 3: s-beam ===== -->
+<section class="section" id="s-beam">
+  <div class="section-tag" style="color:#74c0fc">Technique ② of 6</div>
+  <div class="section-title" style="color:#74c0fc">Beam Search</div>
+  <div class="section-sub">Beam search fixes greedy's short-sightedness by exploring several possible continuations simultaneously — keeping the best ones, discarding the rest. It's like a chess player thinking 5 moves ahead instead of just 1.</div>
+
+  <div style="background:rgba(116,192,252,0.07);border:1px solid rgba(116,192,252,0.3);border-radius:10px;padding:14px 18px;margin-bottom:24px;">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#74c0fc;margin-bottom:6px;">The Rule in Plain English</div>
+    <p style="font-size:14px;line-height:1.7;">Keep track of the top <strong>W sequences</strong> at all times (W = "beam width"). At each step, expand every sequence by one word, score them all, keep only the best W. At the end, pick the overall winner.</p>
+  </div>
+
+  <!-- Beam tree canvas -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Beam Search Tree — Watch it Explore and Prune</div>
+    <div class="sl-row">
+      <span class="sl-lbl">Beam width W</span>
+      <input type="range" id="beam-width-slider" min="1" max="4" step="1" value="3" oninput="updateBeamWidth(this.value)">
+      <span class="sl-val" id="beam-width-val">W = 3</span>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:12px;">W=1 is identical to greedy. Higher W explores more paths. The <span style="color:#74c0fc;font-weight:600;">highlighted path</span> is the winner.</p>
+    <canvas id="canvas-beam-tree" width="640" height="340" style="width:100%;max-width:640px;"></canvas>
+    <p style="font-size:12px;color:var(--muted);margin-top:8px;">Seed: "a curious robot" → exploring 3 steps ahead with W beams</p>
+  </div>
+
+  <!-- The surprise: beam search also degenerates -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">The Surprising Problem: Planning Ahead Makes Things Worse</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:14px;">You'd expect more planning = better text. The paper found the opposite for open-ended generation:</p>
+    <div class="g2" style="gap:14px;">
+      <div>
+        <div class="output-label" style="color:#4ade80">Human text (natural)</div>
+        <div class="output-box" style="border-color:rgba(74,222,128,0.3);font-family:'Inter',sans-serif;font-size:13px;">"She climbed the worn stone steps slowly, each one a memory. At the top, the sea stretched endlessly — grey, immense, indifferent. She didn't feel small. She felt free."</div>
+      </div>
+      <div>
+        <div class="output-label" style="color:#74c0fc">Beam Search (W=5)</div>
+        <div class="output-box" style="border-color:rgba(116,192,252,0.3);font-family:'Inter',sans-serif;font-size:13px;">"She was the most important person in the world and she was the best person in the world and she was very very happy and she was very very good and very very ..."</div>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-top:12px;">Beam search finds the highest-<em>probability</em> text — but humans don't write high-probability text! We use surprising words, specific details, and unexpected turns. Generic phrases like "very very good" score high because they're common, not because they're interesting.</p>
+  </div>
+
+  <div class="analogy-card">
+    <div class="analogy-label">Everyday Analogy</div>
+    <p>"Beam search is like a chef planning a 5-course meal by scoring thousands of menu combinations and picking the highest-rated one. The problem: 'chicken + salad + bread + soup + water' scores highest because those are the most common items — but it's the most boring meal imaginable. The best chefs make unexpected combinations."</p>
+  </div>
+
+  <div class="highlight-box" style="border-color:rgba(116,192,252,0.3);background:rgba(116,192,252,0.05);">
+    <p><strong style="color:#74c0fc;">Key insight from the paper:</strong> Human text is NOT the highest-probability text. Humans regularly pick surprising, specific words. Any strategy that maximizes probability will always diverge from how humans actually write.</p>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">Both deterministic methods fail. What if we add some randomness?</span>
+    <a class="section-bridge-link" href="#s-temperature">③ Temperature Sampling →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 4: s-temperature ===== -->
+<section class="section" id="s-temperature">
+  <div class="section-tag" style="color:#4ecdc4">Technique ③ of 6</div>
+  <div class="section-title" style="color:#4ecdc4">Temperature Sampling</div>
+  <div class="section-sub">Instead of always picking the top word, what if we used the probabilities as a menu — rolling a weighted dice? Temperature controls how adventurous the dice is. Too cold = same word every time. Too hot = random gibberish.</div>
+
+  <div style="background:rgba(78,205,196,0.07);border:1px solid rgba(78,205,196,0.3);border-radius:10px;padding:14px 18px;margin-bottom:24px;">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#4ecdc4;margin-bottom:6px;">The Rule in Plain English</div>
+    <p style="font-size:14px;line-height:1.7;">Before rolling the dice, reshape the probability scores using a <strong>temperature knob T</strong>:<br>Low T (e.g. 0.3) → make the highest-scoring word even more dominant (safe, boring).<br>High T (e.g. 1.5) → flatten all scores so every word seems equally likely (wild, random).<br>T = 1.0 → use the original probabilities unchanged.</p>
+  </div>
+
+  <!-- Temperature interactive dist -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">See the Temperature Effect in Real Time</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Drag the temperature slider and watch the word probabilities reshape. The taller the bar, the more likely that word gets picked.</p>
+    <div class="sl-row">
+      <span class="sl-lbl">Temperature T</span>
+      <input type="range" id="temp-slider" min="0.1" max="2.0" step="0.05" value="1.0" oninput="drawTempDist()">
+      <span class="sl-val" id="temp-val">T = 1.0</span>
+    </div>
+    <canvas id="canvas-temp-dist" width="640" height="260" style="width:100%;max-width:640px;margin-bottom:14px;"></canvas>
+    <div id="temp-verdict" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);"></div>
+  </div>
+
+  <!-- Three zones -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">The Three Temperature Zones</div>
+    <div class="g3" style="gap:14px;margin-top:4px;">
+      <div style="border:1px solid rgba(116,192,252,0.3);border-radius:10px;padding:16px;background:rgba(116,192,252,0.05);">
+        <div style="font-size:20px;margin-bottom:8px;">🥶</div>
+        <div style="font-weight:700;color:#74c0fc;margin-bottom:6px;">T &lt; 0.5 — Too Cold</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.6;">The highest-probability word dominates completely. Becomes nearly identical to greedy. Text is fluent but repetitive and generic.</div>
+        <div class="output-box" style="margin-top:10px;font-size:12px;font-family:'Inter',sans-serif;padding:10px;border-color:rgba(116,192,252,0.3);">"The robot walked to the door. The door was very big. The door was very big..."</div>
+      </div>
+      <div style="border:1px solid rgba(78,205,196,0.4);border-radius:10px;padding:16px;background:rgba(78,205,196,0.08);">
+        <div style="font-size:20px;margin-bottom:8px;">😊</div>
+        <div style="font-weight:700;color:#4ecdc4;margin-bottom:6px;">T ≈ 0.7–1.0 — Balanced</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.6;">Original probabilities preserved or slightly sharpened. Some randomness and variety. Often a reasonable starting point.</div>
+        <div class="output-box" style="margin-top:10px;font-size:12px;font-family:'Inter',sans-serif;padding:10px;border-color:rgba(78,205,196,0.3);">"The robot walked through the city, searching for something it couldn't name."</div>
+      </div>
+      <div style="border:1px solid rgba(255,107,107,0.3);border-radius:10px;padding:16px;background:rgba(255,107,107,0.05);">
+        <div style="font-size:20px;margin-bottom:8px;">🔥</div>
+        <div style="font-weight:700;color:#ff6b6b;margin-bottom:6px;">T &gt; 1.2 — Too Hot</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.6;">All words become nearly equally likely. Rare, strange words get picked just as often as common ones. Text becomes incoherent.</div>
+        <div class="output-box" style="margin-top:10px;font-size:12px;font-family:'Inter',sans-serif;padding:10px;border-color:rgba(255,107,107,0.3);">"The robot banana danced kaleidoscope beneath seventeen purple mathematics."</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="analogy-card">
+    <div class="analogy-label">Everyday Analogy</div>
+    <p>"Temperature is like adjusting the seasoning on food. Too little salt (low T) = bland, predictable, boring. Perfect amount = delicious and interesting. Too much salt (high T) = inedible chaos. The problem with temperature is there's no 'perfect' value that works for all sentences — sometimes the distribution naturally needs more freedom, sometimes less."</p>
+  </div>
+
+  <div class="highlight-box" style="border-color:rgba(78,205,196,0.3);background:rgba(78,205,196,0.05);">
+    <p><strong style="color:#4ecdc4;">Key weakness:</strong> Temperature is a one-size-fits-all knob. It reshapes ALL the probabilities by the same amount, regardless of whether the current word slot is obvious (only one good choice) or ambiguous (many equally good choices). It needs a smarter companion.</p>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">What if we only allowed the AI to choose from a fixed number of top words?</span>
+    <a class="section-bridge-link" href="#s-topk">④ Top-K Sampling →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 5: s-topk ===== -->
+<section class="section" id="s-topk">
+  <div class="section-tag" style="color:#51cf66">Technique ④ of 6</div>
+  <div class="section-title" style="color:#51cf66">Top-K Sampling</div>
+  <div class="section-sub">Instead of choosing from all 50,000 words, what if we kept only the top K most likely words and picked randomly from those? This avoids incoherence while adding variety. The catch: K is a fixed number that can't know what the context needs.</div>
+
+  <div style="background:rgba(81,207,102,0.07);border:1px solid rgba(81,207,102,0.3);border-radius:10px;padding:14px 18px;margin-bottom:24px;">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#51cf66;margin-bottom:6px;">The Rule in Plain English</div>
+    <p style="font-size:14px;line-height:1.7;">Sort all words by probability. Keep only the top K. Throw away all the rest (set their probability to zero). Randomly pick from the remaining K words using their relative probabilities.</p>
+  </div>
+
+  <!-- Top-K interactive demo -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Adjust K — See Which Words Are Allowed</div>
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+      <div class="sl-row" style="flex:1;min-width:200px;">
+        <span class="sl-lbl">Top-K value</span>
+        <input type="range" id="topk-slider" min="1" max="12" step="1" value="5" oninput="drawTopK()">
+        <span class="sl-val" id="topk-val">K = 5</span>
+      </div>
+      <div class="toggle-group" id="topk-scenario-toggle">
+        <button class="toggle-btn active" onclick="setTopKScenario('peaked',this)">Peaked dist.</button>
+        <button class="toggle-btn" onclick="setTopKScenario('flat',this)">Flat dist.</button>
+      </div>
+    </div>
+    <canvas id="canvas-topk-dist" width="640" height="260" style="width:100%;max-width:640px;margin-bottom:12px;"></canvas>
+    <div id="topk-verdict" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);"></div>
+  </div>
+
+  <!-- The core problem with K -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">The Core Problem: K Can't Adapt to Context</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:16px;">Here are two different sentences the AI might be completing. <strong>The right K is completely different for each</strong>:</p>
+    <div class="g2" style="gap:14px;">
+      <div style="border:1px solid rgba(255,107,107,0.3);border-radius:10px;padding:16px;background:rgba(255,107,107,0.05);">
+        <div style="font-weight:700;color:#ff6b6b;margin-bottom:8px;font-size:13px;">Situation A — Obvious context</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.6;">Prompt: "The capital of France is ___"</div>
+        <div style="font-size:13px;color:var(--text);line-height:1.6;">Only 1–2 words are sensible ("Paris", "situated"). K=50 would let the AI say "cheese" or "beautiful" — wrong!</div>
+        <div style="margin-top:10px;font-size:12px;padding:8px;background:var(--bg);border-radius:6px;font-family:'JetBrains Mono';">Ideal K: <span style="color:#ff6b6b;">2–3</span></div>
+      </div>
+      <div style="border:1px solid rgba(81,207,102,0.3);border-radius:10px;padding:16px;background:rgba(81,207,102,0.05);">
+        <div style="font-weight:700;color:#51cf66;margin-bottom:8px;font-size:13px;">Situation B — Creative context</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.6;">Prompt: "She looked up at the night sky and felt ___"</div>
+        <div style="font-size:13px;color:var(--text);line-height:1.6;">Dozens of words work: "lonely", "small", "infinite", "hopeful", "amazed"... K=3 would cut out most good options!</div>
+        <div style="margin-top:10px;font-size:12px;padding:8px;background:var(--bg);border-radius:6px;font-family:'JetBrains Mono';">Ideal K: <span style="color:#51cf66;">20–50</span></div>
+      </div>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-top:14px;line-height:1.7;">Since K is fixed before generation starts, it can't know which situation it's in. This is the fundamental limitation that Nucleus Sampling was designed to solve.</p>
+  </div>
+
+  <div class="analogy-card">
+    <div class="analogy-label">Everyday Analogy</div>
+    <p>"Imagine a music app that always shows you exactly 5 song recommendations, no matter what. On a lazy Sunday when you feel like anything, 5 options is too limiting. On a busy morning when you just want your usual commute playlist, 5 options has too much noise. The right number depends on the <em>situation</em> — but Top-K forces you to pick a number before you know the situation."</p>
+  </div>
+
+  <div class="highlight-box" style="border-color:rgba(81,207,102,0.3);background:rgba(81,207,102,0.05);">
+    <p><strong style="color:#51cf66;">Key weakness:</strong> K is blind to context. When the distribution is peaked (one clear winner), even K=50 includes nonsense. When the distribution is flat (many good choices), K=5 cuts out most of the good options. We need K to <em>adapt automatically</em>.</p>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">What if instead of a fixed K, we used the distribution itself to decide how many words to consider?</span>
+    <a class="section-bridge-link" href="#s-nucleus">⑤ Nucleus Sampling →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 6: s-nucleus ===== -->
+<section class="section" id="s-nucleus">
+  <div class="section-tag" style="color:#7c6af4">Technique ⑤ of 6 — The Paper's Contribution</div>
+  <div class="section-title" style="color:#7c6af4">Nucleus Sampling (Top-p)</div>
+  <div class="section-sub">The insight: instead of a fixed count of words, keep the smallest group of words whose <em>combined probability</em> reaches a threshold p. This group — the "nucleus" — automatically shrinks when context is obvious and expands when context is creative.</div>
+
+  <div style="background:rgba(124,106,244,0.07);border:1px solid rgba(124,106,244,0.3);border-radius:10px;padding:14px 18px;margin-bottom:24px;">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#7c6af4;margin-bottom:6px;">The Rule in Plain English</div>
+    <p style="font-size:14px;line-height:1.7;">Sort words by probability (highest first). Keep adding words to a list until their combined probability reaches <strong>p</strong> (e.g., 90%). That list is the "nucleus." Pick randomly from only those words. The size of the list changes automatically every single word.</p>
+  </div>
+
+  <!-- Nucleus interactive demo -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Watch the Nucleus Form — and Change Size</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">The <span style="color:#7c6af4;font-weight:600;">shaded region</span> is the nucleus — the words the AI is allowed to pick from. Toggle between a peaked and flat distribution to see the nucleus automatically resize.</p>
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+      <div class="sl-row" style="flex:1;min-width:200px;">
+        <span class="sl-lbl">Threshold p</span>
+        <input type="range" id="nucleus-p-slider" min="0.5" max="0.99" step="0.01" value="0.9" oninput="drawNucleus()">
+        <span class="sl-val" id="nucleus-p-val">p = 0.90</span>
+      </div>
+      <div class="toggle-group" id="nucleus-scenario-toggle">
+        <button class="toggle-btn active" onclick="setNucleusScenario('peaked',this)">Peaked dist.</button>
+        <button class="toggle-btn" onclick="setNucleusScenario('flat',this)">Flat dist.</button>
+      </div>
+    </div>
+    <canvas id="canvas-nucleus-dist" width="640" height="300" style="width:100%;max-width:640px;margin-bottom:12px;"></canvas>
+    <div id="nucleus-verdict" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);"></div>
+  </div>
+
+  <!-- Side by side: Nucleus vs Top-K on same distributions -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Nucleus vs Top-K — The Same Two Contexts</div>
+    <div class="g2" style="gap:14px;">
+      <div>
+        <div style="font-weight:700;margin-bottom:10px;font-size:13px;">Peaked context: "The capital of France is ___"</div>
+        <div style="border:1px solid rgba(81,207,102,0.3);border-radius:8px;padding:12px;background:rgba(81,207,102,0.05);margin-bottom:8px;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#51cf66;margin-bottom:6px;">Top-K (K=50)</div>
+          <div style="font-size:13px;color:var(--muted);line-height:1.6;">Includes 48 irrelevant words. Might pick "cheese" or "beautiful" with small but nonzero probability.</div>
+        </div>
+        <div style="border:1px solid rgba(124,106,244,0.4);border-radius:8px;padding:12px;background:rgba(124,106,244,0.08);">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#7c6af4;margin-bottom:6px;">Nucleus (p=0.9)</div>
+          <div style="font-size:13px;color:var(--text);line-height:1.6;">Nucleus contains only "Paris" + "located". Automatically excludes all wrong answers. ✓</div>
+        </div>
+      </div>
+      <div>
+        <div style="font-weight:700;margin-bottom:10px;font-size:13px;">Flat context: "She looked up and felt ___"</div>
+        <div style="border:1px solid rgba(255,107,107,0.3);border-radius:8px;padding:12px;background:rgba(255,107,107,0.05);margin-bottom:8px;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#ff6b6b;margin-bottom:6px;">Top-K (K=5)</div>
+          <div style="font-size:13px;color:var(--muted);line-height:1.6;">Only 5 words allowed. Cuts out "infinite", "small", "hopeful", "amazed" — all equally good options!</div>
+        </div>
+        <div style="border:1px solid rgba(124,106,244,0.4);border-radius:8px;padding:12px;background:rgba(124,106,244,0.08);">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#7c6af4;margin-bottom:6px;">Nucleus (p=0.9)</div>
+          <div style="font-size:13px;color:var(--text);line-height:1.6;">Nucleus expands to include ~20 words. All good creative choices remain available. ✓</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="analogy-card">
+    <div class="analogy-label">Everyday Analogy</div>
+    <p>"Nucleus sampling is like a smart waiter at a restaurant. Instead of always offering you the same fixed number of dishes, they look at today's menu quality. On a day when one dish is clearly the star, they say 'you should really try this one.' On a day when everything is equally good, they bring you the full menu. The list size adapts to what makes sense."</p>
+  </div>
+
+  <!-- How nucleus compares to pure sampling -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Why Not Just Sample from the Full Distribution?</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;">Sampling from all 50,000+ words means the 0.0001% words (completely random, bizarre words) occasionally get picked. Nucleus sampling cuts off this "unreliable tail" — the long list of words the model assigns near-zero probability to. The tail is where incoherence lives.</p>
+    <canvas id="canvas-tail" width="640" height="160" style="width:100%;max-width:640px;margin-top:12px;"></canvas>
+    <p style="font-size:12px;color:var(--muted);margin-top:8px;">The <span style="color:#ff6b6b;font-weight:600;">red region</span> is the unreliable tail. Nucleus sampling never picks from there. Pure sampling occasionally does — that's where "banana danced kaleidoscope" comes from.</p>
+  </div>
+
+  <div class="highlight-box">
+    <p><strong style="color:#7c6af4;">Key advantage:</strong> Nucleus sampling always maintains a coherent range of choices — not too few (no creativity), not too many (no incoherence). The nucleus automatically adjusts every single word, informed by the model's own confidence.</p>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">Let's put all 6 techniques side by side and see the full picture:</span>
+    <a class="section-bridge-link" href="#s-compare">⑥ Compare All →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 7: s-compare ===== -->
+<section class="section" id="s-compare">
+  <div class="section-tag" style="color:#ffd43b">The Full Picture</div>
+  <div class="section-title" style="color:#ffd43b">All 6 Methods — Side by Side</div>
+  <div class="section-sub">Same model. Same seed. Six different strategies. Here's what comes out — and why it matters for every AI system you use today.</div>
+
+  <!-- Quality vs diversity scatter -->
+  <div class="card" style="margin-bottom:28px;">
+    <div class="card-title">Quality vs. Diversity — The Fundamental Trade-off</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Every decoding strategy lives somewhere on this chart. The goal is the <span style="color:#ffd43b;font-weight:600;">top-right corner</span> — high quality AND high diversity. Click any point to highlight it.</p>
+    <canvas id="canvas-compare-scatter" width="580" height="320" style="width:100%;max-width:580px;cursor:pointer;" onclick="scatterClick(event)"></canvas>
+    <div id="scatter-detail" style="margin-top:12px;font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);min-height:50px;"></div>
+  </div>
+
+  <!-- Generated text comparison -->
+  <div class="card" style="margin-bottom:28px;">
+    <div class="card-title">Same Prompt — 6 Different Outputs</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Prompt: <span style="font-family:'JetBrains Mono';color:var(--text);">"Once upon a time, there was a curious robot who"</span></p>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+
+      <div>
+        <div class="output-label" style="color:#f7b731">① Greedy Decoding <span class="output-badge" style="background:rgba(255,107,107,0.2);color:#ff6b6b;">Degenerate</span></div>
+        <div class="output-box" style="border-color:rgba(247,183,49,0.3);font-family:'Inter',sans-serif;font-size:13px;">"...walked to the door . The door was very big . The door was very big . The door was very big . The door was very big . The door was very big ."</div>
+      </div>
+
+      <div>
+        <div class="output-label" style="color:#74c0fc">② Beam Search (W=5) <span class="output-badge" style="background:rgba(255,107,107,0.2);color:#ff6b6b;">Generic</span></div>
+        <div class="output-box" style="border-color:rgba(116,192,252,0.3);font-family:'Inter',sans-serif;font-size:13px;">"...was the most curious robot in the world and it was very happy and it was the best robot in the world and it was always very very happy and it was ..."</div>
+      </div>
+
+      <div>
+        <div class="output-label" style="color:#4ecdc4">③ Temperature T=0.3 <span class="output-badge" style="background:rgba(247,183,49,0.2);color:#f7b731;">Stiff</span></div>
+        <div class="output-box" style="border-color:rgba(78,205,196,0.3);font-family:'Inter',sans-serif;font-size:13px;">"...walked through the city every day. The city was very big and very busy. The robot worked in a small shop. The shop was very old and very quiet."</div>
+      </div>
+
+      <div>
+        <div class="output-label" style="color:#ff6b6b">③ Temperature T=1.8 <span class="output-badge" style="background:rgba(255,107,107,0.2);color:#ff6b6b;">Incoherent</span></div>
+        <div class="output-box" style="border-color:rgba(255,107,107,0.3);font-family:'Inter',sans-serif;font-size:13px;">"...banana elephant spinning galaxy beneath seventeen purple mathematics answered crackle hummingbird forgotten yesterday telescope river moonbeam seventeen ."</div>
+      </div>
+
+      <div>
+        <div class="output-label" style="color:#51cf66">④ Top-K Sampling (K=5) <span class="output-badge" style="background:rgba(247,183,49,0.2);color:#f7b731;">Okay</span></div>
+        <div class="output-box" style="border-color:rgba(81,207,102,0.3);font-family:'Inter',sans-serif;font-size:13px;">"...walked through the old city streets and found the door to a very dark room. The room was old and the door was heavy. The robot looked around slowly."</div>
+      </div>
+
+      <div>
+        <div class="output-label" style="color:#7c6af4">⑤ Nucleus Sampling (p=0.9) <span class="output-badge" style="background:rgba(81,207,102,0.2);color:#51cf66;">Best</span></div>
+        <div class="output-box" style="border-color:rgba(124,106,244,0.4);font-family:'Inter',sans-serif;font-size:13px;">"...had never seen a sunrise. One morning it climbed to the highest rooftop in the city, stretched its metal arms wide, and watched the sky shift from dark purple to gold. For the first time, it understood why humans called beautiful things priceless."</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Summary table -->
+  <div class="card" style="margin-bottom:28px;">
+    <div class="card-title">Summary: Strengths, Weaknesses, When to Use</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Diversity</th>
+            <th>Coherence</th>
+            <th>Best for</th>
+            <th>Avoid when</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span style="color:#f7b731;font-weight:700;">① Greedy</span></td>
+            <td><span style="color:#ff6b6b;">None</span></td>
+            <td><span style="color:#51cf66;">High (short)</span></td>
+            <td>Short answers, fact lookup</td>
+            <td>Any creative writing</td>
+          </tr>
+          <tr>
+            <td><span style="color:#74c0fc;font-weight:700;">② Beam Search</span></td>
+            <td><span style="color:#f7b731;">Very low</span></td>
+            <td><span style="color:#51cf66;">High (short)</span></td>
+            <td>Translation, summarization</td>
+            <td>Open-ended generation</td>
+          </tr>
+          <tr>
+            <td><span style="color:#4ecdc4;font-weight:700;">③ Temperature</span></td>
+            <td><span style="color:#f7b731;">Tunable</span></td>
+            <td><span style="color:#f7b731;">Tunable</span></td>
+            <td>When you know the right T</td>
+            <td>Long text (T drifts wrong)</td>
+          </tr>
+          <tr>
+            <td><span style="color:#51cf66;font-weight:700;">④ Top-K</span></td>
+            <td><span style="color:#f7b731;">Medium</span></td>
+            <td><span style="color:#f7b731;">Medium</span></td>
+            <td>Moderate creative text</td>
+            <td>Highly variable contexts</td>
+          </tr>
+          <tr>
+            <td><span style="color:#7c6af4;font-weight:700;">⑤ Nucleus (Top-p)</span></td>
+            <td><span style="color:#51cf66;">High, adaptive</span></td>
+            <td><span style="color:#51cf66;">High</span></td>
+            <td>Most creative generation</td>
+            <td>Needs p tuning (&lt;0.5 = greedy)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Where is this used today -->
+  <div class="card" style="margin-bottom:28px;">
+    <div class="card-title">These Settings Are in Every AI System You Use</div>
+    <div class="g3" style="gap:14px;">
+      <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-size:22px;margin-bottom:8px;">💬</div>
+        <div style="font-weight:700;margin-bottom:6px;font-size:14px;">ChatGPT / Claude</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.6;">Uses nucleus sampling (p≈0.9) + mild temperature for most chat. Beam search for structured outputs like code formatting.</div>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-size:22px;margin-bottom:8px;">🎵</div>
+        <div style="font-weight:700;margin-bottom:6px;font-size:14px;">AI Music / Image Prompts</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.6;">High temperature (T≈1.2) for creative variety. Lower temperature when following strict style guidelines.</div>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-size:22px;margin-bottom:8px;">🔍</div>
+        <div style="font-weight:700;margin-bottom:6px;font-size:14px;">Search / Translation</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.6;">Beam search dominates here — you want the single best translation or most relevant answer, not creative variation.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Open problems -->
+  <div style="margin-bottom:24px;">
+    <div style="font-size:14px;font-weight:700;margin-bottom:12px;">Open Questions (Still Active Research in 2024)</div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+        Can we auto-tune p and T without user input? <span class="accordion-chevron">▾</span>
+      </div>
+      <div class="accordion-body">Modern systems like Mirostat and DynaTemp try to adapt temperature during generation to keep the "surprise level" of text constant. Instead of a fixed T, they monitor how surprised the model is at each word and adjust T in real time.</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+        Does nucleus sampling work for code and math? <span class="accordion-chevron">▾</span>
+      </div>
+      <div class="accordion-body">Less well. Code and math have many "wrong" answers and few "right" ones — the distribution is often very peaked. Nucleus sampling can still introduce errors by picking from the tail. Greedy or beam search with verification tends to work better for structured outputs.</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+        What about combining methods? <span class="accordion-chevron">▾</span>
+      </div>
+      <div class="accordion-body">Yes — most production systems combine techniques. A common recipe: Top-K + Nucleus + Temperature together. You first apply Top-K (remove obvious garbage), then Nucleus (remove the long tail), then Temperature (fine-tune balance). ChatGPT and Claude use variations of this combination.</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+        Is there a theoretically optimal decoding strategy? <span class="accordion-chevron">▾</span>
+      </div>
+      <div class="accordion-body">Not yet proven. The 2019 paper showed nucleus sampling is empirically the best, but there's no mathematical proof it's optimal. Research continues on whether there's a fundamentally better approach for matching the distribution of human text.</div>
+    </div>
+  </div>
+
+  <div class="highlight-box">
+    <p><strong style="color:#ffd43b;">The big takeaway:</strong> The AI model is not what makes text feel human or robotic. The same model, with the same weights, produces wildly different text depending on the decoding strategy. Nucleus sampling is currently the closest we have to replicating the natural unpredictability of human writing — while keeping it coherent.</p>
+  </div>
+
+</section>
+
+</div><!-- end .main -->
+
+<script>
+/* =====================================================
+   UTILITIES
+===================================================== */
+function lerp(a, b, t) { return a + (b - a) * t; }
+function easeInOut(t) { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
+
+function drawRoundedRect(ctx, x, y, w, h, r, fill, stroke, lw) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y);
+  ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+  ctx.lineTo(x+w, y+h-r);
+  ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  ctx.lineTo(x+r, y+h);
+  ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+  ctx.lineTo(x, y+r);
+  ctx.quadraticCurveTo(x, y, x+r, y);
+  ctx.closePath();
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw||1; ctx.stroke(); }
+}
+
+function drawArrow(ctx, x1, y1, x2, y2, color, lw) {
+  var angle = Math.atan2(y2-y1, x2-x1);
+  var len = Math.sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
+  if (len < 1) return;
+  ctx.save();
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = lw||1.5;
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - 8*Math.cos(angle-0.4), y2 - 8*Math.sin(angle-0.4));
+  ctx.lineTo(x2 - 8*Math.cos(angle+0.4), y2 - 8*Math.sin(angle+0.4));
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+/* =====================================================
+   NAV / SCROLL TRACKING
+===================================================== */
+var sectionIds = ['s-problem','s-greedy','s-beam','s-temperature','s-topk','s-nucleus','s-compare'];
+
+function setActive(el) {
+  document.querySelectorAll('.nav-link').forEach(function(l){ l.classList.remove('active'); });
+  el.classList.add('active');
+}
+
+function markVisited(id) {
+  document.querySelectorAll('.nav-link').forEach(function(l){
+    if (l.getAttribute('href') === '#'+id) l.classList.add('visited');
+  });
+  var visited = sectionIds.filter(function(s){
+    var l = document.querySelector('.nav-link[href="#'+s+'"]');
+    return l && l.classList.contains('visited');
+  });
+  var pct = Math.round(visited.length / sectionIds.length * 100);
+  var prog = document.getElementById('sb-progress');
+  if (prog) { prog.textContent = pct+'% explored'; prog.style.display = pct>0?'block':'none'; }
+}
+
+function updateNavOnScroll() {
+  var scrollY = window.scrollY + 100;
+  var current = sectionIds[0];
+  for (var i = 0; i < sectionIds.length; i++) {
+    var el = document.getElementById(sectionIds[i]);
+    if (el && el.offsetTop <= scrollY) current = sectionIds[i];
+  }
+  document.querySelectorAll('.nav-link').forEach(function(link){
+    var href = link.getAttribute('href');
+    if (href === '#'+current) link.classList.add('active');
+    else link.classList.remove('active');
+  });
+  markVisited(current);
+
+  // Update pipeline map
+  document.querySelectorAll('.pipe-step').forEach(function(s){
+    if (s.getAttribute('href') === '#'+current) s.classList.add('active');
+    else s.classList.remove('active');
+  });
+}
+window.addEventListener('scroll', updateNavOnScroll);
+
+// Mobile sidebar toggle
+if (window.innerWidth <= 768) {
+  var toggleBtn = document.getElementById('sb-toggle-btn');
+  if (toggleBtn) toggleBtn.style.display = 'flex';
+}
+
+// Accordion
+document.querySelectorAll('.accordion-header').forEach(function(h){
+  h.addEventListener('click', function(){ this.parentElement.classList.toggle('open'); });
+});
+
+/* =====================================================
+   GLOSSARY TOOLTIPS
+===================================================== */
+var GLOSSARY = {
+  'probability': { def: 'A number between 0 and 1 (or 0-100%) measuring how likely something is. An AI assigns a probability to every word in its vocabulary at each step.' },
+  'decoding': { def: 'The process of converting the AI\'s internal word scores into actual text output. The decoding strategy is the rule that decides which word to pick.' },
+  'vocabulary': { def: 'The complete set of words (and word-pieces) an AI model knows. Modern LLMs have vocabularies of 30,000–100,000+ items.' },
+  'token': { def: 'A unit of text — usually a word, but sometimes a part of a word. "Running" might be one token, or ["run","ning"] might be two.' },
+  'softmax': { def: 'A mathematical function that converts raw score numbers into probabilities that sum to 1.0. It\'s used inside every language model.' },
+  'logits': { def: 'The raw score numbers produced by the AI before they\'re converted into probabilities. Higher logit = more likely word.' },
+  'perplexity': { def: 'A measure of how "surprised" a language model is by a piece of text. Lower perplexity = more predictable text. Human text has surprisingly high perplexity (it\'s often unpredictable).' },
+  'autoregressive': { def: 'A generation method that produces one word at a time, each new word conditioned on all the previous words. All major LLMs (GPT, Claude, Gemini) are autoregressive.' }
+};
+
+function injectGlossaryTooltips() {
+  var tooltip = document.getElementById('g-tooltip');
+  var head = document.getElementById('g-tooltip-head');
+  var body = document.getElementById('g-tooltip-body');
+  var terms = Object.keys(GLOSSARY);
+  var walker = document.createTreeWalker(document.querySelector('.main'), NodeFilter.SHOW_TEXT, null, false);
+  var nodes = [];
+  var n;
+  while ((n = walker.nextNode())) nodes.push(n);
+  var wrapped = {};
+  nodes.forEach(function(node) {
+    if (!node.parentElement || node.parentElement.tagName === 'SCRIPT' || node.parentElement.tagName === 'STYLE') return;
+    if (node.parentElement.classList.contains('g-term')) return;
+    terms.forEach(function(term) {
+      if (wrapped[term]) return;
+      var idx = node.textContent.toLowerCase().indexOf(term.toLowerCase());
+      if (idx === -1) return;
+      var span = document.createElement('span');
+      span.className = 'g-term';
+      span.title = term;
+      var before = document.createTextNode(node.textContent.slice(0, idx));
+      span.textContent = node.textContent.slice(idx, idx + term.length);
+      var after = document.createTextNode(node.textContent.slice(idx + term.length));
+      node.parentElement.replaceChild(after, node);
+      node.parentElement.insertBefore(span, after);
+      node.parentElement.insertBefore(before, span);
+      wrapped[term] = true;
+      span.addEventListener('mouseenter', function(e) {
+        var g = GLOSSARY[this.title] || GLOSSARY[this.textContent.toLowerCase()];
+        if (!g) return;
+        head.textContent = this.textContent;
+        body.textContent = g.def;
+        tooltip.classList.add('show');
+      });
+      span.addEventListener('mousemove', function(e) {
+        var tw = 280, th = 80;
+        var x = e.clientX + 14;
+        var y = e.clientY - 14;
+        if (x + tw > window.innerWidth) x = e.clientX - tw - 14;
+        if (y + th > window.innerHeight) y = e.clientY - th - 14;
+        tooltip.style.left = x + 'px';
+        tooltip.style.top = y + 'px';
+      });
+      span.addEventListener('mouseleave', function() { tooltip.classList.remove('show'); });
+    });
+  });
+}
+
+/* =====================================================
+   SECTION 1: VOCAB PROBS CANVAS
+===================================================== */
+function drawVocabProbs() {
+  var cv = document.getElementById('canvas-vocab-probs'); if (!cv) return;
+  var ctx = cv.getContext('2d'); var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var words  = ['Paris','located','situated','a','city','the','beautiful','cheese','running','banana'];
+  var probs  = [0.52, 0.22, 0.12, 0.06, 0.04, 0.02, 0.01, 0.005, 0.003, 0.001];
+  var colors = ['#7c6af4','#74c0fc','#4ecdc4','#f7b731','#f7b731','#51cf66','#8892b0','#ff6b6b','#ff6b6b','#ff6b6b'];
+
+  var padL = 48, padR = 20, padT = 20, padB = 50;
+  var bw = (W - padL - padR) / words.length;
+  var maxH = H - padT - padB;
+
+  // Axes
+  ctx.strokeStyle = '#2a3060'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(padL, padT); ctx.lineTo(padL, H-padB); ctx.lineTo(W-padR, H-padB); ctx.stroke();
+
+  // Y axis label
+  ctx.fillStyle = '#8892b0'; ctx.font = '11px Inter'; ctx.textAlign = 'right';
+  ctx.fillText('Prob', padL-4, padT+8);
+
+  // Y gridlines
+  [0.25,0.5].forEach(function(v){
+    var y = (H-padB) - v/probs[0] * maxH * probs[0];
+    y = (H-padB) - v * maxH;
+    ctx.strokeStyle = '#1e2444'; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W-padR, y); ctx.stroke();
+    ctx.fillStyle = '#8892b0'; ctx.font = '10px JetBrains Mono'; ctx.textAlign = 'right';
+    ctx.fillText((v*100)+'%', padL-4, y+4);
+  });
+
+  // Bars
+  probs.forEach(function(p, i) {
+    var bh = (p / 0.6) * maxH;
+    var x = padL + i * bw + bw*0.15;
+    var bww = bw * 0.7;
+    var y = H - padB - bh;
+    drawRoundedRect(ctx, x, y, bww, bh, 4, colors[i]+'44', colors[i], 1.5);
+
+    // Value
+    ctx.fillStyle = colors[i]; ctx.font = '10px JetBrains Mono'; ctx.textAlign = 'center';
+    ctx.fillText((p*100).toFixed(1)+'%', x+bww/2, y-5);
+
+    // Word label (rotated)
+    ctx.save();
+    ctx.translate(x+bww/2, H-padB+8);
+    ctx.rotate(Math.PI/5);
+    ctx.fillStyle = i < 4 ? '#e2e8f0' : '#8892b0';
+    ctx.font = (i<4?'600 ':'')+'11px Inter';
+    ctx.textAlign = 'left';
+    ctx.fillText(words[i], 0, 0);
+    ctx.restore();
+  });
+
+  // Label
+  ctx.fillStyle = '#8892b0'; ctx.font = '11px Inter'; ctx.textAlign = 'center';
+  ctx.fillText('← Top words                                              Rarely used words →', W/2, H-4);
+}
+
+/* =====================================================
+   SECTION 1: DEGENERATION DEMO
+===================================================== */
+var degenTimer = null;
+var HUMAN_TEXT = "Once upon a time, there was a curious robot who had never seen a sunrise. One morning it climbed to the highest rooftop in the city, stretched its metal arms wide, and watched the sky shift from dark purple to gold. Something stirred inside its circuits — a feeling it had no word for.";
+var AI_TEXT    = "Once upon a time, there was a curious robot who walked to the door . The door was very big . The door was very big . The door was very big . The door was very big . The door was very big . The door was very big . The door was very big .";
+
+function startDegenDemo() {
+  resetDegenDemo();
+  var hEl = document.getElementById('human-output');
+  var aEl = document.getElementById('ai-output');
+  var btn = document.getElementById('degen-btn');
+  var statusEl = document.getElementById('degen-status');
+  btn.disabled = true; btn.textContent = '⏸ Generating...';
+  statusEl.textContent = 'Watch what happens after ~20 words...';
+
+  var hWords = HUMAN_TEXT.split(' ');
+  var aWords = AI_TEXT.split(' ');
+  var maxLen = Math.max(hWords.length, aWords.length);
+  var i = 0;
+  var hBuilt = '', aBuilt = '';
+
+  degenTimer = setInterval(function() {
+    if (i < hWords.length) { hBuilt += (i>0?' ':'')+hWords[i]; hEl.textContent = hBuilt; }
+    if (i < aWords.length) {
+      aBuilt += (i>0?' ':'')+aWords[i];
+      aEl.textContent = aBuilt;
+      // Color repetition red after word 20
+      if (i >= 20) {
+        aEl.style.color = '#ff6b6b';
+        statusEl.textContent = '⚠ Degeneration starts here — the AI is stuck in a loop!';
+      }
+    }
+    i++;
+    if (i >= maxLen) {
+      clearInterval(degenTimer);
+      btn.disabled = false; btn.textContent = '▶ Generate Both';
+    }
+  }, 80);
+}
+
+function resetDegenDemo() {
+  if (degenTimer) clearInterval(degenTimer);
+  document.getElementById('human-output').textContent = '';
+  document.getElementById('human-output').style.color = '';
+  document.getElementById('ai-output').textContent = '';
+  document.getElementById('ai-output').style.color = '';
+  document.getElementById('degen-status').textContent = '';
+  var btn = document.getElementById('degen-btn');
+  btn.disabled = false; btn.textContent = '▶ Generate Both';
+}
+
+/* =====================================================
+   SECTION 2: GREEDY STEP-BY-STEP
+===================================================== */
+var GEN_STEPS = [
+  { words:['found','walked','saw','built','explored','created','discovered','made'], probs:[0.35,0.22,0.18,0.10,0.07,0.04,0.03,0.01] },
+  { words:['a','the','its','an','some','no','this','every'], probs:[0.40,0.32,0.12,0.08,0.04,0.02,0.01,0.01] },
+  { words:['door','room','cave','garden','key','bridge','light','path'], probs:[0.28,0.18,0.16,0.14,0.10,0.07,0.05,0.02] },
+  { words:['that','in','hidden','old','small','large','strange','beautiful'], probs:[0.32,0.22,0.18,0.12,0.07,0.05,0.02,0.02] },
+  { words:['led','opened','glowed','shimmered','hummed','stood','was','floated'], probs:[0.18,0.16,0.14,0.14,0.13,0.12,0.08,0.05] },
+  { words:['to','into','through','beyond','toward','under','above','past'], probs:[0.35,0.28,0.18,0.09,0.05,0.02,0.02,0.01] },
+  { words:['a','the','another','an','every','some','its','their'], probs:[0.40,0.35,0.10,0.07,0.04,0.02,0.01,0.01] },
+  { words:['world','place','time','dimension','story','chapter','dream','mystery'], probs:[0.22,0.20,0.18,0.15,0.10,0.08,0.04,0.03] }
+];
+var greedyStep = 0;
+var greedyWords = [];
+
+function drawGreedyProbs() {
+  var cv = document.getElementById('canvas-greedy-probs'); if (!cv) return;
+  var ctx = cv.getContext('2d'); var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  if (greedyStep >= GEN_STEPS.length) {
+    ctx.fillStyle = '#8892b0'; ctx.font = '14px Inter'; ctx.textAlign = 'center';
+    ctx.fillText('Generation complete! Press Start Over to try again.', W/2, H/2);
+    return;
+  }
+
+  var step = GEN_STEPS[greedyStep];
+  var words = step.words, probs = step.probs;
+  var n = words.length;
+  var padL = 48, padR = 20, padT = 28, padB = 52;
+  var bw = (W - padL - padR) / n;
+  var maxH = H - padT - padB;
+
+  // Title
+  ctx.fillStyle = '#8892b0'; ctx.font = '11px Inter'; ctx.textAlign = 'left';
+  ctx.fillText('Next word probabilities — greedy picks the tallest bar (amber)', padL, 14);
+
+  // Axes
+  ctx.strokeStyle = '#2a3060'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(padL, padT); ctx.lineTo(padL, H-padB); ctx.lineTo(W-padR, H-padB); ctx.stroke();
+
+  // Y labels
+  [0.1,0.2,0.3,0.4].forEach(function(v){
+    var y = (H-padB) - (v/0.45)*maxH;
+    ctx.strokeStyle='#1e2444'; ctx.lineWidth=0.5;
+    ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(W-padR,y); ctx.stroke();
+    ctx.fillStyle='#8892b0'; ctx.font='10px JetBrains Mono'; ctx.textAlign='right';
+    ctx.fillText((v*100)+'%', padL-4, y+4);
+  });
+
+  // Find max index
+  var maxIdx = 0;
+  probs.forEach(function(p,i){ if(p>probs[maxIdx]) maxIdx=i; });
+
+  probs.forEach(function(p, i) {
+    var bh = (p / 0.45) * maxH;
+    var x = padL + i*bw + bw*0.15;
+    var bww = bw*0.7;
+    var y = H-padB-bh;
+    var isMax = (i===maxIdx);
+    var col = isMax ? '#f7b731' : '#7c6af4';
+    drawRoundedRect(ctx, x, y, bww, bh, 3, col+(isMax?'cc':'44'), col, isMax?2:1);
+
+    // Prob label on bar
+    ctx.fillStyle = isMax ? '#f7b731' : '#8892b0';
+    ctx.font = (isMax?'700 ':'')+'10px JetBrains Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText((p*100).toFixed(0)+'%', x+bww/2, y-5);
+
+    // Word label
+    ctx.save();
+    ctx.translate(x+bww/2, H-padB+8);
+    ctx.rotate(Math.PI/6);
+    ctx.fillStyle = isMax ? '#f7b731' : '#8892b0';
+    ctx.font = (isMax?'700 ':'')+'11px Inter';
+    ctx.textAlign = 'left';
+    ctx.fillText(words[i], 0, 0);
+    ctx.restore();
+
+    // Crown on winner
+    if (isMax) {
+      ctx.fillStyle = '#f7b731'; ctx.font = '16px serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('★', x+bww/2, y-18);
+    }
+  });
+}
+
+function greedyNextWord() {
+  if (greedyStep >= GEN_STEPS.length) return;
+  var step = GEN_STEPS[greedyStep];
+  var maxIdx = 0;
+  step.probs.forEach(function(p,i){ if(p>step.probs[maxIdx]) maxIdx=i; });
+  greedyWords.push(step.words[maxIdx]);
+  greedyStep++;
+  document.getElementById('greedy-words-built').textContent = 'Once upon a time, a curious robot ' + greedyWords.join(' ');
+  document.getElementById('greedy-step-label').textContent = 'Step ' + greedyStep + ' of ' + GEN_STEPS.length;
+  drawGreedyProbs();
+}
+
+function resetGreedy() {
+  greedyStep = 0; greedyWords = [];
+  document.getElementById('greedy-words-built').textContent = 'Once upon a time, a curious robot';
+  document.getElementById('greedy-step-label').textContent = 'Step 0 of ' + GEN_STEPS.length;
+  drawGreedyProbs();
+}
+
+/* =====================================================
+   SECTION 3: BEAM SEARCH TREE
+===================================================== */
+var beamWidth = 3;
+
+var BEAM_NODES = [
+  // Level 1
+  { word:'found',   score:0.42, col:'#74c0fc', parent:-1 },
+  { word:'walked',  score:0.65, col:'#4ecdc4', parent:-1 },
+  { word:'saw',     score:0.91, col:'#8892b0', parent:-1 },
+  { word:'built',   score:1.12, col:'#8892b0', parent:-1 },
+  // Level 2 (from found, walked)
+  { word:'found a', score:0.90, col:'#74c0fc', parent:0 },
+  { word:'found the',score:0.94, col:'#74c0fc', parent:0 },
+  { word:'walked through',score:0.97, col:'#4ecdc4', parent:1 },
+  { word:'walked into',score:1.05, col:'#8892b0', parent:1 },
+  // Level 3 (top 3 from level 2)
+  { word:'found a door', score:1.28, col:'#74c0fc', parent:4, winner:true },
+  { word:'walked through the',score:1.39,col:'#4ecdc4',parent:6 },
+  { word:'found the door',score:1.52,col:'#74c0fc',parent:5 },
+  { word:'found a cave',score:1.58,col:'#8892b0',parent:4 }
+];
+
+function drawBeamTree() {
+  var cv = document.getElementById('canvas-beam-tree'); if (!cv) return;
+  var ctx = cv.getContext('2d'); var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+  var w = beamWidth;
+
+  // Layout
+  var levels = [
+    { y:60,  nodes: BEAM_NODES.slice(0,w) },
+    { y:170, nodes: BEAM_NODES.slice(4, 4+Math.min(w*2,4)).slice(0,w+1) },
+    { y:280, nodes: BEAM_NODES.slice(8, 8+Math.min(w+1,4)).slice(0,w) }
+  ];
+
+  // Seed
+  drawRoundedRect(ctx, W/2-80, 14, 160, 30, 8, '#1e2444', '#2a3060', 1.5);
+  ctx.fillStyle='#e2e8f0'; ctx.font='12px Inter'; ctx.textAlign='center';
+  ctx.fillText('"a curious robot"', W/2, 34);
+
+  levels.forEach(function(lv, li) {
+    var nodes = lv.nodes;
+    var spacing = W / (nodes.length + 1);
+    nodes.forEach(function(node, ni) {
+      var x = spacing * (ni+1);
+      var y = lv.y;
+      node._x = x; node._y = y;
+    });
+  });
+
+  // Draw connections
+  levels.forEach(function(lv, li) {
+    if (li === 0) {
+      // connect from seed
+      lv.nodes.forEach(function(node){
+        ctx.strokeStyle = node.winner ? '#f7b731' : '#2a3060';
+        ctx.lineWidth = node.winner ? 2.5 : 1;
+        ctx.setLineDash(node.winner ? [] : [4,3]);
+        ctx.beginPath(); ctx.moveTo(W/2, 44); ctx.lineTo(node._x, node._y-18); ctx.stroke();
+        ctx.setLineDash([]);
+      });
+      return;
+    }
+    var prevNodes = levels[li-1].nodes;
+    lv.nodes.forEach(function(node){
+      var parent = prevNodes.find(function(p){ return p===BEAM_NODES[node.parent]; }) || prevNodes[0];
+      var isWinPath = node.winner || (li===2 && levels[li].nodes[0]===node);
+      ctx.strokeStyle = node.winner ? '#f7b731' : '#2a3060';
+      ctx.lineWidth = node.winner ? 2.5 : 1;
+      ctx.setLineDash(node.winner ? [] : [4,3]);
+      ctx.beginPath();
+      if (parent && parent._x) {
+        ctx.moveTo(parent._x, parent._y+18);
+      } else {
+        ctx.moveTo(node._x, node._y-40);
+      }
+      ctx.lineTo(node._x, node._y-18);
+      ctx.stroke(); ctx.setLineDash([]);
+    });
+  });
+
+  // Draw node boxes
+  levels.forEach(function(lv, li) {
+    lv.nodes.forEach(function(node, ni){
+      var x = node._x, y = node._y;
+      var isBest = (li === 0 && ni === 0) || node.winner;
+      var bord = node.winner ? '#ffd43b' : (ni===0 ? '#74c0fc' : '#2a3060');
+      var bg   = node.winner ? 'rgba(255,212,59,0.12)' : (ni===0 && li<2 ? 'rgba(116,192,252,0.08)' : '#161a2e');
+      drawRoundedRect(ctx, x-52, y-18, 104, 36, 8, bg, bord, node.winner?2:1);
+      ctx.fillStyle = node.winner ? '#ffd43b' : (ni===0&&li<2 ? '#74c0fc' : '#8892b0');
+      ctx.font = (node.winner?'700 ':'')+'11px Inter'; ctx.textAlign='center';
+      ctx.fillText('"'+node.word+'"', x, y-4);
+      ctx.fillStyle = node.winner ? '#ffd43b' : '#8892b0';
+      ctx.font='10px JetBrains Mono';
+      ctx.fillText('score: -'+node.score.toFixed(2), x, y+10);
+      if (node.winner) {
+        ctx.fillStyle='#ffd43b'; ctx.font='14px serif';
+        ctx.fillText('★', x+56, y-8);
+      }
+    });
+  });
+
+  // Pruned label
+  if (w < 4) {
+    var pruned = 4 - w;
+    ctx.fillStyle = '#ff6b6b'; ctx.font = '11px Inter'; ctx.textAlign = 'left';
+    ctx.fillText('✕ '+pruned+' beam'+(pruned>1?'s':'')+' pruned', W-120, 85);
+  }
+
+  // Legend
+  ctx.fillStyle = '#8892b0'; ctx.font = '11px Inter'; ctx.textAlign = 'left';
+  ctx.fillText('Lower score = better sequence', 14, H-10);
+  ctx.fillStyle = '#ffd43b';
+  ctx.fillText('★ Winner chosen at the end', 200, H-10);
+
+  // W=1 note
+  if (w === 1) {
+    ctx.fillStyle = '#f7b731'; ctx.font = '12px Inter'; ctx.textAlign = 'center';
+    ctx.fillText('⚠ W=1 is identical to Greedy Decoding — only one path explored', W/2, H-30);
+  }
+}
+
+function updateBeamWidth(val) {
+  beamWidth = parseInt(val);
+  document.getElementById('beam-width-val').textContent = 'W = '+beamWidth;
+  drawBeamTree();
+}
+
+/* =====================================================
+   SECTION 4: TEMPERATURE DISTRIBUTION
+===================================================== */
+var TEMP_LOGITS = [4.2, 3.1, 2.4, 1.6, 0.8, 0.2, -0.6, -1.4];
+var TEMP_WORDS  = ['walked','found','saw','built','ran','flew','danced','vanished'];
+
+function softmaxTemp(logits, T) {
+  var scaled = logits.map(function(l){ return l/T; });
+  var maxL = Math.max.apply(null, scaled);
+  var exps = scaled.map(function(l){ return Math.exp(l-maxL); });
+  var sum = exps.reduce(function(a,b){ return a+b; }, 0);
+  return exps.map(function(e){ return e/sum; });
+}
+
+function drawTempDist() {
+  var cv = document.getElementById('canvas-temp-dist'); if (!cv) return;
+  var ctx = cv.getContext('2d'); var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var T = parseFloat(document.getElementById('temp-slider').value);
+  document.getElementById('temp-val').textContent = 'T = '+T.toFixed(2);
+
+  var probs = softmaxTemp(TEMP_LOGITS, T);
+  var n = probs.length;
+  var padL = 48, padR = 20, padT = 30, padB = 52;
+  var bw = (W-padL-padR)/n;
+  var maxH = H-padT-padB;
+  var maxP = Math.max.apply(null, probs);
+
+  // Title
+  ctx.fillStyle = '#8892b0'; ctx.font = '11px Inter'; ctx.textAlign = 'left';
+  ctx.fillText('Word probabilities after applying temperature T='+ T.toFixed(2), padL, 16);
+
+  // Axes
+  ctx.strokeStyle = '#2a3060'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(padL,padT); ctx.lineTo(padL,H-padB); ctx.lineTo(W-padR,H-padB); ctx.stroke();
+
+  // Gridlines
+  [0.2,0.4,0.6].forEach(function(v){
+    var y = (H-padB)-(v/0.7)*maxH;
+    ctx.strokeStyle='#1e2444'; ctx.lineWidth=0.5;
+    ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(W-padR,y); ctx.stroke();
+    ctx.fillStyle='#8892b0'; ctx.font='10px JetBrains Mono'; ctx.textAlign='right';
+    ctx.fillText((v*100).toFixed(0)+'%', padL-4, y+4);
+  });
+
+  // Color based on T
+  var barColor = T < 0.5 ? '#74c0fc' : T > 1.2 ? '#ff6b6b' : '#4ecdc4';
+
+  probs.forEach(function(p, i) {
+    var bh = (p/0.7)*maxH;
+    var x = padL+i*bw+bw*0.15;
+    var bww = bw*0.7;
+    var y = H-padB-bh;
+    drawRoundedRect(ctx, x, y, bww, bh, 3, barColor+'66', barColor, 1.5);
+    ctx.fillStyle = barColor; ctx.font='10px JetBrains Mono'; ctx.textAlign='center';
+    ctx.fillText((p*100).toFixed(0)+'%', x+bww/2, y-5);
+    ctx.save();
+    ctx.translate(x+bww/2, H-padB+8);
+    ctx.rotate(Math.PI/6);
+    ctx.fillStyle = '#8892b0'; ctx.font='11px Inter'; ctx.textAlign='left';
+    ctx.fillText(TEMP_WORDS[i], 0, 0);
+    ctx.restore();
+  });
+
+  // Verdict
+  var vEl = document.getElementById('temp-verdict');
+  if (T < 0.5) {
+    vEl.innerHTML = '<span style="color:#74c0fc;font-weight:700;">🥶 Too Cold (T='+T.toFixed(2)+')</span> — The top word <strong>"'+TEMP_WORDS[0]+'"</strong> dominates with <strong>'+(probs[0]*100).toFixed(0)+'%</strong> probability. Nearly identical to greedy. Text will be repetitive.';
+    vEl.style.borderColor = 'rgba(116,192,252,0.3)';
+  } else if (T > 1.2) {
+    vEl.innerHTML = '<span style="color:#ff6b6b;font-weight:700;">🔥 Too Hot (T='+T.toFixed(2)+')</span> — All words are nearly equal. The last word <strong>"'+TEMP_WORDS[7]+'"</strong> has <strong>'+(probs[7]*100).toFixed(0)+'%</strong> probability. Rare, strange words will appear frequently.';
+    vEl.style.borderColor = 'rgba(255,107,107,0.3)';
+  } else {
+    vEl.innerHTML = '<span style="color:#4ecdc4;font-weight:700;">✓ Balanced (T='+T.toFixed(2)+')</span> — Top word <strong>"'+TEMP_WORDS[0]+'"</strong> at <strong>'+(probs[0]*100).toFixed(0)+'%</strong>. Some variety allowed. This range (0.7–1.0) typically produces the most human-like text.';
+    vEl.style.borderColor = 'rgba(78,205,196,0.3)';
+  }
+}
+
+/* =====================================================
+   SECTION 5: TOP-K
+===================================================== */
+var topkScenario = 'peaked';
+var TOPK_DATA = {
+  peaked: {
+    words:  ['castle','tower','palace','fortress','mansion','house','cottage','hut','barn','shed','tent','cave','pit','hole'],
+    probs:  [0.48,    0.22,   0.12,    0.08,      0.04,     0.02,   0.015,   0.01, 0.007, 0.005, 0.004, 0.003, 0.002, 0.001],
+    label:  'Peaked — "She lived in a ___" (obvious context)',
+    note:   'peaked'
+  },
+  flat: {
+    words:  ['walked','ran','strolled','danced','jumped','skipped','flew','swam','drifted','wandered','tiptoed','marched','crawled','floated'],
+    probs:  [0.12,    0.11, 0.10,      0.09,    0.09,    0.08,    0.08,  0.08,  0.07,     0.07,      0.05,     0.03,     0.015,   0.005],
+    label:  'Flat — "The curious robot ___" (creative, many options)',
+    note:   'flat'
+  }
+};
+
+function setTopKScenario(scenario, btn) {
+  topkScenario = scenario;
+  document.querySelectorAll('#topk-scenario-toggle .toggle-btn').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  drawTopK();
+}
+
+function drawTopK() {
+  var cv = document.getElementById('canvas-topk-dist'); if (!cv) return;
+  var ctx = cv.getContext('2d'); var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var K = parseInt(document.getElementById('topk-slider').value);
+  document.getElementById('topk-val').textContent = 'K = '+K;
+
+  var data = TOPK_DATA[topkScenario];
+  var words = data.words, probs = data.probs;
+  var n = words.length;
+  var padL = 48, padR = 20, padT = 30, padB = 52;
+  var bw = (W-padL-padR)/n;
+  var maxH = H-padT-padB;
+  var maxP = probs[0];
+
+  // Title
+  ctx.fillStyle = '#e2e8f0'; ctx.font = '12px Inter'; ctx.textAlign = 'left';
+  ctx.fillText(data.label, padL, 16);
+
+  // Axes
+  ctx.strokeStyle = '#2a3060'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(padL,padT); ctx.lineTo(padL,H-padB); ctx.lineTo(W-padR,H-padB); ctx.stroke();
+
+  var cumInK = 0;
+  probs.slice(0,K).forEach(function(p){ cumInK += p; });
+
+  probs.forEach(function(p, i) {
+    var inK = i < K;
+    var bh = (p/maxP)*maxH * 0.85;
+    var x = padL+i*bw+bw*0.1;
+    var bww = bw*0.8;
+    var y = H-padB-bh;
+    var col = inK ? '#51cf66' : '#ff6b6b';
+    drawRoundedRect(ctx, x, y, bww, bh, 2, col+(inK?'55':'33'), col+(inK?'':' '), 1);
+    ctx.fillStyle = col; ctx.font='9px JetBrains Mono'; ctx.textAlign='center';
+    if (p > 0.03) ctx.fillText((p*100).toFixed(0)+'%', x+bww/2, y-4);
+    ctx.save();
+    ctx.translate(x+bww/2, H-padB+8);
+    ctx.rotate(Math.PI/5);
+    ctx.fillStyle = inK ? '#e2e8f0' : '#8892b0';
+    ctx.font = (inK?'600 ':'')+'10px Inter'; ctx.textAlign='left';
+    ctx.fillText(words[i], 0, 0);
+    ctx.restore();
+  });
+
+  // K cutoff line
+  var kLineX = padL + K*bw;
+  ctx.strokeStyle = '#ffd43b'; ctx.lineWidth = 2; ctx.setLineDash([5,4]);
+  ctx.beginPath(); ctx.moveTo(kLineX, padT-5); ctx.lineTo(kLineX, H-padB); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#ffd43b'; ctx.font = '11px Inter'; ctx.textAlign = 'center';
+  ctx.fillText('K cutoff', kLineX, padT-10);
+
+  // Legend
+  ctx.fillStyle = '#51cf66'; ctx.font = '11px Inter'; ctx.textAlign = 'left';
+  ctx.fillText('■ Allowed ('+K+' words, '+(cumInK*100).toFixed(0)+'% of mass)', padL, H-6);
+  ctx.fillStyle = '#ff6b6b';
+  ctx.fillText('■ Excluded ('+(n-K)+' words)', padL+200, H-6);
+
+  // Verdict
+  var vEl = document.getElementById('topk-verdict');
+  if (topkScenario === 'peaked' && K > 6) {
+    vEl.innerHTML = '<span style="color:#ff6b6b;font-weight:700;">⚠ K too large for this context.</span> K='+K+' allows <strong>'+(cumInK*100).toFixed(0)+'%</strong> of probability mass — but it also lets in words like "'+words[K-1]+'" which make no sense here. A smaller K (2–4) would be better.';
+    vEl.style.borderColor = 'rgba(255,107,107,0.3)';
+  } else if (topkScenario === 'flat' && K < 8) {
+    vEl.innerHTML = '<span style="color:#ff6b6b;font-weight:700;">⚠ K too small for this context.</span> K='+K+' only covers <strong>'+(cumInK*100).toFixed(0)+'%</strong> of probability mass. Valid creative options like "'+words[K]+'" are excluded. A larger K (12–20) would give more natural variety.';
+    vEl.style.borderColor = 'rgba(255,107,107,0.3)';
+  } else {
+    vEl.innerHTML = '<span style="color:#51cf66;font-weight:700;">✓ Reasonable for this context.</span> K='+K+' captures <strong>'+(cumInK*100).toFixed(0)+'%</strong> of probability mass. But remember — K is fixed before generation starts and can\'t know which situation it\'s in.';
+    vEl.style.borderColor = 'rgba(81,207,102,0.3)';
+  }
+}
+
+/* =====================================================
+   SECTION 6: NUCLEUS (TOP-P)
+===================================================== */
+var nucleusScenario = 'peaked';
+var NUCLEUS_DATA = {
+  peaked: {
+    words:  ['Paris','located','situated','a','city','the','beautiful','cheese','running','banana','purple','seventeen','elephant','sky'],
+    probs:  [0.52,   0.22,     0.12,      0.06,0.04, 0.02, 0.01,      0.005,   0.003,    0.002,   0.002,   0.001,      0.001,     0.001],
+    label:  'Peaked — "The capital of France is ___"'
+  },
+  flat: {
+    words:  ['lonely','small','infinite','hopeful','amazed','alive','free','peaceful','curious','still','broken','light','lost','found'],
+    probs:  [0.11,    0.10,   0.10,       0.09,    0.09,   0.08,  0.07,  0.07,      0.07,     0.06,  0.06,   0.05,  0.03, 0.02],
+    label:  'Flat — "She looked up and felt ___"'
+  }
+};
+
+function setNucleusScenario(scenario, btn) {
+  nucleusScenario = scenario;
+  document.querySelectorAll('#nucleus-scenario-toggle .toggle-btn').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  drawNucleus();
+}
+
+function drawNucleus() {
+  var cv = document.getElementById('canvas-nucleus-dist'); if (!cv) return;
+  var ctx = cv.getContext('2d'); var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var p = parseFloat(document.getElementById('nucleus-p-slider').value);
+  document.getElementById('nucleus-p-val').textContent = 'p = '+p.toFixed(2);
+
+  var data = NUCLEUS_DATA[nucleusScenario];
+  var words = data.words, probs = data.probs;
+  var n = words.length;
+
+  // Find nucleus size
+  var cumSum = 0, nucleusSize = 0;
+  for (var i = 0; i < n; i++) {
+    cumSum += probs[i];
+    nucleusSize = i+1;
+    if (cumSum >= p) break;
+  }
+
+  var padL = 48, padR = 20, padT = 32, padB = 58;
+  var bw = (W-padL-padR)/n;
+  var maxH = H-padT-padB;
+  var cumArea = H - padB - 50;
+
+  // Title
+  ctx.fillStyle = '#e2e8f0'; ctx.font = '12px Inter'; ctx.textAlign = 'left';
+  ctx.fillText(data.label, padL, 16);
+
+  // Axes
+  ctx.strokeStyle = '#2a3060'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(padL,padT); ctx.lineTo(padL,H-padB); ctx.lineTo(W-padR,H-padB); ctx.stroke();
+
+  var maxP = probs[0];
+  var cumProb = 0;
+  var cumPoints = [];
+
+  probs.forEach(function(prob, i) {
+    cumProb += prob;
+    var inNucleus = i < nucleusSize;
+    var bh = (prob/maxP)*(maxH*0.75);
+    var x = padL+i*bw+bw*0.1;
+    var bww = bw*0.8;
+    var y = H-padB-bh;
+    var col = inNucleus ? '#7c6af4' : '#ff6b6b';
+    drawRoundedRect(ctx, x, y, bww, bh, 2, col+(inNucleus?'66':'22'), col, inNucleus?1.5:0.5);
+    ctx.fillStyle = col; ctx.font='9px JetBrains Mono'; ctx.textAlign='center';
+    if (prob>0.02) ctx.fillText((prob*100).toFixed(0)+'%', x+bww/2, y-4);
+    ctx.save();
+    ctx.translate(x+bww/2, H-padB+8);
+    ctx.rotate(Math.PI/5);
+    ctx.fillStyle = inNucleus ? '#e2e8f0' : '#8892b0';
+    ctx.font=(inNucleus?'600 ':'')+'10px Inter'; ctx.textAlign='left';
+    ctx.fillText(words[i], 0, 0);
+    ctx.restore();
+
+    cumPoints.push({ x: x+bww/2, y: cumArea - cumProb/1.05 * (cumArea-padT) });
+  });
+
+  // Cumulative curve
+  ctx.beginPath();
+  cumPoints.forEach(function(pt, i){ if(i===0) ctx.moveTo(pt.x,pt.y); else ctx.lineTo(pt.x,pt.y); });
+  ctx.strokeStyle = '#f7b731'; ctx.lineWidth = 2; ctx.stroke();
+
+  // p threshold line
+  var pY = cumArea - p/1.05 * (cumArea-padT);
+  ctx.strokeStyle = '#7c6af4'; ctx.lineWidth = 1.5; ctx.setLineDash([5,4]);
+  ctx.beginPath(); ctx.moveTo(padL, pY); ctx.lineTo(W-padR, pY); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#7c6af4'; ctx.font='11px Inter'; ctx.textAlign='right';
+  ctx.fillText('p='+p.toFixed(2), padL-2, pY+4);
+
+  // Nucleus boundary vertical line
+  var nucX = padL + nucleusSize*bw;
+  ctx.strokeStyle = '#7c6af4'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(nucX, padT-5); ctx.lineTo(nucX, H-padB); ctx.stroke();
+
+  // Nucleus label
+  ctx.fillStyle = '#7c6af4'; ctx.font='bold 11px Inter'; ctx.textAlign='center';
+  ctx.fillText('← Nucleus ('+nucleusSize+' word'+(nucleusSize>1?'s':'')+') →', padL+nucleusSize*bw/2, padT-4);
+
+  // Cumulative curve label
+  ctx.fillStyle = '#f7b731'; ctx.font='10px Inter'; ctx.textAlign='left';
+  ctx.fillText('— cumulative probability', W-160, pY-6);
+
+  // Verdict
+  var vEl = document.getElementById('nucleus-verdict');
+  var cumInNucleus = probs.slice(0,nucleusSize).reduce(function(a,b){return a+b;},0);
+  vEl.innerHTML = '<strong style="color:#7c6af4;">Nucleus size: '+nucleusSize+' word'+(nucleusSize>1?'s':'')+'</strong> — captures '+(cumInNucleus*100).toFixed(0)+'% of the probability mass. '+
+    (nucleusScenario==='peaked'
+      ? 'Because the context is obvious, the nucleus is <strong>small</strong> — only the clearly correct words are allowed. This prevents picking "cheese" or "elephant".'
+      : 'Because the context is creative, the nucleus <strong>expands automatically</strong> — all good, varied words remain available. Try the peaked scenario to see the difference!');
+  vEl.style.borderColor = 'rgba(124,106,244,0.3)';
+}
+
+/* =====================================================
+   SECTION 6: TAIL CANVAS
+===================================================== */
+function drawTail() {
+  var cv = document.getElementById('canvas-tail'); if (!cv) return;
+  var ctx = cv.getContext('2d'); var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var padL = 40, padR = 20, padT = 20, padB = 30;
+  var dW = W-padL-padR, dH = H-padT-padB;
+  var N = 120;
+
+  // Draw a long-tail distribution curve
+  ctx.beginPath();
+  for (var i = 0; i <= N; i++) {
+    var x = padL + (i/N)*dW;
+    var t = i/N;
+    var y = padT + dH * (1 - Math.pow(1-t, 3) * 0.95);
+    // Shape: starts high, drops fast, then long flat tail
+    var prob = Math.exp(-t*7) + 0.01*(1-t);
+    var py = padT + dH * (1 - Math.min(prob/1.05, 1)*0.9);
+    if (i===0) ctx.moveTo(x, py); else ctx.lineTo(x, py);
+  }
+  ctx.strokeStyle = '#7c6af4'; ctx.lineWidth = 2; ctx.stroke();
+
+  // Fill nucleus region (left portion)
+  ctx.beginPath();
+  var nucEnd = 0.12;
+  for (var i = 0; i <= N*nucEnd; i++) {
+    var t = i/(N*nucEnd)*nucEnd;
+    var prob = Math.exp(-t*7) + 0.01*(1-t);
+    var py = padT + dH * (1 - Math.min(prob/1.05, 1)*0.9);
+    var x = padL + t*dW;
+    if (i===0) { ctx.moveTo(x, padT+dH); ctx.lineTo(x, py); }
+    else ctx.lineTo(x, py);
+  }
+  var t = nucEnd;
+  var prob = Math.exp(-t*7) + 0.01*(1-t);
+  var py = padT + dH*(1-Math.min(prob/1.05,1)*0.9);
+  ctx.lineTo(padL+t*dW, padT+dH); ctx.closePath();
+  ctx.fillStyle = 'rgba(124,106,244,0.3)'; ctx.fill();
+
+  // Fill tail region (right portion)
+  ctx.beginPath();
+  ctx.moveTo(padL+nucEnd*dW, padT+dH);
+  for (var i = Math.round(N*nucEnd); i <= N; i++) {
+    var t = i/N;
+    var prob = Math.exp(-t*7) + 0.01*(1-t);
+    var py = padT + dH*(1-Math.min(prob/1.05,1)*0.9);
+    ctx.lineTo(padL+t*dW, py);
+  }
+  ctx.lineTo(padL+dW, padT+dH); ctx.closePath();
+  ctx.fillStyle = 'rgba(255,107,107,0.25)'; ctx.fill();
+
+  // Labels
+  ctx.fillStyle = '#7c6af4'; ctx.font='bold 12px Inter'; ctx.textAlign='center';
+  ctx.fillText('Nucleus', padL+nucEnd*dW/2, padT+dH*0.25);
+  ctx.fillStyle = '#ff6b6b'; ctx.font='bold 12px Inter';
+  ctx.fillText('Unreliable tail — nucleus sampling cuts here', padL+(0.5+nucEnd/2)*dW, padT+dH*0.6);
+
+  // Axis
+  ctx.strokeStyle='#2a3060'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(padL,padT); ctx.lineTo(padL,padT+dH); ctx.lineTo(padL+dW,padT+dH); ctx.stroke();
+  ctx.fillStyle='#8892b0'; ctx.font='11px Inter'; ctx.textAlign='left';
+  ctx.fillText('Word rank (sorted by probability)', padL, padT+dH+18);
+  ctx.textAlign='right';
+  ctx.fillText('Probability', padL-4, padT+8);
+}
+
+/* =====================================================
+   SECTION 7: QUALITY-DIVERSITY SCATTER
+===================================================== */
+var SCATTER_METHODS = [
+  { name:'Greedy',     x:0.05, y:0.62, color:'#f7b731', detail:'Always picks the most likely word. Output is coherent but immediately falls into repetitive loops. <strong>Zero diversity, moderate coherence.</strong>' },
+  { name:'Beam Search',x:0.12, y:0.65, color:'#74c0fc', detail:'Explores multiple paths but still optimizes for probability. Output is grammatical but uses generic high-frequency phrases. <strong>Very low diversity.</strong>' },
+  { name:'Temp T=0.3', x:0.20, y:0.55, color:'#4ecdc4', detail:'Very low temperature nearly identical to greedy. Slightly more variety but still mostly deterministic. <strong>Stiff and predictable.</strong>' },
+  { name:'Top-K (K=5)',x:0.55, y:0.60, color:'#51cf66', detail:'Moderate diversity from sampling top-5 words. Coherent but constrained — creative options outside K are permanently excluded. <strong>Decent but bounded.</strong>' },
+  { name:'Temp T=1.8', x:0.92, y:0.18, color:'#ff6b6b', detail:'High temperature makes all words nearly equal. Very diverse but frequently picks rare, incoherent words. <strong>High diversity, low quality.</strong>' },
+  { name:'Nucleus p=0.9',x:0.78, y:0.88, color:'#7c6af4', detail:'Dynamic nucleus adapts to context. High diversity when context allows, constrained when context is clear. <strong>Best quality + diversity balance.</strong>', star:true }
+];
+var scatterHighlight = -1;
+
+function drawCompareScatter() {
+  var cv = document.getElementById('canvas-compare-scatter'); if (!cv) return;
+  var ctx = cv.getContext('2d'); var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var padL = 56, padR = 30, padT = 24, padB = 50;
+  var dW = W-padL-padR, dH = H-padT-padB;
+
+  // Background gradient for "sweet spot"
+  var grad = ctx.createRadialGradient(padL+dW*0.78, padT+dH*(1-0.88), 10, padL+dW*0.78, padT+dH*(1-0.88), 130);
+  grad.addColorStop(0, 'rgba(124,106,244,0.10)');
+  grad.addColorStop(1, 'rgba(124,106,244,0)');
+  ctx.fillStyle = grad; ctx.fillRect(padL, padT, dW, dH);
+
+  // Grid
+  [0.25,0.5,0.75].forEach(function(v){
+    ctx.strokeStyle='#1e2444'; ctx.lineWidth=0.5;
+    ctx.beginPath(); ctx.moveTo(padL, padT+dH*(1-v)); ctx.lineTo(padL+dW, padT+dH*(1-v)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(padL+dW*v, padT); ctx.lineTo(padL+dW*v, padT+dH); ctx.stroke();
+    ctx.fillStyle='#2a3060'; ctx.font='10px JetBrains Mono'; ctx.textAlign='right';
+    ctx.fillText((v*10).toFixed(0), padL-4, padT+dH*(1-v)+4);
+    ctx.textAlign='center';
+    ctx.fillText((v*10).toFixed(0), padL+dW*v, padT+dH+16);
+  });
+
+  // Axes
+  ctx.strokeStyle='#2a3060'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(padL,padT); ctx.lineTo(padL,padT+dH); ctx.lineTo(padL+dW,padT+dH); ctx.stroke();
+
+  // Axis labels
+  ctx.fillStyle='#8892b0'; ctx.font='12px Inter'; ctx.textAlign='center';
+  ctx.fillText('← Less diverse    Diversity    More diverse →', padL+dW/2, H-8);
+  ctx.save(); ctx.translate(14, padT+dH/2); ctx.rotate(-Math.PI/2);
+  ctx.textAlign='center';
+  ctx.fillText('← Lower    Quality    Higher →', 0, 0);
+  ctx.restore();
+
+  // "Sweet spot" label
+  ctx.fillStyle='rgba(124,106,244,0.5)'; ctx.font='11px Inter'; ctx.textAlign='left';
+  ctx.fillText('Sweet spot', padL+dW*0.58, padT+dH*0.05);
+
+  // Plot points
+  SCATTER_METHODS.forEach(function(m, i) {
+    var px = padL + m.x*dW;
+    var py = padT + (1-m.y)*dH;
+    var isHl = (i === scatterHighlight);
+    var r = isHl ? 14 : 10;
+
+    if (m.star) {
+      // Draw star shape
+      ctx.save(); ctx.translate(px, py);
+      ctx.beginPath();
+      for (var j=0;j<5;j++){
+        var a=j*4*Math.PI/5-Math.PI/2;
+        var b=a+2*Math.PI/5;
+        var ri=r*0.42;
+        j===0?ctx.moveTo(r*Math.cos(a),r*Math.sin(a)):ctx.lineTo(r*Math.cos(a),r*Math.sin(a));
+        ctx.lineTo(ri*Math.cos(b), ri*Math.sin(b));
+      }
+      ctx.closePath();
+      ctx.fillStyle = m.color; ctx.fill();
+      if (isHl) { ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke(); }
+      ctx.restore();
+    } else {
+      ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI*2);
+      ctx.fillStyle = m.color+(isHl?'ff':'cc'); ctx.fill();
+      if (isHl) { ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke(); }
+    }
+
+    // Label
+    var labelX = px + (m.x > 0.7 ? -12 : 14);
+    var labelY = py + (m.y > 0.7 ? 20 : -14);
+    ctx.fillStyle = m.color; ctx.font=(isHl?'700 ':'600 ')+'11px Inter';
+    ctx.textAlign = m.x > 0.7 ? 'right' : 'left';
+    ctx.fillText(m.name, labelX, labelY);
+  });
+}
+
+function scatterClick(evt) {
+  var cv = document.getElementById('canvas-compare-scatter'); if (!cv) return;
+  var rect = cv.getBoundingClientRect();
+  var mx = (evt.clientX - rect.left) * (cv.width/rect.width);
+  var my = (evt.clientY - rect.top) * (cv.height/rect.height);
+  var padL=56, padR=30, padT=24, padB=50;
+  var dW=cv.width-padL-padR, dH=cv.height-padT-padB;
+
+  var closest = -1, minDist = 30;
+  SCATTER_METHODS.forEach(function(m, i){
+    var px = padL+m.x*dW, py = padT+(1-m.y)*dH;
+    var d = Math.sqrt((mx-px)*(mx-px)+(my-py)*(my-py));
+    if (d < minDist) { minDist=d; closest=i; }
+  });
+
+  scatterHighlight = closest;
+  drawCompareScatter();
+  var detEl = document.getElementById('scatter-detail');
+  if (closest >= 0) {
+    var m = SCATTER_METHODS[closest];
+    detEl.innerHTML = '<strong style="color:'+m.color+'">'+m.name+'</strong>: '+m.detail;
+    detEl.style.borderColor = m.color+'55';
+  } else {
+    detEl.textContent = 'Click on a point to see details.';
+    detEl.style.borderColor = '';
+  }
+}
+
+/* =====================================================
+   INIT ALL
+===================================================== */
+drawVocabProbs();
+drawGreedyProbs();
+drawBeamTree();
+drawTempDist();
+drawTopK();
+drawNucleus();
+drawTail();
+drawCompareScatter();
+
+// Nav
+updateNavOnScroll();
+injectGlossaryTooltips();
+
+// Default scatter detail
+document.getElementById('scatter-detail').textContent = 'Click on any point to learn more about that method.';
+
+// Keyboard nav
+document.addEventListener('keydown', function(e){
+  var cur = -1;
+  for(var i=0;i<sectionIds.length;i++){
+    var el=document.getElementById(sectionIds[i]);
+    if(el && el.offsetTop <= window.scrollY+120) cur=i;
+  }
+  if(e.key==='ArrowRight'||e.key==='j'||e.key==='J'){
+    if(cur<sectionIds.length-1) document.getElementById(sectionIds[cur+1]).scrollIntoView({behavior:'smooth'});
+  }
+  if(e.key==='ArrowLeft'||e.key==='k'||e.key==='K'){
+    if(cur>0) document.getElementById(sectionIds[cur-1]).scrollIntoView({behavior:'smooth'});
+  }
+});
+</script>
+</body>
+</html>
