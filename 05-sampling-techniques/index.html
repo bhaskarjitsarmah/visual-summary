@@ -448,10 +448,79 @@ window.addEventListener('load', function(){ var el=document.getElementById('pg-i
     <p><strong style="color:#4ecdc4;">Key weakness:</strong> Temperature is a one-size-fits-all knob. It reshapes ALL the probabilities by the same amount, regardless of whether the current word slot is obvious (only one good choice) or ambiguous (many equally good choices). It needs a smarter companion.</p>
   </div>
 
+  <!-- LOGITS EXPLAINER -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">First: What Are Logits?</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:16px;">Before any sampling happens, the AI model produces raw numbers called <strong>logits</strong> — one number for every word in the vocabulary (~50,000 words). Think of them as the model's raw "confidence votes" — not yet probabilities, just scores. They can be positive, negative, or zero.</p>
+
+    <!-- Logits vs Probs side by side -->
+    <div class="g2" style="gap:16px;margin-bottom:16px;">
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#ff6b6b;margin-bottom:8px;">Logits — Raw scores (NOT probabilities)</div>
+        <canvas id="canvas-logits-raw" width="300" height="200" style="width:100%;max-width:300px;"></canvas>
+        <div style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5;">
+          ✗ Can be negative<br>✗ Don't add up to 100%<br>✗ Can't be used directly
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#51cf66;margin-bottom:8px;">After Softmax — Probabilities</div>
+        <canvas id="canvas-logits-probs" width="300" height="200" style="width:100%;max-width:300px;"></canvas>
+        <div style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5;">
+          ✓ Always between 0% and 100%<br>✓ All words sum to exactly 100%<br>✓ Ready to use for sampling
+        </div>
+      </div>
+    </div>
+
+    <!-- Key properties -->
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:16px;">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#f7b731;margin-bottom:12px;">3 Key Properties of Logits</div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div style="min-width:24px;height:24px;border-radius:50%;background:rgba(247,183,49,0.2);border:1px solid #f7b731;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#f7b731;flex-shrink:0;">1</div>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">Any real number — positive or negative</div>
+            <div style="font-size:12px;color:var(--muted);">There's no rule that logits must be positive. A word with logit -5.0 simply has a very low (but nonzero) probability. A word with logit +5.0 has a high probability.</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div style="min-width:24px;height:24px;border-radius:50%;background:rgba(247,183,49,0.2);border:1px solid #f7b731;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#f7b731;flex-shrink:0;">2</div>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">Only the <em>gaps</em> between logits matter — not the absolute values</div>
+            <div style="font-size:12px;color:var(--muted);">Adding the same number to every logit produces identical probabilities. [4, 2, -1] gives the same result as [104, 102, 99]. This is why temperature works by <em>dividing</em> (changing gaps), not adding.</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <div style="min-width:24px;height:24px;border-radius:50%;background:rgba(247,183,49,0.2);border:1px solid #f7b731;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#f7b731;flex-shrink:0;">3</div>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">Softmax converts logits → probabilities</div>
+            <div style="font-size:12px;color:var(--muted);">The softmax function squashes any set of numbers into values between 0 and 1 that sum to exactly 1.0 (100%). It's the bridge between raw scores and usable probabilities.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Interactive: gap slider -->
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;">Interactive: Watch Logit Gaps Control the Probability Distribution</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Drag the <strong>Gap</strong> slider to spread or compress the logit values. Notice: <strong>larger gaps → more lopsided probabilities</strong>. Zero gaps → all words equally likely. This is exactly how temperature works — it changes the effective gap size.</p>
+
+    <div class="sl-row" style="margin-bottom:4px;">
+      <span class="sl-lbl">Logit gap (spread)</span>
+      <input type="range" id="logit-gap-slider" min="0" max="3" step="0.05" value="1.0" oninput="drawLogitInteractive()">
+      <span class="sl-val" id="logit-gap-val">gap = 1.0×</span>
+    </div>
+    <canvas id="canvas-logit-interactive" width="640" height="260" style="width:100%;max-width:640px;margin-bottom:10px;"></canvas>
+    <div id="logit-gap-verdict" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);"></div>
+
+    <div class="analogy-card" style="margin-top:16px;">
+      <div class="analogy-label">Everyday Analogy</div>
+      <p>"Logits are like raw exam scores before grading. Student A scored 85, B scored 72, C scored 40. Those raw numbers don't directly tell you the <em>percentage</em> pass rate — you need to convert them first (like softmax does). And if everyone's scores were all within 1 point of each other (small gaps), it would be a near-tie. If one student scored 200 points above everyone (large gap), they dominate — just like a high-logit word dominates the probability."</p>
+    </div>
+  </div>
+
   <!-- MATH DEEP DIVE -->
   <div class="card" style="margin-bottom:24px;">
     <div class="card-title">The Mathematics — How Temperature Actually Works</div>
-    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:16px;">Every AI language model produces raw scores called <strong>logits</strong> — one number per word in the vocabulary. Temperature reshapes these scores before converting them to probabilities. Here's the exact formula:</p>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:16px;">Now that we know what logits are, here's exactly how temperature reshapes them before converting to probabilities:</p>
 
     <!-- Formula display -->
     <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:20px 24px;margin-bottom:20px;">
@@ -1872,6 +1941,207 @@ function scatterClick(evt) {
 }
 
 /* =====================================================
+   LOGITS EXPLAINER CANVASES
+===================================================== */
+var LOGIT_WORDS = ['Paris','located','city','the','cheese','banana'];
+var BASE_LOGITS  = [4.2, 2.8, 1.6, 0.4, -0.8, -2.1];
+
+function softmax(logits) {
+  var maxL = Math.max.apply(null, logits);
+  var exps = logits.map(function(l){ return Math.exp(l - maxL); });
+  var sum  = exps.reduce(function(a,b){ return a+b; }, 0);
+  return exps.map(function(e){ return e/sum; });
+}
+
+function drawLogitsRaw() {
+  var cv = document.getElementById('canvas-logits-raw'); if (!cv) return;
+  var ctx = cv.getContext('2d'); var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var logits = BASE_LOGITS;
+  var n = logits.length;
+  var padL = 42, padR = 10, padT = 14, padB = 36;
+  var bw = (W - padL - padR) / n;
+  var midY = padT + (H - padT - padB) * 0.38;   // zero line sits at ~38% from top
+  var scale = (H - padT - padB) * 0.28;          // pixels per logit unit
+
+  // Zero axis
+  ctx.strokeStyle = '#2a3060'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(padL, midY); ctx.lineTo(W - padR, midY); ctx.stroke();
+  ctx.fillStyle = '#8892b0'; ctx.font = '9px JetBrains Mono'; ctx.textAlign = 'right';
+  ctx.fillText('0', padL - 3, midY + 3);
+
+  // Y guide lines
+  [-2, 2, 4].forEach(function(v) {
+    var y = midY - v * scale;
+    ctx.strokeStyle = '#1e2444'; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+    ctx.fillStyle = '#8892b0'; ctx.font = '9px JetBrains Mono'; ctx.textAlign = 'right';
+    ctx.fillText(v, padL - 3, y + 3);
+  });
+
+  logits.forEach(function(l, i) {
+    var bww = bw * 0.65;
+    var x = padL + i * bw + bw * 0.175;
+    var barH = l * scale;
+    var y = l >= 0 ? midY - barH : midY;
+    var h = Math.abs(barH);
+    var col = l >= 0 ? '#ff6b6b' : '#74c0fc';
+    drawRoundedRect(ctx, x, y, bww, Math.max(h, 2), 3, col + '55', col, 1.5);
+
+    // Value label
+    ctx.fillStyle = col; ctx.font = 'bold 10px JetBrains Mono'; ctx.textAlign = 'center';
+    ctx.fillText(l.toFixed(1), x + bww / 2, l >= 0 ? y - 4 : y + h + 11);
+
+    // Word label
+    ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter'; ctx.textAlign = 'center';
+    ctx.fillText(LOGIT_WORDS[i], x + bww / 2, H - padB + 14);
+  });
+
+  // Sum annotation
+  var sum = logits.reduce(function(a,b){ return a+b; }, 0);
+  ctx.fillStyle = '#ff6b6b'; ctx.font = '10px Inter'; ctx.textAlign = 'center';
+  ctx.fillText('Sum = ' + sum.toFixed(1) + '  ≠  100%', W/2, H - 3);
+}
+
+function drawLogitsProbs() {
+  var cv = document.getElementById('canvas-logits-probs'); if (!cv) return;
+  var ctx = cv.getContext('2d'); var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var probs = softmax(BASE_LOGITS);
+  var n = probs.length;
+  var padL = 42, padR = 10, padT = 14, padB = 36;
+  var bw = (W - padL - padR) / n;
+  var maxH = H - padT - padB;
+
+  // Axes
+  ctx.strokeStyle = '#2a3060'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(padL, padT); ctx.lineTo(padL, H - padB); ctx.lineTo(W - padR, H - padB); ctx.stroke();
+
+  // Y labels
+  [0.25, 0.5, 0.75].forEach(function(v) {
+    var y = (H - padB) - v * maxH;
+    ctx.strokeStyle = '#1e2444'; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+    ctx.fillStyle = '#8892b0'; ctx.font = '9px JetBrains Mono'; ctx.textAlign = 'right';
+    ctx.fillText((v * 100).toFixed(0) + '%', padL - 3, y + 3);
+  });
+
+  probs.forEach(function(p, i) {
+    var bh = p * maxH;
+    var x = padL + i * bw + bw * 0.175;
+    var bww = bw * 0.65;
+    var y = H - padB - bh;
+    var col = '#51cf66';
+    drawRoundedRect(ctx, x, y, bww, Math.max(bh, 2), 3, col + '55', col, 1.5);
+    ctx.fillStyle = col; ctx.font = 'bold 10px JetBrains Mono'; ctx.textAlign = 'center';
+    ctx.fillText((p * 100).toFixed(0) + '%', x + bww / 2, y - 4);
+    ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter'; ctx.textAlign = 'center';
+    ctx.fillText(LOGIT_WORDS[i], x + bww / 2, H - padB + 14);
+  });
+
+  // Sum annotation
+  ctx.fillStyle = '#51cf66'; ctx.font = '10px Inter'; ctx.textAlign = 'center';
+  ctx.fillText('Sum = 100.0%  ✓', W / 2, H - 3);
+}
+
+function drawLogitInteractive() {
+  var cv = document.getElementById('canvas-logit-interactive'); if (!cv) return;
+  var ctx = cv.getContext('2d'); var W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  var gap = parseFloat(document.getElementById('logit-gap-slider').value);
+  document.getElementById('logit-gap-val').textContent = 'gap = ' + gap.toFixed(2) + '×';
+
+  // Scale logits by gap factor (relative to mean)
+  var mean = BASE_LOGITS.reduce(function(a,b){ return a+b; }, 0) / BASE_LOGITS.length;
+  var scaledLogits = BASE_LOGITS.map(function(l){ return mean + (l - mean) * gap; });
+  var probs = softmax(scaledLogits);
+
+  var n = LOGIT_WORDS.length;
+  var halfW = W / 2 - 10;
+  var padL = 48, padR = 10, padT = 22, padB = 46;
+
+  // LEFT panel: logits
+  var bw = (halfW - padL - 4) / n;
+  var midY = padT + (H - padT - padB) * 0.4;
+  var scale = (H - padT - padB) * 0.25;
+
+  // Panel label
+  ctx.fillStyle = '#ff6b6b'; ctx.font = 'bold 11px Inter'; ctx.textAlign = 'center';
+  ctx.fillText('Logits (raw scores)', halfW / 2 + padL / 2, 14);
+
+  // Zero axis
+  ctx.strokeStyle = '#2a3060'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(padL, midY); ctx.lineTo(halfW + 4, midY); ctx.stroke();
+  ctx.fillStyle = '#8892b0'; ctx.font = '9px JetBrains Mono'; ctx.textAlign = 'right';
+  ctx.fillText('0', padL - 3, midY + 3);
+
+  // Divider
+  ctx.strokeStyle = '#2a3060'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(halfW + 10, padT - 8); ctx.lineTo(halfW + 10, H - padB + 10); ctx.stroke();
+
+  scaledLogits.forEach(function(l, i) {
+    var bww = bw * 0.65;
+    var x = padL + i * bw + bw * 0.175;
+    var barH = l * scale;
+    var y = l >= 0 ? midY - barH : midY;
+    var h = Math.abs(barH);
+    var col = l >= 0 ? '#ff6b6b' : '#74c0fc';
+    drawRoundedRect(ctx, x, y, bww, Math.max(h, 2), 2, col + '55', col, 1.5);
+    ctx.fillStyle = col; ctx.font = '9px JetBrains Mono'; ctx.textAlign = 'center';
+    if (Math.abs(l) > 0.3) ctx.fillText(l.toFixed(1), x + bww/2, l >= 0 ? y - 4 : y + h + 10);
+    ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter'; ctx.textAlign = 'center';
+    ctx.fillText(LOGIT_WORDS[i], x + bww/2, H - padB + 14);
+  });
+
+  // Arrow + softmax label
+  ctx.fillStyle = '#f7b731'; ctx.font = 'bold 12px Inter'; ctx.textAlign = 'center';
+  ctx.fillText('softmax', halfW + 10, H / 2 - 6);
+  ctx.fillStyle = '#f7b731'; ctx.font = '18px serif';
+  ctx.fillText('→', halfW + 10, H / 2 + 12);
+
+  // RIGHT panel: probabilities
+  var rPadL = halfW + 22;
+  var rbw = (W - rPadL - padR) / n;
+  var maxH = H - padT - padB;
+
+  ctx.fillStyle = '#51cf66'; ctx.font = 'bold 11px Inter'; ctx.textAlign = 'center';
+  ctx.fillText('Probabilities', rPadL + (W - rPadL - padR) / 2, 14);
+
+  ctx.strokeStyle = '#2a3060'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(rPadL, padT); ctx.lineTo(rPadL, H - padB); ctx.lineTo(W - padR, H - padB); ctx.stroke();
+
+  probs.forEach(function(p, i) {
+    var bh = p * maxH;
+    var x = rPadL + i * rbw + rbw * 0.1;
+    var bww = rbw * 0.8;
+    var y = H - padB - bh;
+    var col = '#51cf66';
+    drawRoundedRect(ctx, x, y, bww, Math.max(bh, 2), 2, col + '55', col, 1.5);
+    ctx.fillStyle = col; ctx.font = 'bold 9px JetBrains Mono'; ctx.textAlign = 'center';
+    ctx.fillText((p * 100).toFixed(0) + '%', x + bww/2, y - 4);
+    ctx.fillStyle = '#8892b0'; ctx.font = '10px Inter'; ctx.textAlign = 'center';
+    ctx.fillText(LOGIT_WORDS[i], x + bww/2, H - padB + 14);
+  });
+
+  // Verdict
+  var vEl = document.getElementById('logit-gap-verdict');
+  var topPct = (probs[0] * 100).toFixed(0);
+  var lastPct = (probs[n - 1] * 100).toFixed(1);
+  if (gap < 0.05) {
+    vEl.innerHTML = '<strong style="color:#ffd43b;">Gap ≈ 0 → All probabilities equal ('+(100/n).toFixed(0)+'% each).</strong> When logits are all the same, softmax gives every word identical probability — the AI has no preference. This is exactly what T=∞ produces.';
+  } else if (gap < 0.6) {
+    vEl.innerHTML = '<strong style="color:#4ecdc4;">Small gap → Probabilities spread out gently.</strong> Top word "' + LOGIT_WORDS[0] + '" has ' + topPct + '%, last word "' + LOGIT_WORDS[n-1] + '" has ' + lastPct + '%. Many words have reasonable probability — diverse output.';
+  } else if (gap < 1.5) {
+    vEl.innerHTML = '<strong style="color:#51cf66;">Moderate gap → Original distribution (gap = 1.0 is baseline).</strong> Top word "' + LOGIT_WORDS[0] + '" has ' + topPct + '%, reflecting the model\'s learned confidence.';
+  } else {
+    vEl.innerHTML = '<strong style="color:#ff6b6b;">Large gap → Top word dominates at ' + topPct + '%.</strong> The model is extremely confident. Low-scoring words like "' + LOGIT_WORDS[n-1] + '" drop to just ' + lastPct + '%. This is what T→0 (cold temperature) produces — amplified gaps.';
+  }
+}
+
+/* =====================================================
    TEMPERATURE EXTREMES PANEL (5 columns)
 ===================================================== */
 function drawTempExtremes() {
@@ -2014,6 +2284,9 @@ function drawTempExtreme() {
 drawVocabProbs();
 drawGreedyProbs();
 drawBeamTree();
+drawLogitsRaw();
+drawLogitsProbs();
+drawLogitInteractive();
 drawTempDist();
 drawTempExtremes();
 drawTempExtreme();
