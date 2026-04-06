@@ -279,6 +279,19 @@ window.addEventListener('load',function(){var el=document.getElementById('pg-inp
     <p>"Pretraining is like reading every book in a library — you absorb enormous knowledge. But knowing facts doesn't mean you can pass an exam. Reinforcement learning is like actually taking practice exams and learning from your mistakes. GRPO is a clever way to run those practice exams cheaply — have the student answer each question 8 times, then learn from which answers were above-average."</p>
   </div>
 
+  <!-- Aha moment emergence -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">The "Aha Moment" — Emergence Without Being Trained For It</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:14px;">DeepSeek-R1-Zero (trained with <em>only</em> GRPO, no SFT) spontaneously developed self-verification. Nobody programmed it — the model discovered that double-checking answers leads to higher reward. Watch how responses evolve over training:</p>
+    <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center;">
+      <button class="btn" id="aha-play-btn" onclick="playAha()">▶ Animate Training Progress</button>
+      <button class="btn btn-outline" onclick="resetAha()">Reset</button>
+      <span id="aha-step-label" style="font-size:12px;color:var(--muted);font-family:'JetBrains Mono'">Step 0 / 100</span>
+    </div>
+    <canvas id="canvas-aha" width="640" height="260" style="width:100%;max-width:640px;margin-bottom:10px;"></canvas>
+    <div id="aha-verdict" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);">Press Play to see how outputs evolve as GRPO training progresses.</div>
+  </div>
+
   <div class="section-bridge">
     <span class="section-bridge-text">The existing RL method (PPO) works but is expensive. What's the problem?</span>
     <a class="section-bridge-link" href="#s-ppo">PPO: The Old Way →</a>
@@ -435,6 +448,45 @@ A₁      = (r₁ − r₁) / (0 + ε) ≈ 0</div>
     <p style="font-size:13px;color:var(--text);line-height:1.7;">With one completion <strong>every advantage is exactly 0</strong> — regardless of whether the answer was right or wrong. Loss = 0, gradient = 0, nothing is learned. <strong>You mathematically need at least G = 2 to get any signal.</strong> In practice G = 8–16 provides stable, informative baselines.</p>
   </div>
 
+  <!-- Temperature → group diversity → learning signal -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Sampling Temperature → Group Diversity → Learning Signal</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:12px;">When generating G completions, the sampling temperature controls how varied the answers are — and variety directly determines how much the model can learn. Drag to see the chain:</p>
+    <div class="sl-row">
+      <span class="sl-lbl">Sampling temperature T</span>
+      <input type="range" id="temp-diversity-slider" min="0.1" max="2.0" step="0.05" value="0.8" oninput="drawTempDiversity()">
+      <span class="sl-val" id="temp-diversity-val">T = 0.8</span>
+    </div>
+    <canvas id="canvas-temp-diversity" width="640" height="200" style="width:100%;max-width:640px;margin:10px 0;"></canvas>
+    <div id="temp-diversity-verdict" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);"></div>
+  </div>
+
+  <!-- Reward hacking simulation -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Reward Hacking: When the Model Games the Reward</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:14px;">GRPO optimises reward — but what if the reward function can be gamed? Two strategies both get reward=1 for a correct final answer. GRPO can't tell them apart. Click each to compare:</p>
+    <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+      <button class="btn" id="hack-btn-honest" onclick="showHackMode('honest',this)">✓ Honest Strategy</button>
+      <button class="btn btn-outline" id="hack-btn-hacker" onclick="showHackMode('hacker',this)">⚠ Gaming Strategy</button>
+      <button class="btn btn-outline" id="hack-btn-both" onclick="showHackMode('both',this)">Compare Both</button>
+    </div>
+    <canvas id="canvas-hack" width="640" height="220" style="width:100%;max-width:640px;margin-bottom:10px;"></canvas>
+    <div id="hack-verdict" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);">Select a strategy above to see how GRPO perceives it.</div>
+  </div>
+
+  <!-- Difficulty sweet spot -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">The Difficulty Sweet Spot</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:12px;">GRPO needs tasks that are <em>sometimes right, sometimes wrong</em>. If every answer is correct (too easy) or all wrong (too hard), std=0 and every advantage=0. No gradient, no learning:</p>
+    <div class="sl-row">
+      <span class="sl-lbl">Task difficulty (model's success rate)</span>
+      <input type="range" id="difficulty-slider" min="0" max="1" step="0.01" value="0.5" oninput="drawDifficulty()">
+      <span class="sl-val" id="difficulty-val">50%</span>
+    </div>
+    <canvas id="canvas-difficulty" width="640" height="200" style="width:100%;max-width:640px;margin:10px 0;"></canvas>
+    <div id="difficulty-verdict" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);"></div>
+  </div>
+
   <!-- GRPO vs PPO architecture -->
   <div class="card" style="margin-bottom:24px;">
     <div class="card-title">GRPO vs PPO — Models Required</div>
@@ -507,6 +559,26 @@ A_i  =  ────────────────────────
   <div style="background:rgba(247,183,49,0.07);border:1px solid rgba(247,183,49,0.3);border-radius:10px;padding:14px 18px;margin-bottom:24px;">
     <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:#f7b731;margin-bottom:8px;">⚠ The "All Same Reward" Problem</div>
     <p style="font-size:13px;color:var(--text);line-height:1.7;">If the task is too easy (model gets every answer right, all rewards = 1) or too hard (all wrong, rewards = 0), std(r) = 0 and all advantages = 0. No learning happens. GRPO requires problems at the right difficulty — hard enough that the model sometimes gets it wrong, easy enough that it sometimes gets it right. This is called the <strong>"difficulty sweet spot."</strong></p>
+  </div>
+
+  <!-- GRPO vs REINFORCE family -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">GRPO's Algorithmic Ancestors: From REINFORCE to GRPO</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:14px;">GRPO didn't appear from nowhere — it's a natural evolution of classic RL algorithms. Click any node to see how each one handles the baseline problem:</p>
+    <canvas id="canvas-rl-family" width="640" height="200" style="width:100%;max-width:640px;cursor:pointer;" onclick="handleRLFamilyClick(event)"></canvas>
+    <div id="rl-family-info" style="margin-top:10px;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);font-size:13px;line-height:1.7;color:var(--muted);">Click any algorithm node to see its approach to the baseline problem.</div>
+  </div>
+
+  <!-- Advantage distribution histogram -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">What Advantages Look Like Across Many Batches</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:12px;">Because we z-score normalise within each group, advantages are approximately standard-normal across batches — centred at 0, spread of ~1. This is by design. Click to simulate running many training batches:</p>
+    <div style="display:flex;gap:10px;margin-bottom:14px;align-items:center;flex-wrap:wrap;">
+      <button class="btn" id="hist-run-btn" onclick="runHistogram()">▶ Simulate 200 Batches</button>
+      <button class="btn btn-outline" onclick="resetHistogram()">Reset</button>
+      <span id="hist-stats" style="font-size:12px;color:var(--muted);font-family:'JetBrains Mono'"></span>
+    </div>
+    <canvas id="canvas-adv-hist" width="640" height="200" style="width:100%;max-width:640px;"></canvas>
   </div>
 
   <div class="section-bridge">
@@ -623,6 +695,44 @@ where:
       <span style="color:#7c6af4;font-weight:600;">④</span> Compute loss = −min(r·A, clip(r,1±ε)·A) + β·KL<br>
       <span style="color:#ffd43b;font-weight:600;">⑤</span> Backpropagate, update policy weights, repeat
     </div>
+  </div>
+
+  <!-- KL over training time -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">KL Divergence Over Training Time: Why the Penalty Is Necessary</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:12px;">Without the KL penalty, the policy drifts further and further from the reference model. With β=0.04 it stabilises. Adjust β and watch what happens over 200 training steps:</p>
+    <div class="sl-row">
+      <span class="sl-lbl">β (KL penalty weight)</span>
+      <input type="range" id="kl-time-beta" min="0" max="0.3" step="0.01" value="0.04" oninput="drawKLOverTime()">
+      <span class="sl-val" id="kl-time-beta-val">β = 0.04</span>
+    </div>
+    <canvas id="canvas-kl-time" width="640" height="200" style="width:100%;max-width:640px;margin:10px 0;"></canvas>
+    <div id="kl-time-verdict" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);"></div>
+  </div>
+
+  <!-- Credit assignment problem -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">GRPO's Blind Spot: The Credit Assignment Problem</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:14px;">GRPO assigns the <em>same advantage</em> to every token in a completion — good or bad. If the final answer is correct, even filler words like "Let me think…" get reinforced. Click tokens to see:</p>
+    <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
+      <button class="btn" id="ca-correct-btn" onclick="showCreditMode('correct',this)">✓ Correct answer</button>
+      <button class="btn btn-outline" id="ca-wrong-btn" onclick="showCreditMode('wrong',this)">✗ Wrong answer</button>
+      <span style="font-size:12px;color:var(--muted);">Compare GRPO vs PPO credit assignment</span>
+    </div>
+    <canvas id="canvas-credit" width="640" height="220" style="width:100%;max-width:640px;margin-bottom:10px;"></canvas>
+    <div id="credit-verdict" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);"></div>
+  </div>
+
+  <!-- Process reward vs outcome reward -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Outcome Reward vs Process Reward (PRM)</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:14px;">Standard GRPO uses outcome rewards — only the final answer is scored. Process reward models (PRM) score each reasoning step. Click a step to see where reward is injected:</p>
+    <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+      <button class="btn" id="prm-outcome-btn" onclick="showPRMMode('outcome',this)">Outcome Reward (ORM)</button>
+      <button class="btn btn-outline" id="prm-process-btn" onclick="showPRMMode('process',this)">Process Reward (PRM)</button>
+    </div>
+    <canvas id="canvas-prm" width="640" height="200" style="width:100%;max-width:640px;margin-bottom:10px;"></canvas>
+    <div id="prm-verdict" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);">Select a reward mode to see where signals are injected into the reasoning trace.</div>
   </div>
 
   <!-- KL intuition with direct sliders -->
@@ -745,6 +855,28 @@ where:
       <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">Can GRPO train from scratch (no SFT step)? <span class="accordion-chevron">▾</span></div>
       <div class="accordion-body">DeepSeek-R1-Zero showed yes — but the model develops strange formatting and language mixing without SFT. The standard pipeline remains: pretrain → SFT → GRPO. The SFT step teaches the model to produce structured responses; GRPO then optimises correctness.</div>
     </div>
+  </div>
+
+  <!-- Live hyperparameter dashboard -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Live Hyperparameter Dashboard: Tune GRPO Yourself</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:14px;">Adjust ε, β, and G simultaneously. The simulated training curve shows how their combined effect shapes convergence speed and final performance:</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:16px;">
+      <div>
+        <div class="sl-row"><span class="sl-lbl">ε (clip range)</span><input type="range" id="hp-eps" min="0.05" max="0.5" step="0.01" value="0.2" oninput="drawHPDash()"><span class="sl-val" id="hp-eps-val">0.20</span></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;padding:0 4px;">Controls max update size. Too small → slow. Too large → unstable.</div>
+      </div>
+      <div>
+        <div class="sl-row"><span class="sl-lbl">β (KL weight)</span><input type="range" id="hp-beta" min="0" max="0.3" step="0.005" value="0.04" oninput="drawHPDash()"><span class="sl-val" id="hp-beta-val">0.04</span></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;padding:0 4px;">Controls drift penalty. 0 = free drift. High = slow but safe.</div>
+      </div>
+      <div>
+        <div class="sl-row"><span class="sl-lbl">G (group size)</span><input type="range" id="hp-g" min="1" max="32" step="1" value="8" oninput="drawHPDash()"><span class="sl-val" id="hp-g-val">8</span></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;padding:0 4px;">More completions = better baseline but more compute.</div>
+      </div>
+    </div>
+    <canvas id="canvas-hp-dash" width="640" height="220" style="width:100%;max-width:640px;margin-bottom:10px;"></canvas>
+    <div id="hp-dash-verdict" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);"></div>
   </div>
 
   <div class="highlight-box">
@@ -1370,6 +1502,732 @@ function drawResultsBar(){
 }
 
 /* =====================================================
+   AHA MOMENT EMERGENCE
+===================================================== */
+var ahaStep=0;var ahaAF=null;var ahaDone=false;
+var AHA_STAGES=[
+  {step:0,  label:'Step 0 — Training starts',   color:'#8892b0',
+   lines:['8'],
+   note:'Early training: model outputs the first thing it "thinks" is plausible. No structure, no reasoning.'},
+  {step:20, label:'Step 20 — Format emerging',  color:'#74c0fc',
+   lines:['The answer is 8.'],
+   note:'The model learns that structured answers get higher rewards. Format begins to stabilise.'},
+  {step:45, label:'Step 45 — Arithmetic attempt',color:'#4ecdc4',
+   lines:['2 + 3 × 4 = 2 + 12 = 14'],
+   note:'The model starts showing its work — not because it was told to, but because detailed reasoning correlates with correct answers.'},
+  {step:70, label:'Step 70 — Self-verification', color:'#51cf66',
+   lines:['3 × 4 = 12, then 2 + 12 = 14.','Let me check: 2 + 12 = 14. ✓','Answer: 14'],
+   note:'Self-verification emerges spontaneously. Nobody programmed this — GRPO pressure discovered that double-checking improves reward.'},
+  {step:100,label:'Step 100 — Full reasoning trace',color:'#f7b731',
+   lines:['Order of operations: × before +','Step 1: 3 × 4 = 12','Step 2: 2 + 12 = 14','Verify: 14 is correct. ✓','Answer: 14'],
+   note:'The model has learned a complete reasoning strategy. The "aha moment" is fully formed — emergent from reward pressure alone.'}
+];
+function resetAha(){
+  ahaStep=0;ahaDone=false;
+  if(ahaAF){cancelAnimationFrame(ahaAF);ahaAF=null;}
+  var btn=document.getElementById('aha-play-btn');if(btn)btn.textContent='▶ Animate Training Progress';
+  drawAha(0);
+}
+function playAha(){
+  if(ahaDone){resetAha();return;}
+  var btn=document.getElementById('aha-play-btn');
+  if(ahaAF){cancelAnimationFrame(ahaAF);ahaAF=null;if(btn)btn.textContent='▶ Continue';return;}
+  if(btn)btn.textContent='⏸ Pause';
+  function step(){
+    ahaStep=Math.min(ahaStep+0.4,100);
+    drawAha(ahaStep);
+    if(ahaStep<100)ahaAF=requestAnimationFrame(step);
+    else{ahaDone=true;ahaAF=null;if(btn)btn.textContent='↺ Replay';}
+  }
+  ahaAF=requestAnimationFrame(step);
+}
+function drawAha(t){
+  var lbl=document.getElementById('aha-step-label');if(lbl)lbl.textContent='Step '+Math.round(t)+' / 100';
+  var cv=document.getElementById('canvas-aha');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  // Find current and next stage
+  var stage=AHA_STAGES[0];
+  for(var i=0;i<AHA_STAGES.length;i++){if(AHA_STAGES[i].step<=t)stage=AHA_STAGES[i];}
+  // Timeline
+  var tlY=28;var tlX1=40;var tlX2=W-40;var tlW=tlX2-tlX1;
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(tlX1,tlY);ctx.lineTo(tlX2,tlY);ctx.stroke();
+  AHA_STAGES.forEach(function(s){
+    var x=tlX1+(s.step/100)*tlW;
+    var reached=(t>=s.step);
+    ctx.beginPath();ctx.arc(x,tlY,5,0,Math.PI*2);
+    ctx.fillStyle=reached?s.color:'#2a3060';ctx.fill();
+    if(reached){ctx.strokeStyle=s.color;ctx.lineWidth=1.5;ctx.stroke();}
+  });
+  // Progress bar
+  var progX=tlX1+(t/100)*tlW;
+  ctx.strokeStyle='#7c6af4';ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.moveTo(tlX1,tlY);ctx.lineTo(progX,tlY);ctx.stroke();
+  ctx.beginPath();ctx.arc(progX,tlY,7,0,Math.PI*2);ctx.fillStyle='#7c6af4';ctx.fill();
+  // Stage label
+  ctx.fillStyle=stage.color;ctx.font='bold 12px Inter';ctx.textAlign='left';
+  ctx.fillText(stage.label,tlX1,tlY+22);
+  // Output box
+  var boxY=tlY+36;var boxH=H-boxY-14;
+  drawRoundedRect(ctx,36,boxY,W-72,boxH,10,stage.color+'10',stage.color,1.5);
+  ctx.fillStyle='#8892b0';ctx.font='10px Inter';ctx.textAlign='left';
+  ctx.fillText('Model output:',52,boxY+16);
+  stage.lines.forEach(function(line,i){
+    ctx.fillStyle=stage.color;ctx.font=(i===stage.lines.length-1?'bold ':'')+'13px JetBrains Mono';
+    ctx.fillText(line,52,boxY+34+i*18);
+  });
+  var vEl=document.getElementById('aha-verdict');
+  if(vEl)vEl.innerHTML='<strong style="color:'+stage.color+'">'+stage.label+':</strong> '+stage.note;
+}
+
+/* =====================================================
+   TEMPERATURE → GROUP DIVERSITY → SIGNAL
+===================================================== */
+function drawTempDiversity(){
+  var T=parseFloat(document.getElementById('temp-diversity-slider').value)||0.8;
+  document.getElementById('temp-diversity-val').textContent='T = '+T.toFixed(2);
+  var cv=document.getElementById('canvas-temp-diversity');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  // Simulate G=8 answers at temperature T
+  var G=8;var CORRECT=14;
+  var seededRand=function(seed){var x=Math.sin(seed+T*100)*10000;return x-Math.floor(x);};
+  var answers=[];
+  var pool=[14,14,14,14,8,20,12,16,10,14,6,14,18,14,14,14];
+  for(var i=0;i<G;i++){
+    var dice=seededRand(i*7+T*30);
+    var idx;
+    if(T<0.3){idx=0;}// always pick most likely (14)
+    else if(T<0.7){idx=dice<0.7?0:Math.floor(dice*6);}
+    else if(T<1.2){idx=Math.floor(dice*8);}
+    else{idx=Math.floor(dice*pool.length);}
+    answers.push(pool[Math.min(idx,pool.length-1)]);
+  }
+  var rewards=answers.map(function(a){return a===CORRECT?1:0;});
+  var mean=rewards.reduce(function(a,b){return a+b;},0)/G;
+  var variance=rewards.reduce(function(a,r){return a+(r-mean)*(r-mean);},0)/G;
+  var std=Math.sqrt(variance);
+  var signal=std; // learning signal proportional to std
+  // Draw three panels: diversity, std, signal
+  var panW=(W-40)/3;
+  // Panel 1: answers
+  ctx.fillStyle='#8892b0';ctx.font='bold 10px Inter';ctx.textAlign='center';ctx.fillText('Group Answers (G=8)',40+panW/2,16);
+  var bR=18;var cols=4;
+  answers.forEach(function(a,i){
+    var col2=i%cols;var row=Math.floor(i/cols);
+    var cx=40+col2*(panW/cols)+panW/8;var cy=28+row*44;
+    var correct=(a===CORRECT);
+    drawRoundedRect(ctx,cx-bR,cy-bR,bR*2,bR*2,bR,correct?'#51cf6622':'#ff6b6b22',correct?'#51cf66':'#ff6b6b',1.5);
+    ctx.fillStyle=correct?'#51cf66':'#ff6b6b';ctx.font='bold 11px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText(a,cx,cy+5);
+  });
+  // Panel 2: std bar
+  var p2x=40+panW+10;
+  ctx.fillStyle='#8892b0';ctx.font='bold 10px Inter';ctx.textAlign='center';ctx.fillText('Reward Std Dev',p2x+panW/2,16);
+  var maxStd=0.5;var barH=(std/maxStd)*(H-50);
+  var barY=H-10-barH;
+  var stdColor=std<0.1?'#ff6b6b':std>0.35?'#f7b731':'#51cf66';
+  drawRoundedRect(ctx,p2x+panW*0.25,barY,panW*0.5,barH,4,stdColor+'44',stdColor,2);
+  ctx.fillStyle=stdColor;ctx.font='bold 14px JetBrains Mono';ctx.textAlign='center';
+  ctx.fillText(std.toFixed(3),p2x+panW/2,barY-6);
+  ctx.fillStyle='#8892b0';ctx.font='10px Inter';ctx.textAlign='center';
+  ctx.fillText('std',p2x+panW/2,H-2);
+  // Panel 3: signal strength
+  var p3x=40+panW*2+20;
+  ctx.fillStyle='#8892b0';ctx.font='bold 10px Inter';ctx.textAlign='center';ctx.fillText('Learning Signal',p3x+panW/2,16);
+  var sigH=(signal/maxStd)*(H-50);var sigY=H-10-sigH;
+  var sigColor=signal<0.1?'#ff6b6b':signal>0.35?'#51cf66':'#4ecdc4';
+  drawRoundedRect(ctx,p3x+panW*0.25,sigY,panW*0.5,sigH,4,sigColor+'44',sigColor,2);
+  ctx.fillStyle=sigColor;ctx.font='bold 14px JetBrains Mono';ctx.textAlign='center';
+  ctx.fillText((signal/maxStd*100).toFixed(0)+'%',p3x+panW/2,sigY-6);
+  ctx.fillStyle='#8892b0';ctx.font='10px Inter';ctx.textAlign='center';
+  ctx.fillText('signal',p3x+panW/2,H-2);
+  // Dividers
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=0.5;
+  [40+panW+5,40+panW*2+15].forEach(function(x){
+    ctx.beginPath();ctx.moveTo(x,10);ctx.lineTo(x,H-4);ctx.stroke();
+  });
+  var vEl=document.getElementById('temp-diversity-verdict');
+  if(T<0.3){vEl.innerHTML='<strong style="color:#ff6b6b;">T = '+T.toFixed(2)+' — Too deterministic.</strong> The model always picks the same answer. All rewards identical → std ≈ 0 → zero learning signal. Like sampling with no randomness.';}
+  else if(T<0.6){vEl.innerHTML='<strong style="color:#f7b731;">T = '+T.toFixed(2)+' — Low diversity.</strong> Answers cluster around the most likely outputs. Some variation but limited signal.';}
+  else if(T<1.3){vEl.innerHTML='<strong style="color:#51cf66;">T = '+T.toFixed(2)+' — Sweet spot.</strong> Good mix of correct and incorrect answers. Maximum learning signal. This is the typical range used in GRPO training.';}
+  else{vEl.innerHTML='<strong style="color:#f7b731;">T = '+T.toFixed(2)+' — Too random.</strong> Answers are all over the place — some correct by chance, some nonsense. High variance but noisy signal. Very high T can produce incoherent text.';}
+}
+
+/* =====================================================
+   REWARD HACKING
+===================================================== */
+var hackMode='honest';
+function showHackMode(mode,btn){
+  hackMode=mode;
+  ['hack-btn-honest','hack-btn-hacker','hack-btn-both'].forEach(function(id){
+    var b=document.getElementById(id);if(b)b.className='btn btn-outline';
+  });
+  if(btn)btn.className='btn';
+  drawHackCanvas();
+}
+var HACK_STRATEGIES={
+  honest:{
+    label:'Honest Strategy: show reasoning',
+    color:'#51cf66',
+    steps:['Identify: 2 + 3 × 4','Apply BODMAS: × first','3 × 4 = 12','2 + 12 = 14','Check: correct. ✓'],
+    reward:1.0,
+    klNote:'High KL — reasoning trace is unusual text',
+    prob:0.12
+  },
+  hacker:{
+    label:'Gaming Strategy: bare answer',
+    color:'#f7b731',
+    steps:['14'],
+    reward:1.0,
+    klNote:'Low KL — short outputs are statistically common',
+    prob:0.41
+  }
+};
+function drawHackCanvas(){
+  var cv=document.getElementById('canvas-hack');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var modes=hackMode==='both'?['honest','hacker']:[hackMode];
+  var panW=hackMode==='both'?(W-30)/2:W-20;
+  modes.forEach(function(m,idx){
+    var s=HACK_STRATEGIES[m];
+    var px=idx*(panW+10)+10;
+    drawRoundedRect(ctx,px,10,panW,H-20,10,s.color+'10',s.color,1.5);
+    ctx.fillStyle=s.color;ctx.font='bold 11px Inter';ctx.textAlign='left';
+    ctx.fillText(s.label,px+12,28);
+    // Steps
+    s.steps.forEach(function(step,i){
+      ctx.fillStyle='#e2e8f0';ctx.font='12px JetBrains Mono';ctx.textAlign='left';
+      ctx.fillText(step,px+14,48+i*16);
+    });
+    var yBase=48+s.steps.length*16+10;
+    // Reward badge
+    drawRoundedRect(ctx,px+12,yBase,panW-24,22,6,'#51cf6622','#51cf66',1.5);
+    ctx.fillStyle='#51cf66';ctx.font='bold 11px Inter';ctx.textAlign='center';
+    ctx.fillText('Reward = 1.0 (correct answer)',px+panW/2,yBase+14);
+    // KL note
+    ctx.fillStyle='#8892b0';ctx.font='10px Inter';ctx.textAlign='left';
+    ctx.fillText('KL: '+s.klNote,px+14,yBase+36);
+    // Probability bar
+    ctx.fillStyle='#8892b0';ctx.font='10px Inter';ctx.textAlign='left';
+    ctx.fillText('Token probability π_θ(output):',px+14,yBase+52);
+    var barW=(panW-28)*s.prob;
+    drawRoundedRect(ctx,px+14,yBase+56,barW,14,3,s.color+'44',s.color,1.5);
+    ctx.fillStyle=s.color;ctx.font='bold 10px JetBrains Mono';ctx.textAlign='left';
+    ctx.fillText((s.prob*100).toFixed(0)+'%',px+14+barW+4,yBase+68);
+  });
+  var vEl=document.getElementById('hack-verdict');
+  if(hackMode==='honest'){vEl.innerHTML='The honest strategy produces correct, well-reasoned answers — but reasoning traces are low-probability (unusual token sequences). Over training, GRPO may under-reinforce this if the gaming strategy also gets full reward.';}
+  else if(hackMode==='hacker'){vEl.innerHTML='The gaming strategy outputs just the bare answer. Same reward, much higher token probability, lower KL penalty. GRPO cannot distinguish this from genuine reasoning — only careful reward design can catch it.';}
+  else{vEl.innerHTML='<strong style="color:#ff6b6b;">Both get reward=1.0.</strong> GRPO sees them as equally good. Over many training steps, the model may drift toward the bare-answer strategy because it\'s shorter (lower KL cost). The KL penalty slows but cannot prevent this without redesigning the reward function.';}
+  vEl.style.display='block';
+}
+
+/* =====================================================
+   DIFFICULTY SWEET SPOT
+===================================================== */
+function drawDifficulty(){
+  var p=parseFloat(document.getElementById('difficulty-slider').value)||0.5;
+  document.getElementById('difficulty-val').textContent=Math.round(p*100)+'%';
+  var cv=document.getElementById('canvas-difficulty');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var padL=52,padR=24,padT=24,padB=44;
+  var dW=W-padL-padR,dH=H-padT-padB;
+  // Signal function: 2*p*(1-p) normalized (Bernoulli variance)
+  function signal(p2){return 2*p2*(1-p2);}
+  // Axes
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(padL,padT);ctx.lineTo(padL,padT+dH);ctx.lineTo(padL+dW,padT+dH);ctx.stroke();
+  ctx.fillStyle='#8892b0';ctx.font='11px Inter';ctx.textAlign='center';
+  ctx.fillText('Model success rate (% correct in group)',padL+dW/2,H-4);
+  ctx.save();ctx.translate(14,padT+dH/2);ctx.rotate(-Math.PI/2);
+  ctx.fillStyle='#8892b0';ctx.textAlign='center';ctx.fillText('Learning signal',0,0);ctx.restore();
+  // X-axis ticks
+  [0,0.25,0.5,0.75,1.0].forEach(function(v){
+    var x=padL+v*dW;
+    ctx.fillStyle='#8892b0';ctx.font='10px Inter';ctx.textAlign='center';ctx.fillText(Math.round(v*100)+'%',x,padT+dH+14);
+    ctx.strokeStyle='#1e2444';ctx.lineWidth=0.5;
+    ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,padT+dH);ctx.stroke();
+  });
+  // Draw curve
+  ctx.beginPath();
+  for(var v=0;v<=1;v+=0.01){
+    var x=padL+v*dW;var y=padT+dH*(1-signal(v));
+    v===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  var grad=ctx.createLinearGradient(padL,0,padL+dW,0);
+  grad.addColorStop(0,'#ff6b6b');grad.addColorStop(0.3,'#f7b731');
+  grad.addColorStop(0.5,'#51cf66');grad.addColorStop(0.7,'#f7b731');
+  grad.addColorStop(1,'#ff6b6b');
+  ctx.strokeStyle=grad;ctx.lineWidth=3;ctx.stroke();
+  // Shaded regions
+  ctx.fillStyle='rgba(255,107,107,0.07)';
+  ctx.fillRect(padL,padT,dW*0.18,dH);
+  ctx.fillRect(padL+dW*0.82,padT,dW*0.18,dH);
+  ctx.fillStyle='rgba(81,207,102,0.07)';
+  ctx.fillRect(padL+dW*0.25,padT,dW*0.5,dH);
+  // Labels
+  ctx.fillStyle='#ff6b6b';ctx.font='10px Inter';ctx.textAlign='center';
+  ctx.fillText('Too easy',padL+dW*0.09,padT+12);
+  ctx.fillText('(all correct)',padL+dW*0.09,padT+24);
+  ctx.fillStyle='#ff6b6b';ctx.textAlign='center';
+  ctx.fillText('Too hard',padL+dW*0.91,padT+12);
+  ctx.fillText('(all wrong)',padL+dW*0.91,padT+24);
+  ctx.fillStyle='#51cf66';ctx.textAlign='center';
+  ctx.fillText('Sweet spot',padL+dW*0.5,padT+12);
+  // Current value marker
+  var curX=padL+p*dW;var curSig=signal(p);var curY=padT+dH*(1-curSig);
+  ctx.beginPath();ctx.arc(curX,curY,8,0,Math.PI*2);
+  var markerCol=curSig<0.2?'#ff6b6b':curSig>0.4?'#51cf66':'#f7b731';
+  ctx.fillStyle=markerCol;ctx.fill();
+  ctx.strokeStyle='#0d0f18';ctx.lineWidth=2;ctx.stroke();
+  ctx.strokeStyle=markerCol;ctx.lineWidth=1.5;ctx.setLineDash([3,3]);
+  ctx.beginPath();ctx.moveTo(curX,curY);ctx.lineTo(curX,padT+dH);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle=markerCol;ctx.font='bold 10px JetBrains Mono';ctx.textAlign='center';
+  ctx.fillText('signal='+curSig.toFixed(2),curX,curY-12);
+  var vEl=document.getElementById('difficulty-verdict');
+  if(p<0.08){vEl.innerHTML='<strong style="color:#ff6b6b;">All answers wrong (p ≈ 0%).</strong> std = 0, all advantages = 0. The model can\'t improve because it never gets positive signal. The task is too hard for current capability.';}
+  else if(p>0.92){vEl.innerHTML='<strong style="color:#ff6b6b;">All answers correct (p ≈ 100%).</strong> std = 0, all advantages = 0. The task is too easy — GRPO produces no gradient. The model has already mastered this difficulty.';}
+  else if(p>=0.35&&p<=0.65){vEl.innerHTML='<strong style="color:#51cf66;">Sweet spot ('+Math.round(p*100)+'% success rate).</strong> Maximum learning signal. About half correct, half wrong — the model has room to improve and gets clear signal on which approach works.';}
+  else{vEl.innerHTML='<strong style="color:#f7b731;">Moderate signal ('+Math.round(p*100)+'% success rate).</strong> Learning is happening but not at peak efficiency. As the model improves, it should move toward the sweet spot naturally.';}
+}
+
+/* =====================================================
+   RL FAMILY TREE (REINFORCE → GRPO)
+===================================================== */
+var RL_FAMILY_NODES=[
+  {id:'rf',label:'REINFORCE',sub:'Williams 1992',x:0.15,y:0.5,col:'#8892b0',
+   info:'The original policy gradient. Uses entire episode return as advantage. No baseline → very high variance. Still works but needs many samples.'},
+  {id:'rfb',label:'REINFORCE\n+ Baseline',sub:'Classic variant',x:0.38,y:0.5,col:'#74c0fc',
+   info:'Subtract a baseline (usually a value function or moving average) from the return to reduce variance. But needs a separate baseline estimate.'},
+  {id:'ppo',label:'PPO',sub:'Schulman 2017',x:0.62,y:0.5,col:'#f7b731',
+   info:'Adds policy ratio clipping to REINFORCE+baseline. Stable training. But uses a critic model for per-token value estimation — expensive at LLM scale.'},
+  {id:'grpo',label:'GRPO',sub:'DeepSeek 2024',x:0.85,y:0.5,col:'#7c6af4',
+   info:'Replaces the critic baseline with the group mean. Baseline = mean(rewards in group). No separate model needed. Simple, cheap, effective for verifiable tasks.'}
+];
+var RL_FAMILY_EDGES=[['rf','rfb'],['rfb','ppo'],['ppo','grpo']];
+var selectedRLNode=null;
+function handleRLFamilyClick(e){
+  var cv=document.getElementById('canvas-rl-family');if(!cv)return;
+  var rect=cv.getBoundingClientRect();
+  var mx=(e.clientX-rect.left)*(cv.width/rect.width);
+  var my=(e.clientY-rect.top)*(cv.height/rect.height);
+  var W=cv.width,H=cv.height;var hit=null;
+  RL_FAMILY_NODES.forEach(function(n){
+    var nx=n.x*W,ny=n.y*H;
+    if(Math.sqrt((mx-nx)*(mx-nx)+(my-ny)*(my-ny))<44)hit=n;
+  });
+  selectedRLNode=hit?hit.id:null;
+  drawRLFamily();
+  var info=document.getElementById('rl-family-info');
+  if(info){
+    if(hit)info.innerHTML='<strong style="color:'+hit.col+'">'+hit.label.replace('\n',' ')+'</strong> ('+hit.sub+') — '+hit.info;
+    else info.innerHTML='Click any algorithm node to see its approach to the baseline problem.';
+  }
+}
+function drawRLFamily(){
+  var cv=document.getElementById('canvas-rl-family');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  // Key improvements label
+  var improvements=['↓ Variance','+ Clipping','No critic'];
+  RL_FAMILY_EDGES.forEach(function(e,idx){
+    var a=RL_FAMILY_NODES.find(function(n){return n.id===e[0];});
+    var b=RL_FAMILY_NODES.find(function(n){return n.id===e[1];});
+    if(!a||!b)return;
+    drawArrow(ctx,a.x*W+48,a.y*H,b.x*W-48,b.y*H,'#2a3060',2);
+    var midX=(a.x+b.x)/2*W;var midY=a.y*H;
+    drawRoundedRect(ctx,midX-36,midY-22,72,16,4,'rgba(78,205,196,0.15)','#4ecdc4',1);
+    ctx.fillStyle='#4ecdc4';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText(improvements[idx],midX,midY-10);
+  });
+  RL_FAMILY_NODES.forEach(function(n){
+    var nx=n.x*W,ny=n.y*H;var sel=(n.id===selectedRLNode);
+    if(sel){ctx.beginPath();ctx.arc(nx,ny,46,0,Math.PI*2);ctx.fillStyle=n.col+'22';ctx.fill();}
+    drawRoundedRect(ctx,nx-44,ny-28,88,56,10,n.col+(sel?'33':'15'),n.col,sel?2.5:1.5);
+    n.label.split('\n').forEach(function(l,i){
+      ctx.fillStyle=n.col;ctx.font='bold 11px Inter';ctx.textAlign='center';ctx.fillText(l,nx,ny-8+i*15);
+    });
+    ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText(n.sub,nx,ny+20);
+  });
+}
+
+/* =====================================================
+   ADVANTAGE DISTRIBUTION HISTOGRAM
+===================================================== */
+var histData=[];var histAF=null;
+function resetHistogram(){
+  histData=[];histAF=null;
+  var stats=document.getElementById('hist-stats');if(stats)stats.textContent='';
+  var btn=document.getElementById('hist-run-btn');if(btn)btn.textContent='▶ Simulate 200 Batches';
+  var cv=document.getElementById('canvas-adv-hist');if(!cv)return;
+  var ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);
+}
+function runHistogram(){
+  if(histAF)return;
+  resetHistogram();
+  var btn=document.getElementById('hist-run-btn');if(btn)btn.disabled=true;
+  var batch=0;var totalBatches=200;
+  function step(){
+    for(var b=0;b<4;b++){
+      if(batch>=totalBatches)break;
+      var G=8;
+      var rewards=[];
+      for(var i=0;i<G;i++){rewards.push(Math.random()<0.5?1:0);}
+      var mean=rewards.reduce(function(a,b2){return a+b2;},0)/G;
+      var variance=rewards.reduce(function(a,r){return a+(r-mean)*(r-mean);},0)/G;
+      var std=Math.sqrt(variance);
+      rewards.forEach(function(r){
+        if(std>1e-6)histData.push((r-mean)/(std+1e-8));
+      });
+      batch++;
+    }
+    drawAdvHistogram();
+    if(batch<totalBatches)histAF=requestAnimationFrame(step);
+    else{histAF=null;if(btn){btn.disabled=false;btn.textContent='↺ Re-simulate';}}
+  }
+  histAF=requestAnimationFrame(step);
+}
+function drawAdvHistogram(){
+  var cv=document.getElementById('canvas-adv-hist');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  if(!histData.length){ctx.fillStyle='#8892b0';ctx.font='13px Inter';ctx.textAlign='center';ctx.fillText('Press Simulate to run batches',W/2,H/2);return;}
+  var padL=44,padR=20,padT=24,padB=44;
+  var dW=W-padL-padR,dH=H-padT-padB;
+  var nBins=24;var minV=-3,maxV=3;var binW=(maxV-minV)/nBins;
+  var bins=new Array(nBins).fill(0);
+  histData.forEach(function(v){
+    var idx=Math.floor((v-minV)/binW);
+    if(idx>=0&&idx<nBins)bins[idx]++;
+  });
+  var maxCount=Math.max.apply(null,bins);
+  // Normal curve overlay
+  function normalPDF(x){return Math.exp(-x*x/2)/Math.sqrt(2*Math.PI);}
+  // Axes
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(padL,padT);ctx.lineTo(padL,padT+dH);ctx.lineTo(padL+dW,padT+dH);ctx.stroke();
+  ctx.fillStyle='#8892b0';ctx.font='11px Inter';ctx.textAlign='center';ctx.fillText('Advantage value',padL+dW/2,H-4);
+  ctx.save();ctx.translate(14,padT+dH/2);ctx.rotate(-Math.PI/2);ctx.fillStyle='#8892b0';ctx.textAlign='center';ctx.fillText('Count',0,0);ctx.restore();
+  // X-axis labels
+  [-3,-2,-1,0,1,2,3].forEach(function(v){
+    var x=padL+(v-minV)/(maxV-minV)*dW;
+    ctx.fillStyle='#8892b0';ctx.font='10px Inter';ctx.textAlign='center';ctx.fillText(v,x,padT+dH+14);
+    ctx.strokeStyle='#1e2444';ctx.lineWidth=0.5;
+    ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,padT+dH);ctx.stroke();
+    if(v===0){ctx.strokeStyle='#ffd43b44';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,padT+dH);ctx.stroke();}
+  });
+  // Bars
+  bins.forEach(function(count,i){
+    var x=padL+i*(dW/nBins);var bh=(count/maxCount)*dH*0.92;
+    var binCenter=minV+(i+0.5)*binW;
+    var col=binCenter<-0.5?'#ff6b6b':binCenter>0.5?'#51cf66':'#8892b0';
+    if(bh>0)drawRoundedRect(ctx,x+1,padT+dH-bh,dW/nBins-2,bh,2,col+'55',col,1);
+  });
+  // Normal curve
+  ctx.beginPath();
+  var scale=histData.length*binW;
+  for(var v2=minV;v2<=maxV;v2+=0.05){
+    var x=padL+(v2-minV)/(maxV-minV)*dW;
+    var y=padT+dH-normalPDF(v2)*scale/maxCount*dH*0.92;
+    v2<=minV+0.05?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.strokeStyle='#ffd43b';ctx.lineWidth=2;ctx.setLineDash([5,4]);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#ffd43b';ctx.font='10px Inter';ctx.textAlign='left';ctx.fillText('Normal(0,1)',padL+dW-90,padT+14);
+  // Stats
+  var mu=histData.reduce(function(a,b){return a+b;},0)/histData.length;
+  var sig2=histData.reduce(function(a,v){return a+(v-mu)*(v-mu);},0)/histData.length;
+  var statsEl=document.getElementById('hist-stats');
+  if(statsEl)statsEl.textContent='n='+histData.length+' advantages | mean='+mu.toFixed(3)+' | std='+Math.sqrt(sig2).toFixed(3);
+}
+
+/* =====================================================
+   CREDIT ASSIGNMENT PROBLEM
+===================================================== */
+var caMode='correct';
+function showCreditMode(mode,btn){
+  caMode=mode;
+  ['ca-correct-btn','ca-wrong-btn'].forEach(function(id){
+    var b=document.getElementById(id);if(b)b.className='btn btn-outline';
+  });
+  if(btn)btn.className='btn';
+  drawCreditCanvas();
+}
+var CA_TOKENS=['Let','me','think','...','3×4','=','12',',','2+12','=','14'];
+var CA_IMPORTANCE=[0.0,0.0,0.0,0.0,0.9,0.5,0.9,0.1,0.9,0.5,1.0];// PPO's idealized per-token credit
+function drawCreditCanvas(){
+  var cv=document.getElementById('canvas-credit');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var correct=(caMode==='correct');
+  var advantage=correct?1.2:-1.2;
+  var advColor=correct?'#51cf66':'#ff6b6b';
+  var n=CA_TOKENS.length;var bw=(W-40)/n;
+  var padT=28;var padB=52;var halfH=(H-padT-padB)/2;
+  // Labels
+  ctx.fillStyle='#7c6af4';ctx.font='bold 10px Inter';ctx.textAlign='left';ctx.fillText('GRPO (same advantage for every token = '+advantage.toFixed(1)+')',20,padT-6);
+  ctx.fillStyle='#4ecdc4';ctx.font='bold 10px Inter';ctx.textAlign='left';ctx.fillText('PPO (per-token value — idealized)',20,padT+halfH+22);
+  CA_TOKENS.forEach(function(tok,i){
+    var cx=20+(i+0.5)*bw;
+    // GRPO bar (uniform)
+    var grpoH=Math.abs(advantage)/2*halfH*0.85;
+    var grpoY=correct?padT+halfH-grpoH:padT;
+    drawRoundedRect(ctx,cx-bw*0.35,grpoY,bw*0.7,grpoH,3,advColor+'55',advColor,1.5);
+    ctx.fillStyle=advColor;ctx.font='8px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText(advantage.toFixed(1),cx,correct?grpoY-4:grpoY+grpoH+10);
+    // PPO bar (per-token credit)
+    var credit=CA_IMPORTANCE[i]*(correct?1:-1)*1.5;
+    var ppoH=Math.abs(credit)/2*halfH*0.85;
+    var ppoColor=credit>0.1?'#4ecdc4':credit<-0.1?'#ff6b6b':'#8892b0';
+    var ppoY=credit>=0?padT+halfH+14+halfH-ppoH:padT+halfH+14;
+    if(ppoH>0)drawRoundedRect(ctx,cx-bw*0.35,ppoY,bw*0.7,ppoH,3,ppoColor+'55',ppoColor,1.5);
+    // Token label
+    ctx.fillStyle='#e2e8f0';ctx.font='bold 9px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText(tok,cx,H-padB+14);
+  });
+  // Divider
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=0.5;
+  ctx.beginPath();ctx.moveTo(20,padT+halfH+12);ctx.lineTo(W-20,padT+halfH+12);ctx.stroke();
+  var vEl=document.getElementById('credit-verdict');
+  if(correct){vEl.innerHTML='<strong style="color:#7c6af4;">GRPO (top):</strong> Every token — including filler words like "Let", "me", "think" — gets advantage +1.2. The model may reinforce irrelevant preamble. <strong style="color:#4ecdc4;">PPO (bottom):</strong> Per-token values would give high credit to key computation tokens (3×4, 14) and near-zero to filler. More precise but requires a trained critic.';}
+  else{vEl.innerHTML='<strong style="color:#7c6af4;">GRPO (top):</strong> All tokens penalised equally at −1.2, even if only the final answer was wrong. The model can\'t identify <em>which</em> step caused the error. <strong style="color:#4ecdc4;">PPO (bottom):</strong> A trained critic would give higher negative credit to the specific token where reasoning went wrong.';}
+  vEl.style.borderColor='rgba(124,106,244,0.3)';
+}
+
+/* =====================================================
+   KL OVER TRAINING TIME
+===================================================== */
+function drawKLOverTime(){
+  var beta=parseFloat(document.getElementById('kl-time-beta').value)||0.04;
+  document.getElementById('kl-time-beta-val').textContent='β = '+beta.toFixed(3);
+  var cv=document.getElementById('canvas-kl-time');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var padL=52,padR=20,padT=24,padB=40;
+  var dW=W-padL-padR,dH=H-padT-padB;
+  var steps=200;
+  // KL trajectory: without penalty → unbounded growth; with β → equilibrium
+  function klNoPenalty(s){return 0.003*s+0.01*Math.sin(s*0.2)*Math.exp(s*0.005);}
+  function klWithPenalty(s){
+    if(beta<0.005)return klNoPenalty(s);
+    var target=0.05/beta;// higher beta → lower equilibrium KL
+    return target*(1-Math.exp(-s*beta*4))+0.01*Math.sin(s*0.3)*Math.exp(-s*0.01);
+  }
+  var allKL=[...Array(steps+1).keys()].map(function(s){return Math.max(klNoPenalty(s),0);});
+  var maxKL=Math.max.apply(null,allKL)*1.1;
+  var stepX=function(s){return padL+s/steps*dW;};
+  var klY=function(k){return padT+dH*(1-Math.min(k/maxKL,1));};
+  // Grid
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(padL,padT);ctx.lineTo(padL,padT+dH);ctx.lineTo(padL+dW,padT+dH);ctx.stroke();
+  ctx.fillStyle='#8892b0';ctx.font='11px Inter';ctx.textAlign='center';ctx.fillText('Training steps',padL+dW/2,H-4);
+  ctx.save();ctx.translate(14,padT+dH/2);ctx.rotate(-Math.PI/2);ctx.fillStyle='#8892b0';ctx.textAlign='center';ctx.fillText('KL divergence',0,0);ctx.restore();
+  // No penalty curve (red dashed)
+  ctx.beginPath();
+  for(var s=0;s<=steps;s++){
+    var x=stepX(s),y=klY(klNoPenalty(s));
+    s===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.strokeStyle='#ff6b6b';ctx.lineWidth=2;ctx.setLineDash([5,4]);ctx.stroke();ctx.setLineDash([]);
+  // With penalty curve (teal)
+  ctx.beginPath();
+  for(var s=0;s<=steps;s++){
+    var x=stepX(s),y=klY(klWithPenalty(s));
+    s===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.strokeStyle='#4ecdc4';ctx.lineWidth=2.5;ctx.stroke();
+  // Legend
+  ctx.strokeStyle='#ff6b6b';ctx.lineWidth=2;ctx.setLineDash([5,4]);
+  ctx.beginPath();ctx.moveTo(padL+dW-200,padT+12);ctx.lineTo(padL+dW-172,padT+12);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#ff6b6b';ctx.font='11px Inter';ctx.textAlign='left';ctx.fillText('No KL penalty (β=0)',padL+dW-168,padT+16);
+  ctx.strokeStyle='#4ecdc4';ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.moveTo(padL+dW-200,padT+30);ctx.lineTo(padL+dW-172,padT+30);ctx.stroke();
+  ctx.fillStyle='#4ecdc4';ctx.fillText('With penalty (β='+beta.toFixed(3)+')',padL+dW-168,padT+34);
+  // Equilibrium marker
+  if(beta>0.005){
+    var eq=0.05/beta;var eqY=klY(eq);
+    ctx.strokeStyle='#4ecdc4';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(padL,eqY);ctx.lineTo(padL+dW,eqY);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#4ecdc4';ctx.font='9px Inter';ctx.textAlign='right';ctx.fillText('equilibrium KL≈'+eq.toFixed(2),padL+dW-4,eqY-4);
+  }
+  var vEl=document.getElementById('kl-time-verdict');
+  if(beta<0.005){vEl.innerHTML='<span style="color:#ff6b6b;"><strong>β = 0 — No penalty.</strong> KL grows without bound. The model drifts further from the reference at every step. Over time: incoherence, reward hacking, catastrophic forgetting of language ability.</span>';}
+  else if(beta<0.03){vEl.innerHTML='<span style="color:#f7b731;"><strong>β = '+beta.toFixed(3)+' — Light penalty.</strong> KL stabilises but at a relatively high equilibrium. The model can still drift significantly. Faster learning but higher risk.</span>';}
+  else if(beta<=0.08){vEl.innerHTML='<span style="color:#51cf66;"><strong>β = '+beta.toFixed(3)+' — Recommended range (DeepSeekMath used β=0.04).</strong> KL stabilises quickly. Good balance of learning speed and model stability.</span>';}
+  else{vEl.innerHTML='<span style="color:#74c0fc;"><strong>β = '+beta.toFixed(3)+' — Strong penalty.</strong> KL stays very low. The model barely drifts from the reference — very conservative. Learning is slow but safe.</span>';}
+}
+
+/* =====================================================
+   PROCESS REWARD vs OUTCOME REWARD
+===================================================== */
+var prmMode='outcome';
+function showPRMMode(mode,btn){
+  prmMode=mode;
+  ['prm-outcome-btn','prm-process-btn'].forEach(function(id){
+    var b=document.getElementById(id);if(b)b.className='btn btn-outline';
+  });
+  if(btn)btn.className='btn';
+  drawPRMCanvas();
+}
+var PRM_STEPS=[
+  {label:'Order of ops:\n× before +',correct:true},
+  {label:'3 × 4 = 12',correct:true},
+  {label:'2 + 12 = 14',correct:true},
+  {label:'Verify: 14 ✓',correct:true},
+  {label:'Answer: 14',correct:true}
+];
+function drawPRMCanvas(){
+  var cv=document.getElementById('canvas-prm');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var n=PRM_STEPS.length;var bw=(W-40)/n;
+  var stepY=H/2;var padL=20;
+  // Draw chain of steps
+  PRM_STEPS.forEach(function(step,i){
+    var cx=padL+(i+0.5)*bw;
+    var col=step.correct?'#51cf66':'#ff6b6b';
+    drawRoundedRect(ctx,cx-bw*0.4,stepY-28,bw*0.8,56,8,col+'18',col,1.5);
+    step.label.split('\n').forEach(function(l,li){
+      ctx.fillStyle='#e2e8f0';ctx.font='11px JetBrains Mono';ctx.textAlign='center';
+      ctx.fillText(l,cx,stepY-8+li*16);
+    });
+    if(i<n-1)drawArrow(ctx,cx+bw*0.4,stepY,cx+bw*0.6,stepY,'#2a3060',1.5);
+  });
+  // Draw reward signals
+  if(prmMode==='outcome'){
+    // Only final step gets reward
+    var cx=padL+(n-0.5)*bw;
+    ctx.strokeStyle='#ffd43b';ctx.lineWidth=2;ctx.setLineDash([4,3]);
+    ctx.beginPath();ctx.moveTo(cx,stepY-28);ctx.lineTo(cx,stepY-60);ctx.stroke();ctx.setLineDash([]);
+    drawRoundedRect(ctx,cx-44,stepY-80,88,20,6,'rgba(255,212,59,0.2)','#ffd43b',1.5);
+    ctx.fillStyle='#ffd43b';ctx.font='bold 11px Inter';ctx.textAlign='center';
+    ctx.fillText('r = +1.0',cx,stepY-66);
+    ctx.fillStyle='#8892b0';ctx.font='10px Inter';ctx.textAlign='center';
+    ctx.fillText('Reward only here →',cx,H-10);
+    // X marks on other steps
+    for(var i=0;i<n-1;i++){
+      var cx2=padL+(i+0.5)*bw;
+      ctx.fillStyle='#ff6b6b44';ctx.font='18px Inter';ctx.textAlign='center';
+      ctx.fillText('×',cx2,stepY-40);
+    }
+    var vEl=document.getElementById('prm-verdict');
+    vEl.innerHTML='<strong style="color:#ffd43b;">Outcome Reward (ORM)</strong> — Standard GRPO. Only the final answer is scored. The model gets no signal on <em>which reasoning step</em> led to the right answer. Early steps must infer credit indirectly. Simple but imprecise.';
+  } else {
+    // Each step gets individual reward
+    PRM_STEPS.forEach(function(step,i){
+      var cx=padL+(i+0.5)*bw;
+      var r=step.correct?'+0.2':'-0.5';
+      var col=step.correct?'#51cf66':'#ff6b6b';
+      ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.setLineDash([3,3]);
+      ctx.beginPath();ctx.moveTo(cx,stepY-28);ctx.lineTo(cx,stepY-58);ctx.stroke();ctx.setLineDash([]);
+      drawRoundedRect(ctx,cx-24,stepY-76,48,18,4,col+'22',col,1.5);
+      ctx.fillStyle=col;ctx.font='bold 10px JetBrains Mono';ctx.textAlign='center';
+      ctx.fillText('r='+r,cx,stepY-63);
+    });
+    ctx.fillStyle='#8892b0';ctx.font='10px Inter';ctx.textAlign='center';
+    ctx.fillText('↑ Reward signal at every step',W/2,H-10);
+    var vEl=document.getElementById('prm-verdict');
+    vEl.innerHTML='<strong style="color:#51cf66;">Process Reward (PRM)</strong> — Each reasoning step is scored independently. The model gets precise credit: good steps reinforced, bad steps penalised. More informative but requires a trained Process Reward Model (like Math-Shepherd) to score intermediate steps.';
+  }
+  vEl.style.borderColor=prmMode==='outcome'?'rgba(255,212,59,0.3)':'rgba(81,207,102,0.3)';
+}
+
+/* =====================================================
+   HYPERPARAMETER DASHBOARD
+===================================================== */
+function drawHPDash(){
+  var eps=parseFloat(document.getElementById('hp-eps').value)||0.2;
+  var beta=parseFloat(document.getElementById('hp-beta').value)||0.04;
+  var G=parseInt(document.getElementById('hp-g').value)||8;
+  document.getElementById('hp-eps-val').textContent=eps.toFixed(2);
+  document.getElementById('hp-beta-val').textContent=beta.toFixed(3);
+  document.getElementById('hp-g-val').textContent=G;
+  var cv=document.getElementById('canvas-hp-dash');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var padL=52,padR=20,padT=24,padB=40;
+  var dW=W-padL-padR,dH=H-padT-padB;
+  var steps=150;
+  // Simulate a loss curve based on hyperparams
+  function simLoss(s){
+    // convergence speed: higher G + moderate eps = faster
+    var speed=(G/32)*0.6+(eps>0.05&&eps<0.35?0.4:0.1);
+    // stability: lower eps + moderate beta = more stable
+    var stability=Math.max(0,(0.35-Math.abs(eps-0.2))/0.35)*0.5+Math.min(beta/0.1,1)*0.5;
+    // noise level: lower G + extreme eps/beta = noisier
+    var noise=(1-G/32)*0.08+(eps>0.4?0.06:0)+(beta>0.2?0.04:0)+(G===1?0.15:0);
+    var base=Math.exp(-s*speed*0.03)*0.7+0.08;
+    var n2=Math.sin(s*0.6)*noise*Math.exp(-s*stability*0.02);
+    return Math.max(0.04,base+n2);
+  }
+  // Final performance bar (0-1 score)
+  var finalLoss=simLoss(steps);
+  var perf=Math.max(0,Math.min(1,1-finalLoss));
+  // Stability (variance of last 30 steps)
+  var lastLosses=[];for(var s=steps-30;s<=steps;s++)lastLosses.push(simLoss(s));
+  var lMean=lastLosses.reduce(function(a,b){return a+b;},0)/lastLosses.length;
+  var lVar=lastLosses.reduce(function(a,v){return a+(v-lMean)*(v-lMean);},0)/lastLosses.length;
+  var stability2=Math.max(0,1-Math.sqrt(lVar)*20);
+  // Draw axes
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(padL,padT);ctx.lineTo(padL,padT+dH);ctx.lineTo(padL+dW*0.7,padT+dH);ctx.stroke();
+  ctx.fillStyle='#8892b0';ctx.font='11px Inter';ctx.textAlign='center';
+  ctx.fillText('Training steps',padL+dW*0.35,H-4);
+  ctx.save();ctx.translate(14,padT+dH/2);ctx.rotate(-Math.PI/2);
+  ctx.fillStyle='#8892b0';ctx.textAlign='center';ctx.fillText('Loss',0,0);ctx.restore();
+  // Draw loss curve
+  var stepX=function(s){return padL+s/steps*dW*0.7;};
+  var lossY=function(l){return padT+dH*(1-Math.min(l,1)*0.92);};
+  ctx.beginPath();
+  for(var s2=0;s2<=steps;s2++){
+    var x=stepX(s2),y=lossY(simLoss(s2));
+    s2===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  var col2=perf>0.75?'#51cf66':perf>0.5?'#4ecdc4':'#f7b731';
+  ctx.strokeStyle=col2;ctx.lineWidth=2.5;ctx.stroke();
+  // Final value dot
+  ctx.beginPath();ctx.arc(stepX(steps),lossY(finalLoss),6,0,Math.PI*2);ctx.fillStyle=col2;ctx.fill();
+  // Right panel: performance + stability meters
+  var rX=padL+dW*0.73;var meterW=dW*0.27-4;
+  // Performance meter
+  ctx.fillStyle='#8892b0';ctx.font='bold 10px Inter';ctx.textAlign='left';ctx.fillText('Final Performance',rX,padT+12);
+  drawRoundedRect(ctx,rX,padT+18,meterW,18,4,'#1e2444','#2a3060',1);
+  var perfCol=perf>0.75?'#51cf66':perf>0.5?'#4ecdc4':'#f7b731';
+  drawRoundedRect(ctx,rX,padT+18,meterW*perf,18,4,perfCol+'88',perfCol,1.5);
+  ctx.fillStyle=perfCol;ctx.font='bold 11px JetBrains Mono';ctx.textAlign='center';
+  ctx.fillText(Math.round(perf*100)+'%',rX+meterW/2,padT+31);
+  // Stability meter
+  ctx.fillStyle='#8892b0';ctx.font='bold 10px Inter';ctx.textAlign='left';ctx.fillText('Training Stability',rX,padT+58);
+  drawRoundedRect(ctx,rX,padT+64,meterW,18,4,'#1e2444','#2a3060',1);
+  var stabCol=stability2>0.75?'#51cf66':stability2>0.5?'#4ecdc4':'#ff6b6b';
+  drawRoundedRect(ctx,rX,padT+64,meterW*stability2,18,4,stabCol+'88',stabCol,1.5);
+  ctx.fillStyle=stabCol;ctx.font='bold 11px JetBrains Mono';ctx.textAlign='center';
+  ctx.fillText(Math.round(stability2*100)+'%',rX+meterW/2,padT+77);
+  // Param summary
+  ctx.fillStyle='#8892b0';ctx.font='10px Inter';ctx.textAlign='left';
+  ctx.fillText('ε='+eps.toFixed(2),rX,padT+108);
+  ctx.fillText('β='+beta.toFixed(3),rX+meterW/3,padT+108);
+  ctx.fillText('G='+G,rX+meterW*0.67,padT+108);
+  // Warnings
+  var warns=[];
+  if(G===1)warns.push('⚠ G=1: all advantages=0, no learning');
+  if(eps>0.4)warns.push('⚠ Large ε: unstable updates');
+  if(eps<0.05)warns.push('⚠ Tiny ε: too slow to learn');
+  if(beta>0.2)warns.push('⚠ High β: very slow learning');
+  if(beta<0.005&&G<4)warns.push('⚠ No KL + small G: risky');
+  var vEl=document.getElementById('hp-dash-verdict');
+  if(warns.length){
+    vEl.innerHTML='<span style="color:#ff6b6b;">'+warns.join(' &nbsp;|&nbsp; ')+'</span>';
+  } else if(perf>0.75&&stability2>0.75){
+    vEl.innerHTML='<span style="color:#51cf66;">✓ Solid configuration. Good convergence speed and stable training. Close to the DeepSeekMath defaults (ε=0.2, β=0.04, G=8).</span>';
+  } else {
+    vEl.innerHTML='Estimated performance: <strong style="color:'+perfCol+'">'+Math.round(perf*100)+'%</strong> &nbsp;|&nbsp; Stability: <strong style="color:'+stabCol+'">'+Math.round(stability2*100)+'%</strong>. Try adjusting sliders to find a better configuration.';
+  }
+}
+
+/* =====================================================
    PPO vs GRPO TRAINING TRAJECTORY
 ===================================================== */
 var trajProgress=0;var trajAF=null;var trajDone=false;
@@ -1851,23 +2709,33 @@ function drawFamilyTree(){
 ===================================================== */
 drawGap();
 drawRLHFPipeline();
+drawAha(0);
 drawPPOArch();
 drawMemoryCalc();
 drawTrajectory(0);
 drawSandboxCanvas();
+drawTempDiversity();
+showHackMode('honest',document.getElementById('hack-btn-honest'));
+drawDifficulty();
 drawGroupSampling();
 drawArchCompare();
 drawAdvantage();
+drawRLFamily();
+drawAdvHistogram();
 drawTokenLoss();
 initTokenLoss();
 drawRatioExplorer();
 drawClipCanvas();
 drawKLCanvas();
+drawKLOverTime();
+showCreditMode('correct',document.getElementById('ca-correct-btn'));
+showPRMMode('outcome',document.getElementById('prm-outcome-btn'));
 initKLSliders();
 drawWalkthrough();
 drawTrainingLoop();
 drawResultsBar();
 drawFamilyTree();
+drawHPDash();
 
 updateNavOnScroll();
 </script>
