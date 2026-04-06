@@ -351,6 +351,17 @@ window.addEventListener('load',function(){var el=document.getElementById('pg-inp
     <p><strong style="color:#ff6b6b;">The core problem:</strong> The critic model needs to estimate "how good will this sequence be?" for every token. But LLM responses are graded as a whole (is the final answer correct?), not token by token. Training a critic for this task is noisy, expensive, and adds complexity. GRPO asks: <em>do we really need the critic?</em></p>
   </div>
 
+  <!-- Training trajectory comparison -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">PPO vs GRPO — Simulated Training Trajectory</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">PPO's critic takes time to warm up — early steps are noisy. GRPO converges more smoothly because the group baseline is always fresh. Click Play to animate:</p>
+    <div style="display:flex;gap:10px;margin-bottom:12px;">
+      <button class="btn" id="traj-play-btn" onclick="playTrajectory()">▶ Play Animation</button>
+      <button class="btn btn-outline" onclick="resetTrajectory()">Reset</button>
+    </div>
+    <canvas id="canvas-trajectory" width="640" height="220" style="width:100%;max-width:640px;"></canvas>
+  </div>
+
   <div class="section-bridge">
     <span class="section-bridge-text">GRPO's answer: replace the critic with a group of completions.</span>
     <a class="section-bridge-link" href="#s-group">① Group Sampling →</a>
@@ -398,6 +409,30 @@ window.addEventListener('load',function(){var el=document.getElementById('pg-inp
         <div style="font-size:12px;color:var(--muted);line-height:1.5;">Better statistics but G× memory and compute cost for generation. Usually not worth it past G=32.</div>
       </div>
     </div>
+  </div>
+
+  <!-- Reward function sandbox -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Try It: Score Your Own Answer</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Problem: <span style="font-family:'JetBrains Mono';color:var(--text);">What is 2 + 3 × 4?</span> &nbsp;(correct = <strong>14</strong>). Type an answer and see how it gets scored and placed in a group:</p>
+    <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+      <input id="sandbox-input" type="text" placeholder="Type your answer…" style="flex:1;min-width:140px;padding:10px 14px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'JetBrains Mono';outline:none;" onkeydown="if(event.key==='Enter')checkRewardSandbox()">
+      <button class="btn" onclick="checkRewardSandbox()">Submit</button>
+      <button class="btn btn-outline" onclick="resetSandbox()">Reset</button>
+    </div>
+    <div id="sandbox-result" style="display:none;margin-bottom:12px;padding:12px 14px;border-radius:8px;font-size:13px;border:1px solid var(--border);background:var(--surface2);"></div>
+    <canvas id="canvas-sandbox" width="640" height="110" style="width:100%;max-width:640px;"></canvas>
+    <div id="sandbox-group-stats" style="display:none;font-size:12px;color:var(--muted);margin-top:8px;padding:10px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);"></div>
+  </div>
+
+  <!-- G=1 thought experiment -->
+  <div style="background:rgba(247,183,49,0.07);border:1px solid rgba(247,183,49,0.3);border-radius:10px;padding:16px 20px;margin-bottom:24px;">
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:#f7b731;margin-bottom:8px;">🤔 Thought Experiment: What if G = 1?</div>
+    <p style="font-size:13px;color:var(--text);line-height:1.7;margin-bottom:10px;">With G=1 you have only a single answer. Let's compute the advantage:</p>
+    <div class="formula" style="font-size:13px;margin:10px 0;">mean(r) = r₁
+std(r)  = 0          ← only one value, no spread
+A₁      = (r₁ − r₁) / (0 + ε) ≈ 0</div>
+    <p style="font-size:13px;color:var(--text);line-height:1.7;">With one completion <strong>every advantage is exactly 0</strong> — regardless of whether the answer was right or wrong. Loss = 0, gradient = 0, nothing is learned. <strong>You mathematically need at least G = 2 to get any signal.</strong> In practice G = 8–16 provides stable, informative baselines.</p>
   </div>
 
   <!-- GRPO vs PPO architecture -->
@@ -499,6 +534,15 @@ where:
     <p style="font-size:12px;color:var(--muted);margin-top:8px;">This loss is computed per token, then averaged across all tokens in all completions in the batch.</p>
   </div>
 
+  <!-- Token-level loss breakdown -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Token-by-Token: Where the Loss Comes From</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">The GRPO loss is computed for <em>every token</em> in every completion. The math answer <span style="font-family:'JetBrains Mono';">"The answer is 14."</span> has 6 tokens — click any to inspect its individual loss contribution:</p>
+    <div id="token-bubbles" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;"></div>
+    <canvas id="canvas-token-loss" width="640" height="180" style="width:100%;max-width:640px;margin-bottom:10px;"></canvas>
+    <div id="token-loss-verdict" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);">Click any token above to inspect its loss contribution.</div>
+  </div>
+
   <!-- Component 1: Policy ratio -->
   <div class="card" style="margin-bottom:24px;">
     <div class="card-title">Component 1 — Policy Ratio: Measuring How Much the Model Changed</div>
@@ -518,6 +562,18 @@ where:
         <div style="font-size:12px;color:var(--muted);">New policy 50% less likely to produce this token.</div>
       </div>
     </div>
+  </div>
+
+  <!-- Policy ratio interactive explorer -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Interactive: Policy Ratio Explorer</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Set the old and new policy probabilities for a single token. Watch how r_t and clipping interact:</p>
+    <div class="g2" style="gap:14px;margin-bottom:14px;">
+      <div class="sl-row"><span class="sl-lbl">Old policy π_old</span><input type="range" id="pi-old" min="0.01" max="0.99" step="0.01" value="0.30" oninput="drawRatioExplorer()"><span class="sl-val" id="pi-old-val">0.30</span></div>
+      <div class="sl-row"><span class="sl-lbl">New policy π_θ</span><input type="range" id="pi-new" min="0.01" max="0.99" step="0.01" value="0.45" oninput="drawRatioExplorer()"><span class="sl-val" id="pi-new-val">0.45</span></div>
+    </div>
+    <canvas id="canvas-ratio-explorer" width="640" height="160" style="width:100%;max-width:640px;margin-bottom:10px;"></canvas>
+    <div id="ratio-explorer-verdict" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);"></div>
   </div>
 
   <!-- Component 2: Clipping -->
@@ -569,6 +625,28 @@ where:
     </div>
   </div>
 
+  <!-- KL intuition with direct sliders -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">KL Intuition: Drag Token Probabilities Live</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Directly adjust the trained model's probability for each word. Watch KL divergence update instantly — blue = reference model (fixed), purple = trained model (drag to change):</p>
+    <div id="kl-token-sliders" style="display:flex;flex-direction:column;gap:5px;margin-bottom:14px;"></div>
+    <canvas id="canvas-kl-intuition" width="640" height="190" style="width:100%;max-width:640px;margin-bottom:10px;"></canvas>
+    <div id="kl-intuition-verdict" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);"></div>
+  </div>
+
+  <!-- Step-by-step loss walkthrough -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Worked Example: GRPO Loss Computed Step by Step</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Let's trace the full loss for the token <span style="font-family:'JetBrains Mono'">"4"</span> in the correct answer "The answer is 14." — with real numbers:</p>
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">
+      <button class="btn btn-outline" id="walk-back" onclick="walkStep(-1)" disabled>← Back</button>
+      <span id="walk-step-indicator" style="font-size:12px;color:var(--muted);font-family:'JetBrains Mono';">Step 1 / 5</span>
+      <button class="btn" id="walk-next" onclick="walkStep(1)">Next →</button>
+    </div>
+    <canvas id="canvas-walkthrough" width="640" height="220" style="width:100%;max-width:640px;margin-bottom:10px;"></canvas>
+    <div id="walkthrough-text" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);"></div>
+  </div>
+
   <div class="analogy-card">
     <div class="analogy-label">Everyday Analogy for the Full Loss</div>
     <p>"The loss is a three-way contract with the student (AI): <strong>Clip</strong> = 'You can change your opinions, but not by more than 20% in any single lesson.' <strong>Advantage</strong> = 'Focus changes on the answers that were above or below your class average.' <strong>KL penalty</strong> = 'Don't change your personality so drastically that you forget how to speak English while learning math.'"</p>
@@ -591,6 +669,14 @@ where:
     <div class="card-title">DeepSeekMath: Before and After GRPO</div>
     <canvas id="canvas-results-bar" width="640" height="220" style="width:100%;max-width:640px;margin-bottom:10px;"></canvas>
     <p style="font-size:12px;color:var(--muted);">GRPO added ~5pp on MATH and ~5pp on GSM8K over a strong SFT baseline — with no increase in model size.</p>
+  </div>
+
+  <!-- Model family tree -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">The GRPO Family Tree — Click Any Model</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">GRPO spawned an entire lineage of reasoning models. Click any node to learn more:</p>
+    <canvas id="canvas-family-tree" width="640" height="270" style="width:100%;max-width:640px;cursor:pointer;" onclick="handleFamilyClick(event)"></canvas>
+    <div id="family-tree-info" style="margin-top:10px;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);font-size:13px;line-height:1.7;color:var(--muted);">Click any model node above to see details.</div>
   </div>
 
   <!-- PPO vs GRPO comparison -->
@@ -1284,19 +1370,504 @@ function drawResultsBar(){
 }
 
 /* =====================================================
+   PPO vs GRPO TRAINING TRAJECTORY
+===================================================== */
+var trajProgress=0;var trajAF=null;var trajDone=false;
+function resetTrajectory(){
+  trajProgress=0;trajDone=false;
+  if(trajAF){cancelAnimationFrame(trajAF);trajAF=null;}
+  var btn=document.getElementById('traj-play-btn');if(btn)btn.textContent='▶ Play Animation';
+  drawTrajectory(0);
+}
+function playTrajectory(){
+  if(trajDone){resetTrajectory();return;}
+  var btn=document.getElementById('traj-play-btn');
+  if(trajAF){cancelAnimationFrame(trajAF);trajAF=null;if(btn)btn.textContent='▶ Continue';return;}
+  if(btn)btn.textContent='⏸ Pause';
+  function step(){
+    trajProgress+=0.006;
+    if(trajProgress>=1){trajProgress=1;trajDone=true;if(btn)btn.textContent='↺ Replay';}
+    drawTrajectory(trajProgress);
+    if(trajProgress<1)trajAF=requestAnimationFrame(step);else trajAF=null;
+  }
+  trajAF=requestAnimationFrame(step);
+}
+function ppoLossFn(s){
+  var base=Math.exp(-s*0.022)*0.72+0.12;
+  var osc=Math.sin(s*0.75)*0.06*Math.exp(-s*0.018);
+  return Math.max(0.05,base+osc);
+}
+function grpoLossFn(s){
+  var base=Math.exp(-s*0.038)*0.68+0.07;
+  var noise=Math.sin(s*0.38)*0.012*Math.exp(-s*0.025);
+  return Math.max(0.04,base+noise);
+}
+function drawTrajectory(t){
+  var cv=document.getElementById('canvas-trajectory');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var padL=52,padR=20,padT=24,padB=36;
+  var dW=W-padL-padR,dH=H-padT-padB;
+  var steps=120;
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(padL,padT);ctx.lineTo(padL,padT+dH);ctx.lineTo(padL+dW,padT+dH);ctx.stroke();
+  ctx.fillStyle='#8892b0';ctx.font='11px Inter';ctx.textAlign='center';
+  ctx.fillText('Training Steps',padL+dW/2,H-4);
+  ctx.save();ctx.translate(14,padT+dH/2);ctx.rotate(-Math.PI/2);
+  ctx.fillStyle='#8892b0';ctx.textAlign='center';ctx.fillText('Loss',0,0);ctx.restore();
+  [0.2,0.4,0.6,0.8].forEach(function(v){
+    var y=padT+dH*(1-v);
+    ctx.strokeStyle='#1e2444';ctx.lineWidth=0.5;
+    ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+dW,y);ctx.stroke();
+    ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.textAlign='right';ctx.fillText(v.toFixed(1),padL-4,y+3);
+  });
+  var maxSteps=Math.floor(t*steps);
+  var stepX=function(s){return padL+s/steps*dW;};
+  var lossY=function(l){return padT+dH*(1-Math.min(l,1)*0.95);};
+  ctx.beginPath();
+  for(var s=0;s<=maxSteps;s++){
+    var x=stepX(s),y=lossY(ppoLossFn(s));
+    s===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.strokeStyle='#f7b731';ctx.lineWidth=2;ctx.stroke();
+  ctx.beginPath();
+  for(var s=0;s<=maxSteps;s++){
+    var x=stepX(s),y=lossY(grpoLossFn(s));
+    s===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.strokeStyle='#4ecdc4';ctx.lineWidth=2.5;ctx.stroke();
+  ctx.strokeStyle='#f7b731';ctx.lineWidth=2;ctx.setLineDash([]);
+  ctx.beginPath();ctx.moveTo(padL+dW-170,padT+10);ctx.lineTo(padL+dW-142,padT+10);ctx.stroke();
+  ctx.fillStyle='#f7b731';ctx.font='11px Inter';ctx.textAlign='left';ctx.fillText('PPO (critic warmup noise)',padL+dW-138,padT+14);
+  ctx.strokeStyle='#4ecdc4';ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.moveTo(padL+dW-170,padT+28);ctx.lineTo(padL+dW-142,padT+28);ctx.stroke();
+  ctx.fillStyle='#4ecdc4';ctx.fillText('GRPO (smooth convergence)',padL+dW-138,padT+32);
+  if(t>0.85){
+    ctx.fillStyle='#f7b731';ctx.font='10px Inter';ctx.textAlign='right';
+    ctx.fillText('PPO: '+ppoLossFn(steps).toFixed(3),padL+dW-4,lossY(ppoLossFn(steps))-6);
+    ctx.fillStyle='#4ecdc4';
+    ctx.fillText('GRPO: '+grpoLossFn(steps).toFixed(3),padL+dW-4,lossY(grpoLossFn(steps))+14);
+  }
+}
+
+/* =====================================================
+   REWARD FUNCTION SANDBOX
+===================================================== */
+var SANDBOX_GROUP_PRESET=[
+  {val:'14',reward:1.0},{val:'8',reward:0.0},{val:'14',reward:1.0},
+  {val:'20',reward:0.0},{val:'14',reward:1.0},{val:'fourteen',reward:0.5}
+];
+var sandboxUserHistory=[];
+function checkRewardSandbox(){
+  var inp=document.getElementById('sandbox-input');if(!inp||!inp.value.trim())return;
+  var val=inp.value.trim();
+  var num=parseFloat(val);
+  var correct=(num===14);
+  var isFmt=(/^\d+(\.\d+)?$/).test(val);
+  var reward=correct&&isFmt?1.0:correct&&!isFmt?0.5:isFmt&&!correct?0.0:-0.2;
+  sandboxUserHistory.push({val:val,reward:reward,correct:correct,fmt:isFmt});
+  var res=document.getElementById('sandbox-result');
+  res.style.display='block';
+  res.innerHTML='<strong>Your answer:</strong> <span style="font-family:JetBrains Mono">'+val+'</span> &nbsp;|&nbsp; '+
+    '<strong>Reward:</strong> <span style="color:'+(reward>=0.8?'#51cf66':reward>0?'#f7b731':'#ff6b6b')+'">'+reward.toFixed(1)+'</span><br>'+
+    (correct&&isFmt?'<span style="color:#51cf66;">✓ Correct + numeric format → full reward 1.0</span>':
+     correct&&!isFmt?'<span style="color:#f7b731;">Correct number but written as words → partial reward 0.5</span>':
+     !correct&&isFmt?'<span style="color:#ff6b6b;">Wrong answer → reward 0.0</span>':
+     '<span style="color:#ff6b6b;">Wrong answer and bad format → reward −0.2</span>');
+  inp.value='';
+  drawSandboxCanvas();
+  document.getElementById('sandbox-group-stats').style.display='block';
+}
+function resetSandbox(){
+  sandboxUserHistory=[];
+  document.getElementById('sandbox-result').style.display='none';
+  document.getElementById('sandbox-group-stats').style.display='none';
+  var cv=document.getElementById('canvas-sandbox');
+  if(cv){var ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);}
+  drawSandboxCanvas();
+}
+function drawSandboxCanvas(){
+  var cv=document.getElementById('canvas-sandbox');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var group=SANDBOX_GROUP_PRESET.concat(sandboxUserHistory.map(function(h){return{val:h.val,reward:h.reward,isUser:true};}));
+  var rewards=group.map(function(g){return g.reward;});
+  var mean=rewards.reduce(function(a,b){return a+b;},0)/rewards.length;
+  var variance=rewards.reduce(function(a,r){return a+(r-mean)*(r-mean);},0)/rewards.length;
+  var std=Math.sqrt(variance);
+  var advantages=rewards.map(function(r){return std<1e-8?0:(r-mean)/(std+1e-8);});
+  var n=group.length;var bw=(W-30)/n;
+  ctx.fillStyle='#8892b0';ctx.font='10px Inter';ctx.textAlign='left';
+  ctx.fillText('Group (preset completions + yours):',10,12);
+  group.forEach(function(g,i){
+    var cx=15+(i+0.5)*bw;
+    var adv=advantages[i];
+    var isUser=!!g.isUser;
+    var col=isUser?'#ffd43b':adv>0.01?'#51cf66':adv<-0.01?'#ff6b6b':'#8892b0';
+    var r=20;
+    drawRoundedRect(ctx,cx-r,18,r*2,r*2,r,col+(isUser?'44':'22'),col,isUser?2.5:1.5);
+    ctx.fillStyle=col;ctx.font='bold 10px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText(String(g.val).substring(0,5),cx,18+r+4);
+    ctx.fillStyle='#8892b0';ctx.font='8px Inter';ctx.textAlign='center';
+    ctx.fillText('r='+g.reward.toFixed(1),cx,62);
+    var advColor=adv>0.01?'#51cf66':adv<-0.01?'#ff6b6b':'#8892b0';
+    ctx.fillStyle=advColor;ctx.font='8px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText('A='+adv.toFixed(2),cx,74);
+    if(isUser){ctx.fillStyle='#ffd43b';ctx.font='bold 8px Inter';ctx.fillText('YOU',cx,88);}
+  });
+  var statsEl=document.getElementById('sandbox-group-stats');
+  var lastAdv=sandboxUserHistory.length?advantages[advantages.length-1]:null;
+  statsEl.innerHTML='Group of '+n+' — mean reward: <strong>'+mean.toFixed(2)+'</strong>, std: <strong>'+std.toFixed(2)+'</strong>'+
+    (lastAdv!==null?' | Your advantage: <strong style="color:'+(lastAdv>0?'#51cf66':'#ff6b6b')+'">'+lastAdv.toFixed(2)+'</strong>':'');
+}
+
+/* =====================================================
+   POLICY RATIO EXPLORER
+===================================================== */
+function drawRatioExplorer(){
+  var piOld=parseFloat(document.getElementById('pi-old').value)||0.30;
+  var piNew=parseFloat(document.getElementById('pi-new').value)||0.45;
+  document.getElementById('pi-old-val').textContent=piOld.toFixed(2);
+  document.getElementById('pi-new-val').textContent=piNew.toFixed(2);
+  var ratio=piNew/piOld;
+  var eps=0.2;
+  var clipped=(ratio<1-eps||ratio>1+eps);
+  var cv=document.getElementById('canvas-ratio-explorer');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var lineY=70;var lineX1=60;var lineX2=W-60;var lineW=lineX2-lineX1;
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(lineX1,lineY);ctx.lineTo(lineX2,lineY);ctx.stroke();
+  [0,0.2,0.4,0.6,0.8,1.0].forEach(function(v){
+    var x=lineX1+v*lineW;
+    ctx.strokeStyle='#2a3060';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(x,lineY-6);ctx.lineTo(x,lineY+6);ctx.stroke();
+    ctx.fillStyle='#8892b0';ctx.font='10px Inter';ctx.textAlign='center';ctx.fillText(v.toFixed(1),x,lineY+20);
+  });
+  ctx.fillStyle='#8892b0';ctx.font='11px Inter';ctx.textAlign='center';ctx.fillText('Token probability',W/2,lineY+36);
+  var xOld=lineX1+piOld*lineW;
+  ctx.beginPath();ctx.arc(xOld,lineY,10,0,Math.PI*2);ctx.fillStyle='#74c0fc';ctx.fill();
+  ctx.strokeStyle='#0d0f18';ctx.lineWidth=2;ctx.stroke();
+  ctx.fillStyle='#74c0fc';ctx.font='bold 10px Inter';ctx.textAlign='center';ctx.fillText('π_old='+piOld.toFixed(2),xOld,lineY-18);
+  var xNew=lineX1+piNew*lineW;
+  ctx.beginPath();ctx.arc(xNew,lineY,10,0,Math.PI*2);
+  ctx.fillStyle=clipped?'#ff6b6b':'#51cf66';ctx.fill();
+  ctx.strokeStyle='#0d0f18';ctx.lineWidth=2;ctx.stroke();
+  ctx.fillStyle=clipped?'#ff6b6b':'#51cf66';ctx.font='bold 10px Inter';ctx.textAlign='center';ctx.fillText('π_θ='+piNew.toFixed(2),xNew,lineY-18);
+  var midX=(xOld+xNew)/2;
+  var ratioCol=clipped?'#ff6b6b':'#51cf66';
+  ctx.strokeStyle=ratioCol+'aa';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);
+  ctx.beginPath();ctx.moveTo(xOld,lineY-30);ctx.lineTo(xNew,lineY-30);ctx.stroke();ctx.setLineDash([]);
+  drawRoundedRect(ctx,midX-50,4,100,24,6,ratioCol+'22',ratioCol,1.5);
+  ctx.fillStyle=ratioCol;ctx.font='bold 11px JetBrains Mono';ctx.textAlign='center';
+  ctx.fillText('r_t = '+ratio.toFixed(3)+(clipped?' ⚠':'✓'),midX,20);
+  var x1s=lineX1+piOld*(1-eps)*lineW;var x2s=lineX1+piOld*(1+eps)*lineW;
+  ctx.fillStyle='rgba(255,212,59,0.08)';ctx.fillRect(Math.max(x1s,lineX1),lineY-8,Math.min(x2s,lineX2)-Math.max(x1s,lineX1),16);
+  ctx.strokeStyle='#ffd43b55';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+  [x1s,x2s].forEach(function(x){
+    if(x>lineX1&&x<lineX2){ctx.beginPath();ctx.moveTo(x,lineY-14);ctx.lineTo(x,lineY+14);ctx.stroke();}
+  });
+  ctx.setLineDash([]);
+  ctx.fillStyle='#ffd43b';ctx.font='9px Inter';ctx.textAlign='center';
+  var safeCenter=(Math.max(x1s,lineX1)+Math.min(x2s,lineX2))/2;
+  ctx.fillText('safe zone (1±0.2)×π_old',safeCenter,lineY+34);
+  var vEl=document.getElementById('ratio-explorer-verdict');
+  var rClip=Math.min(Math.max(ratio,1-eps),1+eps);
+  vEl.innerHTML='r_t = '+piNew.toFixed(2)+' / '+piOld.toFixed(2)+' = <strong style="color:'+ratioCol+'">'+ratio.toFixed(3)+'</strong> &nbsp;'+(clipped
+    ?'— outside [0.80, 1.20]. Gradient will be <strong>clipped</strong>: optimizer sees r = '+rClip.toFixed(3)+' instead. Large update is blocked.'
+    :'— inside [0.80, 1.20]. <strong>Full gradient</strong> applied, no clipping needed.');
+  vEl.style.borderColor=clipped?'rgba(255,107,107,0.4)':'rgba(81,207,102,0.4)';
+}
+
+/* =====================================================
+   TOKEN-LEVEL LOSS VISUALIZATION
+===================================================== */
+var TOKEN_WORDS=['The','answer','is','1','4','.'];
+var TOKEN_PI_OLD=[0.92,0.88,0.95,0.10,0.60,0.97];
+var TOKEN_PI_NEW=[0.93,0.90,0.96,0.12,0.72,0.98];
+var TOKEN_ADV=1.2;
+var selectedToken=-1;
+function initTokenLoss(){
+  var container=document.getElementById('token-bubbles');if(!container)return;
+  container.innerHTML='';
+  TOKEN_WORDS.forEach(function(w,i){
+    var btn=document.createElement('button');
+    btn.className='btn btn-outline';
+    btn.style.cssText='font-family:JetBrains Mono;font-size:14px;padding:8px 16px;border-radius:8px;transition:all 0.15s;';
+    btn.textContent='"'+w+'"';
+    btn.onclick=function(){selectToken(i);};
+    btn.id='tok-btn-'+i;
+    container.appendChild(btn);
+  });
+  drawTokenLoss();
+}
+function selectToken(i){
+  selectedToken=i;
+  TOKEN_WORDS.forEach(function(_,j){
+    var b=document.getElementById('tok-btn-'+j);
+    if(b){b.style.background=j===i?'var(--accent)':'transparent';b.style.color=j===i?'#fff':'var(--text)';}
+  });
+  drawTokenLoss();
+}
+function drawTokenLoss(){
+  var cv=document.getElementById('canvas-token-loss');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var n=TOKEN_WORDS.length;var bw=(W-40)/n;
+  var padT=30,padB=55;var eps=0.2;
+  ctx.fillStyle='#8892b0';ctx.font='10px Inter';ctx.textAlign='left';ctx.fillText('Loss contribution per token (completion: "The answer is 14." — correct, A=+1.2)',20,14);
+  TOKEN_WORDS.forEach(function(w,i){
+    var piO=TOKEN_PI_OLD[i],piN=TOKEN_PI_NEW[i];
+    var ratio=piN/piO;
+    var rClip=Math.min(Math.max(ratio,1-eps),1+eps);
+    var loss=-Math.min(ratio*TOKEN_ADV,rClip*TOKEN_ADV);
+    var cx=20+(i+0.5)*bw;
+    var isSelected=(i===selectedToken);
+    var clippedFlag=(ratio>1+eps||ratio<1-eps);
+    var col=isSelected?'#7c6af4':clippedFlag?'#ff6b6b':'#4ecdc4';
+    var barMaxH=H-padT-padB;
+    var barH=Math.abs(loss)/3*barMaxH;
+    var y=padT+(barMaxH-barH);
+    drawRoundedRect(ctx,cx-bw*0.3,y,bw*0.6,barH,4,col+'44',col,isSelected?2.5:1.5);
+    ctx.fillStyle=col;ctx.font='bold 9px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText(loss.toFixed(3),cx,y-5);
+    ctx.fillStyle=isSelected?'#c4b5fd':'#8892b0';ctx.font=isSelected?'bold 12px Inter':'11px Inter';
+    ctx.textAlign='center';ctx.fillText('"'+w+'"',cx,H-padB+16);
+    ctx.fillStyle='#8892b0';ctx.font='9px Inter';
+    ctx.fillText('r='+ratio.toFixed(2),cx,H-padB+30);
+    ctx.fillText((clippedFlag?'⚠clipped':'✓ok'),cx,H-padB+42);
+  });
+  var vEl=document.getElementById('token-loss-verdict');
+  if(selectedToken<0){vEl.innerHTML='Click any token above to inspect its individual loss contribution.';vEl.style.borderColor='rgba(42,48,96,0.6)';return;}
+  var i=selectedToken;
+  var piO=TOKEN_PI_OLD[i],piN=TOKEN_PI_NEW[i];
+  var ratio=piN/piO;var eps2=0.2;
+  var rClip=Math.min(Math.max(ratio,1-eps2),1+eps2);
+  var loss=-Math.min(ratio*TOKEN_ADV,rClip*TOKEN_ADV);
+  var clipped=(ratio<1-eps2||ratio>1+eps2);
+  vEl.innerHTML='<strong>Token "'+TOKEN_WORDS[i]+'":</strong> &nbsp; π_old='+piO.toFixed(2)+', π_θ='+piN.toFixed(2)+
+    ' &nbsp;→&nbsp; r_t='+ratio.toFixed(3)+(clipped?' (clipped to '+rClip.toFixed(3)+')'  :'')+
+    ', &nbsp; A=+'+TOKEN_ADV.toFixed(2)+'<br>'+
+    'Loss = −min(r·A, clip(r)·A) = −min('+( ratio*TOKEN_ADV).toFixed(3)+', '+(rClip*TOKEN_ADV).toFixed(3)+') = <strong>'+loss.toFixed(3)+'</strong>';
+  vEl.style.borderColor='rgba(124,106,244,0.4)';
+}
+
+/* =====================================================
+   KL DIVERGENCE INTUITION (DIRECT SLIDERS)
+===================================================== */
+var KL_TOKENS=['walked','found','saw','built','ran','flew','danced'];
+var KL_REF=[0.30,0.22,0.18,0.12,0.08,0.06,0.04];
+function initKLSliders(){
+  var container=document.getElementById('kl-token-sliders');if(!container)return;
+  container.innerHTML='';
+  KL_TOKENS.forEach(function(word,i){
+    var row=document.createElement('div');row.className='sl-row';
+    row.style.gap='8px';
+    row.innerHTML='<span style="font-size:12px;color:#74c0fc;min-width:68px;font-weight:600">π_ref("'+word+'")</span>'+
+      '<span style="font-size:12px;color:#74c0fc;font-family:JetBrains Mono;min-width:36px">'+KL_REF[i].toFixed(2)+'</span>'+
+      '<span style="font-size:12px;color:#7c6af4;min-width:68px;font-weight:600">π_θ("'+word+'")</span>'+
+      '<input type="range" id="kl-tok-'+i+'" min="0.01" max="0.60" step="0.01" value="'+KL_REF[i].toFixed(2)+'" style="flex:1" oninput="drawKLIntuition()">'+
+      '<span class="sl-val" style="color:#7c6af4" id="kl-tok-val-'+i+'">'+KL_REF[i].toFixed(2)+'</span>';
+    container.appendChild(row);
+  });
+  drawKLIntuition();
+}
+function drawKLIntuition(){
+  var policyRaw=KL_TOKENS.map(function(_,i){
+    var sl=document.getElementById('kl-tok-'+i);if(!sl)return KL_REF[i];
+    var v=parseFloat(sl.value);
+    var valEl=document.getElementById('kl-tok-val-'+i);if(valEl)valEl.textContent=v.toFixed(2);
+    return v;
+  });
+  var pSum=policyRaw.reduce(function(a,b){return a+b;},0);
+  var normPolicy=policyRaw.map(function(p){return p/pSum;});
+  var rSum=KL_REF.reduce(function(a,b){return a+b;},0);
+  var normRef=KL_REF.map(function(p){return p/rSum;});
+  var kl=normRef.reduce(function(acc,p,i){
+    var q=normPolicy[i];
+    return acc+(p>0&&q>0?p*Math.log(p/q):0);
+  },0);
+  var cv=document.getElementById('canvas-kl-intuition');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var n=KL_TOKENS.length;
+  var padL=36,padR=20,padT=28,padB=56;
+  var bw=(W-padL-padR)/n;var maxBarH=H-padT-padB;
+  ctx.fillStyle='#74c0fc';ctx.font='10px Inter';ctx.textAlign='left';ctx.fillText('■ π_ref (reference — fixed)',padL,14);
+  ctx.fillStyle='#7c6af4';ctx.fillText('■ π_θ (trained — drag sliders)',padL+170,14);
+  normRef.forEach(function(p,i){
+    var q=normPolicy[i];
+    var x=padL+i*bw;
+    var bww=bw*0.38;
+    var h1=p*maxBarH;var h2=q*maxBarH;
+    drawRoundedRect(ctx,x+bw*0.06,padT+maxBarH-h1,bww,h1,3,'#74c0fc44','#74c0fc',1.5);
+    drawRoundedRect(ctx,x+bw*0.52,padT+maxBarH-h2,bww,h2,3,'#7c6af455','#7c6af4',1.5);
+    ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText(KL_TOKENS[i],x+bw/2,H-padB+14);
+    if(Math.abs(h2-h1)>6){
+      ctx.fillStyle=q>p?'#51cf66':'#ff6b6b';ctx.font='10px Inter';ctx.textAlign='center';
+      ctx.fillText(q>p?'↑':'↓',x+bw*0.52+bww/2,padT+maxBarH-Math.max(h1,h2)-5);
+    }
+  });
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(padL,padT+maxBarH);ctx.lineTo(W-padR,padT+maxBarH);ctx.stroke();
+  var klColor=kl<0.05?'#51cf66':kl<0.2?'#f7b731':'#ff6b6b';
+  ctx.fillStyle=klColor;ctx.font='bold 12px Inter';ctx.textAlign='left';
+  ctx.fillText('KL(π_ref ‖ π_θ) = '+kl.toFixed(4)+'   β×KL penalty (β=0.04) = '+(0.04*kl).toFixed(5),padL,H-padB+32);
+  var vEl=document.getElementById('kl-intuition-verdict');
+  if(kl<0.01){vEl.innerHTML='<span style="color:#51cf66;">KL ≈ 0. The trained model is almost identical to the reference. Very little drift.</span>';}
+  else if(kl<0.1){vEl.innerHTML='<span style="color:#51cf66;">Low KL ('+kl.toFixed(3)+'). Healthy drift — the model is improving while staying close to the reference. β×KL = '+(0.04*kl).toFixed(4)+' added to loss.</span>';}
+  else if(kl<0.5){vEl.innerHTML='<span style="color:#f7b731;">Moderate KL ('+kl.toFixed(3)+'). The trained model has shifted noticeably. KL penalty is becoming a meaningful cost.</span>';}
+  else{vEl.innerHTML='<span style="color:#ff6b6b;">High KL ('+kl.toFixed(3)+'). Large drift from reference — risk of instability or reward hacking. β×KL penalty = '+(0.04*kl).toFixed(4)+' dominates the loss.</span>';}
+}
+
+/* =====================================================
+   LOSS WALKTHROUGH STEPPER
+===================================================== */
+var walkCurrentStep=0;
+var WALK_STEPS=[
+  {title:'Given: one token from a correct completion',
+   text:'Token: <strong>"4"</strong> from the answer "The answer is 14." — which was correct. So the advantage for this entire completion is <strong>A = +1.2</strong> (above group mean). We want to reinforce this.',
+   hl:'token',pi_old:0.60,pi_new:0.72,adv:1.2},
+  {title:'Step 1: Compute policy ratio r_t',
+   text:'r_t = π_θ("4") / π_old("4") = 0.72 / 0.60 = <strong>1.200</strong>. The new model is 20% more likely to produce "4" at this position than the old model was. This is right at the clip boundary.',
+   hl:'ratio',pi_old:0.60,pi_new:0.72,adv:1.2},
+  {title:'Step 2: Unclipped reward term',
+   text:'Unclipped = r_t × A = 1.200 × 1.200 = <strong>1.440</strong>. If we used this directly, large ratios could cause destabilisingly large updates.',
+   hl:'unclipped',pi_old:0.60,pi_new:0.72,adv:1.2},
+  {title:'Step 3: Clipped term (ε = 0.2)',
+   text:'clip(r_t, 1−ε, 1+ε) = clip(1.200, 0.800, 1.200) = <strong>1.200</strong> (just at the boundary). Clipped term = 1.200 × 1.200 = <strong>1.440</strong>. Here clipping doesn\'t change anything — exactly at the limit.',
+   hl:'clipped',pi_old:0.60,pi_new:0.72,adv:1.2},
+  {title:'Step 4: Final loss = −min(unclipped, clipped)',
+   text:'min(1.440, 1.440) = 1.440. Final token loss = <strong>−1.440</strong> + β×KL. The minus sign is because the optimizer <em>minimises</em> loss — negating a reward term makes minimising the loss equivalent to maximising the reward. This token is reinforced.',
+   hl:'final',pi_old:0.60,pi_new:0.72,adv:1.2}
+];
+function walkStep(dir){
+  walkCurrentStep=Math.max(0,Math.min(WALK_STEPS.length-1,walkCurrentStep+dir));
+  document.getElementById('walk-back').disabled=(walkCurrentStep===0);
+  document.getElementById('walk-next').disabled=(walkCurrentStep===WALK_STEPS.length-1);
+  document.getElementById('walk-step-indicator').textContent='Step '+(walkCurrentStep+1)+' / '+WALK_STEPS.length;
+  drawWalkthrough();
+}
+function drawWalkthrough(){
+  var cv=document.getElementById('canvas-walkthrough');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var s=WALK_STEPS[walkCurrentStep];
+  var padL=18,padR=18,padT=16;
+  drawRoundedRect(ctx,padL,padT,W-padL-padR,26,6,'rgba(124,106,244,0.12)','#7c6af4',1.5);
+  ctx.fillStyle='#7c6af4';ctx.font='bold 12px Inter';ctx.textAlign='center';
+  ctx.fillText(s.title,W/2,padT+17);
+  var eps=0.2;var ratio=s.pi_new/s.pi_old;
+  var rClip=Math.min(Math.max(ratio,1-eps),1+eps);
+  var unclipped=ratio*s.adv;var clippedV=rClip*s.adv;var finalV=Math.min(unclipped,clippedV);
+  var vals=[
+    {label:'π_old',val:s.pi_old.toFixed(2),col:'#74c0fc',active:s.hl==='token'},
+    {label:'π_θ',val:s.pi_new.toFixed(2),col:'#4ecdc4',active:s.hl==='token'},
+    {label:'r_t',val:ratio.toFixed(3),col:'#f7b731',active:s.hl==='ratio'},
+    {label:'A',val:'+'+s.adv.toFixed(2),col:'#51cf66',active:s.hl==='ratio'||s.hl==='unclipped'},
+    {label:'r·A',val:unclipped.toFixed(3),col:'#ff6b6b',active:s.hl==='unclipped'},
+    {label:'clip·A',val:clippedV.toFixed(3),col:'#f7b731',active:s.hl==='clipped'},
+    {label:'−min',val:(-finalV).toFixed(3),col:'#7c6af4',active:s.hl==='final'}
+  ];
+  var y=padT+34;
+  var bw=(W-padL-padR)/vals.length;
+  vals.forEach(function(v,i){
+    var x=padL+i*bw;var cx=x+bw/2;
+    drawRoundedRect(ctx,x+5,y,bw-10,62,8,v.active?v.col+'33':v.col+'11',v.active?v.col:'#2a3060',v.active?2:1);
+    ctx.fillStyle=v.active?v.col:'#8892b0';ctx.font='10px Inter';ctx.textAlign='center';ctx.fillText(v.label,cx,y+16);
+    ctx.fillStyle=v.active?'#fff':'#e2e8f0';ctx.font='bold 13px JetBrains Mono';ctx.textAlign='center';ctx.fillText(v.val,cx,y+42);
+    if(i<vals.length-1){ctx.fillStyle='#8892b0';ctx.font='14px Inter';ctx.textAlign='center';ctx.fillText('→',x+bw-4,y+32);}
+  });
+  var vEl=document.getElementById('walkthrough-text');
+  if(vEl)vEl.innerHTML=s.text;
+}
+
+/* =====================================================
+   MODEL FAMILY TREE
+===================================================== */
+var FAMILY_NODES=[
+  {id:'dsmath',label:'DeepSeekMath 7B',sub:'Origin · Feb 2024',x:0.5,y:0.13,col:'#7c6af4',
+   info:'<strong>The origin.</strong> First model trained with GRPO. G=8, rule-based math reward. Achieved 51.7% on MATH, 88.2% on GSM8K. arXiv:2402.03300.'},
+  {id:'r1zero',label:'DeepSeek-R1-Zero',sub:'No SFT · Jan 2025',x:0.22,y:0.47,col:'#4ecdc4',
+   info:'<strong>Trained without SFT.</strong> Pure GRPO from the pretrained base. Showed spontaneous "aha moments" and self-verification. Developed quirks: language mixing and no output formatting.'},
+  {id:'r1',label:'DeepSeek-R1',sub:'SOTA · Jan 2025',x:0.5,y:0.47,col:'#f7b731',
+   info:'<strong>The breakout model.</strong> Cold-start SFT → GRPO → reasoning trace SFT → GRPO again. Matched OpenAI o1 on MATH, AIME, GPQA. Triggered the "DeepSeek moment" — open-sourced and widely replicated.'},
+  {id:'qwen',label:'Qwen2.5-Math',sub:'Alibaba · 2025',x:0.78,y:0.47,col:'#ff6b6b',
+   info:'<strong>Alibaba\'s math model.</strong> Used GRPO-style training on mathematical reasoning. Qwen2.5-Math-7B achieved strong MATH benchmark results. Open-sourced with TRL integration.'},
+  {id:'internlm',label:'InternLM-Math',sub:'Shanghai AI Lab',x:0.22,y:0.82,col:'#51cf66',
+   info:'<strong>Open-source math specialist.</strong> Applied GRPO to olympiad-level problems. Achieved competitive results on competition math. Fully open-source under the InternLM license.'},
+  {id:'trl',label:'TRL GRPOTrainer',sub:'HuggingFace · 2025',x:0.5,y:0.82,col:'#74c0fc',
+   info:'<strong>Democratised GRPO.</strong> Open-source implementation in the TRL library. Enabled the community to fine-tune Llama, Phi, Qwen, Mistral with GRPO on consumer hardware.'},
+  {id:'dapo',label:'DAPO / Dr.GRPO',sub:'2025 improvements',x:0.78,y:0.82,col:'#ffd43b',
+   info:'<strong>Active research frontier.</strong> DAPO (Alibaba) improves stability with leave-one-out baselines + dynamic sampling. Dr. GRPO addresses the per-token credit-assignment problem GRPO inherits from sequence-level rewards.'}
+];
+var FAMILY_EDGES=[
+  ['dsmath','r1zero'],['dsmath','r1'],['dsmath','qwen'],
+  ['r1zero','r1'],['r1','trl'],['r1','dapo'],['qwen','internlm']
+];
+var selectedFamily=null;
+function handleFamilyClick(e){
+  var cv=document.getElementById('canvas-family-tree');if(!cv)return;
+  var rect=cv.getBoundingClientRect();
+  var mx=(e.clientX-rect.left)*(cv.width/rect.width);
+  var my=(e.clientY-rect.top)*(cv.height/rect.height);
+  var W=cv.width,H=cv.height;
+  var hit=null;
+  FAMILY_NODES.forEach(function(n){
+    var nx=n.x*W,ny=n.y*H;
+    if(Math.sqrt((mx-nx)*(mx-nx)+(my-ny)*(my-ny))<36)hit=n;
+  });
+  selectedFamily=hit?hit.id:null;
+  drawFamilyTree();
+  var info=document.getElementById('family-tree-info');
+  if(info){
+    if(hit)info.innerHTML='<strong style="color:'+hit.col+'">'+hit.label+'</strong> ('+hit.sub+') — '+hit.info;
+    else info.innerHTML='Click any model node above to see details.';
+  }
+}
+function drawFamilyTree(){
+  var cv=document.getElementById('canvas-family-tree');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  FAMILY_EDGES.forEach(function(e){
+    var a=FAMILY_NODES.find(function(n){return n.id===e[0];});
+    var b=FAMILY_NODES.find(function(n){return n.id===e[1];});
+    if(!a||!b)return;
+    ctx.strokeStyle='#2a3060';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(a.x*W,a.y*H);ctx.lineTo(b.x*W,b.y*H);ctx.stroke();
+  });
+  FAMILY_NODES.forEach(function(n){
+    var nx=n.x*W,ny=n.y*H;
+    var sel=(n.id===selectedFamily);
+    if(sel){ctx.beginPath();ctx.arc(nx,ny,40,0,Math.PI*2);ctx.fillStyle=n.col+'22';ctx.fill();}
+    drawRoundedRect(ctx,nx-52,ny-22,104,44,10,n.col+(sel?'33':'18'),n.col,sel?2.5:1.5);
+    ctx.fillStyle=n.col;ctx.font='bold 11px Inter';ctx.textAlign='center';ctx.fillText(n.label,nx,ny-4);
+    ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText(n.sub,nx,ny+10);
+  });
+}
+
+/* =====================================================
    INIT ALL
 ===================================================== */
 drawGap();
 drawRLHFPipeline();
 drawPPOArch();
 drawMemoryCalc();
+drawTrajectory(0);
+drawSandboxCanvas();
 drawGroupSampling();
 drawArchCompare();
 drawAdvantage();
+drawTokenLoss();
+initTokenLoss();
+drawRatioExplorer();
 drawClipCanvas();
 drawKLCanvas();
+initKLSliders();
+drawWalkthrough();
 drawTrainingLoop();
 drawResultsBar();
+drawFamilyTree();
 
 updateNavOnScroll();
 </script>
