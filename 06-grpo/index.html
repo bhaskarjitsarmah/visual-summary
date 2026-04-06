@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GRPO — Group Relative Policy Optimization Interactive Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0d0f18; --surface:#161a2e; --surface2:#1e2444;
+  --border:#2a3060; --text:#e2e8f0; --muted:#8892b0; --accent:#7c6af4;
+  --teal:#4ecdc4; --amber:#f7b731; --coral:#ff6b6b;
+  --mint:#51cf66; --sky:#74c0fc; --gold:#ffd43b; --pink:#f78fb3;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); display:flex; min-height:100vh; }
+.sidebar { width:250px; background:var(--surface); border-right:1px solid var(--border); position:fixed; top:0; left:0; height:100vh; overflow-y:auto; z-index:100; }
+.sb-header { padding:20px; border-bottom:1px solid var(--border); }
+.sb-header h1 { font-size:14px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:1px; }
+.sb-header p { font-size:11px; color:var(--muted); margin-top:4px; }
+.nav-group { padding:10px 0; border-bottom:1px solid var(--border); }
+.nav-group-title { padding:0 18px 6px; font-size:10px; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); font-weight:600; }
+.nav-link { display:flex; align-items:center; gap:10px; padding:8px 18px; cursor:pointer; border-left:3px solid transparent; transition:all 0.2s; text-decoration:none; color:var(--muted); font-size:13px; }
+.nav-link:hover, .nav-link.active { background:rgba(124,106,244,0.1); color:var(--text); border-left-color:var(--accent); }
+.dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; position:relative; }
+.main { margin-left:250px; flex:1; }
+.section { min-height:100vh; padding:56px 48px; border-bottom:1px solid var(--border); }
+.section-tag { font-size:11px; text-transform:uppercase; letter-spacing:2px; font-weight:600; margin-bottom:10px; }
+.section-title { font-size:30px; font-weight:700; margin-bottom:8px; line-height:1.2; }
+.section-sub { font-size:15px; color:var(--muted); max-width:640px; line-height:1.6; margin-bottom:36px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:22px; }
+.card-title { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:14px; }
+.g2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+.g3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:18px; }
+.formula { font-family:'JetBrains Mono',monospace; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:14px 18px; font-size:13px; margin:14px 0; color:#e2b35e; white-space:pre-wrap; overflow-x:auto; }
+.sl-row { display:flex; align-items:center; gap:10px; margin:10px 0; }
+.sl-lbl { font-size:12px; color:var(--muted); min-width:160px; }
+.sl-val { font-family:'JetBrains Mono'; font-size:12px; color:var(--accent); min-width:60px; text-align:right; }
+input[type=range] { -webkit-appearance:none; flex:1; height:6px; border-radius:3px; background:var(--surface2); border:1px solid var(--border); outline:none; cursor:pointer; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:var(--accent); cursor:pointer; border:2px solid var(--bg); }
+.btn { background:var(--accent); color:#fff; border:none; border-radius:8px; padding:10px 20px; font-size:13px; font-weight:600; cursor:pointer; transition:opacity 0.2s; font-family:'Inter',sans-serif; }
+.btn:hover { opacity:0.85; }
+.btn-outline { background:transparent; border:1px solid var(--border); color:var(--text); }
+.btn-outline:hover { background:var(--surface2); opacity:1; }
+.toggle-group { display:flex; gap:0; }
+.toggle-btn { padding:8px 16px; border:1px solid var(--border); background:var(--surface); color:var(--muted); cursor:pointer; font-size:12px; font-weight:600; transition:all 0.2s; font-family:'Inter',sans-serif; }
+.toggle-btn:first-child { border-radius:6px 0 0 6px; }
+.toggle-btn:last-child { border-radius:0 6px 6px 0; }
+.toggle-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+canvas { display:block; background:var(--bg); border-radius:8px; border:1px solid var(--border); }
+.analogy-card { background:rgba(78,205,196,0.07); border:1px solid rgba(78,205,196,0.3); border-radius:10px; padding:16px 20px; margin:20px 0; }
+.analogy-card p { font-size:14px; color:var(--text); line-height:1.6; }
+.analogy-card .analogy-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--teal); margin-bottom:8px; }
+.highlight-box { background:rgba(124,106,244,0.07); border:1px solid rgba(124,106,244,0.3); border-radius:10px; padding:16px 20px; margin:16px 0; }
+.highlight-box p { font-size:14px; color:var(--text); line-height:1.6; }
+.stat-row { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:28px; }
+.stat { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px 20px; flex:1; min-width:140px; }
+.stat-val { font-size:26px; font-weight:700; font-family:'JetBrains Mono'; }
+.stat-lbl { font-size:11px; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:0.5px; }
+.section-bridge { margin-top:48px; padding-top:24px; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+.section-bridge-text { font-size:13px; color:var(--muted); }
+.section-bridge-link { font-size:13px; color:var(--accent); text-decoration:none; font-weight:600; }
+.section-bridge-link:hover { opacity:0.8; }
+.accordion-item { border:1px solid var(--border); border-radius:8px; margin-bottom:8px; overflow:hidden; }
+.accordion-header { padding:14px 18px; cursor:pointer; font-size:13px; font-weight:600; display:flex; justify-content:space-between; align-items:center; background:var(--surface); }
+.accordion-header:hover { background:var(--surface2); }
+.accordion-body { display:none; padding:14px 18px; font-size:13px; color:var(--muted); line-height:1.6; border-top:1px solid var(--border); }
+.accordion-item.open .accordion-body { display:block; }
+.accordion-item.open .accordion-chevron { transform:rotate(180deg); }
+.accordion-chevron { transition:transform 0.2s; }
+.output-box { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px 16px; font-size:13px; line-height:1.8; color:var(--text); font-family:'Inter',sans-serif; }
+/* Pipeline map */
+.pipeline-map { display:flex; align-items:center; flex-wrap:wrap; gap:2px; background:var(--surface); border-bottom:1px solid var(--border); padding:8px 20px; position:sticky; top:0; z-index:50; }
+.pipe-step { display:flex; align-items:center; gap:6px; padding:5px 10px; border-radius:6px; font-size:11px; font-weight:600; color:var(--muted); transition:all 0.25s; text-decoration:none; border:1px solid transparent; white-space:nowrap; }
+.pipe-step:hover { background:var(--surface2); color:var(--text); }
+.pipe-step.active { background:var(--surface2); color:var(--text); border-color:currentColor; }
+.pipe-step .pipe-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.pipe-arrow { font-size:12px; color:var(--border); padding:0 1px; }
+/* Step circles */
+.step-circle { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; flex-shrink:0; }
+/* Answer bubble */
+.answer-bubble { display:inline-flex; align-items:center; justify-content:center; width:56px; height:56px; border-radius:50%; font-size:13px; font-weight:700; border:2px solid; transition:all 0.4s; }
+/* Reward badge */
+.reward-badge { display:inline-block; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:700; font-family:'JetBrains Mono'; }
+@media (max-width:768px) {
+  .sidebar { width:100%; height:auto; position:relative; border-right:none; border-bottom:1px solid var(--border); }
+  .sidebar .nav-group { display:none; }
+  .sb-header { padding:14px 18px; display:flex; align-items:center; justify-content:space-between; }
+  .sb-toggle { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); cursor:pointer; background:none; border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-family:'Inter',sans-serif; }
+  .sidebar.open .nav-group { display:block; }
+  body { flex-direction:column; }
+  .main { margin-left:0; }
+  .section { padding:32px 20px; min-height:unset; }
+  .g2 { grid-template-columns:1fr !important; }
+  .g3 { grid-template-columns:1fr !important; }
+  canvas { max-width:100% !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- PASSWORD GATE -->
+<div id="pg-overlay" style="position:fixed;inset:0;z-index:99999;background:linear-gradient(135deg,#0d1117 0%,#161b22 100%);display:flex;align-items:center;justify-content:center;font-family:system-ui,-apple-system,sans-serif;">
+  <div style="background:#161b22;border:1px solid #30363d;border-radius:16px;padding:48px 40px;max-width:420px;width:90%;text-align:center;box-shadow:0 24px 80px #00000088;">
+    <div style="font-size:3rem;margin-bottom:16px;">🔒</div>
+    <div style="font-size:1.4rem;font-weight:700;color:#c9d1d9;margin-bottom:8px;">Visual Summary</div>
+    <div style="font-size:0.85rem;color:#8b949e;margin-bottom:6px;">GRPO — Group Relative Policy Optimization</div>
+    <div style="font-size:0.8rem;color:#8b949e;margin-bottom:28px;line-height:1.6;">Exclusive to <b style="color:#c9d1d9;">paid subscribers</b>.<br>Enter the password from your email to unlock.</div>
+    <input id="pg-input" type="password" placeholder="Enter subscriber password" onkeydown="if(event.key==='Enter')pgUnlock()" style="width:100%;padding:12px 16px;font-size:0.95rem;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:8px;outline:none;margin-bottom:12px;">
+    <div id="pg-error" style="font-size:0.78rem;color:#f85149;min-height:18px;margin-bottom:10px;"></div>
+    <button onclick="pgUnlock()" style="width:100%;padding:12px;font-size:0.95rem;font-weight:600;background:linear-gradient(135deg,#7c6fcd,#5a4fcf);color:#fff;border:none;border-radius:8px;cursor:pointer;">Unlock →</button>
+    <div style="margin-top:20px;font-size:0.75rem;color:#8b949e;">Not a subscriber? <a href="https://visualsummary.substack.com" target="_blank" style="color:#7c6fcd;text-decoration:none;">Join Visual Summary →</a></div>
+  </div>
+</div>
+<script>
+const PG_PASSWORD='visual2025';
+function pgUnlock(){
+  var val=document.getElementById('pg-input').value.trim();
+  var err=document.getElementById('pg-error');
+  if(val===PG_PASSWORD){
+    sessionStorage.setItem('pg_unlocked_06','1');
+    var o=document.getElementById('pg-overlay');
+    o.style.transition='opacity 0.4s';o.style.opacity='0';
+    setTimeout(function(){o.remove();},420);
+  } else {
+    err.textContent='Incorrect password.';
+    var inp=document.getElementById('pg-input');
+    inp.style.borderColor='#f85149';
+    setTimeout(function(){inp.style.borderColor='#30363d';},1500);
+  }
+}
+if(sessionStorage.getItem('pg_unlocked_06')==='1') document.getElementById('pg-overlay').remove();
+window.addEventListener('load',function(){var el=document.getElementById('pg-input');if(el)el.focus();});
+</script>
+
+<!-- SIDEBAR -->
+<nav class="sidebar" id="sidebar">
+  <div class="sb-header">
+    <div>
+      <h1>GRPO</h1>
+      <p>arXiv:2402.03300 — Interactive Explorer</p>
+      <p id="sb-progress" style="font-size:10px;color:#4ade80;margin-top:2px;display:none;"></p>
+    </div>
+    <button class="sb-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')" style="display:none;" id="sb-toggle-btn">☰ Menu</button>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">Motivation</div>
+    <a class="nav-link" href="#s-why" onclick="setActive(this)"><span class="dot" style="background:#ff6b6b"></span>Why LLMs Need RL</a>
+    <a class="nav-link" href="#s-ppo" onclick="setActive(this)"><span class="dot" style="background:#f7b731"></span>PPO: The Old Way</a>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">The GRPO Algorithm</div>
+    <a class="nav-link" href="#s-group" onclick="setActive(this)"><span class="dot" style="background:#4ecdc4"></span>Step 1 — Group Sampling</a>
+    <a class="nav-link" href="#s-advantage" onclick="setActive(this)"><span class="dot" style="background:#51cf66"></span>Step 2 — Advantage</a>
+    <a class="nav-link" href="#s-loss" onclick="setActive(this)"><span class="dot" style="background:#7c6af4"></span>Step 3 — The Loss</a>
+  </div>
+  <div class="nav-group">
+    <a class="nav-link" href="#s-results" onclick="setActive(this)"><span class="dot" style="background:#ffd43b"></span>Results &amp; Impact</a>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+
+<!-- PIPELINE MAP -->
+<div class="pipeline-map" id="pipeline-map">
+  <a class="pipe-step" href="#s-why"><span class="pipe-dot" style="background:#ff6b6b"></span>Why RL?</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-ppo"><span class="pipe-dot" style="background:#f7b731"></span>PPO Problem</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-group"><span class="pipe-dot" style="background:#4ecdc4"></span>① Group Sample</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-advantage"><span class="pipe-dot" style="background:#51cf66"></span>② Advantage</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-loss"><span class="pipe-dot" style="background:#7c6af4"></span>③ Clip + KL Loss</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-results"><span class="pipe-dot" style="background:#ffd43b"></span>Results</a>
+</div>
+
+<!-- ===== SECTION 1: s-why ===== -->
+<section class="section" id="s-why">
+  <div class="section-tag" style="color:#ff6b6b">Motivation &nbsp;·&nbsp; <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;">~15 min read</span></div>
+  <div class="section-title" style="color:#ff6b6b">Why LLMs Need Reinforcement Learning</div>
+  <div class="section-sub">Pretraining teaches an AI to predict the next word from the internet. But "predict the next word" is very different from "give correct math answers." Reinforcement learning bridges this gap — and GRPO does it cheaply and simply.</div>
+
+  <div style="background:rgba(255,107,107,0.07);border:1px solid rgba(255,107,107,0.3);border-radius:10px;padding:16px 20px;margin-bottom:28px;">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#ff6b6b;margin-bottom:8px;">TL;DR — The Paper in One Paragraph</div>
+    <p style="font-size:14px;color:var(--text);line-height:1.7;">In 2024, DeepSeek introduced GRPO while training DeepSeekMath 7B on mathematical reasoning. Their key insight: instead of training a separate "judge" model (the critic in PPO) to evaluate each answer, just generate <strong>8 answers for the same question</strong> and compare them to each other. Better-than-average answers get reinforced, worse-than-average get penalized. This cut memory usage roughly in half while matching PPO's performance — and the same idea later powered <strong>DeepSeek-R1</strong>, one of the most influential reasoning models of 2024–2025.</p>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat">
+      <div class="stat-val" style="color:#ff6b6b">51.7%</div>
+      <div class="stat-lbl">MATH benchmark after GRPO (was 46.8%)</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" style="color:#4ecdc4">~50%</div>
+      <div class="stat-lbl">Memory saved vs PPO (no critic model)</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" style="color:#f7b731">G=8</div>
+      <div class="stat-lbl">Answers generated per question (typical)</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" style="color:#7c6af4">β=0.04</div>
+      <div class="stat-lbl">KL penalty used in original paper</div>
+    </div>
+  </div>
+
+  <!-- Why pretraining isn't enough -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">The Gap Between Pretraining and Being Helpful</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:16px;">A pretrained LLM learns from trillions of tokens of internet text. It becomes excellent at one thing: <strong>predicting the statistically likely next word</strong>. But this creates a gap:</p>
+    <div class="g2" style="gap:14px;margin-bottom:16px;">
+      <div style="border:1px solid rgba(255,107,107,0.3);border-radius:10px;padding:16px;background:rgba(255,107,107,0.05);">
+        <div style="font-size:16px;margin-bottom:8px;">📚</div>
+        <div style="font-weight:700;color:#ff6b6b;margin-bottom:6px;font-size:13px;">What Pretraining Teaches</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.6;">"Given 'The capital of France is', predict the next word." The model learns statistical patterns — common word sequences, facts, styles — from the web.</div>
+      </div>
+      <div style="border:1px solid rgba(81,207,102,0.3);border-radius:10px;padding:16px;background:rgba(81,207,102,0.05);">
+        <div style="font-size:16px;margin-bottom:8px;">🎯</div>
+        <div style="font-weight:700;color:#51cf66;margin-bottom:6px;font-size:13px;">What We Actually Need</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.6;">"Solve this math problem correctly." "Follow these instructions." "Give a safe answer." These require <em>outcomes</em> to be correct, not just statistically plausible.</div>
+      </div>
+    </div>
+    <canvas id="canvas-gap" width="640" height="160" style="width:100%;max-width:640px;"></canvas>
+    <p style="font-size:12px;color:var(--muted);margin-top:8px;">Reinforcement learning closes this gap: the model tries answers, gets scored on correctness, and learns to produce better answers over time.</p>
+  </div>
+
+  <!-- The RLHF pipeline -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">The 3-Stage Pipeline: From Pretrained to Aligned</div>
+    <canvas id="canvas-rlhf-pipeline" width="640" height="120" style="width:100%;max-width:640px;margin-bottom:16px;"></canvas>
+    <div class="g3" style="gap:12px;">
+      <div style="background:var(--bg);border-radius:8px;padding:12px;border:1px solid var(--border);">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#74c0fc;margin-bottom:6px;">Stage 1 — Pretraining</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;">Train on 10T+ tokens of web text. Model learns language, facts, reasoning patterns. Weeks on thousands of GPUs.</div>
+      </div>
+      <div style="background:var(--bg);border-radius:8px;padding:12px;border:1px solid var(--border);">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#4ecdc4;margin-bottom:6px;">Stage 2 — SFT</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;">Supervised fine-tuning on curated instruction-answer pairs. Teaches the right format and style of responses.</div>
+      </div>
+      <div style="background:var(--bg);border-radius:8px;padding:12px;border:1px solid var(--border);">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#ff6b6b;margin-bottom:6px;">Stage 3 — RL (GRPO)</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;">Trial and error: generate answers, score them, reinforce the good ones. This is where GRPO lives.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Verifiable rewards -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Why Math? The Verifiable Reward Advantage</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:14px;">GRPO works especially well for tasks where correctness can be <strong>automatically verified</strong>. You don't need a human or a reward model to judge — just check the answer.</p>
+    <div class="g2" style="gap:14px;">
+      <div>
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:#51cf66;margin-bottom:10px;">Easy to verify automatically</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div style="background:var(--bg);border-radius:6px;padding:8px 12px;font-size:13px;border:1px solid rgba(81,207,102,0.2);">🔢 Math — compare to known answer</div>
+          <div style="background:var(--bg);border-radius:6px;padding:8px 12px;font-size:13px;border:1px solid rgba(81,207,102,0.2);">💻 Code — run the tests</div>
+          <div style="background:var(--bg);border-radius:6px;padding:8px 12px;font-size:13px;border:1px solid rgba(81,207,102,0.2);">🌍 Factual questions — lookup</div>
+          <div style="background:var(--bg);border-radius:6px;padding:8px 12px;font-size:13px;border:1px solid rgba(81,207,102,0.2);">♟ Games / puzzles — rule checker</div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:#ff6b6b;margin-bottom:10px;">Hard — needs human / reward model</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div style="background:var(--bg);border-radius:6px;padding:8px 12px;font-size:13px;border:1px solid rgba(255,107,107,0.2);">✍️ Creative writing — subjective</div>
+          <div style="background:var(--bg);border-radius:6px;padding:8px 12px;font-size:13px;border:1px solid rgba(255,107,107,0.2);">🤝 Open-ended chat — preference</div>
+          <div style="background:var(--bg);border-radius:6px;padding:8px 12px;font-size:13px;border:1px solid rgba(255,107,107,0.2);">🎨 Style / tone — personal taste</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="analogy-card">
+    <div class="analogy-label">Everyday Analogy</div>
+    <p>"Pretraining is like reading every book in a library — you absorb enormous knowledge. But knowing facts doesn't mean you can pass an exam. Reinforcement learning is like actually taking practice exams and learning from your mistakes. GRPO is a clever way to run those practice exams cheaply — have the student answer each question 8 times, then learn from which answers were above-average."</p>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">The existing RL method (PPO) works but is expensive. What's the problem?</span>
+    <a class="section-bridge-link" href="#s-ppo">PPO: The Old Way →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 2: s-ppo ===== -->
+<section class="section" id="s-ppo">
+  <div class="section-tag" style="color:#f7b731">The Predecessor</div>
+  <div class="section-title" style="color:#f7b731">PPO: Powerful but Expensive</div>
+  <div class="section-sub">Proximal Policy Optimization (PPO) was the default RL algorithm for training LLMs since 2017. It works well but requires maintaining <strong>four separate models in memory simultaneously</strong> — a crippling cost at scale.</div>
+
+  <!-- PPO 4-model architecture -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">PPO's 4-Model Architecture</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">To train one model, PPO requires four models loaded in GPU memory at the same time:</p>
+    <canvas id="canvas-ppo-arch" width="640" height="200" style="width:100%;max-width:640px;margin-bottom:14px;"></canvas>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+      <span class="sl-lbl">Model size (billion params)</span>
+      <input type="range" id="ppo-model-size" min="1" max="70" step="1" value="7" oninput="drawMemoryCalc()">
+      <span class="sl-val" id="ppo-model-size-val">7B</span>
+    </div>
+    <canvas id="canvas-memory-calc" width="640" height="130" style="width:100%;max-width:640px;"></canvas>
+    <p style="font-size:12px;color:var(--muted);margin-top:8px;">Each 1B parameters ≈ 2 GB in bfloat16. The critic model is the same size as the policy model, effectively doubling the cost.</p>
+  </div>
+
+  <!-- PPO step by step -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">PPO Step by Step — What Makes It Complex</div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;gap:12px;align-items:flex-start;">
+        <div class="step-circle" style="background:rgba(247,183,49,0.15);border:2px solid #f7b731;color:#f7b731;">1</div>
+        <div>
+          <div style="font-weight:600;font-size:13px;margin-bottom:3px;">Generate one response per prompt</div>
+          <div style="font-size:12px;color:var(--muted);">Policy model generates a single answer for each training question.</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:flex-start;">
+        <div class="step-circle" style="background:rgba(247,183,49,0.15);border:2px solid #f7b731;color:#f7b731;">2</div>
+        <div>
+          <div style="font-weight:600;font-size:13px;margin-bottom:3px;">Score with reward model</div>
+          <div style="font-size:12px;color:var(--muted);">A frozen reward model (itself a large LLM) gives a scalar quality score to the response.</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:flex-start;">
+        <div class="step-circle" style="background:rgba(255,107,107,0.15);border:2px solid #ff6b6b;color:#ff6b6b;">3</div>
+        <div>
+          <div style="font-weight:600;font-size:13px;margin-bottom:3px;color:#ff6b6b;">Estimate value with critic model ← The expensive part</div>
+          <div style="font-size:12px;color:var(--muted);">A second large model (the critic, same size as the policy) predicts per-token "how good is the trajectory from here?" values. This model must be <em>trained alongside</em> the policy — adding another gradient update step.</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:flex-start;">
+        <div class="step-circle" style="background:rgba(247,183,49,0.15);border:2px solid #f7b731;color:#f7b731;">4</div>
+        <div>
+          <div style="font-weight:600;font-size:13px;margin-bottom:3px;">Compute advantage with GAE</div>
+          <div style="font-size:12px;color:var(--muted);">Generalised Advantage Estimation (GAE) combines critic values and rewards into a per-token advantage. Requires tuning two additional hyperparameters (γ, λ).</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:flex-start;">
+        <div class="step-circle" style="background:rgba(247,183,49,0.15);border:2px solid #f7b731;color:#f7b731;">5</div>
+        <div>
+          <div style="font-weight:600;font-size:13px;margin-bottom:3px;">Update policy with clipped objective</div>
+          <div style="font-size:12px;color:var(--muted);">Apply KL-penalised PPO loss. Typically 2–4 gradient updates per batch using stored old-policy logits.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="highlight-box" style="border-color:rgba(255,107,107,0.3);background:rgba(255,107,107,0.05);">
+    <p><strong style="color:#ff6b6b;">The core problem:</strong> The critic model needs to estimate "how good will this sequence be?" for every token. But LLM responses are graded as a whole (is the final answer correct?), not token by token. Training a critic for this task is noisy, expensive, and adds complexity. GRPO asks: <em>do we really need the critic?</em></p>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">GRPO's answer: replace the critic with a group of completions.</span>
+    <a class="section-bridge-link" href="#s-group">① Group Sampling →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 3: s-group ===== -->
+<section class="section" id="s-group">
+  <div class="section-tag" style="color:#4ecdc4">GRPO Algorithm — Step 1 of 3</div>
+  <div class="section-title" style="color:#4ecdc4">Group Sampling: The Key Insight</div>
+  <div class="section-sub">Instead of generating one answer and asking a critic "how good was that?", GRPO generates <strong>G answers for the same question</strong> and asks "which ones were above average?" The group <em>is</em> the baseline — no critic needed.</div>
+
+  <div style="background:rgba(78,205,196,0.07);border:1px solid rgba(78,205,196,0.3);border-radius:10px;padding:14px 18px;margin-bottom:24px;">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#4ecdc4;margin-bottom:6px;">The Rule in Plain English</div>
+    <p style="font-size:14px;line-height:1.7;">For every training question: generate G different answers using the current model. Score each one. Compare scores within the group. Reward the above-average answers, penalise the below-average ones.</p>
+  </div>
+
+  <!-- Interactive group demo -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Interactive: Group Sampling in Action</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Question: <span style="font-family:'JetBrains Mono';color:var(--text);">Calculate 2 + 2 × 6</span> &nbsp;(correct answer = <strong>14</strong>, order of operations applies)</p>
+    <div class="sl-row">
+      <span class="sl-lbl">Group size G</span>
+      <input type="range" id="group-size-slider" min="2" max="16" step="1" value="8" oninput="drawGroupSampling()">
+      <span class="sl-val" id="group-size-val">G = 8</span>
+    </div>
+    <canvas id="canvas-group-sampling" width="640" height="260" style="width:100%;max-width:640px;margin-bottom:12px;"></canvas>
+    <div id="group-sampling-verdict" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);"></div>
+  </div>
+
+  <!-- Why group size matters -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Why Group Size G Matters</div>
+    <div class="g3" style="gap:12px;">
+      <div style="border:1px solid rgba(255,107,107,0.3);border-radius:10px;padding:14px;background:rgba(255,107,107,0.05);">
+        <div style="font-weight:700;color:#ff6b6b;margin-bottom:6px;font-size:13px;">G = 2 — Unstable</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.5;">Only 1 comparison. If both are right or both wrong, advantage is 0 for all. Wastes training steps. High variance.</div>
+      </div>
+      <div style="border:1px solid rgba(78,205,196,0.4);border-radius:10px;padding:14px;background:rgba(78,205,196,0.08);">
+        <div style="font-weight:700;color:#4ecdc4;margin-bottom:6px;font-size:13px;">G = 8–16 — Sweet spot</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.5;">Enough diversity to get reliable estimates of which answers are better. Used by DeepSeekMath (G=8) and DeepSeek-R1.</div>
+      </div>
+      <div style="border:1px solid rgba(247,183,49,0.3);border-radius:10px;padding:14px;background:rgba(247,183,49,0.05);">
+        <div style="font-weight:700;color:#f7b731;margin-bottom:6px;font-size:13px;">G = 64+ — Diminishing returns</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.5;">Better statistics but G× memory and compute cost for generation. Usually not worth it past G=32.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GRPO vs PPO architecture -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">GRPO vs PPO — Models Required</div>
+    <canvas id="canvas-arch-compare" width="640" height="200" style="width:100%;max-width:640px;"></canvas>
+    <p style="font-size:12px;color:var(--muted);margin-top:8px;">GRPO eliminates the critic entirely. The reference model is kept frozen (inference only) to compute the KL penalty. The reward model may be a rule-based function (e.g. "is the answer correct?") requiring no GPU memory beyond the policy itself.</p>
+  </div>
+
+  <div class="analogy-card">
+    <div class="analogy-label">Everyday Analogy</div>
+    <p>"Imagine you're a teacher grading essays without a rubric. PPO's approach: hire a specialist (critic) to predict how good each essay <em>will be</em> before you've read it. GRPO's approach: have each student write 8 drafts, then rank them. Essays above the group average pass; below-average fail. No specialist needed — the group itself is the standard."</p>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">Once we have G scored answers, how do we compute the advantage signal?</span>
+    <a class="section-bridge-link" href="#s-advantage">② Advantage Calculation →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 4: s-advantage ===== -->
+<section class="section" id="s-advantage">
+  <div class="section-tag" style="color:#51cf66">GRPO Algorithm — Step 2 of 3</div>
+  <div class="section-title" style="color:#51cf66">Advantage: How Much Better Than Average?</div>
+  <div class="section-sub">Each completion gets a reward score (e.g. 1 = correct, 0 = wrong). The advantage normalises these scores within the group: how many standard deviations above or below the group mean was this answer? Positive = reinforce, negative = suppress.</div>
+
+  <div style="background:rgba(81,207,102,0.07);border:1px solid rgba(81,207,102,0.3);border-radius:10px;padding:14px 18px;margin-bottom:24px;">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#51cf66;margin-bottom:6px;">The Formula</div>
+    <div class="formula" style="margin:0;font-size:15px;">          r_i − mean(r₁, r₂, … , r_G)
+A_i  =  ─────────────────────────────────
+           std(r₁, r₂, … , r_G) + ε</div>
+    <p style="font-size:12px;color:var(--muted);margin-top:10px;">r_i = reward for completion i &nbsp;|&nbsp; ε = 1e-8 (prevents division by zero) &nbsp;|&nbsp; A_i is the same for every token in completion i</p>
+  </div>
+
+  <!-- Interactive advantage calculator -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Interactive: Build Your Own Group — Watch Advantages Compute</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Drag the reward sliders for 6 completions. See the mean, standard deviation, and advantage value computed live for each.</p>
+    <div id="reward-sliders" style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">
+      <div class="sl-row"><span class="sl-lbl" style="color:#4ecdc4;">Completion 1 reward</span><input type="range" class="reward-sl" id="r1" min="0" max="1" step="0.05" value="1.0" oninput="drawAdvantage()"><span class="sl-val reward-val" id="rv1">1.00</span></div>
+      <div class="sl-row"><span class="sl-lbl" style="color:#4ecdc4;">Completion 2 reward</span><input type="range" class="reward-sl" id="r2" min="0" max="1" step="0.05" value="1.0" oninput="drawAdvantage()"><span class="sl-val reward-val" id="rv2">1.00</span></div>
+      <div class="sl-row"><span class="sl-lbl" style="color:#ff6b6b;">Completion 3 reward</span><input type="range" class="reward-sl" id="r3" min="0" max="1" step="0.05" value="0.0" oninput="drawAdvantage()"><span class="sl-val reward-val" id="rv3">0.00</span></div>
+      <div class="sl-row"><span class="sl-lbl" style="color:#ff6b6b;">Completion 4 reward</span><input type="range" class="reward-sl" id="r4" min="0" max="1" step="0.05" value="0.0" oninput="drawAdvantage()"><span class="sl-val reward-val" id="rv4">0.00</span></div>
+      <div class="sl-row"><span class="sl-lbl" style="color:#ff6b6b;">Completion 5 reward</span><input type="range" class="reward-sl" id="r5" min="0" max="1" step="0.05" value="0.0" oninput="drawAdvantage()"><span class="sl-val reward-val" id="rv5">0.00</span></div>
+      <div class="sl-row"><span class="sl-lbl" style="color:#f7b731;">Completion 6 reward</span><input type="range" class="reward-sl" id="r6" min="0" max="1" step="0.05" value="0.5" oninput="drawAdvantage()"><span class="sl-val reward-val" id="rv6">0.50</span></div>
+    </div>
+    <canvas id="canvas-advantage" width="640" height="260" style="width:100%;max-width:640px;margin-bottom:12px;"></canvas>
+    <div id="advantage-verdict" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);"></div>
+  </div>
+
+  <!-- What advantage means -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">What the Advantage Signal Does</div>
+    <div class="g2" style="gap:14px;">
+      <div style="border:1px solid rgba(81,207,102,0.3);border-radius:10px;padding:16px;background:rgba(81,207,102,0.05);">
+        <div style="font-weight:700;color:#51cf66;margin-bottom:8px;">A &gt; 0 (above average)</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.6;">The model is nudged to increase the probability of producing this kind of answer. Tokens in this completion get positive gradient signal.</div>
+        <div style="margin-top:10px;font-family:'JetBrains Mono';font-size:12px;color:#51cf66;">→ "Do more of this"</div>
+      </div>
+      <div style="border:1px solid rgba(255,107,107,0.3);border-radius:10px;padding:16px;background:rgba(255,107,107,0.05);">
+        <div style="font-weight:700;color:#ff6b6b;margin-bottom:8px;">A &lt; 0 (below average)</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.6;">The model is nudged to decrease the probability of producing this kind of answer. Tokens in this completion get negative gradient signal.</div>
+        <div style="margin-top:10px;font-family:'JetBrains Mono';font-size:12px;color:#ff6b6b;">→ "Do less of this"</div>
+      </div>
+    </div>
+    <div style="margin-top:14px;padding:12px 14px;background:var(--bg);border-radius:8px;border:1px solid var(--border);font-size:13px;color:var(--muted);">
+      <strong style="color:var(--text);">Key insight:</strong> When all completions score identically (e.g., all correct or all wrong), all advantages are 0 — no gradient signal, no learning. This is why diverse groups (some correct, some wrong) are essential for training to make progress.
+    </div>
+  </div>
+
+  <!-- Edge case: all same reward -->
+  <div style="background:rgba(247,183,49,0.07);border:1px solid rgba(247,183,49,0.3);border-radius:10px;padding:14px 18px;margin-bottom:24px;">
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:#f7b731;margin-bottom:8px;">⚠ The "All Same Reward" Problem</div>
+    <p style="font-size:13px;color:var(--text);line-height:1.7;">If the task is too easy (model gets every answer right, all rewards = 1) or too hard (all wrong, rewards = 0), std(r) = 0 and all advantages = 0. No learning happens. GRPO requires problems at the right difficulty — hard enough that the model sometimes gets it wrong, easy enough that it sometimes gets it right. This is called the <strong>"difficulty sweet spot."</strong></p>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">Now we have advantage values. How do we use them to update the model?</span>
+    <a class="section-bridge-link" href="#s-loss">③ The Loss Function →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 5: s-loss ===== -->
+<section class="section" id="s-loss">
+  <div class="section-tag" style="color:#7c6af4">GRPO Algorithm — Step 3 of 3</div>
+  <div class="section-title" style="color:#7c6af4">The Loss: 3 Components Working Together</div>
+  <div class="section-sub">The GRPO loss combines three ideas: a <strong>policy ratio</strong> (how much has the model changed?), a <strong>clip</strong> (don't change too much), and a <strong>KL penalty</strong> (don't drift too far from the original model). Together they make training stable.</div>
+
+  <!-- Full formula -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">The Complete GRPO Loss</div>
+    <div class="formula" style="font-size:13px;">L = − min( r_t(θ) · A_i ,  clip(r_t(θ), 1−ε, 1+ε) · A_i )  +  β · KL(π_θ ‖ π_ref)
+
+where:
+  r_t(θ) = π_θ(token_t) / π_θ_old(token_t)    ← policy ratio per token
+  A_i     = (r_i − mean(r)) / std(r)            ← group-relative advantage
+  ε       = 0.2   (clip range, typically)
+  β       = 0.04  (KL penalty weight, from DeepSeekMath paper)</div>
+    <p style="font-size:12px;color:var(--muted);margin-top:8px;">This loss is computed per token, then averaged across all tokens in all completions in the batch.</p>
+  </div>
+
+  <!-- Component 1: Policy ratio -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Component 1 — Policy Ratio: Measuring How Much the Model Changed</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:14px;">For every token in every completion, we ask: <em>how much more (or less) likely does the new policy consider this token compared to the old policy?</em></p>
+    <div class="formula" style="font-size:14px;">r_t(θ)  =  π_θ(token_t | context)  /  π_θ_old(token_t | context)</div>
+    <div class="g3" style="gap:10px;margin-top:14px;">
+      <div style="background:var(--bg);border-radius:8px;padding:12px;border:1px solid var(--border);text-align:center;">
+        <div style="font-family:'JetBrains Mono';font-size:18px;font-weight:700;color:#74c0fc;margin-bottom:4px;">r = 1.0</div>
+        <div style="font-size:12px;color:var(--muted);">New policy identical to old. No change for this token.</div>
+      </div>
+      <div style="background:var(--bg);border-radius:8px;padding:12px;border:1px solid var(--border);text-align:center;">
+        <div style="font-family:'JetBrains Mono';font-size:18px;font-weight:700;color:#51cf66;margin-bottom:4px;">r = 1.5</div>
+        <div style="font-size:12px;color:var(--muted);">New policy 50% more likely to produce this token.</div>
+      </div>
+      <div style="background:var(--bg);border-radius:8px;padding:12px;border:1px solid var(--border);text-align:center;">
+        <div style="font-family:'JetBrains Mono';font-size:18px;font-weight:700;color:#ff6b6b;margin-bottom:4px;">r = 0.5</div>
+        <div style="font-size:12px;color:var(--muted);">New policy 50% less likely to produce this token.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Component 2: Clipping -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Component 2 — Clipping: The Safety Belt</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:14px;">Without clipping, a high advantage could cause a massive update — the model overcorrects and becomes unstable. Clipping caps the policy ratio to [1−ε, 1+ε], limiting how much the model can change per step.</p>
+    <div class="sl-row">
+      <span class="sl-lbl">Policy ratio r_t</span>
+      <input type="range" id="ratio-slider" min="0.1" max="2.5" step="0.05" value="1.0" oninput="drawClipCanvas()">
+      <span class="sl-val" id="ratio-val">r = 1.00</span>
+    </div>
+    <div class="sl-row">
+      <span class="sl-lbl">Advantage A (sign)</span>
+      <div class="toggle-group" id="adv-sign-toggle">
+        <button class="toggle-btn active" onclick="setAdvSign(1,this)">A &gt; 0 (good answer)</button>
+        <button class="toggle-btn" onclick="setAdvSign(-1,this)">A &lt; 0 (bad answer)</button>
+      </div>
+    </div>
+    <canvas id="canvas-clip" width="640" height="240" style="width:100%;max-width:640px;margin-top:10px;margin-bottom:12px;"></canvas>
+    <div id="clip-verdict" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);"></div>
+  </div>
+
+  <!-- Component 3: KL divergence -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Component 3 — KL Penalty: Staying Close to Home</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:14px;">KL divergence measures how far the trained model has drifted from the original SFT model. A penalty keeps the model's "personality" stable — it becomes better at math without becoming incoherent in everything else.</p>
+    <div class="formula" style="font-size:13px;">KL(π_θ ‖ π_ref) ≈ log π_θ(token) − log π_ref(token)   per token
+
+(DeepSeekMath uses improved estimator: exp(log π_ref − log π_θ) − (log π_ref − log π_θ) − 1)</div>
+    <div class="sl-row" style="margin-top:14px;">
+      <span class="sl-lbl">β (KL penalty weight)</span>
+      <input type="range" id="kl-beta-slider" min="0" max="0.5" step="0.01" value="0.04" oninput="drawKLCanvas()">
+      <span class="sl-val" id="kl-beta-val">β = 0.04</span>
+    </div>
+    <canvas id="canvas-kl" width="640" height="220" style="width:100%;max-width:640px;margin-top:8px;margin-bottom:12px;"></canvas>
+    <div id="kl-verdict" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);"></div>
+  </div>
+
+  <!-- Full training loop -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Putting It All Together: One Training Step</div>
+    <canvas id="canvas-training-loop" width="640" height="180" style="width:100%;max-width:640px;margin-bottom:12px;"></canvas>
+    <div style="font-size:13px;color:var(--muted);line-height:1.8;">
+      <span style="color:#4ecdc4;font-weight:600;">①</span> Sample G completions per prompt using old policy<br>
+      <span style="color:#51cf66;font-weight:600;">②</span> Score each with reward function (rule-based or model)<br>
+      <span style="color:#f7b731;font-weight:600;">③</span> Compute advantages: A_i = (r_i − mean) / std<br>
+      <span style="color:#7c6af4;font-weight:600;">④</span> Compute loss = −min(r·A, clip(r,1±ε)·A) + β·KL<br>
+      <span style="color:#ffd43b;font-weight:600;">⑤</span> Backpropagate, update policy weights, repeat
+    </div>
+  </div>
+
+  <div class="analogy-card">
+    <div class="analogy-label">Everyday Analogy for the Full Loss</div>
+    <p>"The loss is a three-way contract with the student (AI): <strong>Clip</strong> = 'You can change your opinions, but not by more than 20% in any single lesson.' <strong>Advantage</strong> = 'Focus changes on the answers that were above or below your class average.' <strong>KL penalty</strong> = 'Don't change your personality so drastically that you forget how to speak English while learning math.'"</p>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">How well did it work? And who uses GRPO today?</span>
+    <a class="section-bridge-link" href="#s-results">Results &amp; Impact →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 6: s-results ===== -->
+<section class="section" id="s-results">
+  <div class="section-tag" style="color:#ffd43b">Results &amp; Impact</div>
+  <div class="section-title" style="color:#ffd43b">GRPO in the Wild</div>
+  <div class="section-sub">GRPO's debut in DeepSeekMath was impressive. Its real breakthrough came when DeepSeek used the same idea in DeepSeek-R1 — a reasoning model that matched OpenAI o1 at a fraction of the cost, triggering an industry-wide shift toward GRPO-style training.</div>
+
+  <!-- Performance results -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">DeepSeekMath: Before and After GRPO</div>
+    <canvas id="canvas-results-bar" width="640" height="220" style="width:100%;max-width:640px;margin-bottom:10px;"></canvas>
+    <p style="font-size:12px;color:var(--muted);">GRPO added ~5pp on MATH and ~5pp on GSM8K over a strong SFT baseline — with no increase in model size.</p>
+  </div>
+
+  <!-- PPO vs GRPO comparison -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">PPO vs GRPO — Full Comparison</div>
+    <div class="table-wrap" style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr>
+            <th style="background:var(--surface2);padding:10px 14px;text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);border-bottom:1px solid var(--border);">Property</th>
+            <th style="background:var(--surface2);padding:10px 14px;text-align:center;font-weight:600;font-size:11px;text-transform:uppercase;color:#f7b731;border-bottom:1px solid var(--border);">PPO</th>
+            <th style="background:var(--surface2);padding:10px 14px;text-align:center;font-weight:600;font-size:11px;text-transform:uppercase;color:#4ecdc4;border-bottom:1px solid var(--border);">GRPO</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td style="padding:10px 14px;border-bottom:1px solid var(--border);">Models in memory</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#ff6b6b;">4 (policy, ref, reward, critic)</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#51cf66;">2 (policy + ref)</td></tr>
+          <tr><td style="padding:10px 14px;border-bottom:1px solid var(--border);">Critic model</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#ff6b6b;">Required (same size as policy)</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#51cf66;">Not needed</td></tr>
+          <tr><td style="padding:10px 14px;border-bottom:1px solid var(--border);">Advantage estimation</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#f7b731;">GAE (per token, trained critic)</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#51cf66;">Group normalisation (simple math)</td></tr>
+          <tr><td style="padding:10px 14px;border-bottom:1px solid var(--border);">Completions per prompt</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);">1</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);">G (typically 8–16)</td></tr>
+          <tr><td style="padding:10px 14px;border-bottom:1px solid var(--border);">Memory savings (7B model)</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#ff6b6b;">~60GB+</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#51cf66;">~30GB</td></tr>
+          <tr><td style="padding:10px 14px;border-bottom:1px solid var(--border);">Hyperparameters</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#f7b731;">Many (γ, λ, critic LR, clip, KL…)</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#51cf66;">Few (G, ε, β)</td></tr>
+          <tr><td style="padding:10px 14px;">Best suited for</td><td style="text-align:center;padding:10px;color:#f7b731;">General RLHF (open-ended)</td><td style="text-align:center;padding:10px;color:#51cf66;">Verifiable tasks (math, code)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Who uses it -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title">Who Uses GRPO Today (2024–2025)</div>
+    <div class="g3" style="gap:12px;">
+      <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-size:20px;margin-bottom:8px;">🔢</div>
+        <div style="font-weight:700;margin-bottom:6px;">DeepSeek-R1</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.5;">The model that shocked the industry in Jan 2025. Pure GRPO training with rule-based rewards matched OpenAI o1 at a fraction of the compute cost.</div>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-size:20px;margin-bottom:8px;">🤗</div>
+        <div style="font-weight:700;margin-bottom:6px;">TRL / Hugging Face</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.5;">GRPOTrainer in the TRL library made GRPO accessible to everyone. Community fine-tuning of Qwen, Llama, Phi models with GRPO is now routine.</div>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-size:20px;margin-bottom:8px;">🎓</div>
+        <div style="font-weight:700;margin-bottom:6px;">Research frontier</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.5;">DAPO, REINFORCE++, Dr. GRPO are active 2025 papers improving GRPO's stability and extending it to non-binary rewards.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Open questions -->
+  <div style="margin-bottom:24px;">
+    <div style="font-size:14px;font-weight:700;margin-bottom:12px;">Open Questions (Active Research)</div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">Does GRPO work for open-ended generation (not just verifiable tasks)? <span class="accordion-chevron">▾</span></div>
+      <div class="accordion-body">Partially. When rewards are binary (right/wrong), GRPO works cleanly. For soft rewards (a learned reward model scoring helpfulness), the group normalisation still works but can be noisier. Active research (e.g., DAPO from Alibaba) addresses this with leave-one-out baselines and dynamic sampling.</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">What happens when the reward function is imperfect? <span class="accordion-chevron">▾</span></div>
+      <div class="accordion-body">Reward hacking. If the reward function can be "gamed" (e.g., always outputting the correct number without the working), the model will find and exploit it. The KL penalty slows this down but doesn't eliminate it. Careful reward design is as important as the algorithm itself.</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">Is GRPO better than PPO in all cases? <span class="accordion-chevron">▾</span></div>
+      <div class="accordion-body">Not necessarily. PPO's critic model, despite its cost, gives per-token credit assignment — GRPO assigns the same advantage to every token in a completion. For long completions, early tokens that led to a wrong answer get the same signal as later tokens. Some research (Dr. GRPO) proposes fixes for this.</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">Can GRPO train from scratch (no SFT step)? <span class="accordion-chevron">▾</span></div>
+      <div class="accordion-body">DeepSeek-R1-Zero showed yes — but the model develops strange formatting and language mixing without SFT. The standard pipeline remains: pretrain → SFT → GRPO. The SFT step teaches the model to produce structured responses; GRPO then optimises correctness.</div>
+    </div>
+  </div>
+
+  <div class="highlight-box">
+    <p><strong style="color:#ffd43b;">The big takeaway:</strong> GRPO replaced a complex, expensive critic model with a simple statistical idea — compare answers within a group. That single insight cut the memory cost of RL training in half, enabled training on consumer hardware, and ultimately powered DeepSeek-R1's 2025 breakthrough. Sometimes the best algorithm is the one you can actually run.</p>
+  </div>
+</section>
+
+</div><!-- .main -->
+
+<script>
+/* =====================================================
+   UTILITIES
+===================================================== */
+function lerp(a,b,t){return a+(b-a)*t;}
+function easeInOut(t){return t<0.5?2*t*t:-1+(4-2*t)*t;}
+function drawRoundedRect(ctx,x,y,w,h,r,fill,stroke,lw){
+  ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);
+  ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);
+  ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);
+  ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);
+  ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
+  if(fill){ctx.fillStyle=fill;ctx.fill();}
+  if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=lw||1;ctx.stroke();}
+}
+function drawArrow(ctx,x1,y1,x2,y2,color,lw){
+  var angle=Math.atan2(y2-y1,x2-x1);
+  ctx.save();ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=lw||1.5;
+  ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-9*Math.cos(angle-0.4),y2-9*Math.sin(angle-0.4));
+  ctx.lineTo(x2-9*Math.cos(angle+0.4),y2-9*Math.sin(angle+0.4));
+  ctx.closePath();ctx.fill();ctx.restore();
+}
+
+/* =====================================================
+   NAV
+===================================================== */
+var sectionIds=['s-why','s-ppo','s-group','s-advantage','s-loss','s-results'];
+function setActive(el){
+  document.querySelectorAll('.nav-link').forEach(function(l){l.classList.remove('active');});
+  el.classList.add('active');
+}
+function updateNavOnScroll(){
+  var scrollY=window.scrollY+120;
+  var current=sectionIds[0];
+  sectionIds.forEach(function(id){
+    var el=document.getElementById(id);
+    if(el&&el.offsetTop<=scrollY)current=id;
+  });
+  document.querySelectorAll('.nav-link').forEach(function(l){
+    l.classList.toggle('active',l.getAttribute('href')==='#'+current);
+  });
+  document.querySelectorAll('.pipe-step').forEach(function(s){
+    s.classList.toggle('active',s.getAttribute('href')==='#'+current);
+  });
+  // Progress
+  var visited=sectionIds.filter(function(s){
+    var el=document.getElementById(s);
+    return el&&el.offsetTop<=scrollY+100;
+  });
+  var prog=document.getElementById('sb-progress');
+  if(prog){var p=Math.round(visited.length/sectionIds.length*100);prog.textContent=p+'% explored';prog.style.display=p>0?'block':'none';}
+}
+window.addEventListener('scroll',updateNavOnScroll);
+if(window.innerWidth<=768){var tb=document.getElementById('sb-toggle-btn');if(tb)tb.style.display='flex';}
+document.querySelectorAll('.accordion-header').forEach(function(h){
+  h.addEventListener('click',function(){this.parentElement.classList.toggle('open');});
+});
+
+/* =====================================================
+   SECTION 1: GAP CANVAS
+===================================================== */
+function drawGap(){
+  var cv=document.getElementById('canvas-gap');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var midX=W/2;
+  // Left side: pretrained model
+  drawRoundedRect(ctx,20,20,midX-40,H-40,10,'rgba(116,192,252,0.08)','#74c0fc',1.5);
+  ctx.fillStyle='#74c0fc';ctx.font='bold 13px Inter';ctx.textAlign='center';
+  ctx.fillText('Pretrained Model',midX/2,48);
+  ctx.fillStyle='#8892b0';ctx.font='12px Inter';
+  ctx.fillText('"The cat sat on the ___"',midX/2,72);
+  ctx.fillText('→ predicts "mat" (common)',midX/2,92);
+  ctx.fillText('"2 + 2 × 6 = ___"',midX/2,114);
+  ctx.fillStyle='#ff6b6b';ctx.font='12px Inter';
+  ctx.fillText('→ predicts "8" (common mistake)',midX/2,134);
+  // Right side: after GRPO
+  drawRoundedRect(ctx,midX+20,20,midX-40,H-40,10,'rgba(81,207,102,0.08)','#51cf66',1.5);
+  ctx.fillStyle='#51cf66';ctx.font='bold 13px Inter';ctx.textAlign='center';
+  ctx.fillText('After GRPO Training',midX+midX/2,48);
+  ctx.fillStyle='#8892b0';ctx.font='12px Inter';
+  ctx.fillText('"2 + 2 × 6 = ___"',midX+midX/2,72);
+  ctx.fillStyle='#51cf66';ctx.font='12px Inter';
+  ctx.fillText('→ predicts "14" (correct!)',midX+midX/2,92);
+  ctx.fillStyle='#8892b0';ctx.font='12px Inter';
+  ctx.fillText('"Solve x² − 5x + 6 = 0"',midX+midX/2,114);
+  ctx.fillStyle='#51cf66';
+  ctx.fillText('→ x = 2 and x = 3 ✓',midX+midX/2,134);
+  // Arrow
+  drawArrow(ctx,midX-30,H/2,midX+18,H/2,'#ffd43b',2.5);
+  ctx.fillStyle='#ffd43b';ctx.font='bold 10px Inter';ctx.textAlign='center';
+  ctx.fillText('GRPO',midX-6,H/2-10);
+}
+
+/* =====================================================
+   SECTION 1: RLHF PIPELINE
+===================================================== */
+function drawRLHFPipeline(){
+  var cv=document.getElementById('canvas-rlhf-pipeline');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var stages=[
+    {label:'Web Data\n(10T tokens)',color:'#74c0fc',icon:'🌐'},
+    {label:'Pretraining\n(weeks, 1000s GPUs)',color:'#74c0fc',icon:'⚡'},
+    {label:'SFT Dataset\n(instruction pairs)',color:'#4ecdc4',icon:'📋'},
+    {label:'SFT Fine-tune\n(hours)',color:'#4ecdc4',icon:'🎯'},
+    {label:'Math Problems\n(verifiable answers)',color:'#ff6b6b',icon:'🔢'},
+    {label:'GRPO Training\n(hours)',color:'#ff6b6b',icon:'🏆'}
+  ];
+  var n=stages.length;var bw=(W-40)/n;
+  stages.forEach(function(s,i){
+    var x=20+i*bw;var cx=x+bw/2;
+    drawRoundedRect(ctx,x+4,8,bw-8,H-16,8,s.color+'15',s.color,1.5);
+    ctx.font='16px serif';ctx.textAlign='center';ctx.fillText(s.icon,cx,36);
+    ctx.fillStyle=s.color;ctx.font='bold 10px Inter';ctx.textAlign='center';
+    var lines=s.label.split('\n');
+    lines.forEach(function(l,li){ctx.fillText(l,cx,54+li*13);});
+    if(i<n-1){
+      drawArrow(ctx,x+bw-4,H/2,x+bw+4,H/2,'#2a3060',1.5);
+    }
+  });
+}
+
+/* =====================================================
+   SECTION 2: PPO ARCHITECTURE
+===================================================== */
+function drawPPOArch(){
+  var cv=document.getElementById('canvas-ppo-arch');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var models=[
+    {name:'Policy Model',sub:'Being trained',color:'#7c6af4',role:'Generates answers'},
+    {name:'Reference Model',sub:'Frozen SFT copy',color:'#74c0fc',role:'KL baseline'},
+    {name:'Reward Model',sub:'Frozen LLM',color:'#f7b731',role:'Scores outputs'},
+    {name:'Critic Model',sub:'Trained jointly',color:'#ff6b6b',role:'Estimates value\n← REMOVED in GRPO'}
+  ];
+  var n=models.length;var bw=(W-40)/n;
+  models.forEach(function(m,i){
+    var x=20+i*bw;var cx=x+bw/2;
+    var isCritic=(i===n-1);
+    drawRoundedRect(ctx,x+6,10,bw-12,H-20,10,m.color+(isCritic?'22':'15'),m.color,isCritic?2.5:1.5);
+    if(isCritic){
+      // X through
+      ctx.strokeStyle='#ff6b6b';ctx.lineWidth=1;ctx.setLineDash([4,3]);
+      ctx.beginPath();ctx.moveTo(x+10,14);ctx.lineTo(x+bw-10,H-14);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(x+bw-10,14);ctx.lineTo(x+10,H-14);ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.fillStyle=m.color;ctx.font='bold 11px Inter';ctx.textAlign='center';
+    ctx.fillText(m.name,cx,32);
+    ctx.fillStyle='#8892b0';ctx.font='10px Inter';
+    ctx.fillText(m.sub,cx,48);
+    ctx.fillStyle=isCritic?'#ff6b6b':'#8892b0';ctx.font='10px Inter';
+    m.role.split('\n').forEach(function(l,li){ctx.fillText(l,cx,H-20+li*13-(isCritic?13:0));});
+    if(isCritic){
+      ctx.fillStyle='#ff6b6b';ctx.font='bold 10px Inter';
+      ctx.fillText('GRPO removes this',cx,H-8);
+    }
+  });
+}
+
+/* =====================================================
+   SECTION 2: MEMORY CALC
+===================================================== */
+function drawMemoryCalc(){
+  var cv=document.getElementById('canvas-memory-calc');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var B=parseInt(document.getElementById('ppo-model-size').value)||7;
+  document.getElementById('ppo-model-size-val').textContent=B+'B';
+  var GB_PER_B=2; // bfloat16
+  var ppoModels=[
+    {name:'Policy',gb:B*GB_PER_B,color:'#7c6af4'},
+    {name:'Reference',gb:B*GB_PER_B,color:'#74c0fc'},
+    {name:'Reward',gb:Math.round(B*GB_PER_B*0.5),color:'#f7b731'},
+    {name:'Critic',gb:B*GB_PER_B,color:'#ff6b6b'}
+  ];
+  var grpoModels=[
+    {name:'Policy',gb:B*GB_PER_B,color:'#7c6af4'},
+    {name:'Reference',gb:B*GB_PER_B,color:'#74c0fc'}
+  ];
+  var ppoTotal=ppoModels.reduce(function(a,m){return a+m.gb;},0);
+  var grpoTotal=grpoModels.reduce(function(a,m){return a+m.gb;},0);
+  var maxGB=ppoTotal;
+  var midX=W/2;var barH=32;var padT=16;
+  // PPO bar
+  ctx.fillStyle='#f7b731';ctx.font='bold 11px Inter';ctx.textAlign='left';
+  ctx.fillText('PPO total: '+ppoTotal+'GB',16,padT+12);
+  var px=16;
+  ppoModels.forEach(function(m){
+    var bw=(m.gb/maxGB)*(midX-80);
+    drawRoundedRect(ctx,px,padT+20,bw,barH,4,m.color+'88',m.color,1);
+    if(bw>36){ctx.fillStyle='#fff';ctx.font='10px Inter';ctx.textAlign='center';ctx.fillText(m.name,px+bw/2,padT+39);}
+    px+=bw;
+  });
+  // GRPO bar
+  ctx.fillStyle='#4ecdc4';ctx.font='bold 11px Inter';ctx.textAlign='left';
+  ctx.fillText('GRPO total: '+grpoTotal+'GB',midX+10,padT+12);
+  var gx=midX+10;
+  grpoModels.forEach(function(m){
+    var bw=(m.gb/maxGB)*(midX-80);
+    drawRoundedRect(ctx,gx,padT+20,bw,barH,4,m.color+'88',m.color,1);
+    if(bw>36){ctx.fillStyle='#fff';ctx.font='10px Inter';ctx.textAlign='center';ctx.fillText(m.name,gx+bw/2,padT+39);}
+    gx+=bw;
+  });
+  // Savings
+  var saved=Math.round((1-grpoTotal/ppoTotal)*100);
+  ctx.fillStyle='#51cf66';ctx.font='bold 13px Inter';ctx.textAlign='center';
+  ctx.fillText('GRPO saves '+saved+'% memory ('+( ppoTotal-grpoTotal)+'GB freed)',W/2,H-8);
+}
+
+/* =====================================================
+   SECTION 3: GROUP SAMPLING
+===================================================== */
+var GROUP_ANSWERS=[14,10,16,14,12,14,8,14,16,10,14,12,14,10,14,16];
+var GROUP_CORRECT=14;
+
+function drawGroupSampling(){
+  var cv=document.getElementById('canvas-group-sampling');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var G=parseInt(document.getElementById('group-size-slider').value);
+  document.getElementById('group-size-val').textContent='G = '+G;
+  var answers=GROUP_ANSWERS.slice(0,G);
+  var rewards=answers.map(function(a){return a===GROUP_CORRECT?1:0;});
+  var mean=rewards.reduce(function(a,b){return a+b;},0)/G;
+  var variance=rewards.reduce(function(a,r){return a+(r-mean)*(r-mean);},0)/G;
+  var std=Math.sqrt(variance);
+  var advantages=rewards.map(function(r){return std<1e-8?0:(r-mean)/(std+1e-8);});
+  // Draw answer bubbles
+  var cols=Math.min(G,8);var rows=Math.ceil(G/cols);
+  var bR=28;var padX=(W-cols*bR*2-cols*12)/2+bR;var padY=30;var rowGap=70;
+  ctx.fillStyle='#8892b0';ctx.font='11px Inter';ctx.textAlign='center';
+  ctx.fillText('The model generates '+G+' different answers for the same question:',W/2,18);
+  answers.forEach(function(a,i){
+    var col=i%cols;var row=Math.floor(i/cols);
+    var cx=padX+col*(bR*2+14);var cy=padY+20+row*rowGap;
+    var correct=(a===GROUP_CORRECT);
+    var col2=correct?'#51cf66':'#ff6b6b';
+    drawRoundedRect(ctx,cx-bR,cy-bR,bR*2,bR*2,bR,col2+'22',col2,2);
+    ctx.fillStyle=col2;ctx.font='bold 13px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText(a,cx,cy+5);
+    // Advantage badge below
+    var adv=advantages[i];
+    var advColor=adv>0?'#51cf66':adv<0?'#ff6b6b':'#8892b0';
+    ctx.fillStyle=advColor;ctx.font='9px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText('A='+(adv).toFixed(2),cx,cy+bR+12);
+  });
+  // Stats
+  var correct=rewards.filter(function(r){return r>0;}).length;
+  var vEl=document.getElementById('group-sampling-verdict');
+  vEl.innerHTML='<strong>Group stats:</strong> '+correct+' correct / '+(G-correct)+' wrong out of G='+G+
+    ' &nbsp;|&nbsp; mean='+mean.toFixed(2)+' &nbsp;|&nbsp; std='+std.toFixed(2)+
+    '<br>'+
+    (std<0.01
+      ? '<span style="color:#ff6b6b;">⚠ All answers are the same! std≈0, all advantages=0 — no learning signal this step.</span>'
+      : '<span style="color:#51cf66;">✓ Good diversity — '+(adv=advantages.filter(function(a){return a>0;}).length)+' completions reinforced, '+(G-adv)+' suppressed.</span>');
+}
+
+/* =====================================================
+   SECTION 3: ARCH COMPARE
+===================================================== */
+function drawArchCompare(){
+  var cv=document.getElementById('canvas-arch-compare');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var midX=W/2-10;
+  // PPO side
+  ctx.fillStyle='#f7b731';ctx.font='bold 13px Inter';ctx.textAlign='center';
+  ctx.fillText('PPO',midX/2,18);
+  var ppoModels=[{n:'Policy',c:'#7c6af4'},{n:'Reference',c:'#74c0fc'},{n:'Reward Model',c:'#f7b731'},{n:'Critic',c:'#ff6b6b'}];
+  ppoModels.forEach(function(m,i){
+    drawRoundedRect(ctx,20,24+i*40,midX-40,34,8,m.c+'22',m.c,1.5);
+    ctx.fillStyle=m.c;ctx.font='12px Inter';ctx.textAlign='center';
+    ctx.fillText(m.n,midX/2,46+i*40);
+  });
+  // Divider
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(midX,10);ctx.lineTo(midX,H-10);ctx.stroke();
+  // GRPO side
+  ctx.fillStyle='#4ecdc4';ctx.font='bold 13px Inter';ctx.textAlign='center';
+  ctx.fillText('GRPO',midX+(W-midX)/2,18);
+  var grpoModels=[{n:'Policy',c:'#7c6af4'},{n:'Reference (frozen)',c:'#74c0fc'}];
+  grpoModels.forEach(function(m,i){
+    drawRoundedRect(ctx,midX+20,24+i*40,W-midX-40,34,8,m.c+'22',m.c,1.5);
+    ctx.fillStyle=m.c;ctx.font='12px Inter';ctx.textAlign='center';
+    ctx.fillText(m.n,midX+(W-midX)/2,46+i*40);
+  });
+  // Memory labels
+  ctx.fillStyle='#ff6b6b';ctx.font='bold 12px Inter';ctx.textAlign='center';
+  ctx.fillText('~4× model size in memory',midX/2,H-12);
+  ctx.fillStyle='#51cf66';
+  ctx.fillText('~2× model size in memory',midX+(W-midX)/2,H-12);
+}
+
+/* =====================================================
+   SECTION 4: ADVANTAGE CANVAS
+===================================================== */
+function drawAdvantage(){
+  var ids=['r1','r2','r3','r4','r5','r6'];
+  var rewards=ids.map(function(id){
+    var v=parseFloat(document.getElementById(id).value);
+    document.getElementById('rv'+id[1]).textContent=v.toFixed(2);
+    return v;
+  });
+  var G=rewards.length;
+  var mean=rewards.reduce(function(a,b){return a+b;},0)/G;
+  var variance=rewards.reduce(function(a,r){return a+(r-mean)*(r-mean);},0)/G;
+  var std=Math.sqrt(variance);
+  var advantages=rewards.map(function(r){return std<1e-8?0:(r-mean)/(std+1e-8);});
+
+  var cv=document.getElementById('canvas-advantage');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+
+  var padL=60,padR=20,padT=20,padB=40;
+  var halfH=(H-padT-padB)/2;
+  var midY=padT+halfH;
+  var bw=(W-padL-padR)/G;
+  var labels=['C1','C2','C3','C4','C5','C6'];
+
+  // Top half: rewards
+  ctx.fillStyle='#8892b0';ctx.font='bold 10px Inter';ctx.textAlign='right';
+  ctx.fillText('Reward',padL-4,padT+10);
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(padL,padT);ctx.lineTo(padL,midY-5);ctx.lineTo(W-padR,midY-5);ctx.stroke();
+  // Mean line
+  ctx.strokeStyle='#f7b731';ctx.lineWidth=1.5;ctx.setLineDash([5,4]);
+  var meanY=midY-5-mean*halfH*0.85;
+  ctx.beginPath();ctx.moveTo(padL,meanY);ctx.lineTo(W-padR,meanY);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='#f7b731';ctx.font='10px Inter';ctx.textAlign='left';
+  ctx.fillText('mean='+mean.toFixed(2),padL+4,meanY-4);
+  rewards.forEach(function(r,i){
+    var bh=r*halfH*0.85;
+    var x=padL+i*bw+bw*0.15;var bww=bw*0.7;
+    var y=midY-5-bh;
+    drawRoundedRect(ctx,x,y,bww,bh,3,'#74c0fc44','#74c0fc',1.5);
+    ctx.fillStyle='#74c0fc';ctx.font='bold 10px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText(r.toFixed(2),x+bww/2,y-4);
+  });
+
+  // Divider
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(padL,midY+5);ctx.lineTo(W-padR,midY+5);ctx.stroke();
+
+  // Bottom half: advantages
+  ctx.fillStyle='#8892b0';ctx.font='bold 10px Inter';ctx.textAlign='right';
+  ctx.fillText('Advantage',padL-4,midY+16);
+  var zeroY=midY+5+halfH*0.4;
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=0.5;
+  ctx.beginPath();ctx.moveTo(padL,zeroY);ctx.lineTo(W-padR,zeroY);ctx.stroke();
+  ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.textAlign='right';
+  ctx.fillText('0',padL-4,zeroY+3);
+  var advScale=halfH*0.35;
+  advantages.forEach(function(a,i){
+    var x=padL+i*bw+bw*0.15;var bww=bw*0.7;
+    var bh=Math.abs(a)*advScale;
+    var y=a>=0?zeroY-bh:zeroY;
+    var col=a>0?'#51cf66':a<0?'#ff6b6b':'#8892b0';
+    drawRoundedRect(ctx,x,y,bww,Math.max(bh,2),3,col+'55',col,1.5);
+    ctx.fillStyle=col;ctx.font='bold 9px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText(a.toFixed(2),x+bww/2,a>=0?y-4:y+bh+10);
+    ctx.fillStyle='#8892b0';ctx.font='9px Inter';
+    ctx.fillText(labels[i],x+bww/2,H-padB+14);
+  });
+
+  // Verdict
+  var vEl=document.getElementById('advantage-verdict');
+  var pos=advantages.filter(function(a){return a>0;}).length;
+  var neg=advantages.filter(function(a){return a<0;}).length;
+  vEl.innerHTML='<strong>mean='+mean.toFixed(3)+'</strong>, <strong>std='+std.toFixed(3)+'</strong>'+
+    (std<0.01
+      ? ' — <span style="color:#ff6b6b;">⚠ All rewards identical. All advantages = 0. No gradient signal — the model won\'t learn from this batch.</span>'
+      : ' — <span style="color:#51cf66;">✓ '+pos+' completion(s) reinforced (A&gt;0), '+neg+' suppressed (A&lt;0). Model will learn from this batch.</span>');
+  vEl.style.borderColor=std<0.01?'rgba(255,107,107,0.4)':'rgba(81,207,102,0.4)';
+}
+
+/* =====================================================
+   SECTION 5: CLIPPING CANVAS
+===================================================== */
+var advSign=1;
+function setAdvSign(sign,btn){
+  advSign=sign;
+  document.querySelectorAll('#adv-sign-toggle .toggle-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  drawClipCanvas();
+}
+function drawClipCanvas(){
+  var cv=document.getElementById('canvas-clip');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var ratio=parseFloat(document.getElementById('ratio-slider').value);
+  document.getElementById('ratio-val').textContent='r = '+ratio.toFixed(2);
+  var eps=0.2;
+  var padL=56,padR=20,padT=24,padB=36;
+  var dW=W-padL-padR,dH=H-padT-padB;
+  // Axes
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(padL,padT);ctx.lineTo(padL,padT+dH);ctx.lineTo(padL+dW,padT+dH);ctx.stroke();
+  ctx.fillStyle='#8892b0';ctx.font='11px Inter';ctx.textAlign='center';
+  ctx.fillText('Policy ratio r_t(θ)',padL+dW/2,H-4);
+  ctx.save();ctx.translate(14,padT+dH/2);ctx.rotate(-Math.PI/2);
+  ctx.fillStyle='#8892b0';ctx.textAlign='center';ctx.fillText('Loss contribution',0,0);
+  ctx.restore();
+  // Draw unclipped and clipped curves
+  var ratioToX=function(r){return padL+(r-0.0)/(3.0)*dW;};
+  var lossToY=function(l){var norm=(l+3)/(6);return padT+dH*(1-norm);};
+  var A=advSign*1.5; // fixed advantage magnitude for illustration
+  // Unclipped (dashed)
+  ctx.beginPath();
+  for(var r=0.05;r<=2.9;r+=0.05){
+    var l=-(r*A);
+    var x=ratioToX(r),y=lossToY(l);
+    r<=0.05?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.strokeStyle='#8892b044';ctx.lineWidth=1.5;ctx.setLineDash([4,4]);ctx.stroke();ctx.setLineDash([]);
+  // Clipped
+  ctx.beginPath();
+  for(var r=0.05;r<=2.9;r+=0.03){
+    var rClip=Math.min(Math.max(r,1-eps),1+eps);
+    var l=-Math.min(r*A,rClip*A);
+    var x=ratioToX(r),y=lossToY(l);
+    r<=0.05?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.strokeStyle='#7c6af4';ctx.lineWidth=2.5;ctx.stroke();
+  // Clip boundaries
+  [1-eps,1+eps].forEach(function(bound){
+    var x=ratioToX(bound);
+    ctx.strokeStyle='#ffd43b';ctx.lineWidth=1;ctx.setLineDash([4,3]);
+    ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,padT+dH);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#ffd43b';ctx.font='10px Inter';ctx.textAlign='center';
+    ctx.fillText(bound.toFixed(1),x,padT-4);
+  });
+  // Clip zone label
+  var cx=ratioToX((1-eps+1+eps)/2);
+  ctx.fillStyle='rgba(255,212,59,0.1)';
+  ctx.fillRect(ratioToX(1-eps),padT,ratioToX(1+eps)-ratioToX(1-eps),dH);
+  ctx.fillStyle='#ffd43b';ctx.font='10px Inter';ctx.textAlign='center';
+  ctx.fillText('clip zone',cx,padT+12);
+  // Current ratio marker
+  var cx2=ratioToX(ratio);
+  ctx.strokeStyle='#4ecdc4';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(cx2,padT);ctx.lineTo(cx2,padT+dH);ctx.stroke();
+  ctx.beginPath();ctx.arc(cx2,lossToY(-Math.min(ratio*A,Math.min(Math.max(ratio,1-eps),1+eps)*A)),6,0,Math.PI*2);
+  ctx.fillStyle='#4ecdc4';ctx.fill();
+  // X-axis labels
+  [0.5,1.0,1.5,2.0,2.5].forEach(function(v){
+    var x=ratioToX(v);
+    ctx.fillStyle='#8892b0';ctx.font='10px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText(v.toFixed(1),x,padT+dH+16);
+    ctx.strokeStyle='#1e2444';ctx.lineWidth=0.5;
+    ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,padT+dH);ctx.stroke();
+  });
+  // Legend
+  ctx.strokeStyle='#8892b044';ctx.lineWidth=1.5;ctx.setLineDash([4,4]);
+  ctx.beginPath();ctx.moveTo(padL+dW-130,padT+10);ctx.lineTo(padL+dW-100,padT+10);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#8892b0';ctx.font='10px Inter';ctx.textAlign='left';ctx.fillText('Unclipped',padL+dW-96,padT+14);
+  ctx.strokeStyle='#7c6af4';ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.moveTo(padL+dW-130,padT+24);ctx.lineTo(padL+dW-100,padT+24);ctx.stroke();
+  ctx.fillStyle='#7c6af4';ctx.fillText('Clipped (GRPO)',padL+dW-96,padT+28);
+  // Verdict
+  var clipped=(ratio<1-eps||ratio>1+eps);
+  var effect=clipped?'CLIPPED — the loss is capped, preventing a too-large update.':'Within bounds — full gradient applied.';
+  var vEl=document.getElementById('clip-verdict');
+  vEl.innerHTML='At r='+ratio.toFixed(2)+' with A'+(advSign>0?'>0 (good answer)':'<0 (bad answer)')+': <strong>'+(clipped?'ratio is outside [0.8, 1.2] clip range':'ratio is inside clip range')+'</strong>. '+effect;
+  vEl.style.borderColor=clipped?'rgba(255,212,59,0.4)':'rgba(124,106,244,0.4)';
+}
+
+/* =====================================================
+   SECTION 5: KL CANVAS
+===================================================== */
+function drawKLCanvas(){
+  var cv=document.getElementById('canvas-kl');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var beta=parseFloat(document.getElementById('kl-beta-slider').value);
+  document.getElementById('kl-beta-val').textContent='β = '+beta.toFixed(2);
+  // Show two distributions: reference (blue) and policy (shifting based on beta)
+  var n=8;
+  var refProbs=[0.35,0.22,0.18,0.10,0.07,0.04,0.02,0.02];
+  // Higher beta = policy stays close; lower beta = policy can drift
+  var driftFactor=beta<0.01?1.0:Math.max(0,1-beta/0.2);
+  var policyProbs=refProbs.map(function(p,i){
+    // Shift mass from word 0 to word 2 based on drift
+    var shift=driftFactor*0.25;
+    if(i===0)return p-shift;
+    if(i===2)return p+shift;
+    return p;
+  });
+  // Normalize
+  var sum=policyProbs.reduce(function(a,b){return a+b;},0);
+  policyProbs=policyProbs.map(function(p){return Math.max(0,p/sum);});
+  var padL=40,padR=20,padT=30,padB=40;
+  var bw=(W-padL-padR)/n;var maxH=H-padT-padB;
+  var words=['walked','found','saw','built','ran','flew','danced','vanished'];
+  // Title
+  ctx.fillStyle='#8892b0';ctx.font='11px Inter';ctx.textAlign='left';
+  ctx.fillText('Blue = Reference (original SFT model)   Purple = Policy (being trained)',padL,16);
+  refProbs.forEach(function(p,i){
+    var x=padL+i*bw;var bww=bw*0.4;
+    var bh=p*maxH;var y=H-padB-bh;
+    drawRoundedRect(ctx,x+bw*0.05,y,bww,bh,3,'#74c0fc44','#74c0fc',1.5);
+    var p2=policyProbs[i];var bh2=p2*maxH;var y2=H-padB-bh2;
+    drawRoundedRect(ctx,x+bw*0.5,y2,bww,bh2,3,'#7c6af455','#7c6af4',1.5);
+    ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.textAlign='center';
+    ctx.fillText(words[i],x+bw/2,H-padB+14);
+  });
+  // KL bar
+  var kl=refProbs.reduce(function(acc,p,i){
+    var q=policyProbs[i];
+    return acc+(q>0&&p>0?q*Math.log(q/p):0);
+  },0);
+  var penalty=beta*kl;
+  ctx.fillStyle='#ff6b6b';ctx.font='bold 11px Inter';ctx.textAlign='left';
+  ctx.fillText('KL divergence = '+kl.toFixed(3)+'   |   Penalty added to loss = β×KL = '+penalty.toFixed(3),padL,H-6);
+  // Verdict
+  var vEl=document.getElementById('kl-verdict');
+  if(beta<0.01){
+    vEl.innerHTML='<strong style="color:#ff6b6b;">β ≈ 0 — No KL penalty.</strong> The policy can drift freely from the reference model. Risk of reward hacking and incoherent outputs over time.';
+  } else if(beta<0.05){
+    vEl.innerHTML='<strong style="color:#4ecdc4;">β = '+beta.toFixed(2)+' (DeepSeekMath default: β=0.04).</strong> Light penalty. The policy can still improve while staying close to the original SFT model. Good balance.';
+  } else if(beta<0.2){
+    vEl.innerHTML='<strong style="color:#f7b731;">β = '+beta.toFixed(2)+' — Moderate penalty.</strong> Policy is more constrained. Slower to learn but more stable. Suitable for sensitive domains.';
+  } else {
+    vEl.innerHTML='<strong style="color:#74c0fc;">β = '+beta.toFixed(2)+' — Strong penalty.</strong> Policy barely moves from the reference model. KL term dominates the loss. Very slow learning — too conservative for most use cases.';
+  }
+  vEl.style.borderColor='rgba(124,106,244,0.4)';
+}
+
+/* =====================================================
+   SECTION 5: TRAINING LOOP CANVAS
+===================================================== */
+function drawTrainingLoop(){
+  var cv=document.getElementById('canvas-training-loop');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var steps=[
+    {label:'Prompt\nBatch',color:'#8892b0',icon:'📝'},
+    {label:'Generate\nG completions',color:'#4ecdc4',icon:'✍'},
+    {label:'Score\nRewards',color:'#51cf66',icon:'🎯'},
+    {label:'Compute\nAdvantages',color:'#f7b731',icon:'📊'},
+    {label:'Clip+KL\nLoss',color:'#7c6af4',icon:'⚖'},
+    {label:'Update\nWeights',color:'#ffd43b',icon:'🔄'}
+  ];
+  var n=steps.length;var bw=(W-40)/n;
+  steps.forEach(function(s,i){
+    var cx=20+(i+0.5)*bw;
+    drawRoundedRect(ctx,cx-38,10,76,H-20,8,s.color+'18',s.color,1.5);
+    ctx.font='16px serif';ctx.textAlign='center';ctx.fillText(s.icon,cx,36);
+    ctx.fillStyle=s.color;ctx.font='bold 10px Inter';ctx.textAlign='center';
+    s.label.split('\n').forEach(function(l,li){ctx.fillText(l,cx,52+li*13);});
+    if(i<n-1) drawArrow(ctx,cx+40,H/2,cx+bw-40,H/2,'#2a3060',2);
+  });
+  // Loop back arrow
+  ctx.strokeStyle='#7c6af4';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);
+  ctx.beginPath();
+  ctx.moveTo(W-20,H-12);ctx.lineTo(W-20,H+2);ctx.lineTo(22,H+2);ctx.lineTo(22,H-12);
+  ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#7c6af4';ctx.font='10px Inter';ctx.textAlign='center';
+  ctx.fillText('Repeat for each batch until convergence',W/2,H+16);
+}
+
+/* =====================================================
+   SECTION 6: RESULTS BAR
+===================================================== */
+function drawResultsBar(){
+  var cv=document.getElementById('canvas-results-bar');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var benchmarks=[
+    {name:'GSM8K\n(grade school math)',before:82.9,after:88.2,max:100},
+    {name:'MATH\n(competition math)',before:46.8,after:51.7,max:100},
+    {name:'CMATH\n(Chinese math)',before:84.6,after:88.8,max:100},
+    {name:'Minerva Math\n(scientific)',before:14.1,after:19.0,max:50}
+  ];
+  var n=benchmarks.length;var bw=(W-40)/n;
+  var padT=20;var padB=55;var bH=H-padT-padB;
+  benchmarks.forEach(function(b,i){
+    var cx=20+(i+0.5)*bw;
+    var maxScale=b.max;
+    var h1=(b.before/maxScale)*bH*0.9;var h2=(b.after/maxScale)*bH*0.9;
+    var bww=bw*0.28;
+    // Before bar
+    var x1=cx-bww-4;
+    drawRoundedRect(ctx,x1,H-padB-h1,bww,h1,3,'#8892b033','#8892b0',1.5);
+    ctx.fillStyle='#8892b0';ctx.font='bold 10px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText(b.before+'%',x1+bww/2,H-padB-h1-5);
+    // After bar
+    var x2=cx+4;
+    drawRoundedRect(ctx,x2,H-padB-h2,bww,h2,3,'#51cf6655','#51cf66',2);
+    ctx.fillStyle='#51cf66';ctx.font='bold 10px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText(b.after+'%',x2+bww/2,H-padB-h2-5);
+    // Delta
+    var delta=b.after-b.before;
+    ctx.fillStyle='#ffd43b';ctx.font='bold 11px Inter';ctx.textAlign='center';
+    ctx.fillText('+'+delta.toFixed(1)+'pp',cx,H-padB-Math.max(h1,h2)-18);
+    // Benchmark label
+    b.name.split('\n').forEach(function(l,li){
+      ctx.fillStyle='#8892b0';ctx.font='11px Inter';ctx.textAlign='center';
+      ctx.fillText(l,cx,H-padB+18+li*13);
+    });
+  });
+  // Legend
+  drawRoundedRect(ctx,20,6,14,10,2,'#8892b033','#8892b0',1);
+  ctx.fillStyle='#8892b0';ctx.font='10px Inter';ctx.textAlign='left';ctx.fillText('Before GRPO (SFT)',38,16);
+  drawRoundedRect(ctx,170,6,14,10,2,'#51cf6655','#51cf66',1.5);
+  ctx.fillStyle='#51cf66';ctx.fillText('After GRPO',188,16);
+  ctx.fillStyle='#ffd43b';ctx.fillText('↑ Improvement',290,16);
+}
+
+/* =====================================================
+   INIT ALL
+===================================================== */
+drawGap();
+drawRLHFPipeline();
+drawPPOArch();
+drawMemoryCalc();
+drawGroupSampling();
+drawArchCompare();
+drawAdvantage();
+drawClipCanvas();
+drawKLCanvas();
+drawTrainingLoop();
+drawResultsBar();
+
+updateNavOnScroll();
+</script>
+</body>
+</html>
