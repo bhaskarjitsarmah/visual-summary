@@ -1,0 +1,1441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Wiki — Build Your Personal Knowledge Base</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0d0f18; --surface:#161a2e; --surface2:#1e2444;
+  --border:#2a3060; --text:#e2e8f0; --muted:#8892b0; --accent:#7c6af4;
+  --teal:#4ecdc4; --amber:#f7b731; --coral:#ff6b6b;
+  --mint:#51cf66; --sky:#74c0fc; --gold:#ffd43b; --pink:#f78fb3;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); display:flex; min-height:100vh; }
+.sidebar { width:250px; background:var(--surface); border-right:1px solid var(--border); position:fixed; top:0; left:0; height:100vh; overflow-y:auto; z-index:100; }
+.sb-header { padding:20px; border-bottom:1px solid var(--border); }
+.sb-header h1 { font-size:14px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:1px; }
+.sb-header p { font-size:11px; color:var(--muted); margin-top:4px; }
+.nav-group { padding:10px 0; border-bottom:1px solid var(--border); }
+.nav-group-title { padding:0 18px 6px; font-size:10px; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); font-weight:600; }
+.nav-link { display:flex; align-items:center; gap:10px; padding:8px 18px; cursor:pointer; border-left:3px solid transparent; transition:all 0.2s; text-decoration:none; color:var(--muted); font-size:13px; }
+.nav-link:hover, .nav-link.active { background:rgba(124,106,244,0.1); color:var(--text); border-left-color:var(--accent); }
+.dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.main { margin-left:250px; flex:1; }
+.section { min-height:100vh; padding:56px 48px; border-bottom:1px solid var(--border); }
+.section-tag { font-size:11px; text-transform:uppercase; letter-spacing:2px; font-weight:600; margin-bottom:10px; }
+.section-title { font-size:30px; font-weight:700; margin-bottom:8px; line-height:1.2; }
+.section-sub { font-size:15px; color:var(--muted); max-width:640px; line-height:1.6; margin-bottom:36px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:22px; margin-bottom:24px; }
+.card-title { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:14px; }
+.g2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+.g3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:18px; }
+.formula { font-family:'JetBrains Mono',monospace; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:14px 18px; font-size:13px; margin:14px 0; color:#e2b35e; white-space:pre-wrap; overflow-x:auto; }
+.sl-row { display:flex; align-items:center; gap:10px; margin:10px 0; }
+.sl-lbl { font-size:12px; color:var(--muted); min-width:160px; }
+.sl-val { font-family:'JetBrains Mono'; font-size:12px; color:var(--accent); min-width:60px; text-align:right; }
+input[type=range] { -webkit-appearance:none; flex:1; height:6px; border-radius:3px; background:var(--surface2); border:1px solid var(--border); outline:none; cursor:pointer; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:var(--accent); cursor:pointer; border:2px solid var(--bg); }
+.btn { background:var(--accent); color:#fff; border:none; border-radius:8px; padding:10px 20px; font-size:13px; font-weight:600; cursor:pointer; transition:opacity 0.2s; font-family:'Inter',sans-serif; }
+.btn:hover { opacity:0.85; }
+.btn-outline { background:transparent; border:1px solid var(--border); color:var(--text); }
+.btn-outline:hover { background:var(--surface2); opacity:1; }
+.toggle-group { display:flex; gap:0; }
+.toggle-btn { padding:8px 16px; border:1px solid var(--border); background:var(--surface); color:var(--muted); cursor:pointer; font-size:12px; font-weight:600; transition:all 0.2s; font-family:'Inter',sans-serif; }
+.toggle-btn:first-child { border-radius:6px 0 0 6px; }
+.toggle-btn:last-child { border-radius:0 6px 6px 0; }
+.toggle-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+canvas { display:block; background:var(--bg); border-radius:8px; border:1px solid var(--border); }
+.analogy-card { background:rgba(78,205,196,0.07); border:1px solid rgba(78,205,196,0.3); border-radius:10px; padding:16px 20px; margin:20px 0; }
+.analogy-card p { font-size:14px; color:var(--text); line-height:1.6; }
+.analogy-card .analogy-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--teal); margin-bottom:8px; }
+.highlight-box { background:rgba(124,106,244,0.07); border:1px solid rgba(124,106,244,0.3); border-radius:10px; padding:16px 20px; margin:16px 0; }
+.highlight-box p { font-size:14px; color:var(--text); line-height:1.6; }
+.stat-row { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:28px; }
+.stat { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px 20px; flex:1; min-width:140px; }
+.stat-val { font-size:26px; font-weight:700; font-family:'JetBrains Mono'; }
+.stat-lbl { font-size:11px; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:0.5px; }
+.section-bridge { margin-top:48px; padding-top:24px; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+.section-bridge-text { font-size:13px; color:var(--muted); }
+.section-bridge-link { font-size:13px; color:var(--accent); text-decoration:none; font-weight:600; }
+.accordion-item { border:1px solid var(--border); border-radius:8px; margin-bottom:8px; overflow:hidden; }
+.accordion-header { padding:14px 18px; cursor:pointer; font-size:13px; font-weight:600; display:flex; justify-content:space-between; align-items:center; background:var(--surface); }
+.accordion-header:hover { background:var(--surface2); }
+.accordion-body { display:none; padding:14px 18px; font-size:13px; color:var(--muted); line-height:1.6; border-top:1px solid var(--border); }
+.accordion-item.open .accordion-body { display:block; }
+.accordion-item.open .accordion-chevron { transform:rotate(180deg); }
+.accordion-chevron { transition:transform 0.2s; }
+.pipeline-map { display:flex; align-items:center; flex-wrap:wrap; gap:2px; background:var(--surface); border-bottom:1px solid var(--border); padding:8px 20px; position:sticky; top:0; z-index:50; }
+.pipe-step { display:flex; align-items:center; gap:6px; padding:5px 10px; border-radius:6px; font-size:11px; font-weight:600; color:var(--muted); transition:all 0.25s; text-decoration:none; border:1px solid transparent; white-space:nowrap; }
+.pipe-step:hover { background:var(--surface2); color:var(--text); }
+.pipe-step.active { background:var(--surface2); color:var(--text); border-color:currentColor; }
+.pipe-step .pipe-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.pipe-arrow { font-size:12px; color:var(--border); padding:0 1px; }
+.file-tag { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:6px; font-size:11px; font-family:'JetBrains Mono'; border:1px solid; }
+@media (max-width:768px) {
+  .sidebar { width:100%; height:auto; position:relative; border-right:none; border-bottom:1px solid var(--border); }
+  .sidebar .nav-group { display:none; }
+  .sb-header { padding:14px 18px; display:flex; align-items:center; justify-content:space-between; }
+  .sb-toggle { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); cursor:pointer; background:none; border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-family:'Inter',sans-serif; }
+  .sidebar.open .nav-group { display:block; }
+  body { flex-direction:column; }
+  .main { margin-left:0; }
+  .section { padding:32px 20px; min-height:unset; }
+  .g2 { grid-template-columns:1fr !important; }
+  .g3 { grid-template-columns:1fr !important; }
+  canvas { max-width:100% !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- PASSWORD GATE -->
+<div id="pg-overlay" style="position:fixed;inset:0;z-index:99999;background:linear-gradient(135deg,#0d1117 0%,#161b22 100%);display:flex;align-items:center;justify-content:center;font-family:system-ui,-apple-system,sans-serif;">
+  <div style="background:#161b22;border:1px solid #30363d;border-radius:16px;padding:48px 40px;max-width:420px;width:90%;text-align:center;box-shadow:0 24px 80px #00000088;">
+    <div style="font-size:3rem;margin-bottom:16px;">🔒</div>
+    <div style="font-size:1.4rem;font-weight:700;color:#c9d1d9;margin-bottom:8px;">Visual Summary</div>
+    <div style="font-size:0.85rem;color:#8b949e;margin-bottom:6px;">LLM Wiki — Personal Knowledge Bases</div>
+    <div style="font-size:0.8rem;color:#8b949e;margin-bottom:28px;line-height:1.6;">Exclusive to <b style="color:#c9d1d9;">paid subscribers</b>.<br>Enter the password from your email to unlock.</div>
+    <input id="pg-input" type="password" placeholder="Enter subscriber password" onkeydown="if(event.key==='Enter')pgUnlock()" style="width:100%;padding:12px 16px;font-size:0.95rem;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:8px;outline:none;margin-bottom:12px;">
+    <div id="pg-error" style="font-size:0.78rem;color:#f85149;min-height:18px;margin-bottom:10px;"></div>
+    <button onclick="pgUnlock()" style="width:100%;padding:12px;font-size:0.95rem;font-weight:600;background:linear-gradient(135deg,#7c6fcd,#5a4fcf);color:#fff;border:none;border-radius:8px;cursor:pointer;">Unlock →</button>
+    <div style="margin-top:20px;font-size:0.75rem;color:#8b949e;">Not a subscriber? <a href="https://visualsummary.substack.com" target="_blank" style="color:#7c6fcd;text-decoration:none;">Join Visual Summary →</a></div>
+  </div>
+</div>
+<script>
+const PG_PASSWORD='visual2025';
+function pgUnlock(){
+  var val=document.getElementById('pg-input').value.trim();
+  var err=document.getElementById('pg-error');
+  if(val===PG_PASSWORD){
+    sessionStorage.setItem('pg_unlocked_07','1');
+    var o=document.getElementById('pg-overlay');
+    o.style.transition='opacity 0.4s';o.style.opacity='0';
+    setTimeout(function(){o.remove();},420);
+  } else {
+    err.textContent='Incorrect password.';
+    var inp=document.getElementById('pg-input');
+    inp.style.borderColor='#f85149';
+    setTimeout(function(){inp.style.borderColor='#30363d';},1500);
+  }
+}
+if(sessionStorage.getItem('pg_unlocked_07')==='1') document.getElementById('pg-overlay').remove();
+window.addEventListener('load',function(){var el=document.getElementById('pg-input');if(el)el.focus();});
+</script>
+
+<!-- SIDEBAR -->
+<nav class="sidebar" id="sidebar">
+  <div class="sb-header">
+    <div>
+      <h1>LLM Wiki</h1>
+      <p>Karpathy's Personal Knowledge Base Pattern</p>
+      <p id="sb-progress" style="font-size:10px;color:#4ade80;margin-top:2px;display:none;"></p>
+    </div>
+    <button class="sb-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')" style="display:none;" id="sb-toggle-btn">☰ Menu</button>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">The Problem</div>
+    <a class="nav-link" href="#s-problem" onclick="setActive(this)"><span class="dot" style="background:#ff6b6b"></span>Knowledge Fragmentation</a>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">The System</div>
+    <a class="nav-link" href="#s-arch" onclick="setActive(this)"><span class="dot" style="background:#7c6af4"></span>3-Layer Architecture</a>
+    <a class="nav-link" href="#s-cycle" onclick="setActive(this)"><span class="dot" style="background:#4ecdc4"></span>The 4-Phase Cycle</a>
+    <a class="nav-link" href="#s-compare" onclick="setActive(this)"><span class="dot" style="background:#f7b731"></span>LLM Wiki vs RAG</a>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">The Payoff</div>
+    <a class="nav-link" href="#s-growth" onclick="setActive(this)"><span class="dot" style="background:#51cf66"></span>Compounding Knowledge</a>
+    <a class="nav-link" href="#s-future" onclick="setActive(this)"><span class="dot" style="background:#ffd43b"></span>What Comes Next</a>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+
+<!-- PIPELINE MAP -->
+<div class="pipeline-map" id="pipeline-map">
+  <a class="pipe-step" href="#s-problem"><span class="pipe-dot" style="background:#ff6b6b"></span>Problem</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-arch"><span class="pipe-dot" style="background:#7c6af4"></span>Architecture</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-cycle"><span class="pipe-dot" style="background:#4ecdc4"></span>4-Phase Cycle</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-compare"><span class="pipe-dot" style="background:#f7b731"></span>vs RAG</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-growth"><span class="pipe-dot" style="background:#51cf66"></span>Compounding</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-future"><span class="pipe-dot" style="background:#ffd43b"></span>Future</a>
+</div>
+
+<!-- ===== SECTION 1: s-problem ===== -->
+<section class="section" id="s-problem">
+  <div class="section-tag" style="color:#ff6b6b">The Problem &nbsp;·&nbsp; <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;">~12 min read</span></div>
+  <div class="section-title" style="color:#ff6b6b">Your Knowledge Keeps Getting Lost</div>
+  <div class="section-sub">You read a paper, bookmark an article, save a thread — then never revisit it. What you learned evaporates. RAG tries to solve retrieval but creates new noise. Andrej Karpathy's LLM Wiki proposes something different: let an LLM <em>compile</em> your knowledge once, so you can query it forever.</div>
+
+  <div style="background:rgba(255,107,107,0.07);border:1px solid rgba(255,107,107,0.3);border-radius:10px;padding:16px 20px;margin-bottom:28px;">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#ff6b6b;margin-bottom:8px;">TL;DR — The Idea in One Paragraph</div>
+    <p style="font-size:14px;color:var(--text);line-height:1.7;">Andrej Karpathy (ex-OpenAI, Tesla) shared a viral pattern: instead of using a RAG pipeline that retrieves raw documents on every query, build a <strong>personal wiki maintained by an LLM</strong>. Raw sources go in, the LLM reads them once and writes structured markdown pages (summaries, concept articles, comparisons, cross-references). Subsequent queries go against this <strong>compiled, synthesised knowledge</strong> — not the messy raw input. The result is a personal knowledge base that gets richer every time you add a source, answer a question, or run a health check.</p>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat">
+      <div class="stat-val" style="color:#ff6b6b">~80%</div>
+      <div class="stat-lbl">Bookmarks never revisited after saving</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" style="color:#4ecdc4">~100</div>
+      <div class="stat-lbl">Articles where LLM wiki beats RAG (personal scale)</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" style="color:#f7b731">400K</div>
+      <div class="stat-lbl">Words — Karpathy's example wiki size</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" style="color:#51cf66">0</div>
+      <div class="stat-lbl">Vector databases needed</div>
+    </div>
+  </div>
+
+  <!-- Forgetting curve -->
+  <div class="card">
+    <div class="card-title">How Knowledge Decays Without a System</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Without active synthesis, retention of information you've read drops rapidly. A compiled wiki externalises memory — the forgetting curve applies to your brain, not your knowledge base:</p>
+    <canvas id="canvas-forgetting" width="640" height="200" style="width:100%;max-width:640px;margin-bottom:10px;"></canvas>
+    <p style="font-size:12px;color:var(--muted);margin-top:6px;">The LLM wiki acts as a perfectly maintained external memory — no decay, always queryable, increasingly cross-referenced as you add more sources.</p>
+  </div>
+
+  <!-- Why wikis fail -->
+  <div class="card">
+    <div class="card-title">Why Human-Maintained Wikis Always Die</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:14px;">The fundamental problem isn't the wiki format — it's the maintenance burden. Every new source potentially touches <strong>10–15 existing pages</strong>. Humans abandon wikis when bookkeeping grows faster than value:</p>
+    <div class="g2" style="gap:14px;">
+      <div style="border:1px solid rgba(255,107,107,0.3);border-radius:10px;padding:16px;background:rgba(255,107,107,0.05);">
+        <div style="font-weight:700;color:#ff6b6b;margin-bottom:8px;font-size:13px;">Why humans abandon wikis</div>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted);line-height:1.6;">
+          <div>📋 Cross-reference updates are tedious</div>
+          <div>🔗 Backlinks break silently</div>
+          <div>⏰ Summaries go stale as field evolves</div>
+          <div>🗂 Organisation inconsistency creeps in</div>
+          <div>😓 10 minutes of reading = 40 minutes of wiki work</div>
+        </div>
+      </div>
+      <div style="border:1px solid rgba(78,205,196,0.3);border-radius:10px;padding:16px;background:rgba(78,205,196,0.05);">
+        <div style="font-weight:700;color:#4ecdc4;margin-bottom:8px;font-size:13px;">Why LLMs don't</div>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted);line-height:1.6;">
+          <div>⚡ Touch 15 pages in one pass</div>
+          <div>🔄 Always update cross-references</div>
+          <div>📝 Rewrite summaries when new info arrives</div>
+          <div>🎯 Consistent formatting every time</div>
+          <div>😊 Zero boredom, zero procrastination</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RAG problems -->
+  <div class="card">
+    <div class="card-title">Why RAG Isn't the Answer at Personal Scale</div>
+    <canvas id="canvas-rag-limits" width="640" height="180" style="width:100%;max-width:640px;margin-bottom:12px;"></canvas>
+    <div class="g3" style="gap:12px;margin-top:10px;">
+      <div style="background:var(--bg);border-radius:8px;padding:12px;border:1px solid rgba(255,107,107,0.2);">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#ff6b6b;margin-bottom:6px;">Retrieval Noise</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.5;">Embedding search finds <em>similar text</em>, not synthesised understanding. A question about "attention mechanisms" may retrieve 20 paragraphs with conflicting definitions.</div>
+      </div>
+      <div style="background:var(--bg);border-radius:8px;padding:12px;border:1px solid rgba(247,183,49,0.2);">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#f7b731;margin-bottom:6px;">No Synthesis</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.5;">RAG retrieves raw sources and asks the LLM to synthesise every query. The same synthesis is repeated on every question — no compounding value.</div>
+      </div>
+      <div style="background:var(--bg);border-radius:8px;padding:12px;border:1px solid rgba(116,192,252,0.2);">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#74c0fc;margin-bottom:6px;">Infrastructure Tax</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.5;">Vector databases, embedding pipelines, chunking strategies, rerankers — at ~100 personal articles, this is more complexity than the problem warrants.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="analogy-card">
+    <div class="analogy-label">The Compiler Analogy</div>
+    <p>"RAG is like asking someone to read all your notes from scratch every time you have a question. LLM Wiki is like <strong>compiling your notes into a structured program</strong> once — then running queries against the compiled output. The compilation cost is paid once; every subsequent query is fast, coherent, and cross-referenced."</p>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">So what does the LLM Wiki system actually look like?</span>
+    <a class="section-bridge-link" href="#s-arch">The 3-Layer Architecture →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 2: s-arch ===== -->
+<section class="section" id="s-arch">
+  <div class="section-tag" style="color:#7c6af4">The System Design</div>
+  <div class="section-title" style="color:#7c6af4">Three Layers, One LLM</div>
+  <div class="section-sub">The LLM Wiki has exactly three layers. The human curates sources and asks questions. The LLM writes and maintains everything in the middle. Click any layer to explore it:</div>
+
+  <!-- Architecture canvas -->
+  <div class="card">
+    <div class="card-title">The Three-Layer Architecture — Click a Layer</div>
+    <canvas id="canvas-arch" width="640" height="260" style="width:100%;max-width:640px;cursor:pointer;margin-bottom:12px;" onclick="handleArchClick(event)"></canvas>
+    <div id="arch-info" style="padding:14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);font-size:13px;line-height:1.7;color:var(--muted);">Click any layer above to explore its role in the system.</div>
+  </div>
+
+  <!-- Layer details -->
+  <div class="g3" style="gap:14px;margin-bottom:24px;">
+    <div style="border:1px solid rgba(116,192,252,0.3);border-radius:10px;padding:16px;background:rgba(116,192,252,0.05);">
+      <div style="font-size:20px;margin-bottom:8px;">📁</div>
+      <div style="font-weight:700;color:#74c0fc;margin-bottom:6px;font-size:13px;">Layer 1 — Raw Sources</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:8px;">Immutable. The LLM reads but never modifies these. Everything else is derived from here.</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;">
+        <span class="file-tag" style="color:#74c0fc;border-color:#74c0fc44">.md</span>
+        <span class="file-tag" style="color:#74c0fc;border-color:#74c0fc44">.pdf</span>
+        <span class="file-tag" style="color:#74c0fc;border-color:#74c0fc44">.png</span>
+        <span class="file-tag" style="color:#74c0fc;border-color:#74c0fc44">.csv</span>
+        <span class="file-tag" style="color:#74c0fc;border-color:#74c0fc44">.py</span>
+      </div>
+    </div>
+    <div style="border:1px solid rgba(124,106,244,0.4);border-radius:10px;padding:16px;background:rgba(124,106,244,0.08);">
+      <div style="font-size:20px;margin-bottom:8px;">📖</div>
+      <div style="font-weight:700;color:#7c6af4;margin-bottom:6px;font-size:13px;">Layer 2 — The Wiki</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:8px;">LLM-generated and maintained. Summaries, concept articles, comparisons, cross-references. Pure markdown.</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;">
+        <span class="file-tag" style="color:#7c6af4;border-color:#7c6af444">index.md</span>
+        <span class="file-tag" style="color:#7c6af4;border-color:#7c6af444">concepts/</span>
+        <span class="file-tag" style="color:#7c6af4;border-color:#7c6af444">log.md</span>
+      </div>
+    </div>
+    <div style="border:1px solid rgba(255,212,59,0.3);border-radius:10px;padding:16px;background:rgba(255,212,59,0.05);">
+      <div style="font-size:20px;margin-bottom:8px;">📋</div>
+      <div style="font-weight:700;color:#ffd43b;margin-bottom:6px;font-size:13px;">Layer 3 — The Schema</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:8px;">A CLAUDE.md or equivalent file telling the LLM how the wiki is structured, conventions, and workflows.</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;">
+        <span class="file-tag" style="color:#ffd43b;border-color:#ffd43b44">CLAUDE.md</span>
+        <span class="file-tag" style="color:#ffd43b;border-color:#ffd43b44">rules</span>
+        <span class="file-tag" style="color:#ffd43b;border-color:#ffd43b44">workflows</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- index.md and log.md -->
+  <div class="card">
+    <div class="card-title">The Two Special Files: index.md and log.md</div>
+    <div class="g2" style="gap:18px;">
+      <div>
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:#7c6af4;margin-bottom:10px;">index.md — The Catalogue</div>
+        <div class="formula" style="font-size:12px;margin:0;">## Wiki Index
+
+### Concepts (47 pages)
+- [[attention]] — Self-attention mechanism overview
+- [[transformer]] — Full architecture walkthrough
+- [[grpo]] — Group Relative Policy Optimization
+...
+
+### Papers (23 summaries)
+- [[2402.03300]] — DeepSeekMath (Feb 2024)
+- [[1706.03762]] — Attention is All You Need
+...</div>
+        <p style="font-size:12px;color:var(--muted);margin-top:8px;">Updated on every ingest. The LLM's primary navigation aid for answering queries.</p>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:#4ecdc4;margin-bottom:10px;">log.md — The Audit Trail</div>
+        <div class="formula" style="font-size:12px;margin:0;">## Activity Log
+
+[2025-04-01 INGEST] karpathy-llm-wiki.md
+  → Created: concepts/llm-wiki.md
+  → Updated: index.md, concepts/rag.md
+  → New links: 4
+
+[2025-04-01 QUERY] "How does GRPO compare to PPO?"
+  → Searched: grpo.md, ppo.md, rl-overview.md
+  → Filed result: comparisons/grpo-vs-ppo.md</div>
+        <p style="font-size:12px;color:var(--muted);margin-top:8px;">Append-only. Parseable with standard tools (grep, awk). Full history of every operation.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- What the LLM writes -->
+  <div class="card">
+    <div class="card-title">What a Wiki Article Looks Like</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">A concept page written and maintained by the LLM — not retrieved, but synthesised from multiple sources:</p>
+    <div class="formula" style="font-size:12px;">---
+title: Transformer Architecture
+created: 2025-03-15
+updated: 2025-04-01
+sources: [1706.03762, karpathy-makemore, annotated-transformer]
+tags: [architecture, attention, foundational]
+---
+
+# Transformer Architecture
+
+The transformer is an encoder-decoder architecture built entirely on attention mechanisms,
+introduced in "Attention is All You Need" (Vaswani et al., 2017). Unlike RNNs, transformers
+process all tokens in parallel, making them highly GPU-friendly.
+
+## Key Components
+- **Multi-head self-attention**: Each token attends to all others simultaneously
+- **Position encoding**: Sinusoidal embeddings inject sequence order
+- **Feed-forward layers**: Per-token MLP applied identically
+
+## Related Concepts
+→ [[attention]] — The core mechanism explained in detail
+→ [[grpo]] — Uses transformer policy for RL training
+→ [[scaling-laws]] — How performance scales with transformer size
+
+## Open Questions (as of 2025-04)
+- Long-context efficiency: quadratic attention is still expensive at 100K+ tokens</div>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">Architecture clear. Now how does the system actually operate day-to-day?</span>
+    <a class="section-bridge-link" href="#s-cycle">The 4-Phase Cycle →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 3: s-cycle ===== -->
+<section class="section" id="s-cycle">
+  <div class="section-tag" style="color:#4ecdc4">How It Works</div>
+  <div class="section-title" style="color:#4ecdc4">The Four-Phase Cycle</div>
+  <div class="section-sub">Every interaction with the wiki follows one of four phases: Ingest a new source, Compile it into the wiki, Query the knowledge, or Lint for health. The cycle repeats — each pass makes the wiki richer.</div>
+
+  <!-- Animated cycle -->
+  <div class="card">
+    <div class="card-title">The Cycle — Animated</div>
+    <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center;">
+      <button class="btn" id="cycle-play-btn" onclick="playCycle()">▶ Animate</button>
+      <button class="btn btn-outline" onclick="resetCycle()">Reset</button>
+    </div>
+    <canvas id="canvas-cycle" width="640" height="280" style="width:100%;max-width:640px;margin-bottom:10px;"></canvas>
+    <div id="cycle-label" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);">Press Animate to see the four-phase cycle in motion.</div>
+  </div>
+
+  <!-- Phase 1: Ingest -->
+  <div class="card">
+    <div class="card-title" style="color:#74c0fc;">Phase 1 — Ingest: Feeding the System</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:14px;">Drop a new source into <span style="font-family:'JetBrains Mono';color:var(--text);">raw/</span>. The LLM reads it, discusses key takeaways, and decides which wiki pages to create or update. A single source may touch 10–15 existing pages:</p>
+    <canvas id="canvas-ingest" width="640" height="160" style="width:100%;max-width:640px;margin-bottom:12px;"></canvas>
+    <div class="g3" style="gap:10px;">
+      <div style="background:var(--bg);border-radius:8px;padding:12px;border:1px solid rgba(116,192,252,0.2);">
+        <div style="font-size:11px;font-weight:700;color:#74c0fc;text-transform:uppercase;margin-bottom:6px;">Source Types</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.5;">arXiv papers, web clips (Obsidian Web Clipper → .md), GitHub repos, datasets (.csv), code files (.py), images with captions</div>
+      </div>
+      <div style="background:var(--bg);border-radius:8px;padding:12px;border:1px solid rgba(78,205,196,0.2);">
+        <div style="font-size:11px;font-weight:700;color:#4ecdc4;text-transform:uppercase;margin-bottom:6px;">LLM Actions</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.5;">Write a source summary page, update index.md, update relevant concept pages, add backlinks, log the ingest in log.md</div>
+      </div>
+      <div style="background:var(--bg);border-radius:8px;padding:12px;border:1px solid rgba(81,207,102,0.2);">
+        <div style="font-size:11px;font-weight:700;color:#51cf66;text-transform:uppercase;margin-bottom:6px;">Output</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.5;">1 summary page + 3–15 concept page updates + new cross-references + log entry. Typical: &lt;5 minutes of LLM time.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phase 2: Compile -->
+  <div class="card">
+    <div class="card-title" style="color:#7c6af4;">Phase 2 — Compile: Building the Knowledge Graph</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:14px;">The LLM doesn't just summarise — it synthesises. It finds connections across sources, writes concept articles that span multiple papers, and maintains a backlink graph between all pages:</p>
+    <canvas id="canvas-compile" width="640" height="200" style="width:100%;max-width:640px;margin-bottom:10px;"></canvas>
+    <div class="highlight-box">
+      <p>The crucial difference from RAG: synthesis happens <strong>once at ingest time</strong>, not at every query. A concept page on "attention mechanisms" draws from 8 different sources, already reconciled and cross-referenced. Query time is fast and coherent.</p>
+    </div>
+  </div>
+
+  <!-- Phase 3: Query -->
+  <div class="card">
+    <div class="card-title" style="color:#51cf66;">Phase 3 — Query: Getting Answers + Filing Them Back</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:14px;">Ask a question. The LLM navigates via index.md, reads relevant concept pages, and synthesises an answer with citations. The key insight: <strong>good answers get filed back into the wiki</strong> as new pages, compounding value:</p>
+    <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+      <input id="query-input" type="text" placeholder="Type a question to simulate…" style="flex:1;min-width:200px;padding:10px 14px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:13px;outline:none;" onkeydown="if(event.key==='Enter')simulateQuery()">
+      <button class="btn" onclick="simulateQuery()">Query Wiki</button>
+    </div>
+    <canvas id="canvas-query" width="640" height="200" style="width:100%;max-width:640px;margin-bottom:10px;"></canvas>
+    <div id="query-result" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);">Enter a question and click Query Wiki to see how the system navigates and responds.</div>
+  </div>
+
+  <!-- Phase 4: Lint -->
+  <div class="card">
+    <div class="card-title" style="color:#ffd43b;">Phase 4 — Lint: Keeping the Wiki Healthy</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:14px;">Periodically run the LLM over the entire wiki as a health check. It finds issues humans would never catch manually:</p>
+    <canvas id="canvas-lint" width="640" height="180" style="width:100%;max-width:640px;margin-bottom:10px;"></canvas>
+    <div class="g2" style="gap:12px;margin-top:12px;">
+      <div>
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:#ff6b6b;margin-bottom:8px;">Issues Found</div>
+        <div style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);">
+          <div style="padding:6px 10px;background:var(--bg);border-radius:6px;border:1px solid rgba(255,107,107,0.2);">⚡ Contradiction: paper A says X, paper B says ¬X</div>
+          <div style="padding:6px 10px;background:var(--bg);border-radius:6px;border:1px solid rgba(255,107,107,0.2);">🔗 Orphan page: [[mamba.md]] has no incoming links</div>
+          <div style="padding:6px 10px;background:var(--bg);border-radius:6px;border:1px solid rgba(255,107,107,0.2);">⏰ Stale claim: "GPT-4 is SOTA" (last updated 2023)</div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:#51cf66;margin-bottom:8px;">Actions Taken</div>
+        <div style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);">
+          <div style="padding:6px 10px;background:var(--bg);border-radius:6px;border:1px solid rgba(81,207,102,0.2);">✅ Flag contradiction, add note to both pages</div>
+          <div style="padding:6px 10px;background:var(--bg);border-radius:6px;border:1px solid rgba(81,207,102,0.2);">✅ Add [[mamba.md]] link to architecture overview</div>
+          <div style="padding:6px 10px;background:var(--bg);border-radius:6px;border:1px solid rgba(81,207,102,0.2);">✅ Web-search update, rewrite stale paragraph</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">This sounds like RAG — what's the actual difference?</span>
+    <a class="section-bridge-link" href="#s-compare">LLM Wiki vs RAG →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 4: s-compare ===== -->
+<section class="section" id="s-compare">
+  <div class="section-tag" style="color:#f7b731">Head to Head</div>
+  <div class="section-title" style="color:#f7b731">LLM Wiki vs RAG</div>
+  <div class="section-sub">Both systems help you query a large document collection. But their philosophies are fundamentally different — retrieve-and-synthesise on demand vs compile once and query forever.</div>
+
+  <!-- Side-by-side pipeline -->
+  <div class="card">
+    <div class="card-title">Architecture Comparison — Side by Side</div>
+    <canvas id="canvas-rag-vs-wiki" width="640" height="300" style="width:100%;max-width:640px;margin-bottom:12px;"></canvas>
+    <div class="g2" style="gap:14px;">
+      <div style="padding:14px;border-radius:8px;border:1px solid rgba(247,183,49,0.3);background:rgba(247,183,49,0.05);">
+        <div style="font-weight:700;color:#f7b731;margin-bottom:8px;">RAG Query Path</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.7;">Question → embed → vector search → retrieve N chunks → LLM synthesises from scratch → answer (not stored)</div>
+      </div>
+      <div style="padding:14px;border-radius:8px;border:1px solid rgba(78,205,196,0.3);background:rgba(78,205,196,0.05);">
+        <div style="font-weight:700;color:#4ecdc4;margin-bottom:8px;">Wiki Query Path</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.7;">Question → LLM reads index.md → reads 2–4 concept pages → answers from synthesised knowledge → optionally files answer back</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Decision matrix -->
+  <div class="card">
+    <div class="card-title">When to Use Each</div>
+    <div class="sl-row" style="margin-bottom:14px;">
+      <span class="sl-lbl">Collection size</span>
+      <input type="range" id="collection-size" min="10" max="10000" step="10" value="100" oninput="drawDecisionMatrix()">
+      <span class="sl-val" id="collection-size-val">100 docs</span>
+    </div>
+    <canvas id="canvas-decision" width="640" height="180" style="width:100%;max-width:640px;margin-bottom:10px;"></canvas>
+    <div id="decision-verdict" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);"></div>
+  </div>
+
+  <!-- Full comparison table -->
+  <div class="card">
+    <div class="card-title">Full Comparison</div>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr>
+            <th style="background:var(--surface2);padding:10px 14px;text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);">Property</th>
+            <th style="background:var(--surface2);padding:10px 14px;text-align:center;font-weight:600;font-size:11px;text-transform:uppercase;color:#f7b731;border-bottom:1px solid var(--border);">RAG</th>
+            <th style="background:var(--surface2);padding:10px 14px;text-align:center;font-weight:600;font-size:11px;text-transform:uppercase;color:#4ecdc4;border-bottom:1px solid var(--border);">LLM Wiki</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td style="padding:10px 14px;border-bottom:1px solid var(--border);">Synthesis cost</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#f7b731;">Per query (repeated)</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#51cf66;">Once at ingest</td></tr>
+          <tr><td style="padding:10px 14px;border-bottom:1px solid var(--border);">Infrastructure</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#ff6b6b;">Vector DB + embeddings</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#51cf66;">Markdown files + git</td></tr>
+          <tr><td style="padding:10px 14px;border-bottom:1px solid var(--border);">Scales to</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#51cf66;">Millions of documents</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#f7b731;">~100s of articles</td></tr>
+          <tr><td style="padding:10px 14px;border-bottom:1px solid var(--border);">Answer quality</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#f7b731;">Depends on retrieval quality</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#51cf66;">Rich, cross-referenced</td></tr>
+          <tr><td style="padding:10px 14px;border-bottom:1px solid var(--border);">Knowledge accumulates</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#ff6b6b;">No (raw chunks only)</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#51cf66;">Yes (every query enriches)</td></tr>
+          <tr><td style="padding:10px 14px;border-bottom:1px solid var(--border);">Human readable</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#ff6b6b;">No (vector embeddings)</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#51cf66;">Yes (browse in Obsidian)</td></tr>
+          <tr><td style="padding:10px 14px;">Best for</td><td style="text-align:center;padding:10px;color:#f7b731;">Enterprise, large corpora</td><td style="text-align:center;padding:10px;color:#51cf66;">Personal, research, teams</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">The real magic: the wiki gets smarter over time.</span>
+    <a class="section-bridge-link" href="#s-growth">The Compounding Effect →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 5: s-growth ===== -->
+<section class="section" id="s-growth">
+  <div class="section-tag" style="color:#51cf66">The Payoff</div>
+  <div class="section-title" style="color:#51cf66">Compounding Knowledge</div>
+  <div class="section-sub">Unlike RAG (which resets every query), the LLM Wiki compounds. Each new source touches existing articles, creating new connections. Each answered question can become a new page. The value grows super-linearly with content.</div>
+
+  <!-- Growth simulator -->
+  <div class="card">
+    <div class="card-title">Interactive: Watch Your Wiki Grow</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Click "Add Source" to ingest a new document and see how articles, words, and backlinks grow. Notice how growth accelerates — each source finds more existing concepts to update:</p>
+    <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center;">
+      <button class="btn" onclick="addSource()">+ Add Source</button>
+      <button class="btn btn-outline" onclick="addTenSources()">+ Add 10 Sources</button>
+      <button class="btn btn-outline" onclick="resetGrowth()">Reset Wiki</button>
+      <span id="growth-stats" style="font-size:12px;color:var(--muted);font-family:'JetBrains Mono'"></span>
+    </div>
+    <canvas id="canvas-growth" width="640" height="220" style="width:100%;max-width:640px;margin-bottom:10px;"></canvas>
+    <div id="growth-verdict" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);">Click Add Source to start building your wiki.</div>
+  </div>
+
+  <!-- Backlink graph -->
+  <div class="card">
+    <div class="card-title">The Backlink Graph — Knowledge as a Network</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Each wiki page links to related concepts. As the wiki grows, the graph reveals the shape of your knowledge — clusters, hubs, gaps. Click any node:</p>
+    <canvas id="canvas-backlinks" width="640" height="320" style="width:100%;max-width:640px;cursor:pointer;margin-bottom:10px;" onclick="handleBacklinkClick(event)"></canvas>
+    <div id="backlink-info" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);">Click any node to see its connections and description.</div>
+  </div>
+
+  <!-- The superlinear value -->
+  <div style="background:rgba(81,207,102,0.07);border:1px solid rgba(81,207,102,0.3);border-radius:10px;padding:16px 20px;margin-bottom:24px;">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#51cf66;margin-bottom:8px;">Why Value Grows Super-Linearly</div>
+    <p style="font-size:13px;color:var(--text);line-height:1.7;">Each new page <em>n</em> can potentially link to all <em>n−1</em> existing pages. So the number of possible cross-references grows as <strong>O(n²)</strong>. At 10 pages: 45 possible connections. At 100 pages: 4,950. The LLM finds and maintains the meaningful ones — the human only reads the resulting dense, interconnected knowledge graph.</p>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">Where does this pattern go next?</span>
+    <a class="section-bridge-link" href="#s-future">The Future →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 6: s-future ===== -->
+<section class="section" id="s-future">
+  <div class="section-tag" style="color:#ffd43b">What Comes Next</div>
+  <div class="section-title" style="color:#ffd43b">From Wiki to Personalised Intelligence</div>
+  <div class="section-sub">Karpathy's vision doesn't stop at a well-maintained markdown directory. The LLM Wiki is the foundation for something more ambitious: a model that knows your knowledge in its weights, not just its context.</div>
+
+  <!-- Historical timeline -->
+  <div class="card">
+    <div class="card-title">The Memex Vision: 80 Years in the Making</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Vannevar Bush described the Memex in 1945 — a personal, curated knowledge store with "associative trails" between documents. The web gave us shared knowledge but abandoned personal curation. LLM Wiki might finally realise Bush's original vision:</p>
+    <canvas id="canvas-memex" width="640" height="180" style="width:100%;max-width:640px;margin-bottom:10px;"></canvas>
+  </div>
+
+  <!-- Future path canvas -->
+  <div class="card">
+    <div class="card-title">Karpathy's Roadmap: Wiki → Fine-Tuned Personal Model</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">The LLM wiki is a stepping stone. The compiled, structured wiki is also ideal synthetic training data — enabling a fine-tuned model that "knows" your domain in its weights:</p>
+    <canvas id="canvas-future" width="640" height="200" style="width:100%;max-width:640px;margin-bottom:12px;"></canvas>
+    <div class="highlight-box">
+      <p><strong style="color:#ffd43b;">The end state:</strong> A model fine-tuned on your personal wiki that doesn't need to be prompted with context — it already knows your research domain, your terminology, your preferred frameworks, your open questions. The wiki and the model are the same thing, just in different forms.</p>
+    </div>
+  </div>
+
+  <!-- Use cases -->
+  <div class="card">
+    <div class="card-title">Use Cases — Who Is This For?</div>
+    <div class="accordion-item open">
+      <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">🔬 Researchers (deepest use case) <span class="accordion-chevron">▾</span></div>
+      <div class="accordion-body">Going deep on a topic over weeks or months. Each paper ingested adds to a growing concept graph. Query: "What are the open problems in mechanistic interpretability and which of my sources address them?" — answered from your personal synthesis, not a generic web search.</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">📚 Book readers <span class="accordion-chevron">▾</span></div>
+      <div class="accordion-body">Build a companion wiki while reading a book series or curriculum. Add a chapter, get a summary page. Ask "How does this chapter's argument relate to chapter 3?" — the wiki already has chapter 3's summary and can cross-reference them.</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">🏢 Teams and organisations <span class="accordion-chevron">▾</span></div>
+      <div class="accordion-body">Internal wikis maintained by LLMs, fed by Slack threads, meeting transcripts, design documents. Every new meeting creates a summary page that updates existing concept pages. New hires ask the wiki, not Slack. The wiki knows everything the team has ever discussed.</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">🎯 Competitive analysis / due diligence <span class="accordion-chevron">▾</span></div>
+      <div class="accordion-body">Track a competitor's blog posts, job listings, product updates, investor filings. The LLM builds a wiki about your competitor — concept pages for their product areas, timelines, team moves. Query: "What signals suggest they're moving into enterprise?"</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">🏥 Personal health / self-tracking <span class="accordion-chevron">▾</span></div>
+      <div class="accordion-body">Log health data, notes, lab results, supplement research. The wiki tracks your interventions and outcomes. Query: "What correlates with my better sleep nights based on my 6-month log?" — answered from your personal data, not generic advice.</div>
+    </div>
+  </div>
+
+  <!-- Toolstack -->
+  <div class="card">
+    <div class="card-title">Recommended Toolstack</div>
+    <div class="g2" style="gap:14px;">
+      <div>
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:#7c6af4;margin-bottom:10px;">Viewing &amp; Editing</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div style="padding:8px 12px;background:var(--bg);border-radius:6px;border:1px solid var(--border);font-size:13px;"><strong style="color:#7c6af4;">Obsidian</strong> — Graph view, Dataview queries, local-first</div>
+          <div style="padding:8px 12px;background:var(--bg);border-radius:6px;border:1px solid var(--border);font-size:13px;"><strong style="color:#7c6af4;">Obsidian Web Clipper</strong> — Convert articles to .md with local images</div>
+          <div style="padding:8px 12px;background:var(--bg);border-radius:6px;border:1px solid var(--border);font-size:13px;"><strong style="color:#7c6af4;">Marp</strong> — Turn wiki pages into slide decks</div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:#4ecdc4;margin-bottom:10px;">LLM &amp; Versioning</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div style="padding:8px 12px;background:var(--bg);border-radius:6px;border:1px solid var(--border);font-size:13px;"><strong style="color:#4ecdc4;">Claude Code / Cursor</strong> — LLM agent with file-system access for ingest/lint</div>
+          <div style="padding:8px 12px;background:var(--bg);border-radius:6px;border:1px solid var(--border);font-size:13px;"><strong style="color:#4ecdc4;">Git</strong> — Version history, diffs, collaboration</div>
+          <div style="padding:8px 12px;background:var(--bg);border-radius:6px;border:1px solid var(--border);font-size:13px;"><strong style="color:#4ecdc4;">CLAUDE.md</strong> — Schema file giving LLM agent its instructions</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="highlight-box">
+    <p><strong style="color:#ffd43b;">The big takeaway:</strong> The tedious part of knowledge management is bookkeeping. Humans are terrible at it and abandon the effort. LLMs are perfect at it and never tire. Karpathy's LLM Wiki redraws the human-LLM division of labour: humans curate sources, ask good questions, and think about meaning. LLMs write, update, cross-reference, and maintain everything else. The result is the personal knowledge base that the internet era promised but never delivered.</p>
+  </div>
+</section>
+
+</div><!-- .main -->
+
+<script>
+/* =====================================================
+   UTILITIES
+===================================================== */
+function lerp(a,b,t){return a+(b-a)*t;}
+function easeInOut(t){return t<0.5?2*t*t:-1+(4-2*t)*t;}
+function drawRoundedRect(ctx,x,y,w,h,r,fill,stroke,lw){
+  ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);
+  ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);
+  ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);
+  ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);
+  ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
+  if(fill){ctx.fillStyle=fill;ctx.fill();}
+  if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=lw||1;ctx.stroke();}
+}
+function drawArrow(ctx,x1,y1,x2,y2,color,lw){
+  var angle=Math.atan2(y2-y1,x2-x1);
+  ctx.save();ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=lw||1.5;
+  ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-9*Math.cos(angle-0.4),y2-9*Math.sin(angle-0.4));
+  ctx.lineTo(x2-9*Math.cos(angle+0.4),y2-9*Math.sin(angle+0.4));
+  ctx.closePath();ctx.fill();ctx.restore();
+}
+
+/* =====================================================
+   NAV
+===================================================== */
+var sectionIds=['s-problem','s-arch','s-cycle','s-compare','s-growth','s-future'];
+function setActive(el){
+  document.querySelectorAll('.nav-link').forEach(function(l){l.classList.remove('active');});
+  el.classList.add('active');
+}
+function updateNavOnScroll(){
+  var scrollY=window.scrollY+120;
+  var current=sectionIds[0];
+  sectionIds.forEach(function(id){
+    var el=document.getElementById(id);
+    if(el&&el.offsetTop<=scrollY)current=id;
+  });
+  document.querySelectorAll('.nav-link').forEach(function(l){
+    l.classList.toggle('active',l.getAttribute('href')==='#'+current);
+  });
+  document.querySelectorAll('.pipe-step').forEach(function(s){
+    s.classList.toggle('active',s.getAttribute('href')==='#'+current);
+  });
+  var visited=sectionIds.filter(function(s){
+    var el=document.getElementById(s);
+    return el&&el.offsetTop<=scrollY+100;
+  });
+  var prog=document.getElementById('sb-progress');
+  if(prog){var p=Math.round(visited.length/sectionIds.length*100);prog.textContent=p+'% explored';prog.style.display=p>0?'block':'none';}
+}
+window.addEventListener('scroll',updateNavOnScroll);
+if(window.innerWidth<=768){var tb=document.getElementById('sb-toggle-btn');if(tb)tb.style.display='flex';}
+document.querySelectorAll('.accordion-header').forEach(function(h){
+  h.addEventListener('click',function(){this.parentElement.classList.toggle('open');});
+});
+
+/* =====================================================
+   S1: FORGETTING CURVE
+===================================================== */
+function drawForgetting(){
+  var cv=document.getElementById('canvas-forgetting');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var padL=52,padR=20,padT=24,padB=44;
+  var dW=W-padL-padR,dH=H-padT-padB;
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(padL,padT);ctx.lineTo(padL,padT+dH);ctx.lineTo(padL+dW,padT+dH);ctx.stroke();
+  ctx.fillStyle='#8892b0';ctx.font='11px Inter';ctx.textAlign='center';ctx.fillText('Time after reading',padL+dW/2,H-4);
+  ctx.save();ctx.translate(14,padT+dH/2);ctx.rotate(-Math.PI/2);ctx.fillStyle='#8892b0';ctx.textAlign='center';ctx.fillText('Retention %',0,0);ctx.restore();
+  ['1h','1d','1w','1mo','6mo'].forEach(function(t,i){
+    var x=padL+(i+1)*dW/6;
+    ctx.fillStyle='#8892b0';ctx.font='10px Inter';ctx.textAlign='center';ctx.fillText(t,x,padT+dH+14);
+  });
+  [0,25,50,75,100].forEach(function(v){
+    var y=padT+dH*(1-v/100);
+    ctx.strokeStyle='#1e2444';ctx.lineWidth=0.5;ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+dW,y);ctx.stroke();
+    ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.textAlign='right';ctx.fillText(v+'%',padL-4,y+3);
+  });
+  // Forgetting curve (Ebbinghaus)
+  ctx.beginPath();
+  for(var i=0;i<=100;i++){
+    var x=padL+(i/100)*dW;
+    var t2=i/100;
+    var r=Math.exp(-t2*3.5)*0.72+0.05;
+    var y=padT+dH*(1-r);
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.strokeStyle='#ff6b6b';ctx.lineWidth=2.5;ctx.stroke();
+  // Wiki flat line
+  ctx.beginPath();ctx.moveTo(padL,padT+dH*0.08);ctx.lineTo(padL+dW,padT+dH*0.08);
+  ctx.strokeStyle='#51cf66';ctx.lineWidth=2;ctx.setLineDash([5,4]);ctx.stroke();ctx.setLineDash([]);
+  // Labels
+  ctx.fillStyle='#ff6b6b';ctx.font='11px Inter';ctx.textAlign='left';ctx.fillText('Your brain (Ebbinghaus decay)',padL+8,padT+dH*0.45);
+  ctx.fillStyle='#51cf66';ctx.font='11px Inter';ctx.textAlign='left';ctx.fillText('LLM Wiki (perfect retention)',padL+8,padT+dH*0.04);
+  // Annotations
+  ctx.fillStyle='#8892b0';ctx.font='10px Inter';ctx.textAlign='center';
+  var pts=[[1/6,0.73,'58%'],[2/6,0.44,'31%'],[3/6,0.28,'18%'],[4/6,0.18,'9%'],[5/6,0.10,'6%']];
+  pts.forEach(function(p){
+    var x=padL+p[0]*dW;var y=padT+dH*(1-p[1]);
+    ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fillStyle='#ff6b6b';ctx.fill();
+    ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText(p[2],x,y-8);
+  });
+}
+
+/* =====================================================
+   S1: RAG LIMITATIONS
+===================================================== */
+function drawRAGLimits(){
+  var cv=document.getElementById('canvas-rag-limits');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var steps=[
+    {label:'Question',color:'#74c0fc',icon:'❓'},
+    {label:'Embed\n(API call)',color:'#8892b0',icon:'🔢'},
+    {label:'Vector\nSearch',color:'#8892b0',icon:'🔍'},
+    {label:'Retrieve\nN chunks',color:'#ff6b6b',icon:'📄'},
+    {label:'LLM\nSynthesise',color:'#f7b731',icon:'🤖'},
+    {label:'Answer\n(lost)',color:'#ff6b6b',icon:'💨'}
+  ];
+  var n=steps.length;var bw=(W-40)/n;
+  steps.forEach(function(s,i){
+    var cx=20+(i+0.5)*bw;
+    drawRoundedRect(ctx,cx-36,16,72,H-32,8,s.color+'15',s.color,1.5);
+    ctx.font='16px serif';ctx.textAlign='center';ctx.fillText(s.icon,cx,44);
+    ctx.fillStyle=s.color;ctx.font='bold 10px Inter';ctx.textAlign='center';
+    s.label.split('\n').forEach(function(l,li){ctx.fillText(l,cx,62+li*13);});
+    if(i<n-1)drawArrow(ctx,cx+38,H/2,cx+bw-38,H/2,'#2a3060',1.5);
+  });
+  // Problem annotations
+  ctx.fillStyle='#ff6b6b';ctx.font='9px Inter';ctx.textAlign='center';
+  ctx.fillText('noise',20+(3.5)*bw,H-6);
+  ctx.fillText('repeated cost',20+(4.5)*bw,H-6);
+  ctx.fillText('not stored',20+(5.5)*bw,H-6);
+}
+
+/* =====================================================
+   S2: ARCHITECTURE (CLICKABLE LAYERS)
+===================================================== */
+var selectedLayer=null;
+var ARCH_LAYERS=[
+  {id:'raw',label:'Layer 1 — Raw Sources',sub:'Immutable. LLM reads only.',y:0.15,col:'#74c0fc',
+   info:'The raw/ directory contains all your source material: arXiv papers as PDFs, web clips as .md files (via Obsidian Web Clipper), datasets, code repos, images. The LLM is instructed <em>never</em> to modify these files. They are the ground truth. Everything in the wiki is derived from here and can be regenerated if needed.'},
+  {id:'wiki',label:'Layer 2 — The Wiki',sub:'LLM-generated markdown. Your compiled knowledge.',y:0.50,col:'#7c6af4',
+   info:'A directory of interconnected markdown files: <strong>summaries/</strong> (one per source), <strong>concepts/</strong> (synthesised articles spanning multiple sources), <strong>comparisons/</strong> (A vs B analyses), <strong>index.md</strong> (navigable catalogue), <strong>log.md</strong> (append-only history). The LLM writes and maintains all of this — humans rarely edit wiki files directly.'},
+  {id:'schema',label:'Layer 3 — The Schema',sub:'CLAUDE.md tells the LLM how to behave.',y:0.85,col:'#ffd43b',
+   info:'A configuration file (CLAUDE.md or similar) that instructs the LLM agent: what the wiki structure is, naming conventions, what to do on ingest, how to handle contradictions, when to create new concept pages vs update existing ones. This is the "constitution" of your wiki — and it evolves as you refine your workflow.'}
+];
+function handleArchClick(e){
+  var cv=document.getElementById('canvas-arch');if(!cv)return;
+  var rect=cv.getBoundingClientRect();
+  var my=(e.clientY-rect.top)*(cv.height/rect.height);
+  var H=cv.height;var hit=null;
+  ARCH_LAYERS.forEach(function(l){
+    var ly=l.y*H;if(Math.abs(my-ly)<36)hit=l;
+  });
+  selectedLayer=hit?hit.id:null;
+  drawArch();
+  var info=document.getElementById('arch-info');
+  if(info){
+    if(hit)info.innerHTML='<strong style="color:'+hit.col+'">'+hit.label+'</strong> — '+hit.info;
+    else info.innerHTML='Click any layer above to explore its role in the system.';
+  }
+}
+function drawArch(){
+  var cv=document.getElementById('canvas-arch');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  // Flow arrows between layers
+  ARCH_LAYERS.forEach(function(l,i){
+    if(i<ARCH_LAYERS.length-1){
+      var ly=l.y*H;var ny=ARCH_LAYERS[i+1].y*H;
+      drawArrow(ctx,W/2,ly+30,W/2,ny-30,'#2a3060',1.5);
+    }
+  });
+  // LLM actor on right
+  drawRoundedRect(ctx,W-110,H/2-30,90,60,10,'rgba(124,106,244,0.12)','#7c6af4',1.5);
+  ctx.fillStyle='#7c6af4';ctx.font='bold 11px Inter';ctx.textAlign='center';ctx.fillText('LLM',W-65,H/2-5);
+  ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText('Reads Layer 1',W-65,H/2+10);ctx.fillText('Writes Layer 2',W-65,H/2+22);
+  // Arrows from LLM
+  drawArrow(ctx,W-115,H/2,W/2+200,ARCH_LAYERS[0].y*H+20,'#7c6af455',1);
+  drawArrow(ctx,W-115,H/2,W/2+200,ARCH_LAYERS[1].y*H,'#7c6af4',1.5);
+  // Human actor on left
+  drawRoundedRect(ctx,20,H/2-30,90,60,10,'rgba(255,107,107,0.12)','#ff6b6b',1.5);
+  ctx.fillStyle='#ff6b6b';ctx.font='bold 11px Inter';ctx.textAlign='center';ctx.fillText('Human',65,H/2-5);
+  ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText('Curates L1',65,H/2+10);ctx.fillText('Queries L2',65,H/2+22);
+  // Layer bars
+  ARCH_LAYERS.forEach(function(l){
+    var ly=l.y*H;var sel=(l.id===selectedLayer);
+    drawRoundedRect(ctx,120,ly-28,W-260,56,10,l.col+(sel?'25':'12'),l.col,sel?2.5:1.5);
+    if(sel){ctx.shadowColor=l.col;ctx.shadowBlur=12;}
+    ctx.fillStyle=l.col;ctx.font='bold 12px Inter';ctx.textAlign='center';ctx.fillText(l.label,(120+(W-260)/2),ly-6);
+    ctx.fillStyle='#8892b0';ctx.font='10px Inter';ctx.textAlign='center';ctx.fillText(l.sub,(120+(W-260)/2),ly+12);
+    ctx.shadowBlur=0;
+  });
+}
+
+/* =====================================================
+   S3: ANIMATED CYCLE
+===================================================== */
+var cycleProgress=0;var cycleAF=null;var cycleDone=false;
+var CYCLE_PHASES=[
+  {label:'① Ingest',color:'#74c0fc',angle:-Math.PI/2,
+   desc:'Drop a new source. LLM reads it and updates wiki pages.'},
+  {label:'② Compile',color:'#7c6af4',angle:0,
+   desc:'LLM synthesises source into articles, summaries, cross-references.'},
+  {label:'③ Query',color:'#51cf66',angle:Math.PI/2,
+   desc:'Ask a question. LLM searches wiki, answers with citations.'},
+  {label:'④ Lint',color:'#ffd43b',angle:Math.PI,
+   desc:'Health check: fix contradictions, orphan pages, stale claims.'}
+];
+function resetCycle(){
+  cycleProgress=0;cycleDone=false;
+  if(cycleAF){cancelAnimationFrame(cycleAF);cycleAF=null;}
+  var btn=document.getElementById('cycle-play-btn');if(btn)btn.textContent='▶ Animate';
+  drawCycle(0);
+}
+function playCycle(){
+  if(cycleDone){resetCycle();return;}
+  var btn=document.getElementById('cycle-play-btn');
+  if(cycleAF){cancelAnimationFrame(cycleAF);cycleAF=null;if(btn)btn.textContent='▶ Continue';return;}
+  if(btn)btn.textContent='⏸ Pause';
+  function step(){
+    cycleProgress=Math.min(cycleProgress+0.008,1);
+    drawCycle(cycleProgress);
+    if(cycleProgress<1)cycleAF=requestAnimationFrame(step);
+    else{cycleDone=true;cycleAF=null;if(btn)btn.textContent='↺ Replay';}
+  }
+  cycleAF=requestAnimationFrame(step);
+}
+function drawCycle(t){
+  var cv=document.getElementById('canvas-cycle');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var cx=W/2,cy=H/2,R=90;
+  // Outer ring progress
+  var arcEnd=-Math.PI/2+t*Math.PI*2;
+  ctx.beginPath();ctx.arc(cx,cy,R+14,(-Math.PI/2),arcEnd);
+  ctx.strokeStyle='#7c6af4';ctx.lineWidth=4;ctx.stroke();
+  ctx.beginPath();ctx.arc(cx,cy,R+14,arcEnd,-Math.PI/2+Math.PI*2);
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=2;ctx.stroke();
+  // Centre label
+  drawRoundedRect(ctx,cx-48,cy-18,96,36,8,'rgba(124,106,244,0.12)','#7c6af4',1.5);
+  ctx.fillStyle='#7c6af4';ctx.font='bold 12px Inter';ctx.textAlign='center';ctx.fillText('Wiki',cx,cy-1);
+  ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText('Compounding',cx,cy+13);
+  // Phase nodes
+  CYCLE_PHASES.forEach(function(ph,i){
+    var nodeAngle=ph.angle;
+    var nx=cx+Math.cos(nodeAngle)*R;var ny=cy+Math.sin(nodeAngle)*R;
+    var phaseT=Math.min(1,Math.max(0,(t*4-i)));
+    var active=(phaseT>0);
+    if(active){ctx.shadowColor=ph.color;ctx.shadowBlur=active?14:0;}
+    drawRoundedRect(ctx,nx-46,ny-18,92,36,8,ph.color+(active?'33':'11'),ph.color,active?2.5:1);
+    ctx.shadowBlur=0;
+    ctx.fillStyle=active?ph.color:'#8892b0';ctx.font='bold 11px Inter';ctx.textAlign='center';ctx.fillText(ph.label,nx,ny+5);
+  });
+  // Connecting arrows
+  CYCLE_PHASES.forEach(function(ph,i){
+    var nx=cx+Math.cos(ph.angle)*R;var ny=cy+Math.sin(ph.angle)*R;
+    var next=CYCLE_PHASES[(i+1)%4];
+    var nnx=cx+Math.cos(next.angle)*R;var nny=cy+Math.sin(next.angle)*R;
+    var phaseT=Math.min(1,Math.max(0,(t*4-i-0.5)));
+    ctx.strokeStyle=ph.color+(phaseT>0?'bb':'33');ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(nx,ny);ctx.quadraticCurveTo(cx,cy,nnx,nny);ctx.stroke();
+  });
+  // Current phase description
+  var activeIdx=Math.min(3,Math.floor(t*4));
+  var vEl=document.getElementById('cycle-label');
+  if(vEl&&t>0)vEl.innerHTML='<strong style="color:'+CYCLE_PHASES[activeIdx].color+'">'+CYCLE_PHASES[activeIdx].label+'</strong> — '+CYCLE_PHASES[activeIdx].desc;
+}
+
+/* =====================================================
+   S3: INGEST FLOW
+===================================================== */
+function drawIngestFlow(){
+  var cv=document.getElementById('canvas-ingest');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var steps=[
+    {label:'New Source\n(raw/)',color:'#74c0fc',icon:'📄'},
+    {label:'LLM Reads\n+ Discusses',color:'#7c6af4',icon:'🤖'},
+    {label:'Write\nSummary Page',color:'#4ecdc4',icon:'📝'},
+    {label:'Update\n10-15 Pages',color:'#51cf66',icon:'🔄'},
+    {label:'Update\nindex.md',color:'#f7b731',icon:'📋'},
+    {label:'Log\nEntry',color:'#ffd43b',icon:'✅'}
+  ];
+  var n=steps.length;var bw=(W-30)/n;
+  steps.forEach(function(s,i){
+    var cx=15+(i+0.5)*bw;
+    drawRoundedRect(ctx,cx-36,10,72,H-20,8,s.color+'15',s.color,1.5);
+    ctx.font='14px serif';ctx.textAlign='center';ctx.fillText(s.icon,cx,34);
+    ctx.fillStyle=s.color;ctx.font='bold 10px Inter';ctx.textAlign='center';
+    s.label.split('\n').forEach(function(l,li){ctx.fillText(l,cx,50+li*12);});
+    if(i<n-1)drawArrow(ctx,cx+38,H/2,cx+bw-38,H/2,'#2a3060',1.5);
+  });
+}
+
+/* =====================================================
+   S3: COMPILE DETAIL
+===================================================== */
+function drawCompileDetail(){
+  var cv=document.getElementById('canvas-compile');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var sources=[
+    {label:'Paper A',x:0.08,y:0.25,col:'#74c0fc'},
+    {label:'Paper B',x:0.08,y:0.5,col:'#74c0fc'},
+    {label:'Blog post',x:0.08,y:0.75,col:'#74c0fc'}
+  ];
+  var articles=[
+    {label:'attention.md',x:0.5,y:0.2,col:'#7c6af4'},
+    {label:'transformer.md',x:0.5,y:0.4,col:'#7c6af4'},
+    {label:'scaling.md',x:0.5,y:0.6,col:'#7c6af4'},
+    {label:'index.md',x:0.5,y:0.8,col:'#f7b731'}
+  ];
+  var links=[
+    {label:'attention.md ↔ transformer.md',x:0.84,y:0.3,col:'#4ecdc4'},
+    {label:'transformer.md ↔ scaling.md',x:0.84,y:0.55,col:'#4ecdc4'},
+    {label:'3 backlinks added',x:0.84,y:0.78,col:'#51cf66'}
+  ];
+  // Draw columns
+  [[sources,'Raw Sources','#74c0fc'],[articles,'Wiki Articles','#7c6af4'],[links,'Cross-links','#4ecdc4']].forEach(function(col,ci){
+    var items=col[0];var title=col[1];var tCol=col[2];
+    var xC=[0.08,0.5,0.84][ci]*W;
+    ctx.fillStyle=tCol;ctx.font='bold 10px Inter';ctx.textAlign='center';ctx.fillText(title,xC,12);
+    items.forEach(function(item){
+      var nx=item.x*W;var ny=item.y*H;
+      drawRoundedRect(ctx,nx-56,ny-12,112,24,6,item.col+'18',item.col,1.5);
+      ctx.fillStyle=item.col;ctx.font='10px Inter';ctx.textAlign='center';ctx.fillText(item.label,nx,ny+5);
+    });
+  });
+  // LLM in middle
+  var mx=W*0.31;
+  drawRoundedRect(ctx,mx-36,H/2-20,72,40,8,'rgba(124,106,244,0.15)','#7c6af4',2);
+  ctx.fillStyle='#7c6af4';ctx.font='bold 11px Inter';ctx.textAlign='center';ctx.fillText('LLM',mx,H/2-2);
+  ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.fillText('Compiler',mx,H/2+12);
+  sources.forEach(function(s){drawArrow(ctx,s.x*W+58,s.y*H,mx-38,H/2,'#74c0fc55',1);});
+  articles.forEach(function(a){drawArrow(ctx,mx+38,H/2,a.x*W-58,a.y*H,'#7c6af4aa',1);});
+  // Cross-link arrows
+  var lx=W*0.68;
+  drawArrow(ctx,articles[0].x*W+58,articles[0].y*H,links[0].x*W-58,links[0].y*H,'#4ecdc455',1);
+  drawArrow(ctx,articles[1].x*W+58,articles[1].y*H,links[1].x*W-58,links[1].y*H,'#4ecdc455',1);
+}
+
+/* =====================================================
+   S3: QUERY DEMO
+===================================================== */
+var QUERY_EXAMPLES={
+  'attention':'→ Searching: index.md… found: attention.md, transformer.md\n→ Reading 2 concept pages (1,240 words)\n→ Synthesising answer with citations\n\n"Self-attention allows each token to attend to all others in O(n²) time. Your wiki has 3 sources on this: [Vaswani 2017], [Karpathy makemore], [annotated-transformer]. Key open question (from scaling.md): quadratic cost at 100K+ tokens."',
+  'grpo vs ppo':'→ Searching: index.md… found: grpo.md, ppo.md, comparisons/\n→ Reading 3 concept pages (2,100 words)\n→ Synthesising comparison answer\n\n"GRPO eliminates the critic model PPO requires. Based on your 06-grpo source, key differences: memory (2 vs 4 models), advantage estimation (group mean vs GAE), best suited tasks (verifiable vs open-ended)."',
+  'open problems':'→ Searching: index.md… found: 47 concept pages with [[open-questions]] tag\n→ Compiling cross-cutting open problems\n→ Filing result as: research/open-problems-2025.md\n\n"Identified 12 open problems across your wiki. Top 3 by cross-reference density: (1) long-context efficiency, (2) reward model scaling, (3) emergent capabilities at small scale."'
+};
+function simulateQuery(){
+  var inp=document.getElementById('query-input');if(!inp||!inp.value.trim())return;
+  var q=inp.value.toLowerCase().trim();
+  var cv=document.getElementById('canvas-query');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  // Draw query flow
+  var steps=[
+    {label:'Your\nQuestion',col:'#ff6b6b'},
+    {label:'Read\nindex.md',col:'#74c0fc'},
+    {label:'Read\nConcept Pages',col:'#7c6af4'},
+    {label:'Synthesise\n+ Cite',col:'#4ecdc4'},
+    {label:'Answer\n+ File Back',col:'#51cf66'}
+  ];
+  var n=steps.length;var bw=(W-30)/n;
+  steps.forEach(function(s,i){
+    var qcx=15+(i+0.5)*bw;
+    drawRoundedRect(ctx,qcx-36,H*0.1,72,H*0.5,8,s.col+'15',s.col,1.5);
+    ctx.fillStyle=s.col;ctx.font='bold 10px Inter';ctx.textAlign='center';
+    s.label.split('\n').forEach(function(l,li){ctx.fillText(l,qcx,H*0.3+li*14);});
+    if(i<n-1)drawArrow(ctx,qcx+38,H*0.35,qcx+bw-38,H*0.35,'#2a3060',1.5);
+  });
+  // No RAG label
+  ctx.fillStyle='#ff6b6b';ctx.font='bold 10px Inter';ctx.textAlign='center';
+  ctx.fillText('No vector DB. No embedding. Just markdown navigation.',W/2,H-8);
+  // Result text
+  var result=QUERY_EXAMPLES['grpo vs ppo'];
+  for(var key in QUERY_EXAMPLES){if(q.indexOf(key)>=0){result=QUERY_EXAMPLES[key];break;}}
+  var vEl=document.getElementById('query-result');
+  if(vEl)vEl.innerHTML='<strong style="color:#51cf66;">Query: "'+inp.value+'"</strong><pre style="margin-top:8px;font-size:12px;color:#8892b0;white-space:pre-wrap;font-family:JetBrains Mono">'+result+'</pre>';
+  inp.value='';
+}
+
+/* =====================================================
+   S3: LINT CHECKS
+===================================================== */
+function drawLintChecks(){
+  var cv=document.getElementById('canvas-lint');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var checks=[
+    {label:'Contradictions',count:2,col:'#ff6b6b',icon:'⚡'},
+    {label:'Orphan pages',count:3,col:'#f7b731',icon:'🔗'},
+    {label:'Stale claims',count:5,col:'#f7b731',icon:'⏰'},
+    {label:'Missing links',count:8,col:'#74c0fc',icon:'🗺'},
+    {label:'Gaps found',count:4,col:'#7c6af4',icon:'❓'},
+    {label:'Pages updated',count:14,col:'#51cf66',icon:'✅'}
+  ];
+  var n=checks.length;var bw=(W-30)/n;
+  checks.forEach(function(c,i){
+    var cx=15+(i+0.5)*bw;
+    drawRoundedRect(ctx,cx-40,12,80,H-24,8,c.col+'15',c.col,1.5);
+    ctx.font='18px serif';ctx.textAlign='center';ctx.fillText(c.icon,cx,44);
+    ctx.fillStyle=c.col;ctx.font='bold 18px JetBrains Mono';ctx.textAlign='center';ctx.fillText(c.count,cx,72);
+    ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText(c.label,cx,88);
+    if(i<n-1){ctx.strokeStyle='#2a3060';ctx.lineWidth=0.5;ctx.beginPath();ctx.moveTo(cx+42,16);ctx.lineTo(cx+42,H-12);ctx.stroke();}
+  });
+}
+
+/* =====================================================
+   S4: RAG vs WIKI PIPELINE
+===================================================== */
+function drawRAGvsWiki(){
+  var cv=document.getElementById('canvas-rag-vs-wiki');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var midX=W/2;
+  // RAG side
+  ctx.fillStyle='#f7b731';ctx.font='bold 13px Inter';ctx.textAlign='center';ctx.fillText('RAG',midX/2,18);
+  var ragSteps=[
+    {l:'Raw Docs',c:'#74c0fc',y:0.2},
+    {l:'Chunk + Embed',c:'#8892b0',y:0.36},
+    {l:'Vector Store',c:'#8892b0',y:0.52},
+    {l:'Query → Retrieve',c:'#ff6b6b',y:0.68},
+    {l:'LLM Synthesise',c:'#f7b731',y:0.84}
+  ];
+  ragSteps.forEach(function(s,i){
+    var ry=s.y*H;
+    drawRoundedRect(ctx,20,ry-12,midX-40,24,6,s.c+'18',s.c,1.5);
+    ctx.fillStyle=s.c;ctx.font='11px Inter';ctx.textAlign='center';ctx.fillText(s.l,midX/2,ry+5);
+    if(i<ragSteps.length-1)drawArrow(ctx,midX/2,ry+14,midX/2,ragSteps[i+1].y*H-14,'#2a3060',1.5);
+  });
+  // Repeated annotation
+  ctx.fillStyle='#ff6b6b';ctx.font='bold 9px Inter';ctx.textAlign='left';
+  ctx.fillText('↺ Repeated per query',22,H-8);
+  // Divider
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(midX,10);ctx.lineTo(midX,H-10);ctx.stroke();
+  // Wiki side
+  ctx.fillStyle='#4ecdc4';ctx.font='bold 13px Inter';ctx.textAlign='center';ctx.fillText('LLM Wiki',midX+(W-midX)/2,18);
+  var wikiSteps=[
+    {l:'Raw Sources',c:'#74c0fc',y:0.2},
+    {l:'LLM Compiles → Wiki',c:'#7c6af4',y:0.38},
+    {l:'index.md + Concepts',c:'#7c6af4',y:0.54},
+    {l:'Query → Navigate',c:'#51cf66',y:0.70},
+    {l:'Answer + File Back',c:'#4ecdc4',y:0.86}
+  ];
+  wikiSteps.forEach(function(s,i){
+    var wy=s.y*H;
+    drawRoundedRect(ctx,midX+20,wy-12,W-midX-40,24,6,s.c+'18',s.c,1.5);
+    ctx.fillStyle=s.c;ctx.font='11px Inter';ctx.textAlign='center';ctx.fillText(s.l,midX+(W-midX)/2,wy+5);
+    if(i<wikiSteps.length-1)drawArrow(ctx,midX+(W-midX)/2,wy+14,midX+(W-midX)/2,wikiSteps[i+1].y*H-14,'#2a3060',1.5);
+  });
+  // Once annotation
+  ctx.fillStyle='#51cf66';ctx.font='bold 9px Inter';ctx.textAlign='right';
+  ctx.fillText('Compiled once ↗',W-22,H-8);
+  // Loop back arrow on wiki (compounds)
+  ctx.strokeStyle='#4ecdc444';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+  ctx.beginPath();ctx.moveTo(W-22,wikiSteps[4].y*H+12);ctx.lineTo(W-10,H);ctx.lineTo(midX+10,H);ctx.lineTo(midX+10,wikiSteps[1].y*H);ctx.stroke();ctx.setLineDash([]);
+}
+
+/* =====================================================
+   S4: DECISION MATRIX
+===================================================== */
+function drawDecisionMatrix(){
+  var n=parseInt(document.getElementById('collection-size').value)||100;
+  document.getElementById('collection-size-val').textContent=n.toLocaleString()+' docs';
+  var cv=document.getElementById('canvas-decision');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var padL=52,padR=20,padT=20,padB=44;
+  var dW=W-padL-padR,dH=H-padT-padB;
+  var logN=Math.log10(n);var maxLog=Math.log10(10000);
+  // X axis (log scale)
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(padL,padT);ctx.lineTo(padL,padT+dH);ctx.lineTo(padL+dW,padT+dH);ctx.stroke();
+  ctx.fillStyle='#8892b0';ctx.font='11px Inter';ctx.textAlign='center';ctx.fillText('Collection size (documents)',padL+dW/2,H-4);
+  [10,100,1000,10000].forEach(function(v){
+    var x=padL+(Math.log10(v)/maxLog)*dW;
+    ctx.fillStyle='#8892b0';ctx.font='10px Inter';ctx.textAlign='center';ctx.fillText(v>=1000?(v/1000)+'K':v,x,padT+dH+14);
+    ctx.strokeStyle='#1e2444';ctx.lineWidth=0.5;ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,padT+dH);ctx.stroke();
+  });
+  // Wiki fitness bar (decreasing after ~500)
+  var wikiX=padL+(Math.log10(Math.min(500,10000))/maxLog)*dW;
+  ctx.fillStyle='rgba(78,205,196,0.2)';ctx.fillRect(padL,padT,wikiX-padL,dH);
+  ctx.fillStyle='#4ecdc4';ctx.font='bold 10px Inter';ctx.textAlign='center';ctx.fillText('LLM Wiki zone',padL+(wikiX-padL)/2,padT+12);
+  // RAG zone
+  var ragStart=padL+(Math.log10(200)/maxLog)*dW;
+  ctx.fillStyle='rgba(247,183,49,0.1)';ctx.fillRect(ragStart,padT,padL+dW-ragStart,dH);
+  ctx.fillStyle='#f7b731';ctx.font='bold 10px Inter';ctx.textAlign='center';ctx.fillText('RAG zone',ragStart+(padL+dW-ragStart)/2,padT+12);
+  // Overlap label
+  var overlapX=padL+(Math.log10(250)/maxLog)*dW;
+  ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText('overlap →',overlapX,padT+26);
+  // Current position
+  var curX=padL+(logN/maxLog)*dW;
+  ctx.strokeStyle='#7c6af4';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(curX,padT);ctx.lineTo(curX,padT+dH);ctx.stroke();
+  ctx.beginPath();ctx.arc(curX,padT+dH/2,7,0,Math.PI*2);ctx.fillStyle='#7c6af4';ctx.fill();
+  ctx.fillStyle='#7c6af4';ctx.font='bold 10px Inter';ctx.textAlign='center';ctx.fillText('You ('+n+')',curX,padT+dH/2-14);
+  var vEl=document.getElementById('decision-verdict');
+  if(n<=200){vEl.innerHTML='<span style="color:#4ecdc4;"><strong>LLM Wiki is ideal</strong> at '+n+' documents. Index files + context window navigation is more than sufficient. No vector database needed. Every query benefits from pre-compiled synthesis.</span>';}
+  else if(n<=1000){vEl.innerHTML='<span style="color:#f7b731;"><strong>Overlap zone</strong> ('+n+' docs). Either approach works. LLM Wiki if you value synthesis quality and human readability. RAG if you have strict latency requirements or need keyword-level retrieval.</span>';}
+  else{vEl.innerHTML='<span style="color:#f7b731;"><strong>RAG is better suited</strong> at '+n.toLocaleString()+' documents. Context window limitations make LLM Wiki navigation slow. RAG\'s vector search scales efficiently to millions of documents. Consider using LLM Wiki for a curated subset.</span>';}
+  vEl.style.borderColor=n<=200?'rgba(78,205,196,0.4)':n<=1000?'rgba(247,183,49,0.4)':'rgba(247,183,49,0.4)';
+}
+
+/* =====================================================
+   S5: GROWTH SIMULATOR
+===================================================== */
+var growthHistory=[];
+var growthSeedState=42;
+function seededRand(){growthSeedState=(growthSeedState*1664525+1013904223)&0xffffffff;return (growthSeedState>>>0)/4294967296;}
+function addSource(){
+  var n=growthHistory.length;
+  var newArticles=Math.floor(seededRand()*3)+1;
+  var updatedArticles=Math.min(n*2,Math.floor(seededRand()*Math.max(1,n*0.4))+1);
+  var newLinks=Math.floor(seededRand()*6)+newArticles*2+Math.floor(n*0.15);
+  var prev=growthHistory.length?growthHistory[growthHistory.length-1]:{articles:0,words:0,links:0};
+  growthHistory.push({
+    source:n+1,
+    articles:prev.articles+newArticles,
+    words:prev.words+newArticles*480+updatedArticles*120,
+    links:prev.links+newLinks
+  });
+  drawGrowthChart();
+}
+function addTenSources(){for(var i=0;i<10;i++)addSource();}
+function resetGrowth(){
+  growthHistory=[];growthSeedState=42;
+  var stats=document.getElementById('growth-stats');if(stats)stats.textContent='';
+  var vEl=document.getElementById('growth-verdict');if(vEl)vEl.textContent='Click Add Source to start building your wiki.';
+  var cv=document.getElementById('canvas-growth');if(cv){var ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);}
+}
+function drawGrowthChart(){
+  var cv=document.getElementById('canvas-growth');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  if(!growthHistory.length){ctx.fillStyle='#8892b0';ctx.font='13px Inter';ctx.textAlign='center';ctx.fillText('Click Add Source to start',W/2,H/2);return;}
+  var padL=52,padR=20,padT=24,padB=44;
+  var dW=W-padL-padR,dH=H-padT-padB;
+  var n=growthHistory.length;
+  var maxArticles=growthHistory[n-1].articles;
+  var maxWords=growthHistory[n-1].words;
+  var maxLinks=growthHistory[n-1].links;
+  // Axes
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(padL,padT);ctx.lineTo(padL,padT+dH);ctx.lineTo(padL+dW,padT+dH);ctx.stroke();
+  ctx.fillStyle='#8892b0';ctx.font='11px Inter';ctx.textAlign='center';ctx.fillText('Sources ingested',padL+dW/2,H-4);
+  // Articles line
+  var series=[
+    {key:'articles',max:maxArticles,col:'#7c6af4',label:'Articles'},
+    {key:'links',max:maxLinks,col:'#4ecdc4',label:'Backlinks'},
+  ];
+  series.forEach(function(s){
+    ctx.beginPath();
+    growthHistory.forEach(function(d,i){
+      var x=padL+(i/(Math.max(n-1,1)))*dW;
+      var y=padT+dH*(1-d[s.key]/s.max);
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    });
+    ctx.strokeStyle=s.col;ctx.lineWidth=2.5;ctx.stroke();
+    // Fill under
+    ctx.beginPath();
+    growthHistory.forEach(function(d,i){
+      var x=padL+(i/(Math.max(n-1,1)))*dW;
+      var y=padT+dH*(1-d[s.key]/s.max);
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    });
+    ctx.lineTo(padL+dW,padT+dH);ctx.lineTo(padL,padT+dH);ctx.closePath();
+    ctx.fillStyle=s.col+'18';ctx.fill();
+  });
+  // Legend
+  series.forEach(function(s,i){
+    ctx.strokeStyle=s.col;ctx.lineWidth=2.5;
+    ctx.beginPath();ctx.moveTo(padL+dW-160+i*80,padT+12);ctx.lineTo(padL+dW-132+i*80,padT+12);ctx.stroke();
+    ctx.fillStyle=s.col;ctx.font='10px Inter';ctx.textAlign='left';ctx.fillText(s.label,padL+dW-128+i*80,padT+16);
+  });
+  // Stats
+  var last=growthHistory[n-1];
+  var statsEl=document.getElementById('growth-stats');
+  if(statsEl)statsEl.textContent=n+' sources | '+last.articles+' articles | '+last.words.toLocaleString()+' words | '+last.links+' links';
+  var vEl=document.getElementById('growth-verdict');
+  if(vEl){
+    if(n<5)vEl.innerHTML='Growing… <strong>'+last.articles+' articles</strong> so far. Keep adding sources.';
+    else if(n<15)vEl.innerHTML='The wiki is taking shape: <strong>'+last.articles+' articles</strong>, <strong>'+last.links+' backlinks</strong>. Notice how each new source creates more connections than the last.';
+    else if(n<30)vEl.innerHTML='Karpathy\'s threshold (~100 articles) is in sight. At <strong>'+last.articles+' articles</strong> and <strong>'+last.words.toLocaleString()+' words</strong>, complex cross-document questions are now answerable.';
+    else vEl.innerHTML='<span style="color:#51cf66;"><strong>Wiki matured!</strong> '+last.articles+' articles, '+last.words.toLocaleString()+' words, '+last.links+' backlinks. The superlinear growth of connections is clear — later sources connect to far more existing content than early ones did.</span>';
+  }
+}
+
+/* =====================================================
+   S5: BACKLINK GRAPH
+===================================================== */
+var BL_NODES=[
+  {id:'transformer',label:'transformer',x:0.5,y:0.35,col:'#7c6af4',links:6,
+   info:'Hub concept: 6 incoming links from attention, scaling, grpo, llm-wiki, training, architecture pages.'},
+  {id:'attention',label:'attention',x:0.28,y:0.22,col:'#74c0fc',links:4,
+   info:'Self-attention mechanism — core building block. Links: transformer, flash-attention, longformer, BERT.'},
+  {id:'grpo',label:'grpo',x:0.72,y:0.22,col:'#ff6b6b',links:3,
+   info:'Group Relative Policy Optimization. Links: rl-training, ppo, deepseek-r1.'},
+  {id:'scaling',label:'scaling laws',x:0.5,y:0.62,col:'#51cf66',links:3,
+   info:'Chinchilla scaling laws. Links: transformer, compute-optimal, llm-training.'},
+  {id:'rag',label:'RAG',x:0.2,y:0.55,col:'#f7b731',links:2,
+   info:'Retrieval-Augmented Generation. Links: llm-wiki, vector-stores.'},
+  {id:'llmwiki',label:'llm-wiki',x:0.8,y:0.55,col:'#4ecdc4',links:3,
+   info:'This very concept. Links: rag, obsidian, karpathy-pattern. You are here.'},
+  {id:'rl',label:'rl-training',x:0.35,y:0.75,col:'#ffd43b',links:2,
+   info:'Reinforcement learning for LLMs. Links: grpo, ppo.'},
+  {id:'obsidian',label:'obsidian',x:0.65,y:0.75,col:'#f78fb3',links:2,
+   info:'IDE for LLM Wiki. Links: llm-wiki, markdown-tools.'}
+];
+var BL_EDGES=[
+  ['attention','transformer'],['grpo','transformer'],['scaling','transformer'],
+  ['rag','llmwiki'],['rl','grpo'],['obsidian','llmwiki'],
+  ['transformer','scaling'],['rag','transformer'],['rl','transformer']
+];
+var selectedBL=null;
+function handleBacklinkClick(e){
+  var cv=document.getElementById('canvas-backlinks');if(!cv)return;
+  var rect=cv.getBoundingClientRect();
+  var mx=(e.clientX-rect.left)*(cv.width/rect.width);
+  var my=(e.clientY-rect.top)*(cv.height/rect.height);
+  var W=cv.width,H=cv.height;var hit=null;
+  BL_NODES.forEach(function(n){
+    var nx=n.x*W,ny=n.y*H;
+    if(Math.sqrt((mx-nx)*(mx-nx)+(my-ny)*(my-ny))<28)hit=n;
+  });
+  selectedBL=hit?hit.id:null;
+  drawBacklinks();
+  var info=document.getElementById('backlink-info');
+  if(info){
+    if(hit)info.innerHTML='<strong style="color:'+hit.col+'">[['+hit.label+']]</strong> — '+hit.info;
+    else info.innerHTML='Click any node to see its connections and description.';
+  }
+}
+function drawBacklinks(){
+  var cv=document.getElementById('canvas-backlinks');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  BL_EDGES.forEach(function(e){
+    var a=BL_NODES.find(function(n){return n.id===e[0];});
+    var b=BL_NODES.find(function(n){return n.id===e[1];});
+    if(!a||!b)return;
+    var connected=(selectedBL&&(selectedBL===a.id||selectedBL===b.id));
+    ctx.strokeStyle=connected?a.col+'cc':'#2a3060';ctx.lineWidth=connected?2:1;
+    ctx.beginPath();ctx.moveTo(a.x*W,a.y*H);ctx.lineTo(b.x*W,b.y*H);ctx.stroke();
+  });
+  BL_NODES.forEach(function(n){
+    var nx=n.x*W,ny=n.y*H;var sel=(n.id===selectedBL);
+    var r=18+n.links*2;
+    if(sel){ctx.beginPath();ctx.arc(nx,ny,r+8,0,Math.PI*2);ctx.fillStyle=n.col+'22';ctx.fill();}
+    ctx.beginPath();ctx.arc(nx,ny,r,0,Math.PI*2);
+    ctx.fillStyle=n.col+(sel?'33':'15');ctx.fill();
+    ctx.strokeStyle=n.col;ctx.lineWidth=sel?2.5:1.5;ctx.stroke();
+    ctx.fillStyle=n.col;ctx.font=(sel?'bold ':'')+'10px Inter';ctx.textAlign='center';ctx.fillText('[['+n.label+']]',nx,ny+4);
+    ctx.fillStyle='#8892b0';ctx.font='8px Inter';ctx.textAlign='center';ctx.fillText(n.links+' links',nx,ny+15);
+  });
+}
+
+/* =====================================================
+   S6: MEMEX TIMELINE
+===================================================== */
+function drawMemexTimeline(){
+  var cv=document.getElementById('canvas-memex');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var events=[
+    {year:1945,label:'Memex\n(Bush)',sub:'Associative trails\nbetween documents',col:'#8892b0'},
+    {year:1991,label:'World\nWide Web',sub:'Shared knowledge\npublic links',col:'#74c0fc'},
+    {year:2005,label:'Wikipedia\nWikis',sub:'Collaborative\nknowledge',col:'#f7b731'},
+    {year:2022,label:'RAG\nPipelines',sub:'LLM + vector\nretrieval',col:'#ff6b6b'},
+    {year:2025,label:'LLM Wiki\n(Karpathy)',sub:'Compiled personal\nknowledge base',col:'#51cf66'}
+  ];
+  var minY=1945,maxY=2025;
+  var lineY=H/2-10;var lX1=40;var lX2=W-40;
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(lX1,lineY);ctx.lineTo(lX2,lineY);ctx.stroke();
+  events.forEach(function(ev){
+    var x=lX1+(ev.year-minY)/(maxY-minY)*(lX2-lX1);
+    var isLast=(ev.year===2025);
+    ctx.beginPath();ctx.arc(x,lineY,isLast?8:5,0,Math.PI*2);ctx.fillStyle=ev.col;ctx.fill();
+    if(isLast){ctx.shadowColor=ev.col;ctx.shadowBlur=12;ctx.beginPath();ctx.arc(x,lineY,8,0,Math.PI*2);ctx.fillStyle=ev.col;ctx.fill();ctx.shadowBlur=0;}
+    ctx.fillStyle=ev.col;ctx.font='bold 11px Inter';ctx.textAlign='center';
+    ev.label.split('\n').forEach(function(l,li){ctx.fillText(l,x,lineY-32+li*14);});
+    ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.textAlign='center';
+    ev.sub.split('\n').forEach(function(l,li){ctx.fillText(l,x,lineY+22+li*11);});
+    ctx.fillStyle='#8892b0';ctx.font='bold 10px JetBrains Mono';ctx.textAlign='center';ctx.fillText(ev.year,x,H-8);
+  });
+}
+
+/* =====================================================
+   S6: FUTURE PATH
+===================================================== */
+function drawFuturePath(){
+  var cv=document.getElementById('canvas-future');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var stages=[
+    {label:'Raw Sources',sub:'Papers, web clips,\ndata, code',col:'#74c0fc',x:0.1},
+    {label:'LLM Wiki',sub:'Compiled markdown\n~100 articles',col:'#7c6af4',x:0.32},
+    {label:'Synthetic\nTraining Data',sub:'Wiki → QA pairs\ninstruction tuning data',col:'#4ecdc4',x:0.55},
+    {label:'Fine-Tuned\nPersonal Model',sub:'Knows your domain\nin its weights',col:'#51cf66',x:0.78},
+    {label:'Personalised\nIntelligence',sub:'No prompting needed\nmodel = your knowledge',col:'#ffd43b',x:0.96}
+  ];
+  stages.forEach(function(s,i){
+    var sx=s.x*W;
+    drawRoundedRect(ctx,sx-52,H*0.15,104,H*0.5,10,s.col+'18',s.col,1.5);
+    s.label.split('\n').forEach(function(l,li){
+      ctx.fillStyle=s.col;ctx.font='bold 11px Inter';ctx.textAlign='center';ctx.fillText(l,sx,H*0.32+li*15);
+    });
+    s.sub.split('\n').forEach(function(l,li){
+      ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText(l,sx,H*0.54+li*12);
+    });
+    if(i<stages.length-1){
+      var nsx=stages[i+1].x*W;
+      drawArrow(ctx,sx+54,H*0.4,nsx-54,H*0.4,'#2a3060',1.5);
+    }
+  });
+  ctx.fillStyle='#ffd43b';ctx.font='bold 10px Inter';ctx.textAlign='center';
+  ctx.fillText('Karpathy\'s vision: wiki as stepping stone to personalised model',W/2,H-8);
+}
+
+/* =====================================================
+   INIT ALL
+===================================================== */
+drawForgetting();
+drawRAGLimits();
+drawArch();
+drawCycle(0);
+drawIngestFlow();
+drawCompileDetail();
+drawQueryDemo_init();
+drawLintChecks();
+drawRAGvsWiki();
+drawDecisionMatrix();
+drawGrowthChart();
+drawBacklinks();
+drawMemexTimeline();
+drawFuturePath();
+
+function drawQueryDemo_init(){
+  var cv=document.getElementById('canvas-query');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var steps=[
+    {label:'Your\nQuestion',col:'#ff6b6b'},
+    {label:'Read\nindex.md',col:'#74c0fc'},
+    {label:'Read\nConcept Pages',col:'#7c6af4'},
+    {label:'Synthesise\n+ Cite',col:'#4ecdc4'},
+    {label:'Answer\n+ File Back',col:'#51cf66'}
+  ];
+  var n=steps.length;var bw=(W-30)/n;
+  steps.forEach(function(s,i){
+    var qcx=15+(i+0.5)*bw;
+    drawRoundedRect(ctx,qcx-36,H*0.1,72,H*0.5,8,s.col+'15',s.col,1.5);
+    ctx.fillStyle=s.col;ctx.font='bold 10px Inter';ctx.textAlign='center';
+    s.label.split('\n').forEach(function(l,li){ctx.fillText(l,qcx,H*0.3+li*14);});
+    if(i<n-1)drawArrow(ctx,qcx+38,H*0.35,qcx+bw-38,H*0.35,'#2a3060',1.5);
+  });
+  ctx.fillStyle='#8892b0';ctx.font='10px Inter';ctx.textAlign='center';
+  ctx.fillText('No vector DB. No embeddings. Pure markdown navigation via index.md.',W/2,H-8);
+}
+
+updateNavOnScroll();
+</script>
+</body>
+</html>
