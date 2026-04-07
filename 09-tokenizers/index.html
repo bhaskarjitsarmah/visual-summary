@@ -229,11 +229,11 @@ window.addEventListener('load',function(){var el=document.getElementById('pg-inp
       <span id="tok-count-badge" style="font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;background:var(--surface2);color:var(--accent);">? tokens</span>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-      <button class="btn btn-outline" style="font-size:11px;padding:6px 12px;" onclick="setTokSentence(0)">English</button>
-      <button class="btn btn-outline" style="font-size:11px;padding:6px 12px;" onclick="setTokSentence(1)">French</button>
+      <button class="btn btn-outline" style="font-size:11px;padding:6px 12px;" onclick="setTokSentence(0)">Morphology</button>
+      <button class="btn btn-outline" style="font-size:11px;padding:6px 12px;" onclick="setTokSentence(1)">New Words</button>
       <button class="btn btn-outline" style="font-size:11px;padding:6px 12px;" onclick="setTokSentence(2)">Japanese</button>
       <button class="btn btn-outline" style="font-size:11px;padding:6px 12px;" onclick="setTokSentence(3)">Code</button>
-      <button class="btn btn-outline" style="font-size:11px;padding:6px 12px;" onclick="setTokSentence(4)">Emoji</button>
+      <button class="btn btn-outline" style="font-size:11px;padding:6px 12px;" onclick="setTokSentence(4)">Medical</button>
     </div>
     <div id="tok-sentence-display" style="font-family:'JetBrains Mono',monospace;font-size:13px;padding:10px 14px;background:var(--surface2);border-radius:6px;border:1px solid var(--border);margin-bottom:8px;color:var(--text);"></div>
     <div class="token-chip-row" id="tok-chips"></div>
@@ -792,75 +792,80 @@ document.querySelectorAll('.accordion-header').forEach(function(h){h.addEventLis
    S1: LIVE TOKENIZER
 ===================================================== */
 var TOK_SENTENCES=[
-  'The quick brown fox jumps over the lazy dog.',
-  'L\'intelligence artificielle transforme le monde.',
+  'unhappiness is transformative',
+  'ChatGPT grokked the codebase',
   '私は自然言語処理がとても好きです。',
-  'function tokenize(text) { return text.split(/\\s+/); }',
-  'I love 🚀 tokenization! 🤖 It\'s fascinating 🌍'
+  'def tokenize(text): return text.split()',
+  'COVID-19 unvaccinated populations'
 ];
 var TOK_COLORS=['#ff9f43','#74c0fc','#4ecdc4','#7c6af4','#51cf66','#ff6b6b','#ffd43b','#f78fb3','#a29bfe','#fd79a8'];
 var tokMode='bpe';
 var tokSentIdx=0;
 
+// NOTE: Each algorithm produces genuinely different splits to highlight differences.
+// BPE: frequency-based merges, no ## marker
+// WordPiece: likelihood-based, ## marks continuation tokens (not word-start)
+// Word: whole words only, [UNK] for out-of-vocabulary words
+// Char: every character is its own token
 var TOK_DATA={
   bpe:{
-    0:['The',' quick',' brown',' fox',' jumps',' over',' the',' lazy',' dog','.'],
-    1:['L\'','intel','lig','ence',' artific','ielle',' transform','e',' le',' monde','.'],
+    0:['un','happiness',' is',' transform','ative'],
+    1:['Chat','GPT',' gr','okked',' the',' code','base'],
     2:['私','は','自然','言語','処理','が','とても','好き','です','。'],
-    3:['function',' token','ize','(','text',')',' {',' return',' text','.split','(/','\\s','+/',')',';',' }'],
-    4:['I',' love',' ','🚀',' token','ization','!',' ','🤖',' It','\'s',' fasc','inating',' ','🌍']
+    3:['def',' token','ize','(','text',')',':', ' return',' text','.split','()'],
+    4:['COVID','-','19',' un','vacc','inated',' pop','ulations']
   },
   wordpiece:{
-    0:['The','quick','brown','fox','jumps','over','the','lazy','dog','.'],
-    1:['L\'','intel','##lig','##ence','artific','##ielle','transform','##e','le','monde','.'],
-    2:['私','は','自然','言語','処理','が','とても','好き','です','。'],
-    3:['function','token','##ize','(','text',')','{','return','text','.','split','(','/','\s','+','/',')',';','}'],
-    4:['I','love','[UNK]','token','##ization','!','[UNK]','It','\'s','fasc','##inating','[UNK]']
+    0:['un','##happi','##ness','is','transform','##ative'],
+    1:['Chat','##G','##PT','gr','##ok','##ked','the','code','##base'],
+    2:['私','は','自','然','言','語','処','理','が','と','て','も','好','き','で','す','。'],
+    3:['def','token','##ize','(','text',')',':','return','text','.','split','(',')'],
+    4:['CO','##VI','##D','-','##19','un','##vacc','##inated','pop','##ulation','##s']
   },
   char:{
-    0:['T','h','e',' ','q','u','i','c','k',' ','b','r','o','w','n',' ','f','o','x'],
-    1:['L','\'','i','n','t','e','l','l','i','g','e','n','c','e',' '],
-    2:['私','は','自','然','言','語','処','理','が','と','て','も','好','き'],
-    3:['f','u','n','c','t','i','o','n',' ','t','o','k','e','n','i','z','e','('],
-    4:['I',' ','l','o','v','e',' ','🚀',' ','t','o','k','e','n','i','z','a','t','i','o','n']
+    0:['u','n','h','a','p','p','i','n','e','s','s',' ','i','s',' ','t','r','a','n','s','f'],
+    1:['C','h','a','t','G','P','T',' ','g','r','o','k','k','e','d',' ','t','h','e'],
+    2:['私','は','自','然','言','語','処','理','が','と','て','も','好','き','で','す','。'],
+    3:['d','e','f',' ','t','o','k','e','n','i','z','e','(','t','e','x','t',')',' ','r'],
+    4:['C','O','V','I','D','-','1','9',' ','u','n','v','a','c','c','i','n','a','t','e','d']
   },
   word:{
-    0:['The','quick','brown','fox','jumps','over','the','lazy','dog.'],
-    1:["L'intelligence","artificielle","transforme","le","monde."],
+    0:['unhappiness','is','transformative'],
+    1:['[UNK]','[UNK]','the','codebase'],
     2:['私は自然言語処理がとても好きです。'],
-    3:['function','tokenize(text)','return','text.split(/\\s+/);'],
-    4:['I','love','🚀','tokenization!','🤖','It\'s','fascinating','🌍']
+    3:['def','tokenize(text):','return','text.split()'],
+    4:['[UNK]','[UNK]','populations']
   }
 };
 
 var TOK_INFO={
   bpe:{
-    0:'BPE (Byte Pair Encoding): 10 tokens. Common subwords like " quick" and " brown" remain intact because they appear frequently in training data.',
-    1:'BPE: 11 tokens for French. Slightly more tokens than English due to fewer French subwords in the merge vocabulary.',
-    2:'BPE: 10 tokens for Japanese. Japanese characters are often single tokens since CJK characters are treated individually by byte-level BPE.',
-    3:'BPE: 16 tokens. Programming keywords and punctuation each become tokens. Code tokenization is relatively efficient.',
-    4:'BPE: 15 tokens. Emoji each take 1–3 tokens in byte-level BPE since they are multi-byte UTF-8 sequences.'
+    0:'BPE: 5 tokens. "un" and "happiness" are frequent merge units in training data. "transform"+"ative" split because the suffix "-ative" is a common BPE merge. No ## markers — BPE just concatenates.',
+    1:'BPE: 7 tokens. "ChatGPT" → ["Chat","GPT"] by frequency. "grokked" → ["gr","okked"] since "grok" is rare. BPE never produces [UNK] — it always finds a split, even for new words.',
+    2:'BPE: 10 tokens. Japanese characters often become individual tokens in byte-level BPE since their byte sequences are less common merge targets.',
+    3:'BPE: 11 tokens. "tokenize" → ["token","ize"] because "token" is a very frequent word in NLP training data. Punctuation and colons become separate tokens.',
+    4:'BPE: 8 tokens. "COVID" is now in modern vocabularies. "-19" splits as ["-","19"]. "unvaccinated" → ["un","vacc","inated"] by frequency of each part.'
   },
   wordpiece:{
-    0:'WordPiece: 10 tokens. Similar to BPE for common English words. Note: no ## prefixes needed since all tokens start words here.',
-    1:'WordPiece: 11 tokens. Uses ## to mark continuation tokens like ##lig and ##ence. These are trained on likelihood, not just frequency.',
-    2:'WordPiece (BERT): 10 tokens. BERT uses WordPiece with a 30,522 token vocabulary trained mainly on English — CJK characters are split similarly.',
-    3:'WordPiece: 19 tokens. More granular splitting than BPE for programming constructs. Each punctuation mark is usually its own token.',
-    4:'WordPiece: 12 tokens. Emoji may become [UNK] in older BERT models since they were not in the original training vocabulary.'
+    0:'WordPiece: 6 tokens. KEY DIFFERENCE: "##happi" and "##ness" have ## prefix — meaning they CONTINUE the previous token, not start a new word. "##ative" similarly marks a suffix. BPE has no such marker.',
+    1:'WordPiece: 9 tokens. "ChatGPT" → ["Chat","##G","##PT"] with ## marking continuations. "grokked" → ["gr","##ok","##ked"]. More granular than BPE because likelihood scoring produces finer splits.',
+    2:'WordPiece (BERT): 17 tokens. BERT\'s WordPiece splits Japanese more aggressively than BPE — each kanji becomes separate, giving 17 vs BPE\'s 10. BERT was trained mainly on English.',
+    3:'WordPiece: 13 tokens. "tokenize" → ["token","##ize"] with ## marking the suffix. Punctuation is each its own token. Similar to BPE but ## prefix makes word boundaries explicit.',
+    4:'WordPiece: 11 tokens. "COVID" → ["CO","##VI","##D"] — each character continuation marked with ##. More granular than BPE\'s ["COVID"]. "unvaccinated" split with ## markers throughout.'
   },
   char:{
-    0:'Character-level: 44 tokens for this sentence. Every character and space is its own token — 4× more tokens than BPE for the same content.',
-    1:'Character-level: 15+ tokens shown (truncated). French text expands to ~60 tokens at character level — context window efficiency plummets.',
-    2:'Character-level: 14 tokens. Japanese characters are single codepoints — character-level actually works reasonably well for CJK languages.',
-    3:'Character-level: 18+ tokens shown (truncated). Code expands dramatically — a short function body becomes 80+ character tokens.',
-    4:'Character-level: 21 tokens. Emoji are multi-byte codepoints but count as single characters in Unicode character tokenization.'
+    0:'Character: 21 tokens shown (full word is 29 chars). Every letter and space is its own token. Vocabulary is tiny (~256) but sequences are very long — context windows fill up fast.',
+    1:'Character: 19 tokens shown (sentence is 27 chars). No [UNK] ever — every character exists. But "ChatGPT" takes 7 tokens; word-level takes 1. Massive sequence length overhead.',
+    2:'Character: 17 tokens. Japanese works well at character level — each kanji/kana is a meaningful unit. Same count as WordPiece here, unlike English where char-level is far less efficient.',
+    3:'Character: 20 tokens shown. "def tokenize" becomes 12 individual characters. Code is extremely inefficient at character level.',
+    4:'Character: 21 tokens. "COVID-19" = 8 characters, "unvaccinated" = 13. No [UNK], but 3× more tokens than BPE for the same content.'
   },
   word:{
-    0:'Word-level: 9 tokens. Efficient for English. But "tokenize", "grokked", "ChatGPT" would all become [UNK] if not seen during training.',
-    1:'Word-level: 5 tokens — very efficient! But any French word not in the vocabulary becomes [UNK]. Morphological variants often fail.',
-    2:'Word-level: 1 token! Japanese has no spaces — the entire sentence is treated as a single "word." This is catastrophic for word-level models.',
-    3:'Word-level: 4 tokens after splitting on spaces (naively). But "tokenize(text)" and "text.split(/\\s+/);" are treated as single opaque words.',
-    4:'Word-level: 8 tokens. Emoji and special characters handled if in vocabulary — but rare emoji become [UNK].'
+    0:'Word: 3 tokens — the most compact. Works perfectly here because all words are in the vocabulary. But change "transformative" to "transformativeness" and it becomes [UNK].',
+    1:'Word: 4 tokens — but 2 are [UNK]! "ChatGPT" and "grokked" were not in training data → information lost. This is the fatal OOV flaw: new words, names, jargon all silently vanish.',
+    2:'Word: 1 token! Japanese has no spaces — the entire sentence is ONE "word." Word-level tokenization is completely broken for Japanese, Chinese, Thai, and many other languages.',
+    3:'Word: 4 tokens. "tokenize(text):" is treated as a single opaque unit — the model cannot learn that "tokenize" is a verb or that parentheses have meaning.',
+    4:'Word: 3 tokens — but 2 are [UNK]. "COVID-19" (hyphenated compound) and "unvaccinated" (new word, 2020) were not in pre-pandemic training vocabularies. Subword handles both correctly.'
   }
 };
 
