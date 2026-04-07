@@ -373,6 +373,36 @@ window.addEventListener('load',function(){var el=document.getElementById('pg-inp
     <p style="font-size:13px;color:var(--muted);line-height:1.6;">The key insight: merging the most frequent pair gives the maximum compression gain per step. Run 50,000 merges and you get GPT-2's vocabulary.</p>
   </div>
 
+  <!-- Vocabulary Budget Explainer -->
+  <div class="card">
+    <div class="card-title">What Is the Vocabulary Budget? — Drag the Slider</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">The vocabulary budget is the maximum number of tokens a model is allowed to know. Think of it like a fixed number of "slots" on a shelf — you decide upfront how many slots exist, then BPE fills them one merge at a time. Drag the slider to see the trade-offs at different budget sizes.</p>
+    <div class="sl-row" style="margin-bottom:14px;">
+      <span class="sl-lbl">Budget size:</span>
+      <input type="range" id="budget-slider" min="0" max="5" value="2" step="1" oninput="drawVocabBudget(+this.value)">
+      <span class="sl-val" id="budget-val">32K</span>
+    </div>
+    <canvas id="canvas-vocab-budget" width="640" height="260" style="width:100%;max-width:640px;"></canvas>
+    <div id="budget-info" class="info-panel" style="margin-top:10px;"></div>
+    <div style="margin-top:14px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#4ecdc4;margin-bottom:8px;">How the budget shapes the vocabulary</div>
+      <div class="g3" style="gap:10px;">
+        <div style="border:1px solid rgba(255,107,107,0.3);border-radius:8px;padding:12px;background:rgba(255,107,107,0.05);">
+          <div style="font-weight:700;color:#ff6b6b;font-size:12px;margin-bottom:6px;">Too small (≤ 8K)</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.5;">BPE runs out of merges quickly. Common words like "running" get split into parts. More tokens per sentence → fills context window faster.</div>
+        </div>
+        <div style="border:1px solid rgba(78,205,196,0.3);border-radius:8px;padding:12px;background:rgba(78,205,196,0.05);">
+          <div style="font-weight:700;color:#4ecdc4;font-size:12px;margin-bottom:6px;">Sweet spot (32K–50K)</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.5;">Enough merges to capture most common English words + frequent suffixes/prefixes. BERT: 30,522. GPT-2: 50,257. The industry standard.</div>
+        </div>
+        <div style="border:1px solid rgba(255,211,59,0.3);border-radius:8px;padding:12px;background:rgba(255,211,59,0.05);">
+          <div style="font-weight:700;color:#ffd43b;font-size:12px;margin-bottom:6px;">Very large (128K+)</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.5;">LLaMA 3 uses 128K. More budget = whole words in more languages fit as single tokens. Better multilingual fairness but bigger embedding matrix.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- BPE Example -->
   <div class="card">
     <div class="card-title">BPE Tokenization — Click a Word</div>
@@ -1741,6 +1771,123 @@ function renderFinalGrid(){
 }
 
 /* =====================================================
+   VOCABULARY BUDGET
+===================================================== */
+var BUDGET_LEVELS=[
+  {size:1000,label:'1K tokens',color:'#ff6b6b',
+   shelf:['a','b','c','e','i','o','s','t','un','ing','er','es','ed','the','is','of','and'],
+   words:['running→','r','un','n','ing'],
+   wordsNote:'5 tokens per word',
+   note:'1,000 tokens: only the most basic character merges fit. Common words like "running" must be spelled out as individual letters + short merges. Very inefficient — model needs huge sequences.',
+   efficiency:12,cost:95,coverage:15},
+  {size:4000,label:'4K tokens',color:'#ff9f43',
+   shelf:['the','is','of','and','in','to','un','##ing','##ed','##er','##ly','run','play','go','new','old','big'],
+   words:['running→','run','##ning'],
+   wordsNote:'2 tokens per word',
+   note:'4,000 tokens: short common words appear as single tokens. "run" fits; "running" still splits. Covers basic English but struggles with morphological variants and any non-English text.',
+   efficiency:40,cost:65,coverage:35},
+  {size:32000,label:'32K tokens (BERT)',color:'#4ecdc4',
+   shelf:['running','unhappy','tokenize','transformers','##ation','##ness','##ing','##ed','the','is','of','GPT','AI','model','train','data'],
+   words:['running→','running'],
+   wordsNote:'1 token',
+   note:'32,000 tokens (BERT\'s budget): most common English words fit as single tokens. Frequent suffixes like ##ation and ##ness captured. Non-English words still fragment. The standard for monolingual models.',
+   efficiency:72,cost:35,coverage:60},
+  {size:50257,label:'50K tokens (GPT-2)',color:'#51cf66',
+   shelf:['running','unhappiness','tokenization','Transformers','française','##isation','COVID','ChatGPT','blockchain','##ünf','##ación','running','the','is','of','and'],
+   words:['running→','running'],
+   wordsNote:'1 token',
+   note:'50,257 tokens (GPT-2): common words in English and major European languages fit as single tokens. Rare words and non-Latin scripts still fragment. Byte-level base ensures zero [UNK] tokens ever.',
+   efficiency:82,cost:25,coverage:72},
+  {size:128000,label:'128K tokens (LLaMA 3)',color:'#ffd43b',
+   shelf:['running','私は','自然言語','처리','обработка','tokenization','unvaccinated','ChatGPT','Transformers','française','الذكاء','한국어','multilingual','микро','ization','##ación'],
+   words:['running→','running'],
+   wordsNote:'1 token',
+   note:'128,000 tokens (LLaMA 3): Korean, Japanese, Arabic, and Hindi words now fit as single tokens. Multilingual fertility rates drop dramatically. Embedding matrix grows but multilingual fairness improves significantly.',
+   efficiency:92,cost:15,coverage:88},
+  {size:200000,label:'200K tokens',color:'#f78fb3',
+   shelf:['running','私は自然言語処理','unvaccinated','transformative','한국어처리','обработкаязыка','ChatGPT','blockchain','tokenization','française','الذكاء الاصطناعي','multilingual','micropython','ization','##ación','grokked'],
+   words:['running→','running'],
+   wordsNote:'1 token',
+   note:'200,000 tokens: most words in most languages fit as single tokens. But the embedding matrix (vocab_size × embedding_dim) becomes enormous — billions of extra parameters just for the lookup table. Diminishing returns.',
+   efficiency:97,cost:8,coverage:95}
+];
+
+function drawVocabBudget(idx){
+  var d=BUDGET_LEVELS[idx];
+  document.getElementById('budget-val').textContent=
+    idx===0?'1K':idx===1?'4K':idx===2?'32K':idx===3?'50K':idx===4?'128K':'200K';
+  document.getElementById('budget-info').textContent=d.note;
+
+  var cv=document.getElementById('canvas-vocab-budget');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width;var H=cv.height;
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+
+  // ---- LEFT: Bookshelf analogy ----
+  var shelfW=Math.floor(W*0.55);var shelfX=10;
+  ctx.fillStyle='#4ecdc4';ctx.font='bold 11px Inter';ctx.textAlign='left';
+  ctx.fillText('Vocabulary Shelf ('+d.label+')',shelfX,16);
+
+  // Draw shelf planks
+  var maxRows=3;var slotsPerRow=Math.ceil(d.shelf.length/maxRows);
+  var slotW=Math.floor((shelfW-20)/slotsPerRow);var slotH=22;var shelfY=24;
+  d.shelf.forEach(function(token,i){
+    var row=Math.floor(i/slotsPerRow);var col=i%slotsPerRow;
+    var sx=shelfX+10+col*slotW;var sy=shelfY+row*(slotH+8);
+    drawRoundedRect(ctx,sx,sy,slotW-3,slotH,4,d.color+'33',d.color+'88',1);
+    ctx.font='9px JetBrains Mono';ctx.fillStyle=d.color;ctx.textAlign='center';
+    var label=token.length>8?token.slice(0,7)+'…':token;
+    ctx.fillText(label,sx+(slotW-3)/2,sy+15);
+  });
+
+  // Shelf plank lines
+  for(var r=0;r<maxRows;r++){
+    var py=shelfY+(r+1)*(slotH+8)-2;
+    ctx.fillStyle='#2a3060';ctx.fillRect(shelfX+6,py,shelfW-16,3);
+  }
+
+  // Budget counter
+  ctx.fillStyle='#2a3060';ctx.fillRect(shelfX,H-46,shelfW,36);
+  ctx.fillStyle=d.color;ctx.font='bold 18px JetBrains Mono';ctx.textAlign='center';
+  ctx.fillText(d.size.toLocaleString()+' token slots',shelfX+shelfW/2,H-25);
+  ctx.fillStyle='#8892b0';ctx.font='10px Inter';ctx.fillText('vocabulary budget',shelfX+shelfW/2,H-10);
+
+  // ---- RIGHT: Trade-off meters ----
+  var meterX=shelfW+30;var meterW=W-meterX-14;
+  ctx.fillStyle='#8892b0';ctx.font='bold 11px Inter';ctx.textAlign='left';
+  ctx.fillText('Trade-offs',meterX,16);
+
+  // "running" tokenization example
+  ctx.fillStyle='#8892b0';ctx.font='10px Inter';
+  ctx.fillText('How "running" looks:',meterX,36);
+  var tx=meterX;var ty=44;
+  d.words.forEach(function(t,i){
+    if(i===0){ctx.fillStyle='#8892b0';ctx.font='10px JetBrains Mono';ctx.textAlign='left';ctx.fillText(t,tx,ty+12);tx+=ctx.measureText(t).width+4;return;}
+    ctx.font='bold 10px JetBrains Mono';var tw=ctx.measureText(t).width+10;
+    drawRoundedRect(ctx,tx,ty,tw,18,3,d.color+'33',d.color+'88',1);
+    ctx.fillStyle=d.color;ctx.textAlign='left';ctx.fillText(t,tx+5,ty+13);tx+=tw+4;
+  });
+  ctx.fillStyle=d.color;ctx.font='bold 10px Inter';ctx.textAlign='left';
+  ctx.fillText('('+d.wordsNote+')',meterX,ty+32);
+
+  // Three meters: Efficiency, Cost, Language Coverage
+  var meters=[
+    {label:'Token Efficiency',val:d.efficiency,color:'#51cf66',note:'fewer tokens per sentence'},
+    {label:'Model Memory Cost',val:d.cost,color:'#ff6b6b',note:'embedding table size'},
+    {label:'Language Coverage',val:d.coverage,color:'#74c0fc',note:'words fitting as 1 token'}
+  ];
+  meters.forEach(function(m,i){
+    var my=100+i*52;
+    ctx.fillStyle='#8892b0';ctx.font='bold 10px Inter';ctx.textAlign='left';ctx.fillText(m.label,meterX,my);
+    ctx.fillStyle='#1e2444';ctx.fillRect(meterX,my+6,meterW,14);
+    ctx.fillStyle=m.color+'55';ctx.fillRect(meterX,my+6,Math.round(m.val/100*meterW),14);
+    ctx.fillStyle=m.color;ctx.fillRect(meterX,my+6,Math.round(m.val/100*meterW),2);
+    ctx.font='bold 11px JetBrains Mono';ctx.textAlign='right';ctx.fillStyle=m.color;
+    ctx.fillText(m.val+'%',meterX+meterW,my+4);
+    ctx.font='9px Inter';ctx.fillStyle='#8892b0';ctx.textAlign='left';ctx.fillText(m.note,meterX,my+34);
+  });
+}
+
+/* =====================================================
    INIT ALL
 ===================================================== */
 renderTokChips();
@@ -1749,6 +1896,7 @@ initSpectrumSlider();
 drawOOV();
 drawCharLen();
 drawBPEStep(0);
+drawVocabBudget(2);
 setBPEWord('unhappiness');
 setWPTab('bpe');
 renderWPPrefix();
