@@ -1,0 +1,1764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tokenizers — The Hidden Step That Shapes Every LLM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0d0f18; --surface:#161a2e; --surface2:#1e2444;
+  --border:#2a3060; --text:#e2e8f0; --muted:#8892b0; --accent:#ff9f43;
+  --teal:#4ecdc4; --amber:#f7b731; --coral:#ff6b6b;
+  --mint:#51cf66; --sky:#74c0fc; --gold:#ffd43b; --pink:#f78fb3;
+  --purple:#7c6af4;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); display:flex; min-height:100vh; }
+.sidebar { width:250px; background:var(--surface); border-right:1px solid var(--border); position:fixed; top:0; left:0; height:100vh; overflow-y:auto; z-index:100; }
+.sb-header { padding:20px; border-bottom:1px solid var(--border); }
+.sb-header h1 { font-size:14px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:1px; }
+.sb-header p { font-size:11px; color:var(--muted); margin-top:4px; }
+.nav-group { padding:10px 0; border-bottom:1px solid var(--border); }
+.nav-group-title { padding:0 18px 6px; font-size:10px; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); font-weight:600; }
+.nav-link { display:flex; align-items:center; gap:10px; padding:8px 18px; cursor:pointer; border-left:3px solid transparent; transition:all 0.2s; text-decoration:none; color:var(--muted); font-size:13px; }
+.nav-link:hover, .nav-link.active { background:rgba(255,159,67,0.1); color:var(--text); border-left-color:var(--accent); }
+.dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.main { margin-left:250px; flex:1; }
+.section { min-height:100vh; padding:56px 48px; border-bottom:1px solid var(--border); }
+.section-tag { font-size:11px; text-transform:uppercase; letter-spacing:2px; font-weight:600; margin-bottom:10px; }
+.section-title { font-size:30px; font-weight:700; margin-bottom:8px; line-height:1.2; }
+.section-sub { font-size:15px; color:var(--muted); max-width:640px; line-height:1.6; margin-bottom:36px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:22px; margin-bottom:24px; }
+.card-title { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:14px; }
+.g2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+.g3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:18px; }
+.g4 { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:14px; }
+.formula { font-family:'JetBrains Mono',monospace; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:14px 18px; font-size:13px; margin:14px 0; color:#e2b35e; white-space:pre-wrap; overflow-x:auto; }
+.sl-row { display:flex; align-items:center; gap:10px; margin:10px 0; }
+.sl-lbl { font-size:12px; color:var(--muted); min-width:160px; }
+.sl-val { font-family:'JetBrains Mono'; font-size:12px; color:var(--accent); min-width:60px; text-align:right; }
+input[type=range] { -webkit-appearance:none; flex:1; height:6px; border-radius:3px; background:var(--surface2); border:1px solid var(--border); outline:none; cursor:pointer; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:var(--accent); cursor:pointer; border:2px solid var(--bg); }
+.btn { background:var(--accent); color:#000; border:none; border-radius:8px; padding:10px 20px; font-size:13px; font-weight:600; cursor:pointer; transition:opacity 0.2s; font-family:'Inter',sans-serif; }
+.btn:hover { opacity:0.85; }
+.btn-outline { background:transparent; border:1px solid var(--border); color:var(--text); }
+.btn-outline:hover { background:var(--surface2); opacity:1; }
+.toggle-group { display:flex; gap:0; flex-wrap:wrap; }
+.toggle-btn { padding:8px 16px; border:1px solid var(--border); background:var(--surface); color:var(--muted); cursor:pointer; font-size:12px; font-weight:600; transition:all 0.2s; font-family:'Inter',sans-serif; }
+.toggle-btn:first-child { border-radius:6px 0 0 6px; }
+.toggle-btn:last-child { border-radius:0 6px 6px 0; }
+.toggle-btn.active { background:var(--accent); color:#000; border-color:var(--accent); }
+canvas { display:block; background:var(--bg); border-radius:8px; border:1px solid var(--border); }
+.analogy-card { background:rgba(255,159,67,0.07); border:1px solid rgba(255,159,67,0.3); border-radius:10px; padding:16px 20px; margin:20px 0; }
+.analogy-card p { font-size:14px; color:var(--text); line-height:1.6; }
+.analogy-card .analogy-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--accent); margin-bottom:8px; }
+.highlight-box { background:rgba(255,159,67,0.07); border:1px solid rgba(255,159,67,0.3); border-radius:10px; padding:16px 20px; margin:16px 0; }
+.highlight-box p { font-size:14px; color:var(--text); line-height:1.6; }
+.stat-row { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:28px; }
+.stat { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px 20px; flex:1; min-width:140px; }
+.stat-val { font-size:26px; font-weight:700; font-family:'JetBrains Mono'; }
+.stat-lbl { font-size:11px; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:0.5px; }
+.section-bridge { margin-top:48px; padding-top:24px; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+.section-bridge-text { font-size:13px; color:var(--muted); }
+.section-bridge-link { font-size:13px; color:var(--accent); text-decoration:none; font-weight:600; }
+.accordion-item { border:1px solid var(--border); border-radius:8px; margin-bottom:8px; overflow:hidden; }
+.accordion-header { padding:14px 18px; cursor:pointer; font-size:13px; font-weight:600; display:flex; justify-content:space-between; align-items:center; background:var(--surface); }
+.accordion-header:hover { background:var(--surface2); }
+.accordion-body { display:none; padding:14px 18px; font-size:13px; color:var(--muted); line-height:1.6; border-top:1px solid var(--border); }
+.accordion-item.open .accordion-body { display:block; }
+.accordion-item.open .accordion-chevron { transform:rotate(180deg); }
+.accordion-chevron { transition:transform 0.2s; }
+.pipeline-map { display:flex; align-items:center; flex-wrap:wrap; gap:2px; background:var(--surface); border-bottom:1px solid var(--border); padding:8px 20px; position:sticky; top:0; z-index:50; }
+.pipe-step { display:flex; align-items:center; gap:6px; padding:5px 10px; border-radius:6px; font-size:11px; font-weight:600; color:var(--muted); transition:all 0.25s; text-decoration:none; border:1px solid transparent; white-space:nowrap; }
+.pipe-step:hover { background:var(--surface2); color:var(--text); }
+.pipe-step.active { background:var(--surface2); color:var(--text); border-color:currentColor; }
+.pipe-step .pipe-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.pipe-arrow { font-size:12px; color:var(--border); padding:0 1px; }
+.token-pill { display:inline-flex; align-items:center; padding:3px 8px; border-radius:5px; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600; margin:2px; cursor:pointer; transition:opacity 0.15s; border:1px solid rgba(255,255,255,0.15); }
+.token-chip-row { display:flex; flex-wrap:wrap; gap:4px; padding:10px; background:var(--bg); border-radius:8px; border:1px solid var(--border); min-height:44px; margin-top:8px; }
+.model-table { width:100%; border-collapse:collapse; font-size:13px; margin:14px 0; }
+.model-table th { background:var(--surface2); padding:10px 14px; text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); border-bottom:2px solid var(--border); }
+.model-table td { padding:10px 14px; border-bottom:1px solid var(--border); }
+.model-table tr:last-child td { border-bottom:none; }
+.model-table tr:hover td { background:var(--surface2); }
+.info-panel { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:12px 16px; font-size:13px; color:var(--muted); line-height:1.6; min-height:48px; margin-top:10px; }
+@media (max-width:768px) {
+  .sidebar { width:100%; height:auto; position:relative; border-right:none; border-bottom:1px solid var(--border); }
+  .sidebar .nav-group { display:none; }
+  .sb-header { padding:14px 18px; display:flex; align-items:center; justify-content:space-between; }
+  .sb-toggle { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); cursor:pointer; background:none; border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-family:'Inter',sans-serif; }
+  .sidebar.open .nav-group { display:block; }
+  body { flex-direction:column; }
+  .main { margin-left:0; }
+  .section { padding:32px 20px; min-height:unset; }
+  .g2 { grid-template-columns:1fr !important; }
+  .g3 { grid-template-columns:1fr !important; }
+  .g4 { grid-template-columns:1fr 1fr !important; }
+  canvas { max-width:100% !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- PASSWORD GATE -->
+<div id="pg-overlay" style="position:fixed;inset:0;z-index:99999;background:linear-gradient(135deg,#0d1117 0%,#161b22 100%);display:flex;align-items:center;justify-content:center;font-family:system-ui,-apple-system,sans-serif;">
+  <div style="background:#161b22;border:1px solid #30363d;border-radius:16px;padding:48px 40px;max-width:420px;width:90%;text-align:center;box-shadow:0 24px 80px #00000088;">
+    <div style="font-size:3rem;margin-bottom:16px;">🔒</div>
+    <div style="font-size:1.4rem;font-weight:700;color:#c9d1d9;margin-bottom:8px;">Visual Summary</div>
+    <div style="font-size:0.85rem;color:#8b949e;margin-bottom:6px;">Tokenizers — The Hidden Step That Shapes Every LLM</div>
+    <div style="font-size:0.8rem;color:#8b949e;margin-bottom:28px;line-height:1.6;">Exclusive to <b style="color:#c9d1d9;">paid subscribers</b>.<br>Enter the password from your email to unlock.</div>
+    <input id="pg-input" type="password" placeholder="Enter subscriber password" onkeydown="if(event.key==='Enter')pgUnlock()" style="width:100%;padding:12px 16px;font-size:0.95rem;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:8px;outline:none;margin-bottom:12px;">
+    <div id="pg-error" style="font-size:0.78rem;color:#f85149;min-height:18px;margin-bottom:10px;"></div>
+    <button onclick="pgUnlock()" style="width:100%;padding:12px;font-size:0.95rem;font-weight:600;background:linear-gradient(135deg,#ff9f43,#e07830);color:#000;border:none;border-radius:8px;cursor:pointer;">Unlock →</button>
+    <div style="margin-top:20px;font-size:0.75rem;color:#8b949e;">Not a subscriber? <a href="https://visualsummary.substack.com" target="_blank" style="color:#ff9f43;text-decoration:none;">Join Visual Summary →</a></div>
+  </div>
+</div>
+<script>
+const PG_PASSWORD='visual2025';
+function pgUnlock(){
+  var val=document.getElementById('pg-input').value.trim();
+  var err=document.getElementById('pg-error');
+  if(val===PG_PASSWORD){
+    sessionStorage.setItem('pg_unlocked_09','1');
+    var o=document.getElementById('pg-overlay');
+    o.style.transition='opacity 0.4s';o.style.opacity='0';
+    setTimeout(function(){o.remove();},420);
+  } else {
+    err.textContent='Incorrect password.';
+    var inp=document.getElementById('pg-input');
+    inp.style.borderColor='#f85149';
+    setTimeout(function(){inp.style.borderColor='#30363d';},1500);
+  }
+}
+if(sessionStorage.getItem('pg_unlocked_09')==='1') document.getElementById('pg-overlay').remove();
+window.addEventListener('load',function(){var el=document.getElementById('pg-input');if(el)el.focus();});
+</script>
+
+<!-- SIDEBAR -->
+<nav class="sidebar" id="sidebar">
+  <div class="sb-header">
+    <div>
+      <h1>Tokenizers</h1>
+      <p>Open-Vocabulary NLP · arXiv 2112.10508</p>
+      <p id="sb-progress" style="font-size:10px;color:#4ade80;margin-top:2px;display:none;"></p>
+    </div>
+    <button class="sb-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')" style="display:none;" id="sb-toggle-btn">☰ Menu</button>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">The Problem</div>
+    <a class="nav-link" href="#s-hidden" onclick="setActive(this)"><span class="dot" style="background:#ff9f43"></span>The Hidden Step</a>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">The Algorithms</div>
+    <a class="nav-link" href="#s-spectrum" onclick="setActive(this)"><span class="dot" style="background:#74c0fc"></span>The Spectrum</a>
+    <a class="nav-link" href="#s-bpe" onclick="setActive(this)"><span class="dot" style="background:#4ecdc4"></span>Byte Pair Encoding</a>
+    <a class="nav-link" href="#s-wordpiece" onclick="setActive(this)"><span class="dot" style="background:#7c6af4"></span>WordPiece &amp; Unigram</a>
+    <a class="nav-link" href="#s-sentencepiece" onclick="setActive(this)"><span class="dot" style="background:#51cf66"></span>SentencePiece &amp; Byte-BPE</a>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">The Consequences</div>
+    <a class="nav-link" href="#s-tax" onclick="setActive(this)"><span class="dot" style="background:#ff6b6b"></span>The Token Tax</a>
+    <a class="nav-link" href="#s-future" onclick="setActive(this)"><span class="dot" style="background:#ffd43b"></span>The Future</a>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+
+<!-- PIPELINE MAP -->
+<div class="pipeline-map" id="pipeline-map">
+  <a class="pipe-step" href="#s-hidden"><span class="pipe-dot" style="background:#ff9f43"></span>Hidden Step</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-spectrum"><span class="pipe-dot" style="background:#74c0fc"></span>Spectrum</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-bpe"><span class="pipe-dot" style="background:#4ecdc4"></span>BPE</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-wordpiece"><span class="pipe-dot" style="background:#7c6af4"></span>WordPiece</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-sentencepiece"><span class="pipe-dot" style="background:#51cf66"></span>SentencePiece</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-tax"><span class="pipe-dot" style="background:#ff6b6b"></span>Token Tax</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-future"><span class="pipe-dot" style="background:#ffd43b"></span>Future</a>
+</div>
+
+<!-- ===== SECTION 1: s-hidden ===== -->
+<section class="section" id="s-hidden">
+  <div class="section-tag" style="color:#ff9f43">The Problem &nbsp;·&nbsp; <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;">~14 min read</span></div>
+  <div class="section-title" style="color:#ff9f43">The Hidden Step</div>
+  <div class="section-sub">Every time you type a message to ChatGPT, Claude, or Gemini, your text is silently broken into fragments before the model ever sees it. This invisible step — tokenization — shapes model cost, language support, and what an LLM can reason about. Yet it's almost never discussed.</div>
+
+  <div style="background:rgba(255,159,67,0.07);border:1px solid rgba(255,159,67,0.3);border-radius:10px;padding:16px 20px;margin-bottom:28px;">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#ff9f43;margin-bottom:8px;">TL;DR — The Survey in One Paragraph</div>
+    <p style="font-size:14px;color:var(--text);line-height:1.7;">Mielke et al. (arXiv 2112.10508, 2021) survey how text can be represented at every granularity — from raw bytes to whole words — and trace the evolution of open-vocabulary modeling. The core finding: <strong>there is no silver bullet</strong>. Every tokenization strategy makes trade-offs between vocabulary size, sequence length, unknown-word handling, and multilingual fairness. The subword goldilocks zone (BPE, WordPiece, Unigram) currently dominates production LLMs — but Meta's 2024 Byte Latent Transformer suggests the entire paradigm may be about to change. Understanding tokenization is the prerequisite to understanding why models are biased, expensive, and sometimes wrong.</p>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat">
+      <div class="stat-val" style="color:#ff9f43">50,257</div>
+      <div class="stat-lbl">GPT-2 vocabulary size</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" style="color:#74c0fc">30,522</div>
+      <div class="stat-lbl">BERT vocabulary size</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" style="color:#ff6b6b">2.36×</div>
+      <div class="stat-lbl">Korean token cost vs English</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" style="color:#4ecdc4">~4 bytes</div>
+      <div class="stat-lbl">avg bytes per subword token</div>
+    </div>
+  </div>
+
+  <!-- Live Tokenizer -->
+  <div class="card">
+    <div class="card-title">Live Tokenizer — Pick an Algorithm</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">See how the same sentence gets split differently depending on the tokenizer. Each colored chip is one token.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;align-items:center;">
+      <div class="toggle-group" id="tok-mode-group">
+        <button class="toggle-btn active" onclick="setTokMode('bpe')">BPE</button>
+        <button class="toggle-btn" onclick="setTokMode('wordpiece')">WordPiece</button>
+        <button class="toggle-btn" onclick="setTokMode('char')">Character</button>
+        <button class="toggle-btn" onclick="setTokMode('word')">Word</button>
+      </div>
+      <span id="tok-count-badge" style="font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;background:var(--surface2);color:var(--accent);">? tokens</span>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      <button class="btn btn-outline" style="font-size:11px;padding:6px 12px;" onclick="setTokSentence(0)">English</button>
+      <button class="btn btn-outline" style="font-size:11px;padding:6px 12px;" onclick="setTokSentence(1)">French</button>
+      <button class="btn btn-outline" style="font-size:11px;padding:6px 12px;" onclick="setTokSentence(2)">Japanese</button>
+      <button class="btn btn-outline" style="font-size:11px;padding:6px 12px;" onclick="setTokSentence(3)">Code</button>
+      <button class="btn btn-outline" style="font-size:11px;padding:6px 12px;" onclick="setTokSentence(4)">Emoji</button>
+    </div>
+    <div id="tok-sentence-display" style="font-family:'JetBrains Mono',monospace;font-size:13px;padding:10px 14px;background:var(--surface2);border-radius:6px;border:1px solid var(--border);margin-bottom:8px;color:var(--text);"></div>
+    <div class="token-chip-row" id="tok-chips"></div>
+    <div id="tok-info" style="font-size:12px;color:var(--muted);margin-top:8px;padding:8px 12px;background:var(--surface2);border-radius:6px;border:1px solid var(--border);min-height:36px;"></div>
+  </div>
+
+  <!-- Why it matters -->
+  <div class="card">
+    <div class="card-title">Why Does Tokenization Matter?</div>
+    <div class="g3">
+      <div style="border:1px solid rgba(255,159,67,0.3);border-radius:10px;padding:16px;background:rgba(255,159,67,0.05);">
+        <div style="font-size:22px;margin-bottom:8px;">💰</div>
+        <div style="font-weight:700;color:#ff9f43;margin-bottom:6px;font-size:13px;">Cost</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;">LLM APIs charge per token. More tokens = higher bill. Non-English text can cost 2–3× more for the same semantic content.</div>
+      </div>
+      <div style="border:1px solid rgba(116,192,252,0.3);border-radius:10px;padding:16px;background:rgba(116,192,252,0.05);">
+        <div style="font-size:22px;margin-bottom:8px;">📐</div>
+        <div style="font-weight:700;color:#74c0fc;margin-bottom:6px;font-size:13px;">Context Window</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;">All models have a token limit. Inefficient tokenization means less text fits in the window. Poor tokenizers waste your context budget.</div>
+      </div>
+      <div style="border:1px solid rgba(255,107,107,0.3);border-radius:10px;padding:16px;background:rgba(255,107,107,0.05);">
+        <div style="font-size:22px;margin-bottom:8px;">⚖️</div>
+        <div style="font-weight:700;color:#ff6b6b;margin-bottom:6px;font-size:13px;">Fairness</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;">English gets efficient encoding. Korean, Arabic, and Hindi speakers pay a "token tax" — higher costs and worse model accuracy.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="analogy-card">
+    <div class="analogy-label">The Kitchen Prep Analogy</div>
+    <p>"Tokenization is like a chef who pre-chops every ingredient before cooking. The way they chop determines the recipe's speed, cost, and flavour — but nobody reads the prep-cook's instructions. They just taste the final dish. Understanding the chopping reveals why some cuisines (languages) are cheaper and faster to prepare than others."</p>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">Every tokenizer makes a choice. What are the options?</span>
+    <a class="section-bridge-link" href="#s-spectrum">The Spectrum →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 2: s-spectrum ===== -->
+<section class="section" id="s-spectrum">
+  <div class="section-tag" style="color:#74c0fc">The Landscape</div>
+  <div class="section-title" style="color:#74c0fc">The Spectrum</div>
+  <div class="section-sub">Text can be broken at any granularity: whole words, individual characters, raw bytes, or anything in between. Each extreme has a fatal flaw. Subword tokenization occupies the sweet spot — and it's why GPT-2, BERT, T5, LLaMA, and Claude all use it.</div>
+
+  <!-- Spectrum Slider Canvas -->
+  <div class="card">
+    <div class="card-title">Drag the Slider — See How "unhappiness" Gets Split</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:10px;">Move from word-level (left) to character-level (right). Watch the token count, vocabulary size, and OOV risk change.</p>
+    <canvas id="canvas-spectrum" width="640" height="240" style="width:100%;max-width:640px;cursor:ew-resize;"></canvas>
+  </div>
+
+  <!-- Fatal Flaws -->
+  <div class="card">
+    <div class="card-title">The Fatal Flaws at Each Extreme</div>
+    <div class="g3">
+      <div style="border:1px solid rgba(255,107,107,0.3);border-radius:10px;padding:16px;background:rgba(255,107,107,0.05);">
+        <div style="font-weight:700;color:#ff6b6b;margin-bottom:10px;font-size:13px;">❌ Word-Level</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:10px;">Vocabulary: 30K–100K words. Fatal flaw: OOV (Out-of-Vocabulary). Any unseen word — "grokked", "ChatGPT", "COVID-19" — collapses to a single <code style="background:rgba(255,107,107,0.2);padding:1px 5px;border-radius:3px;color:#ff6b6b;">[UNK]</code> token, erasing all meaning.</div>
+        <canvas id="canvas-oov" width="260" height="110" style="width:100%;max-width:260px;"></canvas>
+      </div>
+      <div style="border:1px solid rgba(116,192,252,0.3);border-radius:10px;padding:16px;background:rgba(116,192,252,0.05);">
+        <div style="font-weight:700;color:#74c0fc;margin-bottom:10px;font-size:13px;">★ Subword (Goldilocks)</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:10px;">Vocabulary: 30K–50K. Best of both worlds: no unknowns, reasonable sequence length, handles morphology. BPE splits "unhappiness" → ["un","happi","ness"]. Unknown words break into known parts.</div>
+        <div style="text-align:center;padding:20px 10px;">
+          <div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;">
+            <span style="background:rgba(116,192,252,0.2);color:#74c0fc;border:1px solid rgba(116,192,252,0.4);padding:4px 10px;border-radius:5px;font-family:'JetBrains Mono',monospace;font-size:12px;">un</span>
+            <span style="background:rgba(78,205,196,0.2);color:#4ecdc4;border:1px solid rgba(78,205,196,0.4);padding:4px 10px;border-radius:5px;font-family:'JetBrains Mono',monospace;font-size:12px;">happi</span>
+            <span style="background:rgba(124,106,244,0.2);color:#7c6af4;border:1px solid rgba(124,106,244,0.4);padding:4px 10px;border-radius:5px;font-family:'JetBrains Mono',monospace;font-size:12px;">ness</span>
+          </div>
+          <div style="margin-top:12px;font-size:11px;color:#51cf66;font-weight:700;">★ Used by GPT-2, BERT, T5, LLaMA, Claude</div>
+        </div>
+      </div>
+      <div style="border:1px solid rgba(247,183,49,0.3);border-radius:10px;padding:16px;background:rgba(247,183,49,0.05);">
+        <div style="font-weight:700;color:#f7b731;margin-bottom:10px;font-size:13px;">❌ Character-Level</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:10px;">Vocabulary: ~256 chars. Fatal flaw: sequence explosion. A 10-word sentence → 50+ tokens, exhausting context windows and crushing performance on long-range tasks.</div>
+        <canvas id="canvas-charlen" width="260" height="110" style="width:100%;max-width:260px;"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Model table -->
+  <div class="card">
+    <div class="card-title">Which Model Uses Which Tokenizer?</div>
+    <table class="model-table">
+      <thead><tr><th>Model</th><th>Tokenizer</th><th>Vocab Size</th><th>Released</th></tr></thead>
+      <tbody>
+        <tr><td style="font-weight:600;">GPT-2 / GPT-3</td><td>Byte-level BPE</td><td style="font-family:'JetBrains Mono',monospace;color:#ff9f43;">50,257</td><td>2019/2020</td></tr>
+        <tr><td style="font-weight:600;">BERT</td><td>WordPiece</td><td style="font-family:'JetBrains Mono',monospace;color:#74c0fc;">30,522</td><td>2018</td></tr>
+        <tr><td style="font-weight:600;">T5</td><td>Unigram (SentencePiece)</td><td style="font-family:'JetBrains Mono',monospace;color:#4ecdc4;">32,000</td><td>2019</td></tr>
+        <tr><td style="font-weight:600;">RoBERTa</td><td>Byte-level BPE</td><td style="font-family:'JetBrains Mono',monospace;color:#ff9f43;">50,265</td><td>2019</td></tr>
+        <tr><td style="font-weight:600;">LLaMA 3</td><td>Byte-level BPE (tiktoken)</td><td style="font-family:'JetBrains Mono',monospace;color:#ffd43b;">128,000</td><td>2024</td></tr>
+        <tr><td style="font-weight:600;">ALBERT</td><td>Unigram (SentencePiece)</td><td style="font-family:'JetBrains Mono',monospace;color:#4ecdc4;">30,000</td><td>2019</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">Subword wins. Which subword algorithm — and how does it work?</span>
+    <a class="section-bridge-link" href="#s-bpe">Byte Pair Encoding →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 3: s-bpe ===== -->
+<section class="section" id="s-bpe">
+  <div class="section-tag" style="color:#4ecdc4">The Algorithm</div>
+  <div class="section-title" style="color:#4ecdc4">Byte Pair Encoding</div>
+  <div class="section-sub">BPE was originally a data-compression algorithm from 1994. Philip Gage never imagined it would become the foundation of GPT-2, GPT-3, and most modern LLMs. The idea: repeatedly merge the most frequent pair of adjacent symbols until you hit your vocabulary budget.</div>
+
+  <!-- BPE Step Animator -->
+  <div class="card">
+    <div class="card-title">Step-by-Step BPE Merge Animator</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Watch BPE build its vocabulary from scratch. Each step finds the most frequent pair and merges it into a new token.</p>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+      <button class="btn" onclick="bpeNextStep()">Step →</button>
+      <button class="btn btn-outline" onclick="bpeRunAll()">▶ Run All</button>
+      <button class="btn btn-outline" onclick="bpeReset()">Reset</button>
+      <span id="bpe-step-label" style="font-size:12px;color:var(--muted);">Step 0 of 8 — initial character vocabulary</span>
+    </div>
+    <canvas id="canvas-bpe-steps" width="640" height="300" style="width:100%;max-width:640px;"></canvas>
+    <div id="bpe-step-info" class="info-panel" style="margin-top:10px;"></div>
+  </div>
+
+  <!-- Algorithm card -->
+  <div class="card">
+    <div class="card-title">The BPE Merge Rule</div>
+    <div class="formula">Algorithm BPE(corpus, target_vocab_size):
+  vocab ← all unique characters in corpus
+
+  while len(vocab) &lt; target_vocab_size:
+    pairs ← count_adjacent_pairs(corpus)
+    best  ← argmax(pairs)          // most frequent pair
+    vocab ← vocab + [best]         // add merged token
+    corpus ← replace(corpus, best) // update corpus
+
+  return vocab</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.6;">The key insight: merging the most frequent pair gives the maximum compression gain per step. Run 50,000 merges and you get GPT-2's vocabulary.</p>
+  </div>
+
+  <!-- BPE Example -->
+  <div class="card">
+    <div class="card-title">BPE Tokenization — Click a Word</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">See how a trained BPE model splits common words into subword tokens. The split reflects which merge sequences were most frequent during training.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+      <button class="btn btn-outline" style="font-size:12px;padding:6px 12px;" onclick="setBPEWord('unhappiness')">unhappiness</button>
+      <button class="btn btn-outline" style="font-size:12px;padding:6px 12px;" onclick="setBPEWord('tokenization')">tokenization</button>
+      <button class="btn btn-outline" style="font-size:12px;padding:6px 12px;" onclick="setBPEWord('ChatGPT')">ChatGPT</button>
+      <button class="btn btn-outline" style="font-size:12px;padding:6px 12px;" onclick="setBPEWord('COVID-19')">COVID-19</button>
+      <button class="btn btn-outline" style="font-size:12px;padding:6px 12px;" onclick="setBPEWord('grokked')">grokked</button>
+      <button class="btn btn-outline" style="font-size:12px;padding:6px 12px;" onclick="setBPEWord('micropython')">micropython</button>
+    </div>
+    <canvas id="canvas-bpe-example" width="640" height="160" style="width:100%;max-width:640px;"></canvas>
+  </div>
+
+  <!-- Byte-level -->
+  <div class="card">
+    <div class="card-title">What Makes Byte-Level BPE Special (GPT-2)</div>
+    <div class="g2">
+      <div style="border:1px solid rgba(255,107,107,0.3);border-radius:10px;padding:16px;background:rgba(255,107,107,0.05);">
+        <div style="font-weight:700;color:#ff6b6b;margin-bottom:8px;font-size:13px;">❌ Regular BPE</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;">Starts from characters. Fails on emoji, accented characters, rare Unicode. The word "café" might produce [UNK] for the "é".</div>
+      </div>
+      <div style="border:1px solid rgba(78,205,196,0.3);border-radius:10px;padding:16px;background:rgba(78,205,196,0.05);">
+        <div style="font-weight:700;color:#4ecdc4;margin-bottom:8px;font-size:13px;">✓ Byte-level BPE (GPT-2)</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;">Starts from <strong>256 raw bytes</strong>. Any UTF-8 text — emoji, Arabic, Chinese, code — is always encodable. Zero unknown tokens. Ever.</div>
+      </div>
+    </div>
+    <div class="formula">GPT-2 vocabulary breakdown:
+  256 base bytes       ← covers all possible bytes
++ 50,000 BPE merges   ← learned from web text
++      1 special token ← &lt;|endoftext|&gt;
+= 50,257 total tokens</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+      <span style="background:rgba(78,205,196,0.15);color:#4ecdc4;border:1px solid rgba(78,205,196,0.3);padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;">GPT-2</span>
+      <span style="background:rgba(78,205,196,0.15);color:#4ecdc4;border:1px solid rgba(78,205,196,0.3);padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;">GPT-3</span>
+      <span style="background:rgba(78,205,196,0.15);color:#4ecdc4;border:1px solid rgba(78,205,196,0.3);padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;">GPT-4</span>
+      <span style="background:rgba(78,205,196,0.15);color:#4ecdc4;border:1px solid rgba(78,205,196,0.3);padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;">RoBERTa</span>
+      <span style="background:rgba(78,205,196,0.15);color:#4ecdc4;border:1px solid rgba(78,205,196,0.3);padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;">BART</span>
+      <span style="background:rgba(78,205,196,0.15);color:#4ecdc4;border:1px solid rgba(78,205,196,0.3);padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;">LLaMA 3</span>
+    </div>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">BPE merges by raw frequency. WordPiece asks: is this pair surprising?</span>
+    <a class="section-bridge-link" href="#s-wordpiece">WordPiece &amp; Unigram →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 4: s-wordpiece ===== -->
+<section class="section" id="s-wordpiece">
+  <div class="section-tag" style="color:#7c6af4">The Alternatives</div>
+  <div class="section-title" style="color:#7c6af4">WordPiece &amp; Unigram</div>
+  <div class="section-sub">BERT uses WordPiece; T5 uses Unigram. Both fill a gap in BPE: raw frequency doesn't always produce the most meaningful units. WordPiece uses mutual information. Unigram goes in reverse — starting large and pruning down.</div>
+
+  <!-- WP vs BPE tab -->
+  <div class="card">
+    <div class="card-title">BPE vs WordPiece — The Core Difference</div>
+    <div style="display:flex;gap:0;margin-bottom:14px;" id="wp-tab-group">
+      <button class="toggle-btn active" onclick="setWPTab('bpe')">BPE (frequency)</button>
+      <button class="toggle-btn" onclick="setWPTab('wordpiece')">WordPiece (likelihood)</button>
+    </div>
+    <canvas id="canvas-wp-compare" width="640" height="240" style="width:100%;max-width:640px;"></canvas>
+    <div id="wp-tab-info" class="info-panel"></div>
+  </div>
+
+  <!-- WordPiece ## prefix -->
+  <div class="card">
+    <div class="card-title">The ## Prefix — BERT's Word-Boundary Signal</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">WordPiece uses <code style="background:var(--surface2);padding:2px 6px;border-radius:3px;color:#7c6af4;">##</code> to mark continuation tokens — subwords that are not the start of a word. This lets the model know where word boundaries lie, even after tokenization.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      <button class="btn btn-outline" style="font-size:12px;padding:6px 12px;" onclick="setWPWord('unhappiness')">unhappiness</button>
+      <button class="btn btn-outline" style="font-size:12px;padding:6px 12px;" onclick="setWPWord('tokenization')">tokenization</button>
+      <button class="btn btn-outline" style="font-size:12px;padding:6px 12px;" onclick="setWPWord('embeddings')">embeddings</button>
+      <button class="btn btn-outline" style="font-size:12px;padding:6px 12px;" onclick="setWPWord('transformers')">transformers</button>
+    </div>
+    <div id="wp-prefix-display" style="padding:14px;background:var(--bg);border-radius:8px;border:1px solid var(--border);"></div>
+    <div id="wp-prefix-info" style="font-size:12px;color:var(--muted);margin-top:8px;padding:8px 12px;background:var(--surface2);border-radius:6px;border:1px solid var(--border);"></div>
+  </div>
+
+  <!-- Unigram -->
+  <div class="card">
+    <div class="card-title">Unigram — Top-Down Pruning with Viterbi</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Unigram flips the script: start with a huge vocabulary (~50K) and prune the least important tokens until the target size is reached. During inference, it finds the most probable segmentation using the Viterbi algorithm.</p>
+    <canvas id="canvas-unigram" width="640" height="260" style="width:100%;max-width:640px;"></canvas>
+  </div>
+
+  <!-- Algorithm comparison table -->
+  <div class="card">
+    <div class="card-title">Algorithm Comparison</div>
+    <table class="model-table">
+      <thead><tr><th>Property</th><th style="color:#4ecdc4;">BPE</th><th style="color:#7c6af4;">WordPiece</th><th style="color:#51cf66;">Unigram</th></tr></thead>
+      <tbody>
+        <tr><td>Direction</td><td>Bottom-up merge</td><td>Bottom-up merge</td><td>Top-down prune</td></tr>
+        <tr><td>Selection</td><td>Max frequency</td><td>Max mutual information</td><td>Min perplexity loss</td></tr>
+        <tr><td>Segmentation</td><td>Deterministic</td><td>Deterministic</td><td>Probabilistic (Viterbi)</td></tr>
+        <tr><td>Continuation marker</td><td>None</td><td style="font-family:'JetBrains Mono',monospace;color:#7c6af4;">##prefix</td><td>None</td></tr>
+        <tr><td>Used by</td><td>GPT-2, RoBERTa, BART</td><td>BERT, DistilBERT, Electra</td><td>T5, ALBERT, XLNet</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">BPE and WordPiece assume spaces as word boundaries. SentencePiece doesn't.</span>
+    <a class="section-bridge-link" href="#s-sentencepiece">SentencePiece &amp; Byte-BPE →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 5: s-sentencepiece ===== -->
+<section class="section" id="s-sentencepiece">
+  <div class="section-tag" style="color:#51cf66">Language-Agnostic</div>
+  <div class="section-title" style="color:#51cf66">SentencePiece &amp; Byte-BPE</div>
+  <div class="section-sub">Japanese, Chinese, Thai, Arabic — none of them use spaces to separate words. SentencePiece treats the entire raw text as a byte stream, encoding spaces as a special ▁ character. One simple change makes tokenization truly language-agnostic.</div>
+
+  <!-- Space problem -->
+  <div class="card">
+    <div class="card-title">The Space Boundary Problem</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Traditional tokenizers pre-tokenize on whitespace — but many languages have no whitespace. SentencePiece skips pre-tokenization entirely.</p>
+    <canvas id="canvas-space-problem" width="640" height="200" style="width:100%;max-width:640px;"></canvas>
+  </div>
+
+  <!-- SentencePiece demo -->
+  <div class="card">
+    <div class="card-title">SentencePiece ▁ Demo — The Space Becomes a Token</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Select a language to see how SentencePiece handles it. The ▁ symbol marks where a space existed in the original text — making decoding fully reversible.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+      <button class="btn btn-outline" style="font-size:12px;padding:6px 12px;" onclick="setSPLang('en')">English</button>
+      <button class="btn btn-outline" style="font-size:12px;padding:6px 12px;" onclick="setSPLang('ja')">Japanese</button>
+      <button class="btn btn-outline" style="font-size:12px;padding:6px 12px;" onclick="setSPLang('ar')">Arabic</button>
+      <button class="btn btn-outline" style="font-size:12px;padding:6px 12px;" onclick="setSPLang('zh')">Chinese</button>
+    </div>
+    <div id="sp-sentence" style="font-size:14px;padding:10px 14px;background:var(--surface2);border-radius:6px;border:1px solid var(--border);margin-bottom:8px;color:var(--muted);"></div>
+    <div class="token-chip-row" id="sp-chips"></div>
+    <div id="sp-info" style="font-size:12px;color:var(--muted);margin-top:8px;padding:8px 12px;background:var(--surface2);border-radius:6px;border:1px solid var(--border);"></div>
+  </div>
+
+  <!-- SP features -->
+  <div class="card">
+    <div class="card-title">SentencePiece at a Glance</div>
+    <div class="g4">
+      <div style="text-align:center;padding:16px;border:1px solid var(--border);border-radius:10px;background:rgba(81,207,102,0.05);">
+        <div style="font-size:22px;font-weight:700;color:#51cf66;font-family:'JetBrains Mono',monospace;">50K</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">sentences/sec</div>
+      </div>
+      <div style="text-align:center;padding:16px;border:1px solid var(--border);border-radius:10px;background:rgba(81,207,102,0.05);">
+        <div style="font-size:22px;font-weight:700;color:#51cf66;font-family:'JetBrains Mono',monospace;">6MB</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">memory footprint</div>
+      </div>
+      <div style="text-align:center;padding:16px;border:1px solid var(--border);border-radius:10px;background:rgba(81,207,102,0.05);">
+        <div style="font-size:22px;font-weight:700;color:#51cf66;font-family:'JetBrains Mono',monospace;">50+</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">languages, same pipeline</div>
+      </div>
+      <div style="text-align:center;padding:16px;border:1px solid var(--border);border-radius:10px;background:rgba(81,207,102,0.05);">
+        <div style="font-size:22px;font-weight:700;color:#51cf66;font-family:'JetBrains Mono',monospace;">0</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">unknown tokens ever</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Byte-level BPE -->
+  <div class="card">
+    <div class="card-title">Byte-Level BPE — "café" and 🚀 Without [UNK]</div>
+    <canvas id="canvas-byte-bpe" width="640" height="220" style="width:100%;max-width:640px;"></canvas>
+  </div>
+
+  <!-- Tiktoken speed -->
+  <div class="card">
+    <div class="card-title">tiktoken — OpenAI's Production Tokenizer Speed</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">tiktoken (used in GPT-4) achieves 3–6× faster tokenization than comparable open-source implementations, using a Rust core under a Python interface.</p>
+    <canvas id="canvas-tiktoken" width="560" height="160" style="width:100%;max-width:560px;"></canvas>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">All algorithms work well for English. The real problem: other languages.</span>
+    <a class="section-bridge-link" href="#s-tax">The Token Tax →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 6: s-tax ===== -->
+<section class="section" id="s-tax">
+  <div class="section-tag" style="color:#ff6b6b">The Consequences</div>
+  <div class="section-title" style="color:#ff6b6b">The Token Tax</div>
+  <div class="section-sub">Token fertility — tokens per word — reliably predicts model accuracy across languages. English gets 1.0×. Korean pays 2.36×. Russian and Hebrew pay 3×. This isn't a bug; it's baked into every tokenizer trained predominantly on English text.</div>
+
+  <div class="stat-row">
+    <div class="stat">
+      <div class="stat-val" style="color:#51cf66">1.0×</div>
+      <div class="stat-lbl">English fertility (baseline)</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" style="color:#f7b731">2.36×</div>
+      <div class="stat-lbl">Korean token fertility</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" style="color:#ff6b6b">3×</div>
+      <div class="stat-lbl">Russian / Hebrew fertility</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" style="color:#ff6b6b">4×</div>
+      <div class="stat-lbl">Economic cost multiplier</div>
+    </div>
+  </div>
+
+  <!-- Fertility map -->
+  <div class="card">
+    <div class="card-title">Token Fertility by Language — Click a Region</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:10px;">Fertility rate = average tokens needed per word, relative to English. Higher fertility = more expensive inference and lower model accuracy.</p>
+    <canvas id="canvas-fertility-map" width="640" height="300" style="width:100%;max-width:640px;cursor:pointer;" onclick="handleFertilityClick(event)"></canvas>
+    <div id="fertility-info" class="info-panel" style="margin-top:10px;"></div>
+  </div>
+
+  <!-- Token cost calculator -->
+  <div class="card">
+    <div class="card-title">Token Tax Calculator</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Estimate the token overhead for the same content in different languages. API cost at $0.01 per 1K tokens.</p>
+    <div style="margin-bottom:10px;">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">Base English text (estimated tokens):</div>
+      <input type="number" id="tax-base-tokens" value="100" min="1" max="100000" oninput="updateTaxCalc()" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:14px;width:140px;font-family:'JetBrains Mono',monospace;">
+    </div>
+    <div id="tax-calc-results" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;"></div>
+  </div>
+
+  <!-- Why does this happen -->
+  <div class="card">
+    <div class="card-title">Why Does the Tax Exist?</div>
+    <div class="g3">
+      <div style="border:1px solid rgba(255,107,107,0.3);border-radius:10px;padding:16px;background:rgba(255,107,107,0.05);">
+        <div style="font-weight:700;color:#ff6b6b;margin-bottom:8px;font-size:13px;">Training Data Bias</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;">Internet text used to train tokenizers is ~50% English. English subword units get most of the 50,000 merge budget. Other languages get the leftovers.</div>
+      </div>
+      <div style="border:1px solid rgba(247,183,49,0.3);border-radius:10px;padding:16px;background:rgba(247,183,49,0.05);">
+        <div style="font-weight:700;color:#f7b731;margin-bottom:8px;font-size:13px;">Byte-to-Character Ratio</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;">Latin script ≈ 1 byte/char. Arabic, CJK characters ≈ 2–4 bytes/char. Byte-level BPE penalizes complex scripts at the very foundation.</div>
+      </div>
+      <div style="border:1px solid rgba(116,192,252,0.3);border-radius:10px;padding:16px;background:rgba(116,192,252,0.05);">
+        <div style="font-weight:700;color:#74c0fc;margin-bottom:8px;font-size:13px;">The Merge Budget</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;">50,000 BPE merges must cover all languages. English consumes the lion's share, leaving less representational capacity for every other language.</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="background:rgba(255,107,107,0.07);border:1px solid rgba(255,107,107,0.3);border-radius:10px;padding:16px 20px;margin-bottom:24px;">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#ff6b6b;margin-bottom:8px;">Research Finding</div>
+    <p style="font-size:14px;color:var(--text);line-height:1.7;">"Tokenization is a tax that low-resource languages cannot afford to pay, charged on every token, in every layer. Scale partially recovers the gap — meaning smaller models spend raw parameter budget reconstructing what should have been clean input from the start."</p>
+  </div>
+
+  <!-- Fertility scatter -->
+  <div class="card">
+    <div class="card-title">Fertility vs Model Accuracy — The Negative Correlation</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:10px;">Languages with higher token fertility consistently show lower downstream model accuracy. The correlation is strong and holds across model families.</p>
+    <canvas id="canvas-fertility-scatter" width="640" height="260" style="width:100%;max-width:640px;"></canvas>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">The survey's verdict: no silver bullet. But something radical is coming.</span>
+    <a class="section-bridge-link" href="#s-future">The Future →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 7: s-future ===== -->
+<section class="section" id="s-future">
+  <div class="section-tag" style="color:#ffd43b">The Legacy &amp; Next Steps</div>
+  <div class="section-title" style="color:#ffd43b">The Future of Tokenization</div>
+  <div class="section-sub">The 2021 survey concluded: "there is and likely will never be a silver bullet." Three years later, Meta's Byte Latent Transformer challenged that. The future might not be better tokenization — it might be no tokenization at all.</div>
+
+  <!-- Timeline -->
+  <div class="card">
+    <div class="card-title">The Tokenization Timeline — Click a Milestone</div>
+    <canvas id="canvas-timeline" width="640" height="220" style="width:100%;max-width:640px;cursor:pointer;" onclick="handleTimelineClick(event)"></canvas>
+    <div id="timeline-info" class="info-panel" style="margin-top:10px;"></div>
+  </div>
+
+  <!-- BLT canvas -->
+  <div class="card">
+    <div class="card-title">Meta BLT — "No Tokenization" — How It Works</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:10px;">The Byte Latent Transformer (2024) operates directly on raw bytes. Instead of fixed tokens, it groups bytes into dynamic "patches" based on entropy — complex regions get more compute, simple regions get less.</p>
+    <canvas id="canvas-blt" width="640" height="260" style="width:100%;max-width:640px;"></canvas>
+    <div class="stat-row" style="margin-top:16px;margin-bottom:0;">
+      <div class="stat">
+        <div class="stat-val" style="color:#ffd43b">50%</div>
+        <div class="stat-lbl">fewer flops at inference vs Llama 3</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" style="color:#51cf66">Equal</div>
+        <div class="stat-lbl">quality to Llama 3 at same compute</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" style="color:#74c0fc">Better</div>
+        <div class="stat-lbl">on non-English and rare scripts</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- What this means accordion -->
+  <div class="card">
+    <div class="card-title">What This Means for You</div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+        <span>Choosing a tokenizer for your RAG pipeline</span><span class="accordion-chevron">▼</span>
+      </div>
+      <div class="accordion-body">Prefer SentencePiece-based models (T5, ALBERT) for multilingual RAG. For English-only, BPE (OpenAI embeddings, RoBERTa) is the standard. Always check token fertility for your target language before budgeting API costs.</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+        <span>Cost estimation: multiply by fertility rate for non-English</span><span class="accordion-chevron">▼</span>
+      </div>
+      <div class="accordion-body">If your budget assumes English token counts, multiply by the fertility rate for your actual language. A Korean chatbot costs 2.36× more than an English one at identical message length. A Russian document pipeline costs ~3×.</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+        <span>Why LLaMA 3 uses a 128K vocabulary (not 50K)</span><span class="accordion-chevron">▼</span>
+      </div>
+      <div class="accordion-body">Larger vocabularies allocate more merge budget to non-English languages, reducing their fertility penalty. LLaMA 3's 128K tokens is a deliberate multilingual fairness choice — the same words now tokenize more efficiently in Korean, Arabic, and Hindi compared to LLaMA 2.</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+        <span>When character-level is still the right choice</span><span class="accordion-chevron">▼</span>
+      </div>
+      <div class="accordion-body">Character-level tokenization still wins for: fraud detection (character-level typos matter), OCR post-processing (noisy character sequences), password strength analysis, and languages with character-based morphology (Thai, Tibetan). Subword is not always best.</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+        <span>The tokenization-free future: watch BLT</span><span class="accordion-chevron">▼</span>
+      </div>
+      <div class="accordion-body">Meta's BLT (Byte Latent Transformer, 2024) eliminates tokenization entirely. It processes raw bytes with dynamic patch boundaries — allocating compute where text is complex, skipping where it's predictable. If this approach scales, the entire subword tokenization ecosystem (BPE, WordPiece, SentencePiece, tiktoken) becomes legacy infrastructure.</div>
+    </div>
+  </div>
+
+  <!-- Try the algorithms DOM widget -->
+  <div class="card">
+    <div class="card-title">Try All Algorithms — Side by Side</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Pick a sentence and see how each algorithm tokenizes it. The token count difference shows the efficiency gap.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      <button class="btn btn-outline" style="font-size:11px;padding:6px 10px;" onclick="setFinalSentence(0)">English</button>
+      <button class="btn btn-outline" style="font-size:11px;padding:6px 10px;" onclick="setFinalSentence(1)">Korean</button>
+      <button class="btn btn-outline" style="font-size:11px;padding:6px 10px;" onclick="setFinalSentence(2)">Emoji-heavy</button>
+      <button class="btn btn-outline" style="font-size:11px;padding:6px 10px;" onclick="setFinalSentence(3)">Code</button>
+    </div>
+    <div id="final-sentence-display" style="font-size:14px;padding:10px 14px;background:var(--surface2);border-radius:6px;border:1px solid var(--border);margin-bottom:12px;color:var(--text);font-family:'JetBrains Mono',monospace;"></div>
+    <div class="g2" id="final-algo-grid"></div>
+  </div>
+
+  <!-- Final stats -->
+  <div style="background:rgba(255,211,59,0.07);border:1px solid rgba(255,211,59,0.3);border-radius:10px;padding:20px;margin-bottom:24px;">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#ffd43b;margin-bottom:12px;">The Survey's Key Findings</div>
+    <div class="g2" style="gap:14px;">
+      <div>
+        <div style="font-size:13px;color:var(--text);margin-bottom:4px;font-weight:600;">The paper's verdict (2021)</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;">"There is and likely will never be a silver bullet singular solution for all applications." — Mielke et al.</div>
+      </div>
+      <div>
+        <div style="font-size:13px;color:var(--text);margin-bottom:4px;font-weight:600;">What 2024 says</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;">Meta BLT's 50% flop reduction suggests tokenization itself may be the next thing to eliminate — not optimize.</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:16px;">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;"><span style="color:#ff9f43;font-weight:700;">50,257</span> <span style="color:var(--muted);">GPT-2 vocab</span></div>
+      <div style="color:var(--border);">|</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;"><span style="color:#ff6b6b;font-weight:700;">2.36×</span> <span style="color:var(--muted);">Korean tax</span></div>
+      <div style="color:var(--border);">|</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;"><span style="color:#ffd43b;font-weight:700;">50%</span> <span style="color:var(--muted);">fewer flops (BLT)</span></div>
+      <div style="color:var(--border);">|</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;"><span style="color:#74c0fc;font-weight:700;">No silver bullet</span></div>
+    </div>
+  </div>
+
+</section>
+
+</div><!-- end .main -->
+
+<script>
+/* =====================================================
+   UTILITIES
+===================================================== */
+function lerp(a,b,t){return a+(b-a)*t;}
+function easeInOut(t){return t<0.5?2*t*t:-1+(4-2*t)*t;}
+function drawRoundedRect(ctx,x,y,w,h,r,fill,stroke,lw){
+  ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);
+  ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);
+  ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);
+  ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);
+  ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
+  if(fill){ctx.fillStyle=fill;ctx.fill();}
+  if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=lw||1;ctx.stroke();}
+}
+function drawArrow(ctx,x1,y1,x2,y2,color,lw){
+  var angle=Math.atan2(y2-y1,x2-x1);
+  ctx.save();ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=lw||1.5;
+  ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-9*Math.cos(angle-0.4),y2-9*Math.sin(angle-0.4));
+  ctx.lineTo(x2-9*Math.cos(angle+0.4),y2-9*Math.sin(angle+0.4));
+  ctx.closePath();ctx.fill();ctx.restore();
+}
+function seededRand(seed){var s=seed;return function(){s=(s*1664525+1013904223)&0xffffffff;return(s>>>0)/4294967296;};}
+
+/* =====================================================
+   NAV
+===================================================== */
+var sectionIds=['s-hidden','s-spectrum','s-bpe','s-wordpiece','s-sentencepiece','s-tax','s-future'];
+function setActive(el){document.querySelectorAll('.nav-link').forEach(function(l){l.classList.remove('active');});el.classList.add('active');}
+function updateNavOnScroll(){
+  var scrollY=window.scrollY+120;var current=sectionIds[0];
+  sectionIds.forEach(function(id){var el=document.getElementById(id);if(el&&el.offsetTop<=scrollY)current=id;});
+  document.querySelectorAll('.nav-link').forEach(function(l){l.classList.toggle('active',l.getAttribute('href')==='#'+current);});
+  document.querySelectorAll('.pipe-step').forEach(function(s){s.classList.toggle('active',s.getAttribute('href')==='#'+current);});
+  var visited=sectionIds.filter(function(s){var el=document.getElementById(s);return el&&el.offsetTop<=scrollY+100;});
+  var prog=document.getElementById('sb-progress');
+  if(prog){var p=Math.round(visited.length/sectionIds.length*100);prog.textContent=p+'% explored';prog.style.display=p>0?'block':'none';}
+}
+window.addEventListener('scroll',updateNavOnScroll);
+if(window.innerWidth<=768){var tb=document.getElementById('sb-toggle-btn');if(tb)tb.style.display='flex';}
+document.querySelectorAll('.accordion-header').forEach(function(h){h.addEventListener('click',function(){this.parentElement.classList.toggle('open');});});
+
+/* =====================================================
+   S1: LIVE TOKENIZER
+===================================================== */
+var TOK_SENTENCES=[
+  'The quick brown fox jumps over the lazy dog.',
+  'L\'intelligence artificielle transforme le monde.',
+  '私は自然言語処理がとても好きです。',
+  'function tokenize(text) { return text.split(/\\s+/); }',
+  'I love 🚀 tokenization! 🤖 It\'s fascinating 🌍'
+];
+var TOK_COLORS=['#ff9f43','#74c0fc','#4ecdc4','#7c6af4','#51cf66','#ff6b6b','#ffd43b','#f78fb3','#a29bfe','#fd79a8'];
+var tokMode='bpe';
+var tokSentIdx=0;
+
+var TOK_DATA={
+  bpe:{
+    0:['The',' quick',' brown',' fox',' jumps',' over',' the',' lazy',' dog','.'],
+    1:['L\'','intel','lig','ence',' artific','ielle',' transform','e',' le',' monde','.'],
+    2:['私','は','自然','言語','処理','が','とても','好き','です','。'],
+    3:['function',' token','ize','(','text',')',' {',' return',' text','.split','(/','\\s','+/',')',';',' }'],
+    4:['I',' love',' ','🚀',' token','ization','!',' ','🤖',' It','\'s',' fasc','inating',' ','🌍']
+  },
+  wordpiece:{
+    0:['The','quick','brown','fox','jumps','over','the','lazy','dog','.'],
+    1:['L\'','intel','##lig','##ence','artific','##ielle','transform','##e','le','monde','.'],
+    2:['私','は','自然','言語','処理','が','とても','好き','です','。'],
+    3:['function','token','##ize','(','text',')','{','return','text','.','split','(','/','\s','+','/',')',';','}'],
+    4:['I','love','[UNK]','token','##ization','!','[UNK]','It','\'s','fasc','##inating','[UNK]']
+  },
+  char:{
+    0:['T','h','e',' ','q','u','i','c','k',' ','b','r','o','w','n',' ','f','o','x'],
+    1:['L','\'','i','n','t','e','l','l','i','g','e','n','c','e',' '],
+    2:['私','は','自','然','言','語','処','理','が','と','て','も','好','き'],
+    3:['f','u','n','c','t','i','o','n',' ','t','o','k','e','n','i','z','e','('],
+    4:['I',' ','l','o','v','e',' ','🚀',' ','t','o','k','e','n','i','z','a','t','i','o','n']
+  },
+  word:{
+    0:['The','quick','brown','fox','jumps','over','the','lazy','dog.'],
+    1:["L'intelligence","artificielle","transforme","le","monde."],
+    2:['私は自然言語処理がとても好きです。'],
+    3:['function','tokenize(text)','return','text.split(/\\s+/);'],
+    4:['I','love','🚀','tokenization!','🤖','It\'s','fascinating','🌍']
+  }
+};
+
+var TOK_INFO={
+  bpe:{
+    0:'BPE (Byte Pair Encoding): 10 tokens. Common subwords like " quick" and " brown" remain intact because they appear frequently in training data.',
+    1:'BPE: 11 tokens for French. Slightly more tokens than English due to fewer French subwords in the merge vocabulary.',
+    2:'BPE: 10 tokens for Japanese. Japanese characters are often single tokens since CJK characters are treated individually by byte-level BPE.',
+    3:'BPE: 16 tokens. Programming keywords and punctuation each become tokens. Code tokenization is relatively efficient.',
+    4:'BPE: 15 tokens. Emoji each take 1–3 tokens in byte-level BPE since they are multi-byte UTF-8 sequences.'
+  },
+  wordpiece:{
+    0:'WordPiece: 10 tokens. Similar to BPE for common English words. Note: no ## prefixes needed since all tokens start words here.',
+    1:'WordPiece: 11 tokens. Uses ## to mark continuation tokens like ##lig and ##ence. These are trained on likelihood, not just frequency.',
+    2:'WordPiece (BERT): 10 tokens. BERT uses WordPiece with a 30,522 token vocabulary trained mainly on English — CJK characters are split similarly.',
+    3:'WordPiece: 19 tokens. More granular splitting than BPE for programming constructs. Each punctuation mark is usually its own token.',
+    4:'WordPiece: 12 tokens. Emoji may become [UNK] in older BERT models since they were not in the original training vocabulary.'
+  },
+  char:{
+    0:'Character-level: 44 tokens for this sentence. Every character and space is its own token — 4× more tokens than BPE for the same content.',
+    1:'Character-level: 15+ tokens shown (truncated). French text expands to ~60 tokens at character level — context window efficiency plummets.',
+    2:'Character-level: 14 tokens. Japanese characters are single codepoints — character-level actually works reasonably well for CJK languages.',
+    3:'Character-level: 18+ tokens shown (truncated). Code expands dramatically — a short function body becomes 80+ character tokens.',
+    4:'Character-level: 21 tokens. Emoji are multi-byte codepoints but count as single characters in Unicode character tokenization.'
+  },
+  word:{
+    0:'Word-level: 9 tokens. Efficient for English. But "tokenize", "grokked", "ChatGPT" would all become [UNK] if not seen during training.',
+    1:'Word-level: 5 tokens — very efficient! But any French word not in the vocabulary becomes [UNK]. Morphological variants often fail.',
+    2:'Word-level: 1 token! Japanese has no spaces — the entire sentence is treated as a single "word." This is catastrophic for word-level models.',
+    3:'Word-level: 4 tokens after splitting on spaces (naively). But "tokenize(text)" and "text.split(/\\s+/);" are treated as single opaque words.',
+    4:'Word-level: 8 tokens. Emoji and special characters handled if in vocabulary — but rare emoji become [UNK].'
+  }
+};
+
+function setTokMode(mode){
+  tokMode=mode;
+  document.querySelectorAll('#tok-mode-group .toggle-btn').forEach(function(b){
+    b.classList.toggle('active',b.textContent.toLowerCase()===mode||(mode==='wordpiece'&&b.textContent==='WordPiece')||(mode==='char'&&b.textContent==='Character')||(mode==='word'&&b.textContent==='Word'));
+  });
+  renderTokChips();
+}
+function setTokSentence(idx){tokSentIdx=idx;renderTokChips();}
+function renderTokChips(){
+  var sent=TOK_SENTENCES[tokSentIdx];
+  var tokens=(TOK_DATA[tokMode]&&TOK_DATA[tokMode][tokSentIdx])||['(no data)'];
+  document.getElementById('tok-sentence-display').textContent=sent;
+  var chipsEl=document.getElementById('tok-chips');
+  chipsEl.innerHTML='';
+  tokens.forEach(function(t,i){
+    var span=document.createElement('span');
+    span.className='token-pill';
+    var c=TOK_COLORS[i%TOK_COLORS.length];
+    span.style.background=c+'22';
+    span.style.color=c;
+    span.style.borderColor=c+'55';
+    span.textContent=t;
+    chipsEl.appendChild(span);
+  });
+  document.getElementById('tok-count-badge').textContent=tokens.length+' tokens';
+  var info=(TOK_INFO[tokMode]&&TOK_INFO[tokMode][tokSentIdx])||'';
+  document.getElementById('tok-info').textContent=info;
+}
+
+/* =====================================================
+   S2: SPECTRUM SLIDER
+===================================================== */
+var spectrumPos=0.5;
+var spectrumDragging=false;
+
+var SPECTRUM_STATES=[
+  {pos:0.0,label:'Word-Level',tokens:['unhappiness'],vocab:'30K–100K words',oov:'HIGH — [UNK] risk',seqlen:'1 token',color:'#ff6b6b'},
+  {pos:0.25,label:'Subword (BPE)',tokens:['un','happi','ness'],vocab:'50,257 tokens',oov:'ZERO — no unknowns',seqlen:'3 tokens',color:'#4ecdc4'},
+  {pos:0.5,label:'Subword (WordPiece)',tokens:['un','##happi','##ness'],vocab:'30,522 tokens',oov:'ZERO — no unknowns',seqlen:'3 tokens',color:'#7c6af4'},
+  {pos:0.75,label:'Character-Level',tokens:['u','n','h','a','p','p','i','n','e','s','s'],vocab:'~256 chars',oov:'ZERO — universal',seqlen:'11 tokens',color:'#f7b731'},
+  {pos:1.0,label:'Byte-Level',tokens:['75','6e','68','61','70','70','69','6e','65','73','73'],vocab:'256 bytes',oov:'ZERO — truly universal',seqlen:'11 bytes',color:'#51cf66'}
+];
+
+function getSpectrumState(pos){
+  var best=SPECTRUM_STATES[0];
+  SPECTRUM_STATES.forEach(function(s){if(Math.abs(s.pos-pos)<Math.abs(best.pos-pos))best=s;});
+  return best;
+}
+
+function drawSpectrum(pos){
+  var cv=document.getElementById('canvas-spectrum');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width;var H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+
+  // Track
+  var tx=30,tw=W-60,ty=H-70;
+  ctx.fillStyle='#1e2444';ctx.fillRect(tx,ty-4,tw,8);
+  ctx.fillStyle='rgba(255,159,67,0.3)';ctx.fillRect(tx,ty-4,tw*pos,8);
+
+  // Labels on track
+  var trackLabels=['Word','BPE','WordPiece','Char','Byte'];
+  trackLabels.forEach(function(l,i){
+    var x=tx+tw*(i/(trackLabels.length-1));
+    ctx.fillStyle='#2a3060';ctx.beginPath();ctx.arc(x,ty,5,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#8892b0';ctx.font='10px Inter';ctx.textAlign='center';ctx.fillText(l,x,ty+18);
+  });
+
+  // Slider handle
+  var hx=tx+tw*pos;
+  ctx.fillStyle='#ff9f43';ctx.beginPath();ctx.arc(hx,ty,10,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(hx,ty,10,0,Math.PI*2);ctx.stroke();
+
+  // State display
+  var st=getSpectrumState(pos);
+  ctx.fillStyle=st.color;ctx.font='bold 16px Inter';ctx.textAlign='center';ctx.fillText(st.label,W/2,30);
+
+  // Token chips on canvas
+  var chips=st.tokens;var chipW=Math.min(56,Math.floor((W-40)/chips.length)-4);
+  var startX=(W-chips.length*(chipW+4))/2;
+  chips.forEach(function(t,i){
+    var cx=startX+i*(chipW+4);var cy=50;
+    drawRoundedRect(ctx,cx,cy,chipW,28,5,st.color+'33',st.color+'88',1);
+    ctx.fillStyle=st.color;ctx.font='bold 10px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText(t.length>6?t.slice(0,5)+'…':t,cx+chipW/2,cy+18);
+  });
+
+  // Info boxes
+  var infoY=90;
+  var boxes=[
+    {label:'Vocabulary',val:st.vocab},
+    {label:'OOV Risk',val:st.oov},
+    {label:'Sequence',val:st.seqlen}
+  ];
+  var bw=Math.floor((W-60)/3);
+  boxes.forEach(function(b,i){
+    var bx=30+i*(bw+10);
+    drawRoundedRect(ctx,bx,infoY,bw-10,50,6,'#161a2e','#2a3060',1);
+    ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText(b.label.toUpperCase(),bx+(bw-10)/2,infoY+14);
+    ctx.fillStyle=st.color;ctx.font='bold 10px Inter';ctx.fillText(b.val,bx+(bw-10)/2,infoY+34);
+  });
+}
+
+function initSpectrumSlider(){
+  var cv=document.getElementById('canvas-spectrum');if(!cv)return;
+  function getPos(e){
+    var r=cv.getBoundingClientRect();
+    var tx=30,tw=cv.width-60;
+    var clientX=e.touches?e.touches[0].clientX:e.clientX;
+    var scaleX=cv.width/r.width;
+    var px=(clientX-r.left)*scaleX;
+    return Math.max(0,Math.min(1,(px-tx)/tw));
+  }
+  cv.addEventListener('mousedown',function(e){spectrumDragging=true;spectrumPos=getPos(e);drawSpectrum(spectrumPos);});
+  window.addEventListener('mousemove',function(e){if(spectrumDragging){spectrumPos=getPos(e);drawSpectrum(spectrumPos);}});
+  window.addEventListener('mouseup',function(){spectrumDragging=false;});
+  cv.addEventListener('touchstart',function(e){e.preventDefault();spectrumDragging=true;spectrumPos=getPos(e);drawSpectrum(spectrumPos);},{passive:false});
+  cv.addEventListener('touchmove',function(e){e.preventDefault();if(spectrumDragging){spectrumPos=getPos(e);drawSpectrum(spectrumPos);}},{passive:false});
+  cv.addEventListener('touchend',function(){spectrumDragging=false;});
+}
+
+function drawOOV(){
+  var cv=document.getElementById('canvas-oov');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width;var H=cv.height;
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+  var words=['grokked','→','[UNK]'];
+  var colors=['#e2e8f0','#8892b0','#ff6b6b'];
+  var x=10;
+  words.forEach(function(w,i){
+    ctx.font=(i===2?'bold ':'')+'13px JetBrains Mono';
+    var m=ctx.measureText(w);
+    if(i===0){drawRoundedRect(ctx,x-2,12,m.width+12,28,4,'rgba(255,159,67,0.15)','rgba(255,159,67,0.4)',1);}
+    if(i===2){drawRoundedRect(ctx,x-2,12,m.width+12,28,4,'rgba(255,107,107,0.2)','rgba(255,107,107,0.5)',1);}
+    ctx.fillStyle=colors[i];ctx.fillText(w,x+4,30);
+    x+=m.width+20;
+  });
+  ctx.fillStyle='#8892b0';ctx.font='10px Inter';ctx.fillText('All meaning erased',10,60);
+  ctx.fillStyle='#ff6b6b';ctx.font='bold 10px Inter';ctx.fillText('OOV: Out-of-Vocabulary',10,78);
+  ctx.fillStyle='#8892b0';ctx.font='10px Inter';ctx.fillText('One token replaces unknown words',10,96);
+}
+
+function drawCharLen(){
+  var cv=document.getElementById('canvas-charlen');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width;var H=cv.height;
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+  var data=[{label:'Word',count:9,color:'#ff6b6b'},{label:'Subword',count:12,color:'#4ecdc4'},{label:'Char',count:44,color:'#f7b731'}];
+  var maxCount=44;var barW=50;var startX=20;
+  data.forEach(function(d,i){
+    var x=startX+i*(barW+20);
+    var bh=Math.round((d.count/maxCount)*(H-45));
+    ctx.fillStyle=d.color+'44';ctx.fillRect(x,H-35-bh,barW,bh);
+    ctx.fillStyle=d.color;ctx.fillRect(x,H-35-bh,barW,2);
+    ctx.font='bold 12px JetBrains Mono';ctx.textAlign='center';ctx.fillStyle=d.color;
+    ctx.fillText(d.count,x+barW/2,H-35-bh-5);
+    ctx.font='10px Inter';ctx.fillStyle='#8892b0';
+    ctx.fillText(d.label,x+barW/2,H-18);
+    ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.fillText('tokens',x+barW/2,H-6);
+  });
+  ctx.font='bold 11px Inter';ctx.fillStyle='#f7b731';ctx.textAlign='left';
+  ctx.fillText('Same 9-word sentence →',startX,14);
+}
+
+/* =====================================================
+   S3: BPE ANIMATOR
+===================================================== */
+var BPE_STEPS=[
+  {pairs:[],merge:null,vocab:['l','o','w','e','r','n','s','t','i','d'],info:'Initial vocabulary: every unique character in the corpus. Corpus words: low, lower, newest, widest.'},
+  {pairs:[['e','s',9],['e','r',9],['l','o',8]],merge:['e','s','es'],vocab:['l','o','w','e','r','n','s','t','i','d','es'],info:'Most frequent pair: "e"+"s" (9 occurrences). Merge into new token "es". Vocabulary grows: 10→11 tokens.'},
+  {pairs:[['e','r',9],['l','o',8],['w','es',8]],merge:['e','r','er'],vocab:['l','o','w','e','r','n','s','t','i','d','es','er'],info:'Next: "e"+"r" (9 occurrences). Merge into "er". Covers words like "lower", "newer". Vocabulary: 11→12.'},
+  {pairs:[['l','o',8],['w','es',8],['n','ew',5]],merge:['l','o','lo'],vocab:['l','o','w','e','r','n','s','t','i','d','es','er','lo'],info:'Merge "l"+"o" → "lo" (8 times in "low", "lower"). Now "low" → ["lo","w"]. Vocabulary: 12→13.'},
+  {pairs:[['lo','w',8],['n','ew',5],['w','id',4]],merge:['lo','w','low'],vocab:['l','o','w','e','r','n','s','t','i','d','es','er','lo','low'],info:'Merge "lo"+"w" → "low" (8 times). The complete word "low" is now a single token. Vocabulary: 13→14.'},
+  {pairs:[['n','ew',5],['w','id',4],['low','er',4]],merge:['n','ew','new'],vocab:['l','o','w','e','r','n','s','t','i','d','es','er','lo','low','new'],info:'Merge "n"+"ew" → "new" (5 times). Root of "newest" captured. Vocabulary: 14→15.'},
+  {pairs:[['new','es',5],['low','er',4],['w','id',4]],merge:['new','es','newes'],vocab:['l','o','w','e','r','n','s','t','i','d','es','er','lo','low','new','newes'],info:'Merge "new"+"es" → "newes" (5). Prefix of "newest" captured. Vocabulary: 15→16.'},
+  {pairs:[['newes','t',5],['low','er',4],['w','id',4]],merge:['newes','t','newest'],vocab:['l','o','w','e','r','n','s','t','i','d','es','er','lo','low','new','newes','newest'],info:'Merge "newes"+"t" → "newest" (5). The full word "newest" is now one token. Vocabulary: 16→17.'},
+  {pairs:[['low','er',4],['w','id',4],['wid','est',3]],merge:['low','er','lower'],vocab:['l','o','w','e','r','n','s','t','i','d','es','er','lo','low','new','newes','newest','lower'],info:'Merge "low"+"er" → "lower" (4). Vocabulary size: 18 tokens. BPE has now learned the most common words and subwords from this tiny corpus.'}
+];
+var bpeCurrentStep=0;
+var bpeAnimTimer=null;
+
+function drawBPEStep(step){
+  var cv=document.getElementById('canvas-bpe-steps');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width;var H=cv.height;
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+  var s=BPE_STEPS[step];
+
+  // Title
+  ctx.fillStyle='#4ecdc4';ctx.font='bold 12px Inter';ctx.textAlign='left';
+  ctx.fillText('Step '+step+'/'+( BPE_STEPS.length-1)+': Vocabulary ('+s.vocab.length+' tokens)',12,20);
+
+  // Vocab chips
+  var chipColors=['#4ecdc4','#74c0fc','#7c6af4','#51cf66','#ff9f43','#ffd43b','#f78fb3','#ff6b6b'];
+  var cx=12,cy=35,chipH=20,chipPad=6,rowH=26;
+  s.vocab.forEach(function(t,i){
+    ctx.font='11px JetBrains Mono';
+    var tw=ctx.measureText(t).width+chipPad*2;
+    if(cx+tw>W-12){cx=12;cy+=rowH;}
+    var col=chipColors[i%chipColors.length];
+    var isNew=(s.merge&&t===s.merge[2]);
+    drawRoundedRect(ctx,cx,cy,tw,chipH,4,isNew?col+'55':col+'22',isNew?col:col+'66',isNew?2:1);
+    ctx.fillStyle=isNew?col:'#e2e8f0';ctx.textAlign='left';ctx.fillText(t,cx+chipPad,cy+14);
+    cx+=tw+4;
+  });
+
+  // Pairs table
+  if(s.pairs.length>0){
+    var tableY=Math.max(cy+rowH+10,130);
+    ctx.fillStyle='#8892b0';ctx.font='bold 10px Inter';ctx.textAlign='left';
+    ctx.fillText('TOP PAIRS THIS STEP:',12,tableY);
+    s.pairs.forEach(function(p,i){
+      var py=tableY+16+i*22;
+      var isTop=(i===0);
+      if(isTop){ctx.fillStyle='rgba(255,159,67,0.15)';ctx.fillRect(12,py-12,W-24,20);}
+      ctx.fillStyle=isTop?'#ff9f43':'#8892b0';ctx.font=(isTop?'bold ':'')+'11px JetBrains Mono';
+      ctx.fillText('"'+p[0]+'" + "'+p[1]+'" = '+p[2]+' times'+(isTop?' ← MERGE THIS':''),20,py);
+    });
+  }
+
+  // Merge arrow
+  if(s.merge){
+    var my=H-30;
+    ctx.fillStyle='#ff9f43';ctx.font='bold 11px Inter';ctx.textAlign='center';
+    ctx.fillText('Merge: "'+s.merge[0]+'" + "'+s.merge[1]+'" → "'+s.merge[2]+'"',W/2,my);
+  }
+
+  document.getElementById('bpe-step-label').textContent='Step '+step+' of '+(BPE_STEPS.length-1)+(step===0?' — initial character vocabulary':'');
+  document.getElementById('bpe-step-info').textContent=s.info;
+}
+
+function bpeNextStep(){
+  clearInterval(bpeAnimTimer);
+  if(bpeCurrentStep<BPE_STEPS.length-1)bpeCurrentStep++;
+  drawBPEStep(bpeCurrentStep);
+}
+function bpeReset(){clearInterval(bpeAnimTimer);bpeCurrentStep=0;drawBPEStep(0);}
+function bpeRunAll(){
+  clearInterval(bpeAnimTimer);bpeCurrentStep=0;drawBPEStep(0);
+  bpeAnimTimer=setInterval(function(){
+    if(bpeCurrentStep<BPE_STEPS.length-1){bpeCurrentStep++;drawBPEStep(bpeCurrentStep);}
+    else clearInterval(bpeAnimTimer);
+  },900);
+}
+
+/* =====================================================
+   BPE EXAMPLE
+===================================================== */
+var BPE_WORDS={
+  unhappiness:{tokens:['un','happi','ness'],colors:['#4ecdc4','#74c0fc','#7c6af4'],note:'The prefix "un-" and suffix "-ness" are common → learned as merge units. "happi" is the stem form seen in "happy", "happiness", "happily".'},
+  tokenization:{tokens:['token','ization'],colors:['#ff9f43','#51cf66'],note:'"token" is a very common word in NLP text. "ization" is a common suffix pattern learned across "organization", "realization", etc.'},
+  ChatGPT:{tokens:['Chat','G','PT'],colors:['#74c0fc','#ff9f43','#f7b731'],note:'New proper nouns get split at recognizable boundaries. "Chat" is common; "G" and "PT" are what remain after the longest-match merges are applied.'},
+  'COVID-19':{tokens:['COVID','-','19'],colors:['#ff6b6b','#8892b0','#ffd43b'],note:'The hyphen is a common separator token. "COVID" is now in most modern tokenizers\' vocabularies. "19" is a common number token.'},
+  grokked:{tokens:['gro','kked'],colors:['#7c6af4','#4ecdc4'],note:'Rare words with no frequent subword matches fall back to unusual splits. "grok" (from Heinlein) was rare in training data — the split is arbitrary.'},
+  micropython:{tokens:['micro','python'],colors:['#51cf66','#ff9f43'],note:'Both "micro" (common prefix) and "python" (programming language) are frequent in code training data, so they\'re captured as tokens.'}
+};
+var bpeWord='unhappiness';
+
+function setBPEWord(w){bpeWord=w;drawBPEExample();}
+function drawBPEExample(){
+  var cv=document.getElementById('canvas-bpe-example');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width;var H=cv.height;
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+  var d=BPE_WORDS[bpeWord]||{tokens:[bpeWord],colors:['#ff9f43'],note:'Word not in example set.'};
+
+  // Input word
+  ctx.fillStyle='#8892b0';ctx.font='12px Inter';ctx.textAlign='left';ctx.fillText('Input word:',12,20);
+  ctx.fillStyle='#e2e8f0';ctx.font='bold 22px JetBrains Mono';ctx.fillText(bpeWord,12,50);
+
+  // Arrow
+  drawArrow(ctx,250,38,310,38,'#ff9f43',2);
+  ctx.fillStyle='#ff9f43';ctx.font='10px Inter';ctx.textAlign='center';ctx.fillText('BPE split',280,28);
+
+  // Tokens
+  var tx=330;
+  d.tokens.forEach(function(t,i){
+    ctx.font='bold 16px JetBrains Mono';
+    var tw=ctx.measureText(t).width+20;
+    drawRoundedRect(ctx,tx,22,tw,30,6,d.colors[i]+'33',d.colors[i],2);
+    ctx.fillStyle=d.colors[i];ctx.textAlign='left';ctx.fillText(t,tx+10,42);
+    tx+=tw+6;
+  });
+
+  // Token count
+  ctx.fillStyle='#8892b0';ctx.font='11px Inter';ctx.textAlign='left';
+  ctx.fillText(d.tokens.length+' token'+(d.tokens.length>1?'s':''),330,70);
+
+  // Note
+  var noteWords=d.note.split(' ');var line='';var noteY=95;
+  ctx.font='12px Inter';ctx.fillStyle='#8892b0';
+  noteWords.forEach(function(w){
+    var test=line+w+' ';
+    if(ctx.measureText(test).width>W-24&&line!==''){ctx.fillText(line,12,noteY);noteY+=17;line=w+' ';}
+    else line=test;
+  });
+  if(line)ctx.fillText(line,12,noteY);
+}
+
+/* =====================================================
+   S4: WORDPIECE
+===================================================== */
+var wpTab='bpe';
+function setWPTab(tab){
+  wpTab=tab;
+  document.querySelectorAll('#wp-tab-group .toggle-btn').forEach(function(b,i){
+    b.classList.toggle('active',(i===0&&tab==='bpe')||(i===1&&tab==='wordpiece'));
+  });
+  drawWPCompare(tab);
+}
+function drawWPCompare(tab){
+  var cv=document.getElementById('canvas-wp-compare');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width;var H=cv.height;
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+
+  if(tab==='bpe'){
+    ctx.fillStyle='#4ecdc4';ctx.font='bold 13px Inter';ctx.textAlign='left';
+    ctx.fillText('BPE: Find the pair with highest RAW COUNT',12,22);
+
+    var pairs=[{a:'"er"',b:15,note:'most common → MERGE'},
+               {a:'"ing"',b:12,note:'2nd most common'},
+               {a:'"ly"',b:8,note:'3rd common suffix'}];
+    pairs.forEach(function(p,i){
+      var y=45+i*52;var isTop=(i===0);
+      var bw=Math.round((p.b/15)*(W-200));
+      ctx.fillStyle=isTop?'rgba(78,205,196,0.2)':'rgba(78,205,196,0.07)';
+      ctx.fillRect(12,y,W-24,40);
+      ctx.fillStyle='#4ecdc4';ctx.font=(isTop?'bold ':'')+'12px JetBrains Mono';ctx.textAlign='left';
+      ctx.fillText(p.a,18,y+14);
+      ctx.fillStyle='rgba(78,205,196,0.4)';ctx.fillRect(80,y+6,bw,22);
+      ctx.fillStyle=isTop?'#4ecdc4':'#8892b0';ctx.font='11px Inter';
+      ctx.fillText(p.b+' times',84+bw,y+21);
+      if(isTop){ctx.fillStyle='#ff9f43';ctx.font='bold 10px Inter';ctx.textAlign='right';ctx.fillText('← MERGE',W-16,y+21);}
+    });
+    ctx.fillStyle='#8892b0';ctx.font='11px Inter';ctx.textAlign='left';
+    ctx.fillText('Rule: merge the pair that appears most often — regardless of meaning.',12,H-14);
+    document.getElementById('wp-tab-info').textContent='BPE selects the most frequently co-occurring pair. "er" appears 15 times → becomes a token. Simple, fast, and greedy.';
+  } else {
+    ctx.fillStyle='#7c6af4';ctx.font='bold 13px Inter';ctx.textAlign='left';
+    ctx.fillText('WordPiece: Find the pair with highest MUTUAL INFORMATION',12,22);
+
+    var wPairs=[{a:'"un" + "happi"',score:0.0042,raw:3,note:'rare individually → MERGE (score high)'},
+                {a:'"er" + "s"',score:0.0008,raw:15,note:'common alone → lower score'},
+                {a:'"in" + "g"',score:0.0005,raw:12,note:'very common → low score'}];
+    var formula='score(A,B) = count(AB) / (count(A) × count(B))';
+    ctx.fillStyle='#e2b35e';ctx.font='11px JetBrains Mono';ctx.fillText(formula,12,42);
+
+    wPairs.forEach(function(p,i){
+      var y=60+i*52;var isTop=(i===0);
+      var bw=Math.round((p.score/0.0042)*(W-200));
+      ctx.fillStyle=isTop?'rgba(124,106,244,0.2)':'rgba(124,106,244,0.07)';
+      ctx.fillRect(12,y,W-24,40);
+      ctx.fillStyle='#7c6af4';ctx.font=(isTop?'bold ':'')+'11px JetBrains Mono';ctx.textAlign='left';
+      ctx.fillText(p.a,18,y+14);
+      ctx.fillStyle='rgba(124,106,244,0.4)';ctx.fillRect(12,y+22,bw,12);
+      ctx.fillStyle=isTop?'#7c6af4':'#8892b0';ctx.font='10px Inter';
+      ctx.fillText('score: '+p.score,18+bw,y+32);
+      if(isTop){ctx.fillStyle='#ff9f43';ctx.font='bold 10px Inter';ctx.textAlign='right';ctx.fillText('← MERGE',W-16,y+14);}
+    });
+    document.getElementById('wp-tab-info').textContent='WordPiece scores pairs by mutual information: how much MORE often do A and B appear together than you\'d expect by chance? "un"+"happi" is surprising → high score → merged. "er"+"s" is expected → lower score.';
+  }
+}
+
+var WP_WORDS={
+  unhappiness:{tokens:['un','##happi','##ness'],explanations:['Word-initial token — no ## needed. "un-" is a common prefix with high mutual information as a word-start unit.','## means "continues previous token". "happi" follows "un" and is not a word start.','## suffix "##ness" is very common — appears in hundreds of words. High frequency AND high mutual info.']},
+  tokenization:{tokens:['token','##ization'],explanations:['"token" is a complete common word — word-initial, no ## prefix.','## "##ization" is a very common nominalizing suffix (organization, realization, utilization).']},
+  embeddings:{tokens:['em','##bed','##dings'],explanations:['"em" — short word-initial unit.','##bed — continuation.','##dings — common plural suffix continuation.']},
+  transformers:{tokens:['transform','##ers'],explanations:['"transform" — complete verb, very common in NLP text.','##ers — agentive suffix, very common continuation.']}
+};
+var wpWord='unhappiness';
+function setWPWord(w){wpWord=w;renderWPPrefix();}
+function renderWPPrefix(){
+  var d=WP_WORDS[wpWord]||{tokens:[wpWord],explanations:['No data.']};
+  var el=document.getElementById('wp-prefix-display');
+  el.innerHTML='';
+  d.tokens.forEach(function(t,i){
+    var span=document.createElement('span');
+    span.className='token-pill';
+    var col=['#7c6af4','#4ecdc4','#51cf66','#ff9f43'][i%4];
+    span.style.background=col+'22';span.style.color=col;span.style.borderColor=col+'55';
+    span.style.cursor='pointer';span.style.marginRight='4px';
+    span.textContent=t;
+    span.onclick=function(){document.getElementById('wp-prefix-info').textContent=d.explanations[i]||'';};
+    el.appendChild(span);
+  });
+  document.getElementById('wp-prefix-info').textContent='Click a token above to see why WordPiece made this split.';
+}
+
+function drawUnigram(){
+  var cv=document.getElementById('canvas-unigram');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width;var H=cv.height;
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+
+  // Top-down pruning visualization
+  ctx.fillStyle='#51cf66';ctx.font='bold 12px Inter';ctx.textAlign='left';
+  ctx.fillText('Unigram: Start Big, Prune Down',12,18);
+
+  var stages=[
+    {label:'Start',size:50000,color:'#ff6b6b'},
+    {label:'Prune 10%',size:45000,color:'#f7b731'},
+    {label:'Prune 10%',size:40000,color:'#ff9f43'},
+    {label:'Prune 10%',size:35000,color:'#4ecdc4'},
+    {label:'Target!',size:32000,color:'#51cf66'}
+  ];
+  var maxW=W-80;var stageW=Math.floor(maxW/stages.length);
+  stages.forEach(function(s,i){
+    var x=12+i*stageW;var barH=Math.round((s.size/50000)*(H-110));
+    ctx.fillStyle=s.color+'33';ctx.fillRect(x,H-90-barH,stageW-8,barH);
+    ctx.fillStyle=s.color;ctx.fillRect(x,H-90-barH,stageW-8,2);
+    ctx.font='bold 11px JetBrains Mono';ctx.textAlign='center';ctx.fillStyle=s.color;
+    ctx.fillText((s.size/1000).toFixed(0)+'K',x+(stageW-8)/2,H-92-barH);
+    ctx.font='10px Inter';ctx.fillStyle='#8892b0';ctx.fillText(s.label,x+(stageW-8)/2,H-72);
+    if(i<stages.length-1){drawArrow(ctx,x+stageW-12,H-90-barH/2,x+stageW-4,H-90-barH/2,s.color,1.5);}
+  });
+
+  // Viterbi example
+  var vitY=H-58;
+  ctx.fillStyle='#8892b0';ctx.font='bold 10px Inter';ctx.textAlign='left';
+  ctx.fillText('Viterbi: "pug" → best segmentation by probability',12,vitY);
+  var paths=[
+    {tokens:['p','u','g'],prob:'0.000389',winner:false},
+    {tokens:['p','ug'],prob:'0.002268',winner:true},
+    {tokens:['pu','g'],prob:'0.002268',winner:false}
+  ];
+  paths.forEach(function(path,i){
+    var py=vitY+14+i*14;var x=12;
+    ctx.font=(path.winner?'bold ':'')+'10px JetBrains Mono';
+    path.tokens.forEach(function(t){
+      ctx.fillStyle=path.winner?'#51cf66':'#8892b0';
+      ctx.fillText('['+t+'] ',x,py);
+      x+=ctx.measureText('['+t+'] ').width;
+    });
+    ctx.fillStyle=path.winner?'#51cf66':'#8892b0';
+    ctx.fillText('p='+path.prob+(path.winner?' ← winner':''),x+4,py);
+  });
+}
+
+/* =====================================================
+   S5: SENTENCEPIECE
+===================================================== */
+function drawSpaceProblem(){
+  var cv=document.getElementById('canvas-space-problem');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width;var H=cv.height;
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+
+  var half=W/2-10;
+  // English side
+  drawRoundedRect(ctx,10,10,half-5,H-20,8,'#161a2e','#51cf66',1);
+  ctx.fillStyle='#51cf66';ctx.font='bold 11px Inter';ctx.textAlign='center';ctx.fillText('English — Spaces = Word Boundaries',10+half/2,30);
+  ctx.fillStyle='#e2e8f0';ctx.font='13px JetBrains Mono';ctx.fillText('"I love cats"',10+half/2,55);
+  var engWords=['I','love','cats'];var ex=22;
+  engWords.forEach(function(w){
+    ctx.font='11px JetBrains Mono';var tw=ctx.measureText(w).width+12;
+    drawRoundedRect(ctx,ex,68,tw,22,4,'rgba(81,207,102,0.2)','rgba(81,207,102,0.4)',1);
+    ctx.fillStyle='#51cf66';ctx.textAlign='left';ctx.fillText(w,ex+6,83);ex+=tw+6;
+  });
+  ctx.fillStyle='#51cf66';ctx.font='10px Inter';ctx.textAlign='center';ctx.fillText('3 tokens — easy to split on spaces',10+half/2,110);
+
+  // Japanese side
+  var jx=W/2+5;var jw=W/2-15;
+  drawRoundedRect(ctx,jx,10,jw,H-20,8,'#161a2e','#ff6b6b',1);
+  ctx.fillStyle='#ff6b6b';ctx.font='bold 11px Inter';ctx.textAlign='center';ctx.fillText('Japanese — No Spaces at All',jx+jw/2,30);
+  ctx.fillStyle='#e2e8f0';ctx.font='13px JetBrains Mono';ctx.fillText('"私は猫が好き"',jx+jw/2,55);
+  ctx.fillStyle='#ff6b6b';ctx.font='10px Inter';ctx.fillText('Traditional tokenizer: ???',jx+jw/2,78);
+  ctx.fillStyle='#8892b0';ctx.font='11px Inter';ctx.fillText('Cannot pre-tokenize on whitespace',jx+jw/2,98);
+  ctx.fillStyle='#51cf66';ctx.font='bold 10px Inter';ctx.fillText('SentencePiece: treats raw bytes →',jx+jw/2,120);
+  ctx.fillStyle='#51cf66';ctx.font='10px Inter';ctx.fillText('no pre-tokenization needed!',jx+jw/2,138);
+  var jpToks=['▁私','は','猫','が','好き'];var jex=jx+8;var jey=155;
+  jpToks.forEach(function(t){
+    ctx.font='10px JetBrains Mono';var tw=ctx.measureText(t).width+8;
+    if(jex+tw>jx+jw-8){jex=jx+8;jey+=22;}
+    drawRoundedRect(ctx,jex,jey,tw,18,3,'rgba(81,207,102,0.15)','rgba(81,207,102,0.3)',1);
+    ctx.fillStyle='#51cf66';ctx.textAlign='left';ctx.fillText(t,jex+4,jey+13);jex+=tw+4;
+  });
+}
+
+var SP_DATA={
+  en:{sentence:'The quick brown fox.',tokens:['▁The','▁quick','▁brown','▁fox','.'],info:'English: spaces become ▁ (underscore marker). Fully reversible — concatenate and replace ▁ with space.'},
+  ja:{sentence:'私は自然言語処理が好きです。',tokens:['▁私','は','自然','言語','処理','が','好き','です','。'],info:'Japanese: no whitespace pre-tokenization. SentencePiece handles raw text. ▁ marks sentence start only.'},
+  ar:{sentence:'الذكاء الاصطناعي مذهل',tokens:['▁ال','ذكاء','▁الاص','طناعي','▁مذهل'],info:'Arabic: right-to-left script, complex morphology. SentencePiece handles it identically to English — just a raw byte stream.'},
+  zh:{sentence:'人工智能改变世界',tokens:['▁人工','智能','改变','世界'],info:'Chinese: no spaces, characters group by semantics. SentencePiece learns character clusters from training data without any linguistic knowledge.'}
+};
+var spLang='en';
+function setSPLang(lang){
+  spLang=lang;
+  var d=SP_DATA[lang];
+  document.getElementById('sp-sentence').textContent=d.sentence;
+  var chipsEl=document.getElementById('sp-chips');chipsEl.innerHTML='';
+  var spColors=['#51cf66','#4ecdc4','#74c0fc','#7c6af4','#ff9f43','#ffd43b','#ff6b6b','#f78fb3'];
+  d.tokens.forEach(function(t,i){
+    var span=document.createElement('span');span.className='token-pill';
+    var col=spColors[i%spColors.length];
+    span.style.background=col+'22';span.style.color=col;span.style.borderColor=col+'55';
+    span.textContent=t;chipsEl.appendChild(span);
+  });
+  document.getElementById('sp-info').textContent=d.info;
+}
+
+function drawByteBPE(){
+  var cv=document.getElementById('canvas-byte-bpe');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width;var H=cv.height;
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+
+  ctx.fillStyle='#51cf66';ctx.font='bold 12px Inter';ctx.textAlign='left';
+  ctx.fillText('Byte-Level BPE: Zero Unknown Tokens',12,18);
+
+  // Two examples
+  var examples=[
+    {word:'café',regular:['caf','[UNK]'],bytelevel:['caf','C3','A9'],regularNote:'Regular BPE: "é" not in vocab → [UNK]',byteNote:'Byte-BPE: "é" = bytes 0xC3 0xA9 → always encodable'},
+    {word:'🚀',regular:['[UNK]'],bytelevel:['F0','9F','9A','80'],regularNote:'Regular BPE: emoji not in character vocab → [UNK]',byteNote:'Byte-BPE: 🚀 = 4 UTF-8 bytes → always encodable'}
+  ];
+
+  examples.forEach(function(ex,idx){
+    var ey=35+idx*90;
+    ctx.fillStyle='#e2e8f0';ctx.font='bold 14px JetBrains Mono';ctx.textAlign='left';ctx.fillText(ex.word,12,ey+16);
+
+    // Regular BPE side
+    var rx=80;
+    ctx.fillStyle='#ff6b6b';ctx.font='bold 10px Inter';ctx.fillText('Regular BPE:',rx,ey+4);
+    ex.regular.forEach(function(t,i){
+      ctx.font='11px JetBrains Mono';var tw=ctx.measureText(t).width+10;
+      var col=t==='[UNK]'?'#ff6b6b':'#4ecdc4';
+      drawRoundedRect(ctx,rx,ey+10,tw,20,4,col+'22',col+'66',1);
+      ctx.fillStyle=col;ctx.textAlign='left';ctx.fillText(t,rx+5,ey+24);rx+=tw+4;
+    });
+    ctx.fillStyle='#ff6b6b';ctx.font='10px Inter';ctx.textAlign='left';ctx.fillText(ex.regularNote,80,ey+40);
+
+    // Byte-level side
+    var bx=W/2+20;
+    ctx.fillStyle='#51cf66';ctx.font='bold 10px Inter';ctx.textAlign='left';ctx.fillText('Byte-Level BPE:',bx,ey+4);
+    ex.bytelevel.forEach(function(t,i){
+      ctx.font='11px JetBrains Mono';var tw=ctx.measureText('0x'+t).width+10;
+      drawRoundedRect(ctx,bx,ey+10,tw,20,4,'rgba(81,207,102,0.2)','rgba(81,207,102,0.5)',1);
+      ctx.fillStyle='#51cf66';ctx.textAlign='left';ctx.fillText('0x'+t,bx+5,ey+24);bx+=tw+4;
+    });
+    ctx.fillStyle='#51cf66';ctx.font='10px Inter';ctx.textAlign='left';ctx.fillText(ex.byteNote,W/2+20,ey+40);
+
+    if(idx<examples.length-1){ctx.strokeStyle='#2a3060';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(12,ey+55);ctx.lineTo(W-12,ey+55);ctx.stroke();ctx.setLineDash([]);}
+  });
+
+  ctx.fillStyle='#8892b0';ctx.font='11px Inter';ctx.textAlign='center';
+  ctx.fillText('GPT-2\'s secret: start from 256 bytes. Any UTF-8 text = always encodable.',W/2,H-10);
+}
+
+function drawTiktoken(){
+  var cv=document.getElementById('canvas-tiktoken');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width;var H=cv.height;
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+
+  var bars=[
+    {label:'tiktoken (Rust core)',speed:320000,color:'#51cf66',note:'Used in GPT-4'},
+    {label:'HuggingFace tokenizers',speed:120000,color:'#74c0fc',note:'Rust-based'},
+    {label:'SentencePiece (C++)',speed:50000,color:'#4ecdc4',note:'T5, ALBERT'},
+    {label:'Pure Python (slow)',speed:8000,color:'#8892b0',note:'Reference only'}
+  ];
+  var maxSpeed=320000;
+  ctx.fillStyle='#51cf66';ctx.font='bold 12px Inter';ctx.textAlign='left';
+  ctx.fillText('Tokenizer Speed (tokens/second)',12,18);
+
+  bars.forEach(function(b,i){
+    var y=30+i*30;var bw=Math.round((b.speed/maxSpeed)*(W-200));
+    ctx.fillStyle=b.color+'33';ctx.fillRect(12,y,bw,22);
+    ctx.fillStyle=b.color;ctx.fillRect(12,y,bw,2);
+    ctx.font='bold 11px Inter';ctx.textAlign='left';ctx.fillStyle=b.color;
+    ctx.fillText(b.label,16,y+15);
+    ctx.font='10px JetBrains Mono';ctx.fillStyle=b.color;
+    ctx.textAlign='right';ctx.fillText((b.speed/1000).toFixed(0)+'K/s',W-8,y+15);
+    ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.textAlign='left';ctx.fillText(b.note,16+bw+4,y+15);
+  });
+}
+
+/* =====================================================
+   S6: FERTILITY MAP & SCATTER
+===================================================== */
+var FERTILITY_REGIONS=[
+  {id:'na',label:'North America\n(English)',x:80,y:100,w:130,h:80,fertility:1.0,accuracy:100,color:'#51cf66',langs:'English (1.0×)'},
+  {id:'eu',label:'Western Europe',x:280,y:60,w:110,h:70,fertility:1.3,accuracy:92,color:'#51cf66',langs:'French (1.1×), German (1.2×), Spanish (1.1×)'},
+  {id:'ee',label:'Eastern Europe',x:320,y:130,w:90,h:60,fertility:2.0,accuracy:78,color:'#f7b731',langs:'Polish (1.9×), Russian (2.8×)'},
+  {id:'me',label:'Middle East',x:360,y:195,w:90,h:55,fertility:2.5,accuracy:70,color:'#ff6b6b',langs:'Arabic (2.7×), Hebrew (3.0×)'},
+  {id:'sa',label:'South Asia',x:430,y:160,w:80,h:70,fertility:2.8,accuracy:65,color:'#ff6b6b',langs:'Hindi (2.3×), Urdu (3.2×)'},
+  {id:'ea',label:'East Asia',x:490,y:90,w:110,h:80,fertility:2.1,accuracy:75,color:'#f7b731',langs:'Japanese (2.1×), Korean (2.4×), Chinese (1.8×)'},
+  {id:'la',label:'Latin America',x:130,y:200,w:100,h:80,fertility:1.2,accuracy:90,color:'#51cf66',langs:'Spanish (1.1×), Portuguese (1.2×)'},
+  {id:'af',label:'Africa',x:280,y:195,w:90,h:80,fertility:2.4,accuracy:68,color:'#ff6b6b',langs:'Arabic (2.7×), Swahili (2.1×), Amharic (3.5×)'}
+];
+var fertilityHover=null;
+
+function drawFertilityMap(){
+  var cv=document.getElementById('canvas-fertility-map');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width;var H=cv.height;
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+
+  ctx.fillStyle='#1e2444';ctx.fillRect(12,30,W-24,H-50);
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=1;ctx.strokeRect(12,30,W-24,H-50);
+
+  FERTILITY_REGIONS.forEach(function(r){
+    var isHover=(fertilityHover===r.id);
+    drawRoundedRect(ctx,r.x,r.y,r.w,r.h,6,isHover?r.color+'44':r.color+'22',r.color+(isHover?'':'88'),isHover?2:1);
+    ctx.fillStyle=r.color;ctx.font='bold 10px Inter';ctx.textAlign='center';
+    ctx.fillText(r.label.split('\n')[0],r.x+r.w/2,r.y+r.h/2-5);
+    if(r.label.includes('\n'))ctx.fillText(r.label.split('\n')[1],r.x+r.w/2,r.y+r.h/2+8);
+    ctx.font='bold 11px JetBrains Mono';ctx.fillStyle=r.color;
+    ctx.fillText(r.fertility.toFixed(1)+'×',r.x+r.w/2,r.y+r.h-8);
+  });
+
+  // Legend
+  var legendData=[{label:'1.0–1.3× (low tax)',color:'#51cf66'},{label:'1.5–2.5× (medium tax)',color:'#f7b731'},{label:'2.5×+ (high tax)',color:'#ff6b6b'}];
+  ctx.font='bold 10px Inter';ctx.textAlign='left';
+  legendData.forEach(function(l,i){
+    var lx=16+i*180;
+    ctx.fillStyle=l.color+'44';ctx.fillRect(lx,H-22,12,12);
+    ctx.strokeStyle=l.color;ctx.lineWidth=1;ctx.strokeRect(lx,H-22,12,12);
+    ctx.fillStyle='#8892b0';ctx.fillText(l.label,lx+16,H-12);
+  });
+}
+
+function handleFertilityClick(e){
+  var cv=document.getElementById('canvas-fertility-map');if(!cv)return;
+  var r=cv.getBoundingClientRect();
+  var scaleX=cv.width/r.width;var scaleY=cv.height/r.height;
+  var mx=(e.clientX-r.left)*scaleX;var my=(e.clientY-r.top)*scaleY;
+  var hit=null;
+  FERTILITY_REGIONS.forEach(function(reg){
+    if(mx>=reg.x&&mx<=reg.x+reg.w&&my>=reg.y&&my<=reg.y+reg.h)hit=reg;
+  });
+  if(hit){
+    fertilityHover=hit.id;
+    drawFertilityMap();
+    document.getElementById('fertility-info').innerHTML='<strong style="color:'+hit.color+'">'+hit.label.replace('\n',' ')+'</strong> — Fertility: <strong style="color:'+hit.color+'">'+hit.fertility.toFixed(2)+'×</strong> | Relative accuracy: <strong>~'+hit.accuracy+'%</strong> of English baseline<br><span style="color:#8892b0;font-size:12px;">'+hit.langs+'</span>';
+  }
+}
+
+/* Token Tax Calculator */
+var FERTILITY_LANGS=[
+  {lang:'English',fertility:1.0,color:'#51cf66'},
+  {lang:'French',fertility:1.1,color:'#74c0fc'},
+  {lang:'Spanish',fertility:1.1,color:'#4ecdc4'},
+  {lang:'Russian',fertility:2.8,color:'#f7b731'},
+  {lang:'Japanese',fertility:2.1,color:'#ff9f43'},
+  {lang:'Korean',fertility:2.36,color:'#ff6b6b'},
+  {lang:'Arabic',fertility:2.7,color:'#ffd43b'},
+  {lang:'Hindi',fertility:2.3,color:'#7c6af4'}
+];
+function updateTaxCalc(){
+  var base=parseInt(document.getElementById('tax-base-tokens').value)||100;
+  var grid=document.getElementById('tax-calc-results');grid.innerHTML='';
+  FERTILITY_LANGS.forEach(function(l){
+    var tokens=Math.round(base*l.fertility);
+    var cost=(tokens/1000*0.01).toFixed(4);
+    var div=document.createElement('div');
+    div.style.cssText='padding:12px;border:1px solid '+l.color+'44;border-radius:8px;background:'+l.color+'11;';
+    div.innerHTML='<div style="font-size:11px;color:'+l.color+';font-weight:700;margin-bottom:4px;">'+l.lang+'</div>'+
+      '<div style="font-family:\'JetBrains Mono\',monospace;font-size:14px;font-weight:700;color:'+l.color+';">'+tokens+' tokens</div>'+
+      '<div style="font-size:11px;color:#8892b0;margin-top:2px;">'+l.fertility.toFixed(2)+'× · $'+cost+'</div>';
+    grid.appendChild(div);
+  });
+}
+
+function drawFertilityScatter(){
+  var cv=document.getElementById('canvas-fertility-scatter');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width;var H=cv.height;
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+
+  var pad={l:70,r:30,t:20,b:50};
+  var pw=W-pad.l-pad.r;var ph=H-pad.t-pad.b;
+
+  // Axes
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(pad.l,pad.t);ctx.lineTo(pad.l,pad.t+ph);ctx.lineTo(pad.l+pw,pad.t+ph);ctx.stroke();
+
+  // Axis labels
+  ctx.fillStyle='#8892b0';ctx.font='11px Inter';ctx.textAlign='center';
+  ctx.fillText('Token Fertility Rate (relative to English)',pad.l+pw/2,H-6);
+  ctx.save();ctx.translate(14,pad.t+ph/2);ctx.rotate(-Math.PI/2);ctx.fillText('Relative Accuracy (%)',0,0);ctx.restore();
+
+  // Grid lines and X ticks
+  [1.0,1.5,2.0,2.5,3.0].forEach(function(f){
+    var x=pad.l+(f-1.0)/2.0*pw;
+    ctx.strokeStyle='#1e2444';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(x,pad.t);ctx.lineTo(x,pad.t+ph);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#8892b0';ctx.font='10px Inter';ctx.textAlign='center';
+    ctx.fillText(f.toFixed(1)+'×',x,pad.t+ph+14);
+  });
+  [60,70,80,90,100].forEach(function(a){
+    var y=pad.t+ph-(a-60)/40*ph;
+    ctx.strokeStyle='#1e2444';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+pw,y);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#8892b0';ctx.font='10px Inter';ctx.textAlign='right';
+    ctx.fillText(a+'%',pad.l-6,y+4);
+  });
+
+  // Trend line
+  ctx.strokeStyle='rgba(255,107,107,0.4)';ctx.lineWidth=1.5;ctx.setLineDash([6,4]);
+  ctx.beginPath();
+  ctx.moveTo(pad.l+(1.0-1.0)/2.0*pw,pad.t+ph-(100-60)/40*ph);
+  ctx.lineTo(pad.l+(3.0-1.0)/2.0*pw,pad.t+ph-(60-60)/40*ph);
+  ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#ff6b6b';ctx.font='10px Inter';ctx.textAlign='left';ctx.fillText('Negative correlation (r≈−0.85)',pad.l+pw*0.3,pad.t+15);
+
+  // Data points
+  var points=[
+    {lang:'English',f:1.0,acc:100,color:'#51cf66'},
+    {lang:'French',f:1.1,acc:94,color:'#74c0fc'},
+    {lang:'Spanish',f:1.1,acc:92,color:'#4ecdc4'},
+    {lang:'German',f:1.2,acc:90,color:'#74c0fc'},
+    {lang:'Chinese',f:1.8,acc:80,color:'#f7b731'},
+    {lang:'Japanese',f:2.1,acc:76,color:'#ff9f43'},
+    {lang:'Korean',f:2.36,acc:72,color:'#ff6b6b'},
+    {lang:'Russian',f:2.8,acc:68,color:'#f7b731'},
+    {lang:'Arabic',f:2.7,acc:70,color:'#ffd43b'},
+    {lang:'Hindi',f:2.3,acc:73,color:'#7c6af4'}
+  ];
+  points.forEach(function(p){
+    var x=pad.l+(p.f-1.0)/2.0*pw;
+    var y=pad.t+ph-(p.acc-60)/40*ph;
+    ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#0d0f18';ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=p.color;ctx.font='10px Inter';ctx.textAlign='left';ctx.fillText(p.lang,x+10,y+4);
+  });
+}
+
+/* =====================================================
+   S7: TIMELINE & BLT
+===================================================== */
+var MILESTONES=[
+  {year:1994,label:'BPE invented',detail:'Philip Gage publishes "A New Algorithm for Data Compression" using byte pair encoding for compression — not NLP.',color:'#8892b0'},
+  {year:2016,label:'BPE → NLP',detail:'Sennrich et al. apply BPE to machine translation neural networks. First large-scale subword tokenization for NLP.',color:'#4ecdc4'},
+  {year:2018,label:'BERT + WordPiece',detail:'Google\'s BERT uses WordPiece (30,522 tokens). SentencePiece library released — language-agnostic tokenization.',color:'#74c0fc'},
+  {year:2019,label:'Byte-BPE + Unigram',detail:'GPT-2 introduces byte-level BPE (50,257 tokens). T5 uses SentencePiece Unigram (32,000 tokens).',color:'#ff9f43'},
+  {year:2021,label:'Survey paper',detail:'Mielke et al. (arXiv 2112.10508): "Between words and characters" — comprehensive survey concludes no silver bullet.',color:'#7c6af4'},
+  {year:2023,label:'tiktoken + LLaMA 2',detail:'OpenAI releases tiktoken (3–6× faster). LLaMA 2 uses 32K vocab. Trend toward larger vocabularies begins.',color:'#51cf66'},
+  {year:2024,label:'LLaMA 3 + BLT',detail:'LLaMA 3 adopts 128K token vocabulary for multilingual fairness. Meta publishes BLT — 50% fewer flops with no tokenization.',color:'#ffd43b'},
+  {year:2025,label:'Next?',detail:'Byte-level and tokenization-free approaches are scaling. The subword paradigm may be approaching its end.',color:'#f78fb3'}
+];
+var timelineSelected=null;
+
+function drawTimeline(){
+  var cv=document.getElementById('canvas-timeline');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width;var H=cv.height;
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+
+  var n=MILESTONES.length;var pad=30;var tw=W-pad*2;
+  var lineY=H/2-10;
+
+  // Line
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(pad,lineY);ctx.lineTo(pad+tw,lineY);ctx.stroke();
+
+  MILESTONES.forEach(function(m,i){
+    var x=pad+tw*(i/(n-1));var isSel=(timelineSelected===i);
+    // Node
+    ctx.fillStyle=isSel?m.color:'#1e2444';
+    ctx.strokeStyle=m.color;ctx.lineWidth=isSel?3:2;
+    ctx.beginPath();ctx.arc(x,lineY,isSel?10:7,0,Math.PI*2);ctx.fill();ctx.stroke();
+
+    // Year label (alternating up/down)
+    var up=(i%2===0);
+    ctx.fillStyle=isSel?m.color:'#8892b0';ctx.font=(isSel?'bold ':'')+'10px Inter';ctx.textAlign='center';
+    ctx.fillText(m.year,x,up?lineY-20:lineY+28);
+    // Label
+    ctx.font=(isSel?'bold ':'')+'9px Inter';ctx.fillStyle=isSel?m.color:'#8892b0';
+    ctx.fillText(m.label,x,up?lineY-8:lineY+42);
+  });
+}
+
+function handleTimelineClick(e){
+  var cv=document.getElementById('canvas-timeline');if(!cv)return;
+  var r=cv.getBoundingClientRect();
+  var scaleX=cv.width/r.width;
+  var mx=(e.clientX-r.left)*scaleX;
+  var n=MILESTONES.length;var pad=30;var tw=cv.width-pad*2;
+  var best=-1;var bestDist=99999;
+  MILESTONES.forEach(function(m,i){
+    var x=pad+tw*(i/(n-1));
+    var d=Math.abs(mx-x);if(d<bestDist){bestDist=d;best=i;}
+  });
+  if(bestDist<40){
+    timelineSelected=best;
+    drawTimeline();
+    var m=MILESTONES[best];
+    document.getElementById('timeline-info').innerHTML='<strong style="color:'+m.color+'">'+m.year+' — '+m.label+'</strong><br><span style="color:#8892b0;">'+m.detail+'</span>';
+  }
+}
+
+function drawBLT(){
+  var cv=document.getElementById('canvas-blt');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width;var H=cv.height;
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+
+  var half=W/2-10;
+
+  // Left: Traditional
+  drawRoundedRect(ctx,10,10,half-5,H-20,8,'#161a2e','#ff6b6b',1);
+  ctx.fillStyle='#ff6b6b';ctx.font='bold 11px Inter';ctx.textAlign='center';ctx.fillText('Traditional LLM',10+half/2,28);
+
+  var tradSteps=['Raw Text','Tokenizer','Fixed Tokens','Transformer','Output'];
+  var tradColors=['#8892b0','#ff6b6b','#f7b731','#74c0fc','#51cf66'];
+  tradSteps.forEach(function(s,i){
+    var sy=45+i*38;var bw=half-40;var bx=30;
+    drawRoundedRect(ctx,bx,sy,bw,26,5,tradColors[i]+'22',tradColors[i]+'88',1);
+    ctx.fillStyle=tradColors[i];ctx.font='11px Inter';ctx.textAlign='center';ctx.fillText(s,bx+bw/2,sy+17);
+    if(i<tradSteps.length-1)drawArrow(ctx,bx+bw/2,sy+26,bx+bw/2,sy+38,tradColors[i],1.5);
+  });
+
+  // Right: BLT
+  var rx=W/2+5;var rw=W/2-15;
+  drawRoundedRect(ctx,rx,10,rw,H-20,8,'#161a2e','#ffd43b',1);
+  ctx.fillStyle='#ffd43b';ctx.font='bold 11px Inter';ctx.textAlign='center';ctx.fillText('Byte Latent Transformer (BLT)',rx+rw/2,28);
+
+  var bltSteps=['Raw Text (bytes)','Entropy Scoring','Dynamic Patches','Transformer','Output'];
+  var bltColors=['#8892b0','#ffd43b','#ff9f43','#74c0fc','#51cf66'];
+  var bltNotes=['','complex=small patches\nsimple=large patches','allocate compute\nby complexity','',''];
+  bltSteps.forEach(function(s,i){
+    var sy=45+i*38;var bw=rw-20;var bx=rx+10;
+    drawRoundedRect(ctx,bx,sy,bw,26,5,bltColors[i]+'22',bltColors[i]+'88',i===2?2:1);
+    ctx.fillStyle=bltColors[i];ctx.font=(i===2?'bold ':'')+'11px Inter';ctx.textAlign='center';ctx.fillText(s,bx+bw/2,sy+17);
+    if(i<bltSteps.length-1)drawArrow(ctx,bx+bw/2,sy+26,bx+bw/2,sy+38,bltColors[i],1.5);
+    if(bltNotes[i]){
+      ctx.font='8px Inter';ctx.fillStyle='#8892b0';ctx.textAlign='right';
+      bltNotes[i].split('\n').forEach(function(n,j){ctx.fillText(n,bx+bw-4,sy+10+j*10);});
+    }
+  });
+
+  ctx.fillStyle='#ffd43b';ctx.font='bold 10px Inter';ctx.textAlign='center';ctx.fillText('50% fewer flops at inference',rx+rw/2,H-12);
+}
+
+/* =====================================================
+   FINAL ALGORITHM COMPARISON WIDGET
+===================================================== */
+var FINAL_SENTENCES=[
+  'The cat sat on the mat.',
+  '고양이가 매트 위에 앉았습니다.',
+  'I love 🚀🤖🌍 AI is amazing! 🎉',
+  'function tokenize(text) { return text.split(" "); }'
+];
+var FINAL_DATA={
+  0:{word:['The','cat','sat','on','the','mat.'],bpe:['The',' cat',' sat',' on',' the',' mat','.'],wordpiece:['The','cat','sat','on','the','mat','.'],char:['T','h','e',' ','c','a','t',' ','s','a','t',' ','o','n',' ','t','h','e',' ','m','a','t','.']},
+  1:{word:['고양이가','매트','위에','앉았습니다.'],bpe:['고','양','이가',' 매','트',' 위에',' 앉','았습니다','.'],wordpiece:['고','##양','##이','##가','매','##트','위','##에','앉','##았','##습','##니다','.'],char:['고','양','이','가',' ','매','트',' ','위','에',' ','앉','았','습','니','다','.']},
+  2:{word:['I','love','🚀🤖🌍','AI','is','amazing!','🎉'],bpe:['I',' love',' ','🚀','🤖','🌍',' AI',' is',' amazing','!',' ','🎉'],wordpiece:['I','love','[UNK]','AI','is','amazing','!','[UNK]'],char:['I',' ','l','o','v','e',' ','🚀','🤖','🌍',' ','A','I',' ','i','s',' ','a','m','a','z','i','n','g','!',' ','🎉']},
+  3:{word:['function','tokenize(text)','return','text.split("','");'],bpe:['function',' token','ize','(','text',')',' {',' return',' text','.split','(',' "','","',')',' }'],wordpiece:['function','token','##ize','(','text',')','{','return','text','.','split','(','\'','\'',')',';}'],char:['f','u','n','c','t','i','o','n',' ','t','o','k','e','n','i','z','e','(','t','e','x','t',')']}
+};
+var finalSentIdx=0;
+function setFinalSentence(idx){
+  finalSentIdx=idx;
+  document.getElementById('final-sentence-display').textContent=FINAL_SENTENCES[idx];
+  renderFinalGrid();
+}
+function renderFinalGrid(){
+  var grid=document.getElementById('final-algo-grid');grid.innerHTML='';
+  var d=FINAL_DATA[finalSentIdx];
+  var algos=[
+    {key:'word',label:'Word-level',color:'#ff6b6b'},
+    {key:'bpe',label:'BPE',color:'#4ecdc4'},
+    {key:'wordpiece',label:'WordPiece',color:'#7c6af4'},
+    {key:'char',label:'Character',color:'#f7b731'}
+  ];
+  algos.forEach(function(a){
+    var tokens=d[a.key]||['(n/a)'];
+    var div=document.createElement('div');
+    div.style.cssText='padding:12px;border:1px solid '+a.color+'44;border-radius:8px;background:'+a.color+'0d;';
+    div.innerHTML='<div style="font-size:11px;font-weight:700;color:'+a.color+';text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">'+a.label+'</div>';
+    var chipsDiv=document.createElement('div');
+    chipsDiv.style.cssText='display:flex;flex-wrap:wrap;gap:3px;';
+    tokens.forEach(function(t,i){
+      var span=document.createElement('span');
+      span.style.cssText='display:inline-flex;padding:2px 6px;border-radius:4px;font-family:\'JetBrains Mono\',monospace;font-size:10px;font-weight:600;background:'+a.color+'22;color:'+a.color+';border:1px solid '+a.color+'44;';
+      span.textContent=t;chipsDiv.appendChild(span);
+    });
+    div.appendChild(chipsDiv);
+    div.innerHTML+='<div style="font-size:12px;font-weight:700;color:'+a.color+';margin-top:8px;">'+tokens.length+' token'+(tokens.length>1?'s':'')+'</div>';
+    grid.appendChild(div);
+  });
+}
+
+/* =====================================================
+   INIT ALL
+===================================================== */
+renderTokChips();
+drawSpectrum(0.5);
+initSpectrumSlider();
+drawOOV();
+drawCharLen();
+drawBPEStep(0);
+setBPEWord('unhappiness');
+setWPTab('bpe');
+renderWPPrefix();
+drawUnigram();
+drawSpaceProblem();
+setSPLang('en');
+drawByteBPE();
+drawTiktoken();
+drawFertilityMap();
+updateTaxCalc();
+drawFertilityScatter();
+drawTimeline();
+drawBLT();
+setFinalSentence(0);
+updateNavOnScroll();
+</script>
+</body>
+</html>
