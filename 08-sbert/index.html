@@ -1,0 +1,1556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sentence-BERT — From 65 Hours to 5 Seconds</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0d0f18; --surface:#161a2e; --surface2:#1e2444;
+  --border:#2a3060; --text:#e2e8f0; --muted:#8892b0; --accent:#74c0fc;
+  --teal:#4ecdc4; --amber:#f7b731; --coral:#ff6b6b;
+  --mint:#51cf66; --sky:#74c0fc; --gold:#ffd43b; --pink:#f78fb3;
+  --purple:#7c6af4;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); display:flex; min-height:100vh; }
+.sidebar { width:250px; background:var(--surface); border-right:1px solid var(--border); position:fixed; top:0; left:0; height:100vh; overflow-y:auto; z-index:100; }
+.sb-header { padding:20px; border-bottom:1px solid var(--border); }
+.sb-header h1 { font-size:14px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:1px; }
+.sb-header p { font-size:11px; color:var(--muted); margin-top:4px; }
+.nav-group { padding:10px 0; border-bottom:1px solid var(--border); }
+.nav-group-title { padding:0 18px 6px; font-size:10px; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); font-weight:600; }
+.nav-link { display:flex; align-items:center; gap:10px; padding:8px 18px; cursor:pointer; border-left:3px solid transparent; transition:all 0.2s; text-decoration:none; color:var(--muted); font-size:13px; }
+.nav-link:hover, .nav-link.active { background:rgba(116,192,252,0.1); color:var(--text); border-left-color:var(--accent); }
+.dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.main { margin-left:250px; flex:1; }
+.section { min-height:100vh; padding:56px 48px; border-bottom:1px solid var(--border); }
+.section-tag { font-size:11px; text-transform:uppercase; letter-spacing:2px; font-weight:600; margin-bottom:10px; }
+.section-title { font-size:30px; font-weight:700; margin-bottom:8px; line-height:1.2; }
+.section-sub { font-size:15px; color:var(--muted); max-width:640px; line-height:1.6; margin-bottom:36px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:22px; margin-bottom:24px; }
+.card-title { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:14px; }
+.g2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+.g3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:18px; }
+.formula { font-family:'JetBrains Mono',monospace; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:14px 18px; font-size:13px; margin:14px 0; color:#e2b35e; white-space:pre-wrap; overflow-x:auto; }
+.sl-row { display:flex; align-items:center; gap:10px; margin:10px 0; }
+.sl-lbl { font-size:12px; color:var(--muted); min-width:160px; }
+.sl-val { font-family:'JetBrains Mono'; font-size:12px; color:var(--accent); min-width:60px; text-align:right; }
+input[type=range] { -webkit-appearance:none; flex:1; height:6px; border-radius:3px; background:var(--surface2); border:1px solid var(--border); outline:none; cursor:pointer; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:var(--accent); cursor:pointer; border:2px solid var(--bg); }
+.btn { background:var(--accent); color:#000; border:none; border-radius:8px; padding:10px 20px; font-size:13px; font-weight:600; cursor:pointer; transition:opacity 0.2s; font-family:'Inter',sans-serif; }
+.btn:hover { opacity:0.85; }
+.btn-outline { background:transparent; border:1px solid var(--border); color:var(--text); }
+.btn-outline:hover { background:var(--surface2); opacity:1; }
+.toggle-group { display:flex; gap:0; }
+.toggle-btn { padding:8px 16px; border:1px solid var(--border); background:var(--surface); color:var(--muted); cursor:pointer; font-size:12px; font-weight:600; transition:all 0.2s; font-family:'Inter',sans-serif; }
+.toggle-btn:first-child { border-radius:6px 0 0 6px; }
+.toggle-btn:last-child { border-radius:0 6px 6px 0; }
+.toggle-btn.active { background:var(--accent); color:#000; border-color:var(--accent); }
+canvas { display:block; background:var(--bg); border-radius:8px; border:1px solid var(--border); }
+.analogy-card { background:rgba(116,192,252,0.07); border:1px solid rgba(116,192,252,0.3); border-radius:10px; padding:16px 20px; margin:20px 0; }
+.analogy-card p { font-size:14px; color:var(--text); line-height:1.6; }
+.analogy-card .analogy-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--sky); margin-bottom:8px; }
+.highlight-box { background:rgba(116,192,252,0.07); border:1px solid rgba(116,192,252,0.3); border-radius:10px; padding:16px 20px; margin:16px 0; }
+.highlight-box p { font-size:14px; color:var(--text); line-height:1.6; }
+.stat-row { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:28px; }
+.stat { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px 20px; flex:1; min-width:140px; }
+.stat-val { font-size:26px; font-weight:700; font-family:'JetBrains Mono'; }
+.stat-lbl { font-size:11px; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:0.5px; }
+.section-bridge { margin-top:48px; padding-top:24px; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+.section-bridge-text { font-size:13px; color:var(--muted); }
+.section-bridge-link { font-size:13px; color:var(--accent); text-decoration:none; font-weight:600; }
+.accordion-item { border:1px solid var(--border); border-radius:8px; margin-bottom:8px; overflow:hidden; }
+.accordion-header { padding:14px 18px; cursor:pointer; font-size:13px; font-weight:600; display:flex; justify-content:space-between; align-items:center; background:var(--surface); }
+.accordion-header:hover { background:var(--surface2); }
+.accordion-body { display:none; padding:14px 18px; font-size:13px; color:var(--muted); line-height:1.6; border-top:1px solid var(--border); }
+.accordion-item.open .accordion-body { display:block; }
+.accordion-item.open .accordion-chevron { transform:rotate(180deg); }
+.accordion-chevron { transition:transform 0.2s; }
+.pipeline-map { display:flex; align-items:center; flex-wrap:wrap; gap:2px; background:var(--surface); border-bottom:1px solid var(--border); padding:8px 20px; position:sticky; top:0; z-index:50; }
+.pipe-step { display:flex; align-items:center; gap:6px; padding:5px 10px; border-radius:6px; font-size:11px; font-weight:600; color:var(--muted); transition:all 0.25s; text-decoration:none; border:1px solid transparent; white-space:nowrap; }
+.pipe-step:hover { background:var(--surface2); color:var(--text); }
+.pipe-step.active { background:var(--surface2); color:var(--text); border-color:currentColor; }
+.pipe-step .pipe-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.pipe-arrow { font-size:12px; color:var(--border); padding:0 1px; }
+@media (max-width:768px) {
+  .sidebar { width:100%; height:auto; position:relative; border-right:none; border-bottom:1px solid var(--border); }
+  .sidebar .nav-group { display:none; }
+  .sb-header { padding:14px 18px; display:flex; align-items:center; justify-content:space-between; }
+  .sb-toggle { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); cursor:pointer; background:none; border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-family:'Inter',sans-serif; }
+  .sidebar.open .nav-group { display:block; }
+  body { flex-direction:column; }
+  .main { margin-left:0; }
+  .section { padding:32px 20px; min-height:unset; }
+  .g2 { grid-template-columns:1fr !important; }
+  .g3 { grid-template-columns:1fr !important; }
+  canvas { max-width:100% !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- PASSWORD GATE -->
+<div id="pg-overlay" style="position:fixed;inset:0;z-index:99999;background:linear-gradient(135deg,#0d1117 0%,#161b22 100%);display:flex;align-items:center;justify-content:center;font-family:system-ui,-apple-system,sans-serif;">
+  <div style="background:#161b22;border:1px solid #30363d;border-radius:16px;padding:48px 40px;max-width:420px;width:90%;text-align:center;box-shadow:0 24px 80px #00000088;">
+    <div style="font-size:3rem;margin-bottom:16px;">🔒</div>
+    <div style="font-size:1.4rem;font-weight:700;color:#c9d1d9;margin-bottom:8px;">Visual Summary</div>
+    <div style="font-size:0.85rem;color:#8b949e;margin-bottom:6px;">Sentence-BERT — From 65 Hours to 5 Seconds</div>
+    <div style="font-size:0.8rem;color:#8b949e;margin-bottom:28px;line-height:1.6;">Exclusive to <b style="color:#c9d1d9;">paid subscribers</b>.<br>Enter the password from your email to unlock.</div>
+    <input id="pg-input" type="password" placeholder="Enter subscriber password" onkeydown="if(event.key==='Enter')pgUnlock()" style="width:100%;padding:12px 16px;font-size:0.95rem;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:8px;outline:none;margin-bottom:12px;">
+    <div id="pg-error" style="font-size:0.78rem;color:#f85149;min-height:18px;margin-bottom:10px;"></div>
+    <button onclick="pgUnlock()" style="width:100%;padding:12px;font-size:0.95rem;font-weight:600;background:linear-gradient(135deg,#74c0fc,#4a9fd4);color:#000;border:none;border-radius:8px;cursor:pointer;">Unlock →</button>
+    <div style="margin-top:20px;font-size:0.75rem;color:#8b949e;">Not a subscriber? <a href="https://visualsummary.substack.com" target="_blank" style="color:#74c0fc;text-decoration:none;">Join Visual Summary →</a></div>
+  </div>
+</div>
+<script>
+const PG_PASSWORD='visual2025';
+function pgUnlock(){
+  var val=document.getElementById('pg-input').value.trim();
+  var err=document.getElementById('pg-error');
+  if(val===PG_PASSWORD){
+    sessionStorage.setItem('pg_unlocked_08','1');
+    var o=document.getElementById('pg-overlay');
+    o.style.transition='opacity 0.4s';o.style.opacity='0';
+    setTimeout(function(){o.remove();},420);
+  } else {
+    err.textContent='Incorrect password.';
+    var inp=document.getElementById('pg-input');
+    inp.style.borderColor='#f85149';
+    setTimeout(function(){inp.style.borderColor='#30363d';},1500);
+  }
+}
+if(sessionStorage.getItem('pg_unlocked_08')==='1') document.getElementById('pg-overlay').remove();
+window.addEventListener('load',function(){var el=document.getElementById('pg-input');if(el)el.focus();});
+</script>
+
+<!-- SIDEBAR -->
+<nav class="sidebar" id="sidebar">
+  <div class="sb-header">
+    <div>
+      <h1>Sentence-BERT</h1>
+      <p>Siamese BERT-Networks · EMNLP 2019</p>
+      <p id="sb-progress" style="font-size:10px;color:#4ade80;margin-top:2px;display:none;"></p>
+    </div>
+    <button class="sb-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')" style="display:none;" id="sb-toggle-btn">☰ Menu</button>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">The Problem</div>
+    <a class="nav-link" href="#s-problem" onclick="setActive(this)"><span class="dot" style="background:#ff6b6b"></span>The 65-Hour Problem</a>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">The Solution</div>
+    <a class="nav-link" href="#s-idea" onclick="setActive(this)"><span class="dot" style="background:#74c0fc"></span>The Key Idea</a>
+    <a class="nav-link" href="#s-arch" onclick="setActive(this)"><span class="dot" style="background:#7c6af4"></span>The Architecture</a>
+    <a class="nav-link" href="#s-training" onclick="setActive(this)"><span class="dot" style="background:#4ecdc4"></span>How It's Trained</a>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">The Payoff</div>
+    <a class="nav-link" href="#s-compare" onclick="setActive(this)"><span class="dot" style="background:#f7b731"></span>SBERT vs Everything</a>
+    <a class="nav-link" href="#s-results" onclick="setActive(this)"><span class="dot" style="background:#51cf66"></span>The Numbers</a>
+    <a class="nav-link" href="#s-impact" onclick="setActive(this)"><span class="dot" style="background:#ffd43b"></span>Why It Changed Everything</a>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+
+<!-- PIPELINE MAP -->
+<div class="pipeline-map" id="pipeline-map">
+  <a class="pipe-step" href="#s-problem"><span class="pipe-dot" style="background:#ff6b6b"></span>Problem</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-idea"><span class="pipe-dot" style="background:#74c0fc"></span>Key Idea</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-arch"><span class="pipe-dot" style="background:#7c6af4"></span>Architecture</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-training"><span class="pipe-dot" style="background:#4ecdc4"></span>Training</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-compare"><span class="pipe-dot" style="background:#f7b731"></span>vs RAG</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-results"><span class="pipe-dot" style="background:#51cf66"></span>Results</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-impact"><span class="pipe-dot" style="background:#ffd43b"></span>Impact</a>
+</div>
+
+<!-- ===== SECTION 1: s-problem ===== -->
+<section class="section" id="s-problem">
+  <div class="section-tag" style="color:#ff6b6b">The Problem &nbsp;·&nbsp; <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;">~12 min read</span></div>
+  <div class="section-title" style="color:#ff6b6b">The 65-Hour Problem</div>
+  <div class="section-sub">BERT was the most powerful NLP model of 2019 — but finding the most similar sentence in a collection of 10,000 required 65 hours of computation. SBERT fixed this in one elegant move: give every sentence its own fingerprint. Comparing fingerprints takes microseconds.</div>
+
+  <div style="background:rgba(255,107,107,0.07);border:1px solid rgba(255,107,107,0.3);border-radius:10px;padding:16px 20px;margin-bottom:28px;">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#ff6b6b;margin-bottom:8px;">TL;DR — The Paper in One Paragraph</div>
+    <p style="font-size:14px;color:var(--text);line-height:1.7;">Nils Reimers and Iryna Gurevych (EMNLP 2019) identified that BERT, despite its power, was fundamentally broken for semantic similarity at scale — it needed to process sentence <em>pairs</em> together, creating an O(n²) bottleneck. Their fix: add a pooling layer on top of BERT to create one fixed-size vector per sentence, train it with a siamese network on NLI data so similar sentences cluster together, and compare via cosine similarity. Result: <strong>47,000× speedup</strong>, better accuracy than all faster alternatives, and a library (SentenceTransformers) that became the backbone of semantic search and RAG worldwide. 7,900+ citations.</p>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat">
+      <div class="stat-val" style="color:#ff6b6b">65h</div>
+      <div class="stat-lbl">BERT's search time for 10K sentences</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" style="color:#51cf66">5s</div>
+      <div class="stat-lbl">SBERT's time for the same task</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" style="color:#74c0fc">47K×</div>
+      <div class="stat-lbl">Speedup over BERT cross-encoding</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" style="color:#ffd43b">7.9K+</div>
+      <div class="stat-lbl">Citations — top 0.01% of ML papers</div>
+    </div>
+  </div>
+
+  <!-- Speed Problem Canvas -->
+  <div class="card">
+    <div class="card-title">The Slow Way vs The Fast Way — Click Animate</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">BERT must compare every pair. SBERT pre-computes fingerprints once. Watch both approaches race:</p>
+    <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center;">
+      <button class="btn" id="speed-anim-btn" onclick="animateSpeedProblem()">▶ Animate</button>
+      <button class="btn btn-outline" onclick="resetSpeedProblem()">Reset</button>
+      <span style="font-size:12px;color:var(--muted);">BERT needs n² comparisons. SBERT needs n+1.</span>
+    </div>
+    <canvas id="canvas-speed-problem" width="640" height="220" style="width:100%;max-width:640px;"></canvas>
+  </div>
+
+  <!-- Embedding Intro -->
+  <div class="card">
+    <div class="card-title">What Is a Sentence Embedding? — Click a Sentence</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Each sentence becomes a list of 768 numbers — a fingerprint encoding its meaning. Similar sentences get similar fingerprints. Click any sentence to see its similarity to the others:</p>
+    <canvas id="canvas-embedding-intro" width="640" height="200" style="width:100%;max-width:640px;cursor:pointer;margin-bottom:10px;" onclick="handleEmbeddingClick(event)"></canvas>
+    <div id="embedding-info" style="font-size:13px;line-height:1.7;padding:10px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);">Click any sentence above to see its cosine similarity with the others.</div>
+  </div>
+
+  <!-- Why BERT couldn't do this -->
+  <div class="card">
+    <div class="card-title">Why BERT Couldn't Do This</div>
+    <div class="g2" style="gap:14px;">
+      <div style="border:1px solid rgba(255,107,107,0.3);border-radius:10px;padding:16px;background:rgba(255,107,107,0.05);">
+        <div style="font-weight:700;color:#ff6b6b;margin-bottom:8px;font-size:13px;">❌ BERT (Cross-Encoder)</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;">
+          <div style="margin-bottom:6px;">Must feed <strong>both sentences together</strong> into BERT</div>
+          <div style="margin-bottom:6px;">One forward pass per <em>pair</em> — not per sentence</div>
+          <div style="margin-bottom:6px;">10,000 sentences = 50 million pair comparisons</div>
+          <div style="margin-bottom:6px;">50M × 65ms each = <strong style="color:#ff6b6b;">65 hours</strong></div>
+          <div>Completely impractical for search or clustering</div>
+        </div>
+      </div>
+      <div style="border:1px solid rgba(116,192,252,0.3);border-radius:10px;padding:16px;background:rgba(116,192,252,0.05);">
+        <div style="font-weight:700;color:#74c0fc;margin-bottom:8px;font-size:13px;">✓ SBERT (Bi-Encoder)</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;">
+          <div style="margin-bottom:6px;">Process each sentence <strong>independently</strong></div>
+          <div style="margin-bottom:6px;">One forward pass per <em>sentence</em> — store the result</div>
+          <div style="margin-bottom:6px;">10,000 sentences = 10,000 embeddings computed once</div>
+          <div style="margin-bottom:6px;">Cosine similarity = microseconds per comparison</div>
+          <div>10,000 sentences in <strong style="color:#51cf66;">5 seconds</strong></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="analogy-card">
+    <div class="analogy-label">The Fingerprint Analogy</div>
+    <p>"BERT is a detective who must read two documents side-by-side every time you ask if they're similar. SBERT gives every document a permanent fingerprint once — you just compare fingerprints. The detective work happens once; every subsequent comparison is instant."</p>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">The problem is clear. What's the elegant fix?</span>
+    <a class="section-bridge-link" href="#s-idea">The Key Idea →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 2: s-idea ===== -->
+<section class="section" id="s-idea">
+  <div class="section-tag" style="color:#74c0fc">The Core Insight</div>
+  <div class="section-title" style="color:#74c0fc">The Key Idea</div>
+  <div class="section-sub">Run any sentence through BERT, average the token outputs into one 768-dimensional vector, train so similar sentences cluster together, compare with cosine similarity. Disarmingly simple. Devastatingly effective.</div>
+
+  <!-- Embedding Space Explorer -->
+  <div class="card">
+    <div class="card-title">Embedding Space — Hover or Click Any Sentence</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Similar sentences cluster together in 768-dimensional space. This 2D projection shows semantic clusters forming naturally. Hover to highlight neighbours, click to see top matches:</p>
+    <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center;">
+      <button class="btn" id="space-anim-btn" onclick="animateSpaceExplorer()">▶ Animate Formation</button>
+      <button class="btn btn-outline" onclick="resetSpaceExplorer()">Reset</button>
+    </div>
+    <canvas id="canvas-space-explorer" width="640" height="320" style="width:100%;max-width:640px;cursor:pointer;margin-bottom:10px;" onmousemove="hoverSpaceExplorer(event)" onmouseleave="leaveSpaceExplorer()" onclick="clickSpaceExplorer(event)"></canvas>
+    <div id="space-info" style="font-size:13px;line-height:1.7;padding:10px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);">Hover any dot to see its nearest neighbours. Click to see top-5 most similar sentences.</div>
+  </div>
+
+  <!-- Cosine Similarity Calculator -->
+  <div class="card">
+    <div class="card-title">Cosine Similarity — Try It</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Cosine similarity measures the angle between two embedding vectors. 1.0 = identical meaning, 0.0 = unrelated, negative = opposite. Pick a preset or type your own:</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+      <button class="btn btn-outline" style="font-size:11px;padding:6px 10px;" onclick="setSimPair(0)">Paraphrase</button>
+      <button class="btn btn-outline" style="font-size:11px;padding:6px 10px;" onclick="setSimPair(1)">Same topic</button>
+      <button class="btn btn-outline" style="font-size:11px;padding:6px 10px;" onclick="setSimPair(2)">Unrelated</button>
+      <button class="btn btn-outline" style="font-size:11px;padding:6px 10px;" onclick="setSimPair(3)">Question+Answer</button>
+      <button class="btn btn-outline" style="font-size:11px;padding:6px 10px;" onclick="setSimPair(4)">Contradiction</button>
+    </div>
+    <div class="g2" style="gap:12px;margin-bottom:14px;">
+      <div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;">Sentence A</div>
+        <div id="sim-a" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--text);line-height:1.5;min-height:48px;"></div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;">Sentence B</div>
+        <div id="sim-b" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--text);line-height:1.5;min-height:48px;"></div>
+      </div>
+    </div>
+    <div id="sim-result" style="padding:16px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);text-align:center;"></div>
+  </div>
+
+  <!-- 3-column similarity cards -->
+  <div class="g3" style="gap:14px;margin-bottom:24px;">
+    <div style="border:1px solid rgba(81,207,102,0.3);border-radius:10px;padding:16px;background:rgba(81,207,102,0.05);">
+      <div style="font-size:20px;margin-bottom:8px;">🔄</div>
+      <div style="font-weight:700;color:#51cf66;margin-bottom:6px;font-size:13px;">Paraphrase</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.5;">Different words, same meaning. SBERT similarity: ~0.90–0.98. Two embeddings nearly overlap in 768-D space.</div>
+    </div>
+    <div style="border:1px solid rgba(247,183,49,0.3);border-radius:10px;padding:16px;background:rgba(247,183,49,0.05);">
+      <div style="font-size:20px;margin-bottom:8px;">🔗</div>
+      <div style="font-weight:700;color:#f7b731;margin-bottom:6px;font-size:13px;">Same Topic</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.5;">Related domain, different facts. SBERT similarity: ~0.50–0.75. Embeddings in the same neighbourhood but distinct.</div>
+    </div>
+    <div style="border:1px solid rgba(255,107,107,0.3);border-radius:10px;padding:16px;background:rgba(255,107,107,0.05);">
+      <div style="font-size:20px;margin-bottom:8px;">↗</div>
+      <div style="font-weight:700;color:#ff6b6b;margin-bottom:6px;font-size:13px;">Unrelated</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.5;">Different domains, different topics. SBERT similarity: ~0.05–0.20. Embeddings far apart in vector space.</div>
+    </div>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">Good embeddings need the right architecture to produce them.</span>
+    <a class="section-bridge-link" href="#s-arch">The Architecture →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 3: s-arch ===== -->
+<section class="section" id="s-arch">
+  <div class="section-tag" style="color:#7c6af4">The System Design</div>
+  <div class="section-title" style="color:#7c6af4">The Architecture</div>
+  <div class="section-sub">SBERT adds two things to BERT: a siamese structure (two identical encoders sharing weights) and a pooling layer that collapses 512 token vectors into one sentence vector. Click any component to explore it.</div>
+
+  <!-- Siamese network -->
+  <div class="card">
+    <div class="card-title">Siamese Network — Click Any Component</div>
+    <canvas id="canvas-siamese" width="640" height="300" style="width:100%;max-width:640px;cursor:pointer;margin-bottom:12px;" onclick="handleSiameseClick(event)"></canvas>
+    <div id="siamese-info" style="font-size:13px;line-height:1.7;padding:12px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);">Click any part of the diagram to learn what it does.</div>
+  </div>
+
+  <!-- Pooling comparison -->
+  <div class="card">
+    <div class="card-title">Pooling Strategy — Which One Wins?</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">BERT produces 512 token vectors. Pooling collapses them into one sentence vector. Three strategies, one clear winner:</p>
+    <div style="display:flex;gap:0;margin-bottom:14px;">
+      <button class="toggle-btn active" id="pool-cls-btn" onclick="setPoolingTab('cls')">CLS Token</button>
+      <button class="toggle-btn" id="pool-mean-btn" onclick="setPoolingTab('mean')">Mean Pooling ★</button>
+      <button class="toggle-btn" id="pool-max-btn" onclick="setPoolingTab('max')">Max Pooling</button>
+    </div>
+    <canvas id="canvas-pooling" width="640" height="210" style="width:100%;max-width:640px;margin-bottom:10px;"></canvas>
+    <div id="pooling-info" style="font-size:13px;line-height:1.7;padding:10px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);"></div>
+  </div>
+
+  <!-- 768 Dims explorer -->
+  <div class="card">
+    <div class="card-title">Inside the 768-Dimensional Embedding</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Each number in the 768-dim vector encodes a different semantic feature. Compare two sentences — different regions activate differently:</p>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+      <button class="btn btn-outline" style="font-size:12px;padding:7px 12px;" onclick="setDimPair('cat')">Cat sentences</button>
+      <button class="btn btn-outline" style="font-size:12px;padding:7px 12px;" onclick="setDimPair('tech')">Tech vs Food</button>
+      <button class="btn btn-outline" style="font-size:12px;padding:7px 12px;" onclick="setDimPair('emotion')">Happy vs Sad</button>
+    </div>
+    <canvas id="canvas-dims" width="640" height="160" style="width:100%;max-width:640px;"></canvas>
+    <div id="dims-info" style="font-size:12px;color:var(--muted);margin-top:8px;"></div>
+  </div>
+
+  <div class="analogy-card">
+    <div class="analogy-label">The Siamese Twin Analogy</div>
+    <p>"A siamese network is like training identical twins to judge figure skating. Both twins watch different skaters independently and write scores. Because they were trained together with the same judging philosophy, their scores are directly comparable — even though they never watched the same skater at the same time."</p>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">Architecture in place. What shapes the embedding space?</span>
+    <a class="section-bridge-link" href="#s-training">How It's Trained →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 4: s-training ===== -->
+<section class="section" id="s-training">
+  <div class="section-tag" style="color:#4ecdc4">The Training</div>
+  <div class="section-title" style="color:#4ecdc4">How It's Trained</div>
+  <div class="section-sub">SBERT fine-tunes BERT on 1 million Natural Language Inference pairs — sentences labelled as entailment, neutral, or contradiction. This creates natural positive and negative examples that sculpt the embedding space. Training takes less than 20 minutes.</div>
+
+  <!-- NLI Triplets -->
+  <div class="card">
+    <div class="card-title">NLI Training Triplets — Click Next to Cycle Examples</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Each training example is a premise paired with a hypothesis that entails, contradicts, or is neutral to it. SBERT uses these as anchor/positive/negative triplets to shape the embedding space:</p>
+    <div style="display:flex;gap:10px;margin-bottom:14px;align-items:center;">
+      <button class="btn" onclick="nextNLIExample()">Next Example →</button>
+      <span id="nli-counter" style="font-size:12px;color:var(--muted);">Example 1 of 5</span>
+    </div>
+    <canvas id="canvas-nli" width="640" height="280" style="width:100%;max-width:640px;margin-bottom:10px;"></canvas>
+    <div id="nli-info" style="font-size:13px;line-height:1.7;padding:10px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);"></div>
+  </div>
+
+  <!-- Loss functions -->
+  <div class="card">
+    <div class="card-title">Loss Functions — Three Training Objectives</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Choose the loss function based on your data type. Triplet loss directly optimises what we care about — distance in embedding space:</p>
+    <div style="display:flex;gap:0;margin-bottom:14px;">
+      <button class="toggle-btn" id="loss-classify-btn" onclick="setLossTab('classify')">Classification</button>
+      <button class="toggle-btn" id="loss-regression-btn" onclick="setLossTab('regression')">Regression</button>
+      <button class="toggle-btn active" id="loss-triplet-btn" onclick="setLossTab('triplet')">Triplet ★</button>
+    </div>
+    <canvas id="canvas-loss" width="640" height="220" style="width:100%;max-width:640px;margin-bottom:10px;"></canvas>
+    <div id="loss-info" style="font-size:13px;line-height:1.7;padding:10px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);"></div>
+  </div>
+
+  <!-- Training stats -->
+  <div class="card">
+    <div class="card-title">Training at a Glance</div>
+    <div class="g2" style="gap:14px;">
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#4ecdc4;margin-bottom:10px;">Configuration</div>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted);">
+          <div style="padding:6px 10px;background:var(--bg);border-radius:6px;border:1px solid var(--border);">📚 Dataset: AllNLI = SNLI (570K) + MultiNLI (430K)</div>
+          <div style="padding:6px 10px;background:var(--bg);border-radius:6px;border:1px solid var(--border);">📦 Batch size: 16</div>
+          <div style="padding:6px 10px;background:var(--bg);border-radius:6px;border:1px solid var(--border);">⚡ Optimizer: Adam, LR = 2e-5</div>
+          <div style="padding:6px 10px;background:var(--bg);border-radius:6px;border:1px solid var(--border);">🔄 Epochs: 1 (one pass is enough)</div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#51cf66;margin-bottom:10px;">Why just 1 epoch?</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.7;padding:12px;background:var(--bg);border-radius:8px;border:1px solid var(--border);">BERT already knows language from pre-training on billions of words. SBERT only needs to teach it <em>how to measure distance</em> between meanings. One pass through 1 million diverse sentence pairs is enough to sculpt the embedding space. More epochs lead to overfitting.</div>
+      </div>
+    </div>
+    <div style="margin-top:14px;padding:14px;border-radius:8px;background:rgba(78,205,196,0.07);border:1px solid rgba(78,205,196,0.3);text-align:center;">
+      <span style="font-size:28px;font-weight:700;font-family:'JetBrains Mono';color:#4ecdc4;">&lt;20 minutes</span>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px;">Total training time on a single GPU</div>
+    </div>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">Trained in 20 minutes. How does it stack up against everything else?</span>
+    <a class="section-bridge-link" href="#s-compare">SBERT vs Everything →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 5: s-compare ===== -->
+<section class="section" id="s-compare">
+  <div class="section-tag" style="color:#f7b731">Head to Head</div>
+  <div class="section-title" style="color:#f7b731">SBERT vs Everything Else</div>
+  <div class="section-sub">Before SBERT, you chose between accurate-but-slow (BERT cross-encoding) or fast-but-weak (GloVe averaging). SBERT is the first system to be both faster than InferSent and more accurate than BERT-averaged embeddings.</div>
+
+  <!-- Speed vs Quality Scatter -->
+  <div class="card">
+    <div class="card-title">Speed vs Quality — The Ideal Top-Right Corner</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Every prior method forced a trade-off. SBERT breaks out of it. Hover any point for details:</p>
+    <canvas id="canvas-scatter-compare" width="640" height="320" style="width:100%;max-width:640px;cursor:pointer;margin-bottom:10px;" onmousemove="hoverScatter(event)" onmouseleave="leaveScatter()"></canvas>
+    <div id="scatter-info" style="font-size:13px;line-height:1.7;padding:10px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);">Hover any point to see its exact speed and accuracy numbers.</div>
+  </div>
+
+  <!-- Same question comparison -->
+  <div class="card">
+    <div class="card-title">Same Question, Different Systems — See the Difference</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Pick a sentence pair and see how each system scores it. Only SBERT is both fast and accurate:</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+      <button class="btn btn-outline" style="font-size:12px;" onclick="showComparison(0)">"The cat sat" / "A feline rested"</button>
+      <button class="btn btn-outline" style="font-size:12px;" onclick="showComparison(1)">"Stock markets fell" / "Prices dropped"</button>
+      <button class="btn btn-outline" style="font-size:12px;" onclick="showComparison(2)">"I love pizza" / "Quantum physics"</button>
+    </div>
+    <div id="comparison-panels" style="display:none;">
+      <div id="comparison-q" style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px;padding:10px 14px;background:var(--bg);border-radius:8px;border:1px solid var(--border);"></div>
+      <div id="comparison-rows" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+    <div id="comparison-prompt" style="font-size:13px;color:var(--muted);text-align:center;padding:20px;">Click a sentence pair above to compare how each system responds.</div>
+  </div>
+
+  <!-- Comparison table -->
+  <div class="card">
+    <div class="card-title">Full Comparison</div>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr>
+            <th style="background:var(--surface2);padding:10px 14px;text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);">Method</th>
+            <th style="background:var(--surface2);padding:10px 14px;text-align:center;font-weight:600;font-size:11px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);">Speed (sent/s)</th>
+            <th style="background:var(--surface2);padding:10px 14px;text-align:center;font-weight:600;font-size:11px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);">STS Avg (Spearman)</th>
+            <th style="background:var(--surface2);padding:10px 14px;text-align:center;font-weight:600;font-size:11px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);">Pair Input?</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td style="padding:10px 14px;border-bottom:1px solid var(--border);">GloVe Avg</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#51cf66;">6,200</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#ff6b6b;">61.32</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#51cf66;">No</td></tr>
+          <tr><td style="padding:10px 14px;border-bottom:1px solid var(--border);">InferSent</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#51cf66;">1,876</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#f7b731;">65.01</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#51cf66;">No</td></tr>
+          <tr><td style="padding:10px 14px;border-bottom:1px solid var(--border);">Universal Sentence Encoder</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#51cf66;">1,318</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#f7b731;">71.22</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#51cf66;">No</td></tr>
+          <tr><td style="padding:10px 14px;border-bottom:1px solid var(--border);">BERT Cross-Encoder</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#ff6b6b;">~130</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#51cf66;">~88*</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#ff6b6b;">Yes (O(n²))</td></tr>
+          <tr style="background:rgba(116,192,252,0.05);"><td style="padding:10px 14px;border-bottom:1px solid var(--border);font-weight:700;color:#74c0fc;">SBERT ★</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#51cf66;font-weight:700;">2,042</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#51cf66;font-weight:700;">76.55</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#51cf66;font-weight:700;">No</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:8px;">* BERT cross-encoder score not directly comparable — it requires both sentences as input and cannot be used for pre-computation.</div>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">SBERT wins the trade-off. Now the actual benchmark numbers.</span>
+    <a class="section-bridge-link" href="#s-results">The Numbers →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 6: s-results ===== -->
+<section class="section" id="s-results">
+  <div class="section-tag" style="color:#51cf66">Results</div>
+  <div class="section-title" style="color:#51cf66">The Numbers</div>
+  <div class="section-sub">SBERT was benchmarked on 7 Semantic Textual Similarity datasets, the SentEval transfer suite, and a Wikipedia section retrieval task. It outperforms all faster baselines on every benchmark.</div>
+
+  <div class="stat-row">
+    <div class="stat">
+      <div class="stat-val" style="color:#51cf66">76.55</div>
+      <div class="stat-lbl">Avg Spearman on 7 STS benchmarks</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" style="color:#74c0fc">+11.5</div>
+      <div class="stat-lbl">Points over InferSent</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" style="color:#ffd43b">87.69</div>
+      <div class="stat-lbl">Avg SentEval transfer score</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" style="color:#4ecdc4">2,042</div>
+      <div class="stat-lbl">Sentences/second on GPU</div>
+    </div>
+  </div>
+
+  <!-- STS Benchmark bars -->
+  <div class="card">
+    <div class="card-title">STS Benchmarks — Spearman Correlation Across 7 Datasets</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Higher is better (max 100). SBERT consistently outperforms all methods that don't require pairs:</p>
+    <canvas id="canvas-sts-bars" width="640" height="320" style="width:100%;max-width:640px;margin-bottom:10px;"></canvas>
+    <div id="sts-tooltip" style="font-size:12px;color:var(--muted);margin-top:4px;min-height:20px;"></div>
+  </div>
+
+  <!-- SentEval -->
+  <div class="card">
+    <div class="card-title">SentEval Transfer Tasks — Classification Accuracy</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Frozen embeddings used as features for 7 downstream classification tasks. SBERT embeddings transfer better:</p>
+    <canvas id="canvas-senteval" width="640" height="240" style="width:100%;max-width:640px;margin-bottom:10px;"></canvas>
+  </div>
+
+  <!-- Speed bench -->
+  <div class="card">
+    <div class="card-title">Throughput — Sentences per Second</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">SBERT is 15× faster than BERT cross-encoding and still beats InferSent and USE on quality:</p>
+    <canvas id="canvas-speed-bench" width="640" height="200" style="width:100%;max-width:640px;"></canvas>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">Numbers validated. Why did this become a 7,900-citation landmark?</span>
+    <a class="section-bridge-link" href="#s-impact">Why It Changed Everything →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 7: s-impact ===== -->
+<section class="section" id="s-impact">
+  <div class="section-tag" style="color:#ffd43b">The Legacy</div>
+  <div class="section-title" style="color:#ffd43b">Why It Changed Everything</div>
+  <div class="section-sub">7,900+ citations. An industry-standard library. The backbone of semantic search, RAG retrieval, clustering, and recommendation systems worldwide. SBERT didn't just solve a benchmark — it unlocked a category of applications that weren't possible before.</div>
+
+  <!-- Applications map -->
+  <div class="card">
+    <div class="card-title">What SBERT Made Possible — Click Any Application</div>
+    <canvas id="canvas-applications" width="640" height="300" style="width:100%;max-width:640px;cursor:pointer;margin-bottom:10px;" onclick="handleApplicationClick(event)"></canvas>
+    <div id="application-info" style="font-size:13px;line-height:1.7;padding:10px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);">Click any application spoke to see real-world examples and who uses it.</div>
+  </div>
+
+  <!-- Accordion -->
+  <div class="card">
+    <div class="card-title">What Became Possible</div>
+    <div class="accordion-item open">
+      <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">🔍 Semantic Search at Scale <span class="accordion-chevron">▾</span></div>
+      <div class="accordion-body">Elasticsearch, Pinecone, Weaviate, and Qdrant all support SBERT-style dense vector search. Before SBERT, keyword search was the only scalable option. Now: "find papers similar to this abstract" across millions of documents in milliseconds. Spotify, Netflix, LinkedIn all use variants for recommendation.</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">🤖 RAG Retrieval (Every RAG Pipeline) <span class="accordion-chevron">▾</span></div>
+      <div class="accordion-body">Every Retrieval-Augmented Generation system encodes document chunks with an SBERT-style model. ChatGPT plugins, Claude's document reading, LlamaIndex, LangChain — all use SBERT descendants for the retrieval step. Without SBERT's insight, RAG would be impractically slow.</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">📊 Document Clustering (No Labels Needed) <span class="accordion-chevron">▾</span></div>
+      <div class="accordion-body">K-means on SBERT embeddings discovers semantic clusters in document collections automatically. News topic clustering, customer support ticket grouping, research paper taxonomy — all enabled without any labelled data. Just embed and cluster.</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">🔁 Duplicate & Paraphrase Detection <span class="accordion-chevron">▾</span></div>
+      <div class="accordion-body">News agencies use SBERT to deduplicate wire stories. Legal firms use it to find near-duplicate contract clauses. Stack Overflow uses embedding similarity to suggest duplicate questions. Before SBERT: expensive n² comparisons. After: compare pre-computed embeddings in O(n).</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="this.parentElement.classList.toggle('open')">🌍 Cross-Lingual Similarity (50+ Languages) <span class="accordion-chevron">▾</span></div>
+      <div class="accordion-body">Multilingual SBERT (mSBERT) extended the idea to 50+ languages. English query → find relevant French documents → compare to German results. All in the same embedding space. International news monitoring, multilingual customer support, cross-lingual FAQ retrieval — all became practical.</div>
+    </div>
+  </div>
+
+  <!-- Citation timeline -->
+  <div class="card">
+    <div class="card-title">Citation Growth — A Landmark Paper's Trajectory</div>
+    <canvas id="canvas-citations" width="640" height="180" style="width:100%;max-width:640px;margin-bottom:10px;"></canvas>
+  </div>
+
+  <div class="highlight-box">
+    <p><strong style="color:#ffd43b;">The recipe that made it viral:</strong> SBERT solved a real problem (BERT's O(n²) bottleneck), maintained quality (better than all faster alternatives), shipped working code immediately (SentenceTransformers library), and arrived at exactly the right moment — just as transformers were hitting production and teams desperately needed fast embedding methods. The "65 hours to 5 seconds" headline did the rest.</p>
+  </div>
+
+  <!-- Final stat display -->
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:28px;flex-wrap:wrap;">
+    <div style="text-align:center;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;">
+      <div style="font-size:18px;font-weight:700;font-family:'JetBrains Mono';color:#ff6b6b;">65h→5s</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:0.5px;">Speedup</div>
+    </div>
+    <div style="text-align:center;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;">
+      <div style="font-size:18px;font-weight:700;font-family:'JetBrains Mono';color:#74c0fc;">47,000×</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:0.5px;">Faster</div>
+    </div>
+    <div style="text-align:center;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;">
+      <div style="font-size:18px;font-weight:700;font-family:'JetBrains Mono';color:#51cf66;">76.55</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:0.5px;">STS Spearman</div>
+    </div>
+    <div style="text-align:center;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;">
+      <div style="font-size:18px;font-weight:700;font-family:'JetBrains Mono';color:#4ecdc4;">2,042</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:0.5px;">Sent/sec</div>
+    </div>
+    <div style="text-align:center;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;">
+      <div style="font-size:18px;font-weight:700;font-family:'JetBrains Mono';color:#ffd43b;">7,900+</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:0.5px;">Citations</div>
+    </div>
+  </div>
+</section>
+
+</div><!-- .main -->
+
+<script>
+/* =====================================================
+   UTILITIES
+===================================================== */
+function lerp(a,b,t){return a+(b-a)*t;}
+function easeInOut(t){return t<0.5?2*t*t:-1+(4-2*t)*t;}
+function drawRoundedRect(ctx,x,y,w,h,r,fill,stroke,lw){
+  ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);
+  ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);
+  ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);
+  ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);
+  ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
+  if(fill){ctx.fillStyle=fill;ctx.fill();}
+  if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=lw||1;ctx.stroke();}
+}
+function drawArrow(ctx,x1,y1,x2,y2,color,lw){
+  var angle=Math.atan2(y2-y1,x2-x1);
+  ctx.save();ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=lw||1.5;
+  ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-9*Math.cos(angle-0.4),y2-9*Math.sin(angle-0.4));
+  ctx.lineTo(x2-9*Math.cos(angle+0.4),y2-9*Math.sin(angle+0.4));
+  ctx.closePath();ctx.fill();ctx.restore();
+}
+function seededRand(seed){var s=seed;return function(){s=(s*1664525+1013904223)&0xffffffff;return(s>>>0)/4294967296;};}
+
+/* =====================================================
+   NAV
+===================================================== */
+var sectionIds=['s-problem','s-idea','s-arch','s-training','s-compare','s-results','s-impact'];
+function setActive(el){document.querySelectorAll('.nav-link').forEach(function(l){l.classList.remove('active');});el.classList.add('active');}
+function updateNavOnScroll(){
+  var scrollY=window.scrollY+120;var current=sectionIds[0];
+  sectionIds.forEach(function(id){var el=document.getElementById(id);if(el&&el.offsetTop<=scrollY)current=id;});
+  document.querySelectorAll('.nav-link').forEach(function(l){l.classList.toggle('active',l.getAttribute('href')==='#'+current);});
+  document.querySelectorAll('.pipe-step').forEach(function(s){s.classList.toggle('active',s.getAttribute('href')==='#'+current);});
+  var visited=sectionIds.filter(function(s){var el=document.getElementById(s);return el&&el.offsetTop<=scrollY+100;});
+  var prog=document.getElementById('sb-progress');
+  if(prog){var p=Math.round(visited.length/sectionIds.length*100);prog.textContent=p+'% explored';prog.style.display=p>0?'block':'none';}
+}
+window.addEventListener('scroll',updateNavOnScroll);
+if(window.innerWidth<=768){var tb=document.getElementById('sb-toggle-btn');if(tb)tb.style.display='flex';}
+document.querySelectorAll('.accordion-header').forEach(function(h){h.addEventListener('click',function(){this.parentElement.classList.toggle('open');});});
+
+/* =====================================================
+   S1: SPEED PROBLEM ANIMATION
+===================================================== */
+var speedAF=null;var speedT=0;var speedDone=false;
+function animateSpeedProblem(){
+  var btn=document.getElementById('speed-anim-btn');
+  if(speedDone){resetSpeedProblem();return;}
+  if(speedAF){cancelAnimationFrame(speedAF);speedAF=null;if(btn)btn.textContent='▶ Continue';return;}
+  if(btn)btn.textContent='⏸ Pause';
+  function step(){speedT=Math.min(speedT+0.006,1);drawSpeedProblem(speedT);if(speedT<1)speedAF=requestAnimationFrame(step);else{speedDone=true;speedAF=null;if(btn)btn.textContent='↺ Replay';}}
+  speedAF=requestAnimationFrame(step);
+}
+function resetSpeedProblem(){
+  if(speedAF){cancelAnimationFrame(speedAF);speedAF=null;}
+  speedT=0;speedDone=false;
+  var btn=document.getElementById('speed-anim-btn');if(btn)btn.textContent='▶ Animate';
+  drawSpeedProblem(0);
+}
+function drawSpeedProblem(t){
+  var cv=document.getElementById('canvas-speed-problem');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var mid=W/2;
+  // Titles
+  ctx.fillStyle='#ff6b6b';ctx.font='bold 12px Inter';ctx.textAlign='center';ctx.fillText('BERT (Slow)',mid/2,20);
+  ctx.fillStyle='#51cf66';ctx.font='bold 12px Inter';ctx.textAlign='center';ctx.fillText('SBERT (Fast)',mid+mid/2,20);
+  // Divider
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(mid,10);ctx.lineTo(mid,H-10);ctx.stroke();
+  // BERT side: sequential pair comparisons
+  var sentences=['Sentence 1','Sentence 2','Sentence 3','Sentence 4','Sentence 5'];
+  var bertProgress=t;// 0→1 over whole animation, showing one pair at a time
+  var pairsDone=Math.floor(bertProgress*5);
+  var pairFrac=(bertProgress*5)%1;
+  sentences.forEach(function(s,i){
+    var y=38+i*34;var active=(i<pairsDone||(i===pairsDone&&pairFrac>0));
+    var frac=i<pairsDone?1:(i===pairsDone?pairFrac:0);
+    ctx.globalAlpha=active?1:0.3;
+    drawRoundedRect(ctx,10,y,mid-60,28,5,'#ff6b6b18','#ff6b6b',1);
+    ctx.fillStyle='#ff6b6b';ctx.font='10px Inter';ctx.textAlign='center';ctx.fillText(s,mid/2-20,y+18);
+    if(active){
+      ctx.fillStyle='#ff6b6b';ctx.fillRect(mid-50,y+10,Math.round((mid-60)*frac)*0.3,8);
+    }
+    ctx.globalAlpha=1;
+  });
+  ctx.fillStyle='#ff6b6b';ctx.font='bold 9px Inter';ctx.textAlign='center';
+  ctx.fillText('Query + each sentence → BERT → score',mid/2,H-24);
+  ctx.fillStyle='#ff6b6b';ctx.font='bold 11px JetBrains Mono';ctx.textAlign='center';
+  ctx.fillText(t>=1?'Done: 65 hours':(Math.floor(t*65))+'h elapsed...',mid/2,H-8);
+  // SBERT side: pre-computed embeddings, instant query
+  var sbert_emb_t=Math.min(1,t*2);// embeddings computed first half
+  var sbert_q_t=Math.max(0,(t-0.4)*3);// query second half
+  var embCols=['#74c0fc','#7c6af4','#4ecdc4','#51cf66','#f7b731'];
+  sentences.forEach(function(s,i){
+    var y=38+i*34;var eFrac=Math.min(1,Math.max(0,sbert_emb_t*5-i));
+    ctx.globalAlpha=eFrac;
+    drawRoundedRect(ctx,mid+10,y,mid-60,28,5,embCols[i]+'22',embCols[i],1.5);
+    ctx.fillStyle=embCols[i];ctx.font='10px Inter';ctx.textAlign='center';ctx.fillText('['+s+' embedding]',mid+mid/2-20,y+18);
+    ctx.globalAlpha=1;
+  });
+  if(sbert_q_t>0){
+    ctx.globalAlpha=sbert_q_t;
+    ctx.fillStyle='#51cf66';ctx.font='bold 12px Inter';ctx.textAlign='center';
+    ctx.fillText('✓ Cosine similarity: instant!',mid+mid/2-10,H-18);
+    ctx.fillStyle='#51cf66';ctx.font='bold 11px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText('Done: 5 seconds',mid+mid/2-10,H-4);
+    ctx.globalAlpha=1;
+  } else {
+    ctx.fillStyle='#51cf66';ctx.font='bold 9px Inter';ctx.textAlign='center';
+    ctx.fillText('Pre-compute each sentence once → store → compare',mid+mid/2-10,H-8);
+  }
+}
+
+/* =====================================================
+   S1: EMBEDDING INTRO (CLICKABLE)
+===================================================== */
+var EMBED_SENTENCES=[
+  {text:'The cat sat on the mat.',col:'#74c0fc',seed:42},
+  {text:'A feline rested on the rug.',col:'#7c6af4',seed:43},
+  {text:'The stock market crashed today.',col:'#ff6b6b',seed:99}
+];
+var EMBED_SIMS=[[1.0,0.92,0.08],[0.92,1.0,0.06],[0.08,0.06,1.0]];
+var selectedEmbed=-1;
+function handleEmbeddingClick(e){
+  var cv=document.getElementById('canvas-embedding-intro');if(!cv)return;
+  var rect=cv.getBoundingClientRect();
+  var my=(e.clientY-rect.top)*(cv.height/rect.height);
+  var H=cv.height;var rowH=H/3;
+  var hit=Math.floor(my/rowH);
+  selectedEmbed=(hit===selectedEmbed)?-1:hit;
+  drawEmbeddingIntro();
+  var info=document.getElementById('embedding-info');if(!info)return;
+  if(selectedEmbed>=0){
+    var s=EMBED_SENTENCES[selectedEmbed];
+    var sims=EMBED_SIMS[selectedEmbed];
+    var parts=EMBED_SENTENCES.map(function(t,i){return '"'+t.text+'" → '+sims[i].toFixed(2);});
+    info.innerHTML='<strong style="color:'+s.col+'">Selected: "'+s.text+'"</strong><br>Cosine similarity: '+parts.join(' &nbsp;|&nbsp; ');
+  } else {
+    info.textContent='Click any sentence above to see its cosine similarity with the others.';
+  }
+}
+function drawEmbeddingIntro(){
+  var cv=document.getElementById('canvas-embedding-intro');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var lblW=200;var barArea=W-lblW-20;var rowH=H/3;
+  EMBED_SENTENCES.forEach(function(s,i){
+    var y=i*rowH;var sel=(i===selectedEmbed);var rng=seededRand(s.seed);
+    ctx.fillStyle=sel?s.col:s.col+'88';ctx.font=(sel?'bold ':'')+'11px Inter';ctx.textAlign='left';
+    var words=s.text.split(' ');var line1=words.slice(0,4).join(' ');var line2=words.slice(4).join(' ');
+    ctx.fillText(line1,8,y+rowH/2-4);if(line2)ctx.fillText(line2,8,y+rowH/2+10);
+    // Draw mini embedding bars (40 bars to represent 768 dims compactly)
+    var bw=Math.floor(barArea/42);
+    for(var b=0;b<40;b++){
+      var val=rng()*0.85+0.05;
+      var bh=Math.round(val*(rowH-6));
+      var bx=lblW+b*(bw+1);var by=y+rowH-3-bh;
+      ctx.fillStyle=s.col+(sel?'ee':'55');
+      ctx.fillRect(bx,by,bw,bh);
+    }
+    // Similarity scores if selected
+    if(sel){
+      var sims=EMBED_SIMS[i];
+      EMBED_SENTENCES.forEach(function(t,j){
+        if(j!==i){
+          var simCol=sims[j]>0.5?'#51cf66':'#ff6b6b';
+          ctx.fillStyle=simCol;ctx.font='bold 10px JetBrains Mono';ctx.textAlign='center';
+          ctx.fillText('sim='+sims[j].toFixed(2),lblW+barArea/2,j*rowH+rowH/2+2);
+        }
+      });
+    }
+    // Divider
+    if(i<2){ctx.strokeStyle='#2a3060';ctx.lineWidth=0.5;ctx.beginPath();ctx.moveTo(0,(i+1)*rowH);ctx.lineTo(W,(i+1)*rowH);ctx.stroke();}
+  });
+  ctx.fillStyle='#8892b0';ctx.font='10px JetBrains Mono';ctx.textAlign='right';ctx.fillText('← 768 dimensions →',W-4,H-4);
+}
+
+/* =====================================================
+   S2: EMBEDDING SPACE EXPLORER
+===================================================== */
+var SPACE_DOTS=[
+  {label:'A cat sat',x:0.22,y:0.28,col:'#74c0fc',cluster:0,top5:[1,2,3,4,5]},
+  {label:'A feline rested',x:0.18,y:0.35,col:'#74c0fc',cluster:0,top5:[0,2,3,6,7]},
+  {label:'My kitten sleeps',x:0.28,y:0.22,col:'#74c0fc',cluster:0,top5:[0,1,3,4,5]},
+  {label:'Dogs love running',x:0.35,y:0.42,col:'#74c0fc',cluster:0,top5:[4,5,0,1,2]},
+  {label:'The puppy barked',x:0.30,y:0.48,col:'#74c0fc',cluster:0,top5:[3,5,0,1,6]},
+  {label:'Animals are playful',x:0.25,y:0.40,col:'#74c0fc',cluster:0,top5:[3,4,0,1,2]},
+  {label:'Stock prices rose',x:0.68,y:0.25,col:'#51cf66',cluster:1,top5:[7,8,9,10,11]},
+  {label:'Markets crashed',x:0.75,y:0.30,col:'#51cf66',cluster:1,top5:[6,8,9,10,11]},
+  {label:'Inflation increased',x:0.72,y:0.20,col:'#51cf66',cluster:1,top5:[6,7,9,10,11]},
+  {label:'GDP growth slowed',x:0.80,y:0.22,col:'#51cf66',cluster:1,top5:[6,7,8,10,11]},
+  {label:'Interest rates rise',x:0.65,y:0.18,col:'#51cf66',cluster:1,top5:[6,7,8,9,11]},
+  {label:'Fed raised rates',x:0.78,y:0.35,col:'#51cf66',cluster:1,top5:[6,7,8,9,10]},
+  {label:'Pizza is delicious',x:0.22,y:0.72,col:'#f7b731',cluster:2,top5:[13,14,15,16,17]},
+  {label:'I love pasta',x:0.28,y:0.78,col:'#f7b731',cluster:2,top5:[12,14,15,16,17]},
+  {label:'Sushi tastes great',x:0.18,y:0.80,col:'#f7b731',cluster:2,top5:[12,13,15,16,17]},
+  {label:'Cooking is fun',x:0.32,y:0.70,col:'#f7b731',cluster:2,top5:[12,13,14,16,17]},
+  {label:'The recipe is easy',x:0.25,y:0.65,col:'#f7b731',cluster:2,top5:[12,13,14,15,17]},
+  {label:'Dinner was perfect',x:0.35,y:0.76,col:'#f7b731',cluster:2,top5:[12,13,14,15,16]},
+  {label:'Neural nets learn',x:0.72,y:0.72,col:'#ff6b6b',cluster:3,top5:[19,20,21,22,23]},
+  {label:'Deep learning rocks',x:0.78,y:0.68,col:'#ff6b6b',cluster:3,top5:[18,20,21,22,23]},
+  {label:'AI systems improve',x:0.68,y:0.65,col:'#ff6b6b',cluster:3,top5:[18,19,21,22,23]},
+  {label:'ML models train',x:0.80,y:0.78,col:'#ff6b6b',cluster:3,top5:[18,19,20,22,23]},
+  {label:'Transformers are great',x:0.75,y:0.82,col:'#ff6b6b',cluster:3,top5:[18,19,20,21,23]},
+  {label:'BERT is powerful',x:0.65,y:0.78,col:'#ff6b6b',cluster:3,top5:[18,19,20,21,22]}
+];
+var spaceHover=-1;var spaceSelected=-1;var spaceAnimT=0;var spaceAF=null;var spaceDone=false;
+var spaceStartX,spaceStartY;
+function initSpaceExplorer(){
+  var rng=seededRand(77);
+  SPACE_DOTS.forEach(function(d){d.startX=rng();d.startY=rng();});
+}
+function animateSpaceExplorer(){
+  var btn=document.getElementById('space-anim-btn');
+  if(spaceDone){resetSpaceExplorer();return;}
+  if(spaceAF){cancelAnimationFrame(spaceAF);spaceAF=null;if(btn)btn.textContent='▶ Continue';return;}
+  spaceAnimT=0;if(btn)btn.textContent='⏸ Pause';
+  function step(){spaceAnimT=Math.min(spaceAnimT+0.012,1);drawSpaceExplorer();if(spaceAnimT<1)spaceAF=requestAnimationFrame(step);else{spaceDone=true;spaceAF=null;if(btn)btn.textContent='↺ Replay';}}
+  spaceAF=requestAnimationFrame(step);
+}
+function resetSpaceExplorer(){
+  if(spaceAF){cancelAnimationFrame(spaceAF);spaceAF=null;}
+  spaceAnimT=0;spaceDone=false;spaceHover=-1;spaceSelected=-1;
+  var btn=document.getElementById('space-anim-btn');if(btn)btn.textContent='▶ Animate Formation';
+  drawSpaceExplorer();
+}
+function hoverSpaceExplorer(e){
+  var cv=document.getElementById('canvas-space-explorer');if(!cv)return;
+  var rect=cv.getBoundingClientRect();
+  var mx=(e.clientX-rect.left)*(cv.width/rect.width),my=(e.clientY-rect.top)*(cv.height/rect.height);
+  var W=cv.width,H=cv.height;var hit=-1;
+  SPACE_DOTS.forEach(function(d,i){
+    var t=easeInOut(spaceAnimT);
+    var dx=lerp(d.startX,d.x,t)*W,dy=lerp(d.startY,d.y,t)*H;
+    if(Math.sqrt((mx-dx)*(mx-dx)+(my-dy)*(my-dy))<14)hit=i;
+  });
+  if(hit!==spaceHover){spaceHover=hit;drawSpaceExplorer();}
+}
+function leaveSpaceExplorer(){spaceHover=-1;drawSpaceExplorer();}
+function clickSpaceExplorer(e){
+  var cv=document.getElementById('canvas-space-explorer');if(!cv)return;
+  var rect=cv.getBoundingClientRect();
+  var mx=(e.clientX-rect.left)*(cv.width/rect.width),my=(e.clientY-rect.top)*(cv.height/rect.height);
+  var W=cv.width,H=cv.height;var hit=-1;
+  SPACE_DOTS.forEach(function(d,i){
+    var t=easeInOut(spaceAnimT);
+    var dx=lerp(d.startX,d.x,t)*W,dy=lerp(d.startY,d.y,t)*H;
+    if(Math.sqrt((mx-dx)*(mx-dx)+(my-dy)*(my-dy))<14)hit=i;
+  });
+  spaceSelected=(hit===spaceSelected)?-1:hit;
+  drawSpaceExplorer();
+  var info=document.getElementById('space-info');if(!info)return;
+  if(spaceSelected>=0){
+    var d=SPACE_DOTS[spaceSelected];
+    var top5=d.top5.map(function(i){return '"'+SPACE_DOTS[i].label+'"';}).join(', ');
+    info.innerHTML='<strong style="color:'+d.col+'">"'+d.label+'"</strong><br>Top 5 most similar: '+top5;
+  } else {
+    info.textContent='Hover any dot to see its nearest neighbours. Click to see top-5 most similar sentences.';
+  }
+}
+function drawSpaceExplorer(){
+  var cv=document.getElementById('canvas-space-explorer');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var t=easeInOut(spaceAnimT);
+  // Cluster labels
+  var clusters=[{label:'Animals',col:'#74c0fc',x:0.25,y:0.12},{label:'Finance',col:'#51cf66',x:0.73,y:0.12},{label:'Food',col:'#f7b731',x:0.25,y:0.58},{label:'AI/ML',col:'#ff6b6b',x:0.73,y:0.58}];
+  clusters.forEach(function(c){
+    ctx.fillStyle=c.col+'33';ctx.beginPath();ctx.arc(c.x*W,c.y*H+30,55,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=c.col+'55';ctx.font='bold 11px Inter';ctx.textAlign='center';ctx.fillText(c.label,c.x*W,c.y*H+14);
+  });
+  // Edges from selected/hovered
+  var activeIdx=spaceSelected>=0?spaceSelected:spaceHover;
+  if(activeIdx>=0&&t>0.5){
+    var ad=SPACE_DOTS[activeIdx];var ax=ad.x*W,ay=ad.y*H;
+    ad.top5.forEach(function(i){
+      var bd=SPACE_DOTS[i];var bx=bd.x*W,by=bd.y*H;
+      ctx.strokeStyle=ad.col+'66';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);
+      ctx.beginPath();ctx.moveTo(lerp(ad.startX,ax,t),lerp(ad.startY,ay,t));ctx.lineTo(lerp(bd.startX,bx,t),lerp(bd.startY,by,t));ctx.stroke();ctx.setLineDash([]);
+    });
+  }
+  // Dots
+  SPACE_DOTS.forEach(function(d,i){
+    var dx=lerp(d.startX,d.x,t)*W,dy=lerp(d.startY,d.y,t)*H;
+    var isSel=(i===spaceSelected||i===spaceHover);
+    var isNeighbour=spaceSelected>=0&&SPACE_DOTS[spaceSelected].top5.indexOf(i)>=0;
+    var r=isSel?10:isNeighbour?8:6;
+    if(isSel){ctx.shadowColor=d.col;ctx.shadowBlur=14;}
+    ctx.beginPath();ctx.arc(dx,dy,r,0,Math.PI*2);ctx.fillStyle=d.col+(isSel?'ff':isNeighbour?'cc':'88');ctx.fill();
+    ctx.strokeStyle=d.col;ctx.lineWidth=isSel?2:1;ctx.stroke();ctx.shadowBlur=0;
+    if(isSel||t>0.7){ctx.fillStyle=d.col+(isSel?'ff':'aa');ctx.font=(isSel?'bold ':'')+'9px Inter';ctx.textAlign='center';ctx.fillText(d.label,dx,dy-r-3);}
+  });
+}
+
+/* =====================================================
+   S2: COSINE SIMILARITY CALCULATOR
+===================================================== */
+var SIM_PAIRS=[
+  {a:'The cat sat on the mat.',b:'A feline rested on the rug.',score:0.92,type:'Paraphrase'},
+  {a:'Neural networks can learn language.',b:'Deep learning models understand text.',score:0.78,type:'Same topic'},
+  {a:'I love pizza on Fridays.',b:'The Federal Reserve raised interest rates.',score:0.06,type:'Unrelated'},
+  {a:'What is machine learning?',b:'Machine learning is a subset of AI that learns from data.',score:0.71,type:'Q+A'},
+  {a:'The movie was fantastic and exciting.',b:'The film was terrible and boring.',score:0.18,type:'Contradiction'}
+];
+function setSimPair(idx){
+  var pair=SIM_PAIRS[idx];
+  document.getElementById('sim-a').textContent=pair.a;
+  document.getElementById('sim-b').textContent=pair.b;
+  var col=pair.score>0.7?'#51cf66':pair.score>0.4?'#f7b731':'#ff6b6b';
+  var bar=Math.round(pair.score*100);
+  document.getElementById('sim-result').innerHTML=
+    '<div style="font-size:13px;color:var(--muted);margin-bottom:10px;">Type: <strong style="color:'+col+'">'+pair.type+'</strong></div>'
+    +'<div style="font-size:42px;font-weight:700;font-family:JetBrains Mono;color:'+col+';">'+pair.score.toFixed(2)+'</div>'
+    +'<div style="font-size:11px;color:var(--muted);margin-bottom:10px;">cosine similarity</div>'
+    +'<div style="height:8px;background:var(--surface2);border-radius:4px;border:1px solid var(--border);overflow:hidden;">'
+    +'<div style="height:100%;width:'+bar+'%;background:'+col+';border-radius:4px;transition:width 0.5s;"></div></div>'
+    +'<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:4px;"><span>0.0 (opposite)</span><span>0.5</span><span>1.0 (identical)</span></div>';
+}
+
+/* =====================================================
+   S3: SIAMESE NETWORK (CLICKABLE)
+===================================================== */
+var SIAMESE_ZONES=[
+  {id:'tower-a',label:'Sentence A Tower',x:0.12,y:0.5,w:0.22,h:0.7,col:'#74c0fc',
+   info:'<strong style="color:#74c0fc">Sentence A is processed independently.</strong> It goes through all 12 BERT transformer layers on its own. No interaction with Sentence B yet. This is the bi-encoder\'s key advantage — each sentence can be pre-processed and stored offline.'},
+  {id:'tower-b',label:'Sentence B Tower',x:0.62,y:0.5,w:0.22,h:0.7,col:'#7c6af4',
+   info:'<strong style="color:#7c6af4">Sentence B goes through the same BERT encoder.</strong> Critically, it\'s the exact same model with shared weights — training one tower updates both. This is what "siamese" means: identical twins sharing the same brain.'},
+  {id:'shared',label:'Shared Weights',x:0.37,y:0.35,w:0.26,h:0.2,col:'#ffd43b',
+   info:'<strong style="color:#ffd43b">Both towers share all BERT weights.</strong> This is the siamese trick. When you update weights via backpropagation, both towers improve simultaneously. You only maintain one set of ~110M parameters, not two.'},
+  {id:'pooling',label:'Pooling',x:0.12,y:0.82,w:0.22,h:0.14,col:'#4ecdc4',
+   info:'<strong style="color:#4ecdc4">Mean Pooling collapses 512 token vectors into 1.</strong> BERT outputs one 768-dim vector per token (so 512 vectors for a 512-token sentence). Mean pooling averages all of them. This gives a fixed-size sentence embedding regardless of sentence length.'},
+  {id:'cosine',label:'cosine(u,v)',x:0.37,y:0.88,w:0.26,h:0.14,col:'#51cf66',
+   info:'<strong style="color:#51cf66">Cosine similarity is all that\'s needed at inference time.</strong> Once embeddings u and v are computed, similarity = (u·v) / (|u||v|). This takes microseconds — no BERT forward pass needed. This is why SBERT is 47,000× faster than BERT cross-encoding for large-scale search.'}
+];
+var siameseSelected=null;
+function handleSiameseClick(e){
+  var cv=document.getElementById('canvas-siamese');if(!cv)return;
+  var rect=cv.getBoundingClientRect();
+  var mx=(e.clientX-rect.left)*(cv.width/rect.width),my=(e.clientY-rect.top)*(cv.height/rect.height);
+  var W=cv.width,H=cv.height;var hit=null;
+  SIAMESE_ZONES.forEach(function(z){
+    var zx=(z.x-z.w/2)*W,zy=(z.y-z.h/2)*H,zw=z.w*W,zh=z.h*H;
+    if(mx>=zx&&mx<=zx+zw&&my>=zy&&my<=zy+zh)hit=z;
+  });
+  siameseSelected=hit?hit.id:null;drawSiamese();
+  var info=document.getElementById('siamese-info');
+  if(info)info.innerHTML=hit?hit.info:'Click any part of the diagram to learn what it does.';
+}
+function drawSiamese(){
+  var cv=document.getElementById('canvas-siamese');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  // Input sentences
+  ctx.fillStyle='#8892b0';ctx.font='10px Inter';ctx.textAlign='center';
+  ctx.fillText('Sentence A',W*0.12,18);ctx.fillText('Sentence B',W*0.62,18);
+  drawRoundedRect(ctx,W*0.01,22,W*0.22,26,6,'#74c0fc18','#74c0fc',1.5);
+  ctx.fillStyle='#74c0fc';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText('"The cat sat..."',W*0.12,39);
+  drawRoundedRect(ctx,W*0.51,22,W*0.22,26,6,'#7c6af418','#7c6af4',1.5);
+  ctx.fillStyle='#7c6af4';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText('"A feline rested..."',W*0.62,39);
+  // BERT towers
+  SIAMESE_ZONES.forEach(function(z){
+    var zx=(z.x-z.w/2)*W,zy=(z.y-z.h/2)*H,zw=z.w*W,zh=z.h*H;
+    var sel=(z.id===siameseSelected);
+    if(sel){ctx.shadowColor=z.col;ctx.shadowBlur=16;}
+    drawRoundedRect(ctx,zx,zy,zw,zh,10,z.col+(sel?'28':'12'),z.col,sel?2.5:1.5);
+    ctx.shadowBlur=0;
+    ctx.fillStyle=z.col;ctx.font=(sel?'bold ':'')+'11px Inter';ctx.textAlign='center';
+    var lines=z.label.split(' ');lines.forEach(function(l,li){ctx.fillText(l,z.x*W,z.y*H+(li-lines.length/2+0.5)*14);});
+  });
+  // Pooling output labels
+  ctx.fillStyle='#74c0fc';ctx.font='bold 10px JetBrains Mono';ctx.textAlign='center';ctx.fillText('u (768-D)',W*0.12,H-8);
+  ctx.fillStyle='#7c6af4';ctx.font='bold 10px JetBrains Mono';ctx.textAlign='center';ctx.fillText('v (768-D)',W*0.62,H-8);
+  // Arrows
+  drawArrow(ctx,W*0.12,48,W*0.12,H*0.15,'#74c0fc55',1);
+  drawArrow(ctx,W*0.62,48,W*0.62,H*0.15,'#7c6af455',1);
+  drawArrow(ctx,W*0.12,H*0.86,W*0.25,H*0.88,'#4ecdc488',1);
+  drawArrow(ctx,W*0.62,H*0.86,W*0.49,H*0.88,'#4ecdc488',1);
+}
+
+/* =====================================================
+   S3: POOLING TABS
+===================================================== */
+var currentPoolTab='cls';
+var POOLING_INFO={
+  cls:{score:'79.80',col:'#8892b0',desc:'Uses only the [CLS] token output — the "summary token" BERT was originally trained with. Fast, but this token was optimised for classification, not sentence similarity. Underperforms mean pooling by ~1 point.'},
+  mean:{score:'80.78',col:'#51cf66',desc:'Averages all 512 token output vectors into one 768-D sentence vector. Best pooling strategy: captures information from every token equally. Winner across all SBERT evaluations. Default choice for production systems.'},
+  max:{score:'79.07',col:'#f7b731',desc:'Takes the maximum value across tokens for each of the 768 dimensions independently. Captures the most prominent feature per dimension but can be dominated by outlier tokens. Solid but beaten by mean pooling.'}
+};
+function setPoolingTab(tab){
+  currentPoolTab=tab;
+  ['cls','mean','max'].forEach(function(t){
+    var btn=document.getElementById('pool-'+t+'-btn');
+    if(btn)btn.classList.toggle('active',t===tab);
+  });
+  drawPooling(tab);
+  var info=document.getElementById('pooling-info');
+  var d=POOLING_INFO[tab];
+  if(info)info.innerHTML='<strong style="color:'+d.col+'">Spearman correlation: '+d.score+'</strong> — '+d.desc;
+}
+function drawPooling(tab){
+  var cv=document.getElementById('canvas-pooling');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var tokens=['[CLS]','The','cat','sat','on','mat','.','[SEP]'];var n=tokens.length;
+  var tokW=Math.floor((W-120)/n);var tokH=36;var startX=60;var tokY=20;
+  var d=POOLING_INFO[tab];
+  // Token boxes
+  tokens.forEach(function(tok,i){
+    var tx=startX+i*tokW;var isCLS=(tok==='[CLS]');var highlighted=(tab==='cls'&&isCLS);
+    ctx.globalAlpha=highlighted?1:(tab==='cls'?0.3:1);
+    drawRoundedRect(ctx,tx+2,tokY,tokW-4,tokH,4,(highlighted?d.col:'#74c0fc')+'22',(highlighted?d.col:'#74c0fc'),highlighted?2:1);
+    ctx.fillStyle=highlighted?d.col:'#74c0fc';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText(tok,tx+tokW/2,tokY+tokH/2+4);
+    ctx.globalAlpha=1;
+  });
+  // Output bars (one per token, stacked as mini bar charts)
+  var barAreaY=tokY+tokH+16;var barAreaH=H-barAreaY-50;
+  var rng=seededRand(12);
+  tokens.forEach(function(tok,i){
+    var tx=startX+i*tokW;var isCLS=(tok==='[CLS]');
+    var cols=[];for(var d2=0;d2<6;d2++)cols.push(rng()*0.7+0.15);
+    var highlighted=(tab==='cls'&&isCLS);
+    ctx.globalAlpha=highlighted?1:(tab==='cls'?0.15:1);
+    cols.forEach(function(c,di){
+      var bh=Math.round(c*barAreaH/6);
+      ctx.fillStyle=highlighted?d.col:(tab==='max'&&c>0.6?'#f7b731':'#74c0fc')+'88';
+      ctx.fillRect(tx+2+di*(tokW-4)/6,barAreaY+barAreaH/6*(6-di)-bh,(tokW-4)/6-1,bh);
+    });
+    ctx.globalAlpha=1;
+  });
+  // Pooling operation arrow
+  var poolY=barAreaY+barAreaH+6;
+  var poolLabel={cls:'Take [CLS] output only',mean:'Average ALL token outputs',max:'Max per dimension across tokens'}[tab];
+  ctx.fillStyle=d.col;ctx.font='bold 10px Inter';ctx.textAlign='center';ctx.fillText('↓  '+poolLabel+'  ↓',W/2,poolY+12);
+  // Result vector
+  drawRoundedRect(ctx,W/2-80,poolY+18,160,22,5,d.col+'22',d.col,2);
+  ctx.fillStyle=d.col;ctx.font='bold 10px JetBrains Mono';ctx.textAlign='center';ctx.fillText('768-D sentence embedding',W/2,poolY+33);
+  // Score badge
+  drawRoundedRect(ctx,W-90,H/2-14,80,28,8,d.col+'22',d.col,2);
+  ctx.fillStyle=d.col;ctx.font='bold 13px JetBrains Mono';ctx.textAlign='center';ctx.fillText(d.score,W-50,H/2+4);
+  ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText('Spearman',W-50,H/2+16);
+}
+
+/* =====================================================
+   S3: 768-DIM EXPLORER
+===================================================== */
+var dimPair='cat';
+var DIM_DATA={
+  cat:{a:'The cat sat on the mat.',b:'A feline rested on the rug.',seedA:42,seedB:43,similarity:0.92,label:'Both sentences talk about the same thing — similar dimensions activate similarly.'},
+  tech:{a:'Neural networks can learn.',b:'I love cooking pasta.',seedA:10,seedB:99,similarity:0.08,label:'Different topics — most dimensions show opposite activation patterns.'},
+  emotion:{a:'Today was a wonderful day!',b:'I feel sad and lonely.',seedA:55,seedB:66,similarity:0.15,label:'Opposite sentiment — emotion-encoding dimensions diverge sharply.'}
+};
+function setDimPair(key){dimPair=key;drawDims();}
+function drawDims(){
+  var cv=document.getElementById('canvas-dims');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var d=DIM_DATA[dimPair];var N=96;var bw=Math.floor((W-20)/N);
+  var rngA=seededRand(d.seedA);var rngB=seededRand(d.seedB);
+  var valsA=[],valsB=[];for(var i=0;i<N;i++){valsA.push(rngA()*0.9+0.05);}
+  // Make B correlated based on similarity
+  var rngB2=seededRand(d.seedB);
+  for(var i=0;i<N;i++){var mix=d.similarity;valsB.push(valsA[i]*mix+(rngB2()*(0.9))*(1-mix)+0.05);}
+  var barH=(H-32)/2-4;
+  // Row A
+  ctx.fillStyle='#74c0fc';ctx.font='9px Inter';ctx.textAlign='left';ctx.fillText('A: '+d.a,10,12);
+  for(var i=0;i<N;i++){var bh=Math.round(valsA[i]*barH);ctx.fillStyle='#74c0fc88';ctx.fillRect(10+i*(bw+1),16+barH-bh,bw,bh);}
+  // Row B
+  ctx.fillStyle='#7c6af4';ctx.font='9px Inter';ctx.textAlign='left';ctx.fillText('B: '+d.b,10,H/2+12);
+  for(var i=0;i<N;i++){var bh=Math.round(valsB[i]*barH);ctx.fillStyle='#7c6af488';ctx.fillRect(10+i*(bw+1),H/2+16+barH-bh,bw,bh);}
+  // Similarity score
+  var col=d.similarity>0.7?'#51cf66':d.similarity>0.4?'#f7b731':'#ff6b6b';
+  ctx.fillStyle=col;ctx.font='bold 11px JetBrains Mono';ctx.textAlign='right';ctx.fillText('sim='+d.similarity.toFixed(2),W-10,H/2+1);
+  var dims2=document.getElementById('dims-info');if(dims2)dims2.textContent=d.label;
+}
+// Fix the syntax error in setDimPair
+function drawDimsHelper(valsA,N,d){
+  var rngB2=seededRand(d.seedB);var valsB=[];
+  for(var i=0;i<N;i++){valsB.push(valsA[i]*d.similarity+(rngB2()*0.9)*(1-d.similarity)+0.05);}
+  return valsB;
+}
+
+/* =====================================================
+   S4: NLI EXAMPLES
+===================================================== */
+var NLI_EXAMPLES=[
+  {premise:'A woman is riding a horse in a field.',positive:'A person is on an animal outdoors.',negative:'The woman is sitting at a desk.',posLabel:'Entailment',negLabel:'Contradiction'},
+  {premise:'Two dogs are playing with a ball.',positive:'Animals are having fun outside.',negative:'There are no animals in the scene.',posLabel:'Entailment',negLabel:'Contradiction'},
+  {premise:'A man is cooking dinner in a kitchen.',positive:'Someone is preparing food.',negative:'The man is eating at a restaurant.',posLabel:'Entailment',negLabel:'Contradiction'},
+  {premise:'Children are swimming in a pool.',positive:'Kids are in the water.',negative:'The pool is completely empty.',posLabel:'Entailment',negLabel:'Contradiction'},
+  {premise:'A scientist is writing a research paper.',positive:'A person is doing academic work.',negative:'The scientist is watching television.',posLabel:'Entailment',negLabel:'Contradiction'}
+];
+var nliIdx=0;
+function nextNLIExample(){
+  nliIdx=(nliIdx+1)%NLI_EXAMPLES.length;
+  document.getElementById('nli-counter').textContent='Example '+(nliIdx+1)+' of '+NLI_EXAMPLES.length;
+  drawNLI();
+}
+function drawNLI(){
+  var cv=document.getElementById('canvas-nli');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var ex=NLI_EXAMPLES[nliIdx];
+  var bw=(W-30)/3;
+  // Three boxes
+  var boxes=[
+    {label:'Anchor (Premise)',text:ex.premise,col:'#74c0fc',badge:''},
+    {label:'Positive  — '+ex.posLabel,text:ex.positive,col:'#51cf66',badge:'PULL TOWARD'},
+    {label:'Negative — '+ex.negLabel,text:ex.negative,col:'#ff6b6b',badge:'PUSH AWAY'}
+  ];
+  boxes.forEach(function(b,i){
+    var bx=10+i*(bw+5);
+    drawRoundedRect(ctx,bx,8,bw,H*0.42,8,b.col+'18',b.col,1.5);
+    ctx.fillStyle=b.col;ctx.font='bold 9px Inter';ctx.textAlign='center';ctx.fillText(b.label,bx+bw/2,24);
+    // Text wrapped
+    ctx.fillStyle='#e2e8f0';ctx.font='11px Inter';ctx.textAlign='center';
+    var words=b.text.split(' ');var line='';var lines=[];
+    words.forEach(function(w){if(ctx.measureText(line+' '+w).width<bw-12){line+=(line?' ':'')+w;}else{lines.push(line);line=w;}});
+    lines.push(line);
+    lines.forEach(function(l,li){ctx.fillText(l,bx+bw/2,40+li*15);});
+    if(b.badge){
+      drawRoundedRect(ctx,bx+bw/2-32,H*0.42-20,64,18,4,b.col+'44',b.col,1);
+      ctx.fillStyle=b.col;ctx.font='bold 8px Inter';ctx.textAlign='center';ctx.fillText(b.badge,bx+bw/2,H*0.42-8);
+    }
+  });
+  // Mini embedding space below
+  var spY=H*0.5;var spH=H-spY-10;var cx=W/2,cy=spY+spH/2;
+  ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText('Embedding space — training pushes similar sentences together, dissimilar apart',W/2,spY-4);
+  // Draw 3 dots
+  var anchorX=cx,anchorY=cy;var posX=cx-50,posY=cy-30;var negX=cx+60,negY=cy+20;
+  // Arrows showing pull/push
+  ctx.strokeStyle='#51cf66';ctx.lineWidth=1.5;ctx.setLineDash([3,2]);
+  ctx.beginPath();ctx.moveTo(posX,posY);ctx.lineTo(anchorX-12,anchorY-6);ctx.stroke();ctx.setLineDash([]);
+  ctx.strokeStyle='#ff6b6b';ctx.lineWidth=1.5;ctx.setLineDash([3,2]);
+  ctx.beginPath();ctx.moveTo(anchorX+12,anchorY+6);ctx.lineTo(negX-10,negY-4);ctx.stroke();ctx.setLineDash([]);
+  // Dots
+  [[anchorX,anchorY,'#74c0fc','Anchor'],[posX,posY,'#51cf66','Positive'],[negX,negY,'#ff6b6b','Negative']].forEach(function(p){
+    ctx.beginPath();ctx.arc(p[0],p[1],10,0,Math.PI*2);ctx.fillStyle=p[2]+'44';ctx.fill();ctx.strokeStyle=p[2];ctx.lineWidth=2;ctx.stroke();
+    ctx.fillStyle=p[2];ctx.font='bold 9px Inter';ctx.textAlign='center';ctx.fillText(p[3],p[0],p[1]+22);
+  });
+  // Info
+  var infoEl=document.getElementById('nli-info');
+  if(infoEl)infoEl.innerHTML='<strong style="color:#74c0fc">Premise:</strong> "'+ex.premise+'" &nbsp;→&nbsp; <strong style="color:#51cf66">entails</strong> "'+ex.positive+'" &nbsp;&amp;&amp;&nbsp; <strong style="color:#ff6b6b">contradicts</strong> "'+ex.negative+'". Training pulls the anchor and positive together, pushes the negative away.';
+}
+
+/* =====================================================
+   S4: LOSS FUNCTION TABS
+===================================================== */
+var currentLossTab='triplet';
+function setLossTab(tab){
+  currentLossTab=tab;
+  ['classify','regression','triplet'].forEach(function(t){
+    var btn=document.getElementById('loss-'+t+'-btn');
+    if(btn)btn.classList.toggle('active',t===tab);
+  });
+  drawLoss(tab);
+}
+function drawLoss(tab){
+  var cv=document.getElementById('canvas-loss');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var infoEl=document.getElementById('loss-info');
+  if(tab==='classify'){
+    var steps=[{l:'[u]',c:'#74c0fc'},{l:'[v]',c:'#7c6af4'},{l:'[|u-v|]',c:'#ffd43b'},{l:'W_t ·',c:'#8892b0'},{l:'softmax',c:'#4ecdc4'},{l:'→ class',c:'#51cf66'}];
+    var bw=(W-40)/steps.length;
+    steps.forEach(function(s,i){
+      var cx=20+(i+0.5)*bw;
+      drawRoundedRect(ctx,cx-38,H/2-28,76,56,8,s.c+'22',s.c,1.5);
+      ctx.fillStyle=s.c;ctx.font='bold 11px JetBrains Mono';ctx.textAlign='center';ctx.fillText(s.l,cx,H/2+5);
+      if(i<steps.length-1)drawArrow(ctx,cx+40,H/2,cx+bw-40,H/2,'#2a3060',1.5);
+    });
+    ctx.fillStyle='#51cf66';ctx.font='bold 10px Inter';ctx.textAlign='center';ctx.fillText('Entailment / Neutral / Contradiction',W/2,H-8);
+    if(infoEl)infoEl.innerHTML='<strong style="color:#4ecdc4">Classification Loss (Softmax):</strong> Concatenates u, v, and |u−v| into a single vector. A trainable weight matrix W_t maps this to 3 class probabilities. Cross-entropy loss penalises wrong predictions. Best for NLI data where labels exist.';
+  } else if(tab==='regression'){
+    var cx=W/2;
+    drawRoundedRect(ctx,cx-120,30,100,40,8,'#74c0fc22','#74c0fc',1.5);
+    ctx.fillStyle='#74c0fc';ctx.font='bold 10px Inter';ctx.textAlign='center';ctx.fillText('cosine(u,v)',cx-70,55);
+    drawRoundedRect(ctx,cx+20,30,100,40,8,'#f7b73122','#f7b731',1.5);
+    ctx.fillStyle='#f7b731';ctx.font='bold 10px Inter';ctx.textAlign='center';ctx.fillText('Gold score',cx+70,55);
+    drawArrow(ctx,cx-20,50,cx+18,50,'#2a3060',1.5);
+    var diff=0.18;
+    drawRoundedRect(ctx,cx-60,100,120,40,8,'#ff6b6b22','#ff6b6b',1.5);
+    ctx.fillStyle='#ff6b6b';ctx.font='bold 10px Inter';ctx.textAlign='center';ctx.fillText('MSE loss = '+diff.toFixed(2),cx,125);
+    ctx.strokeStyle='#ff6b6b';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(cx-20,70);ctx.lineTo(cx-20,98);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx+20,70);ctx.lineTo(cx+20,98);ctx.stroke();
+    ctx.fillStyle='#8892b0';ctx.font='10px Inter';ctx.textAlign='center';ctx.fillText('Predicted: 0.72 — Gold: 0.90 — Error: 0.18',cx,H-8);
+    if(infoEl)infoEl.innerHTML='<strong style="color:#f7b731">Regression Loss (MSE):</strong> Computes cosine similarity between u and v, compares to a continuous gold similarity score (0→1). Minimises mean squared error between predicted and true similarity. Best for STS data with continuous labels.';
+  } else {
+    // Triplet loss
+    var aCx=W*0.3,aCy=H*0.45;var pCx=W*0.5,pCy=H*0.28;var nCx=W*0.68,nCy=H*0.65;
+    // Background margin zone
+    ctx.fillStyle='#51cf6611';ctx.beginPath();ctx.arc(aCx,aCy,70,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#51cf6655';ctx.lineWidth=1;ctx.setLineDash([4,3]);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#51cf6666';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText('margin ε=1',aCx+50,aCy-55);
+    // Lines
+    ctx.strokeStyle='#51cf66';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(aCx,aCy);ctx.lineTo(pCx,pCy);ctx.stroke();
+    ctx.fillStyle='#51cf66';ctx.font='bold 9px JetBrains Mono';ctx.textAlign='center';ctx.fillText('d(a,p)=0.4',W*0.41,H*0.34);
+    ctx.strokeStyle='#ff6b6b';ctx.lineWidth=2;ctx.setLineDash([4,3]);ctx.beginPath();ctx.moveTo(aCx,aCy);ctx.lineTo(nCx,nCy);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#ff6b6b';ctx.font='bold 9px JetBrains Mono';ctx.textAlign='center';ctx.fillText('d(a,n)=1.8',W*0.5,H*0.6);
+    // Dots
+    [[aCx,aCy,'#74c0fc','Anchor (a)'],[pCx,pCy,'#51cf66','Positive (p)'],[nCx,nCy,'#ff6b6b','Negative (n)']].forEach(function(p){
+      ctx.beginPath();ctx.arc(p[0],p[1],12,0,Math.PI*2);ctx.fillStyle=p[2]+'44';ctx.fill();ctx.strokeStyle=p[2];ctx.lineWidth=2;ctx.stroke();
+      ctx.fillStyle=p[2];ctx.font='bold 9px Inter';ctx.textAlign='center';ctx.fillText(p[3],p[0],p[1]+24);
+    });
+    // Formula
+    ctx.fillStyle='#e2b35e';ctx.font='11px JetBrains Mono';ctx.textAlign='right';
+    ctx.fillText('Loss = max(d(a,p) − d(a,n) + ε, 0)',W-10,H-8);
+    if(infoEl)infoEl.innerHTML='<strong style="color:#51cf66">Triplet Loss ★ (Best for Ranking):</strong> Shows anchor, positive, and negative sentences as dots. Enforces: distance(anchor, positive) + margin ε < distance(anchor, negative). Directly optimises what we want — similar sentences closer than dissimilar ones. ε=1 in SBERT.';
+  }
+}
+
+/* =====================================================
+   S5: SCATTER COMPARE
+===================================================== */
+var SCATTER_METHODS=[
+  {name:'GloVe Avg',speed:6200,sts:61.32,col:'#8892b0',x:0,y:0},
+  {name:'InferSent',speed:1876,sts:65.01,col:'#f7b731',x:0,y:0},
+  {name:'USE',speed:1318,sts:71.22,col:'#74c0fc',x:0,y:0},
+  {name:'BERT Cross',speed:130,sts:88.0,col:'#ff6b6b',x:0,y:0},
+  {name:'SBERT ★',speed:2042,sts:76.55,col:'#51cf66',x:0,y:0}
+];
+var scatterHover=-1;
+function hoverScatter(e){
+  var cv=document.getElementById('canvas-scatter-compare');if(!cv)return;
+  var rect=cv.getBoundingClientRect();
+  var mx=(e.clientX-rect.left)*(cv.width/rect.width),my=(e.clientY-rect.top)*(cv.height/rect.height);
+  var hit=-1;
+  SCATTER_METHODS.forEach(function(m,i){if(Math.sqrt((mx-m.x)*(mx-m.x)+(my-m.y)*(my-m.y))<18)hit=i;});
+  if(hit!==scatterHover){scatterHover=hit;drawScatterCompare();}
+  var info=document.getElementById('scatter-info');if(!info)return;
+  if(hit>=0){var m=SCATTER_METHODS[hit];info.innerHTML='<strong style="color:'+m.col+'">'+m.name+'</strong>: '+m.speed.toLocaleString()+' sentences/sec &nbsp;·&nbsp; Spearman: '+m.sts+' &nbsp;·&nbsp;'+(m.name==='SBERT ★'?'<span style="color:#51cf66">Best trade-off — fast AND accurate</span>':m.name==='BERT Cross'?'<span style="color:#ff6b6b">Most accurate but requires pair input — O(n²) bottleneck</span>':'Bi-encoder baseline');}
+  else info.textContent='Hover any point to see its exact speed and accuracy numbers.';
+}
+function leaveScatter(){scatterHover=-1;drawScatterCompare();}
+function drawScatterCompare(){
+  var cv=document.getElementById('canvas-scatter-compare');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var padL=56,padR=30,padT=30,padB=48;var dW=W-padL-padR,dH=H-padT-padB;
+  // Ideal zone
+  ctx.fillStyle='rgba(81,207,102,0.06)';ctx.fillRect(padL+dW*0.55,padT,dW*0.45,dH*0.5);
+  ctx.fillStyle='#51cf6644';ctx.font='10px Inter';ctx.textAlign='right';ctx.fillText('Ideal: fast + accurate',W-padR-4,padT+12);
+  // Axes
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(padL,padT);ctx.lineTo(padL,padT+dH);ctx.lineTo(padL+dW,padT+dH);ctx.stroke();
+  ctx.fillStyle='#8892b0';ctx.font='11px Inter';ctx.textAlign='center';ctx.fillText('Speed (sentences/sec, log scale)',padL+dW/2,H-6);
+  ctx.save();ctx.translate(14,padT+dH/2);ctx.rotate(-Math.PI/2);ctx.fillStyle='#8892b0';ctx.font='11px Inter';ctx.textAlign='center';ctx.fillText('STS Spearman Correlation',0,0);ctx.restore();
+  // Log scale x
+  var logMin=Math.log10(100),logMax=Math.log10(8000);
+  function toX(s){return padL+(Math.log10(s)-logMin)/(logMax-logMin)*dW;}
+  function toY(v){return padT+dH*(1-(v-55)/(92-55));}
+  // Grid
+  [100,500,1000,5000].forEach(function(v){var x=toX(v);ctx.strokeStyle='#1e2444';ctx.lineWidth=0.5;ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,padT+dH);ctx.stroke();ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText(v>=1000?Math.round(v/1000)+'K':v,x,padT+dH+14);});
+  [60,65,70,75,80,85,90].forEach(function(v){var y=toY(v);ctx.strokeStyle='#1e2444';ctx.lineWidth=0.5;ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+dW,y);ctx.stroke();ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.textAlign='right';ctx.fillText(v,padL-4,y+3);});
+  // Points
+  SCATTER_METHODS.forEach(function(m,i){
+    m.x=toX(m.speed);m.y=toY(m.sts);
+    var isSel=(i===scatterHover);var isSBERT=(m.name==='SBERT ★');
+    if(isSBERT){ctx.shadowColor=m.col;ctx.shadowBlur=20;}
+    ctx.beginPath();ctx.arc(m.x,m.y,isSel?14:isSBERT?12:9,0,Math.PI*2);
+    ctx.fillStyle=m.col+(isSel?'cc':'88');ctx.fill();
+    ctx.strokeStyle=m.col;ctx.lineWidth=isSel?2.5:1.5;ctx.stroke();ctx.shadowBlur=0;
+    ctx.fillStyle=m.col;ctx.font=(isSBERT?'bold ':'')+'10px Inter';ctx.textAlign='center';ctx.fillText(m.name,m.x,m.y-14-(isSBERT?4:0));
+  });
+}
+
+/* =====================================================
+   S5: SAME QUESTION COMPARISON
+===================================================== */
+var COMPARE_DATA=[
+  {q:'"The cat sat on the mat." vs "A feline rested on the rug."',
+   rows:[
+     {method:'GloVe Avg',score:0.52,note:'Bags of words — "cat" and "feline" are different words',col:'#8892b0'},
+     {method:'InferSent',score:0.68,note:'Gets the gist but misses deeper paraphrase',col:'#f7b731'},
+     {method:'USE',score:0.81,note:'Reasonable sentence-level similarity',col:'#74c0fc'},
+     {method:'BERT Cross-Enc',score:0.95,note:'Accurate but needs both sentences — 65h for 10K',col:'#ff6b6b'},
+     {method:'SBERT',score:0.92,note:'Near-identical to BERT cross-enc, 5 seconds for 10K',col:'#51cf66'}
+   ]},
+  {q:'"Stock markets fell sharply." vs "Equity prices declined."',
+   rows:[
+     {method:'GloVe Avg',score:0.38,note:'Financial synonyms missed by word vectors',col:'#8892b0'},
+     {method:'InferSent',score:0.61,note:'Partial credit for domain similarity',col:'#f7b731'},
+     {method:'USE',score:0.74,note:'Good domain-level similarity detection',col:'#74c0fc'},
+     {method:'BERT Cross-Enc',score:0.89,note:'Correctly identifies semantic equivalence',col:'#ff6b6b'},
+     {method:'SBERT',score:0.85,note:'Strong financial domain understanding',col:'#51cf66'}
+   ]},
+  {q:'"I love pizza." vs "Quantum physics is fascinating."',
+   rows:[
+     {method:'GloVe Avg',score:0.12,note:'Correctly low — no word overlap',col:'#8892b0'},
+     {method:'InferSent',score:0.08,note:'Low similarity — correct',col:'#f7b731'},
+     {method:'USE',score:0.11,note:'Low — correct',col:'#74c0fc'},
+     {method:'BERT Cross-Enc',score:0.04,note:'Very low — most accurate',col:'#ff6b6b'},
+     {method:'SBERT',score:0.07,note:'Correctly identifies as unrelated',col:'#51cf66'}
+   ]}
+];
+function showComparison(idx){
+  var d=COMPARE_DATA[idx];
+  document.getElementById('comparison-prompt').style.display='none';
+  document.getElementById('comparison-panels').style.display='block';
+  document.getElementById('comparison-q').textContent='Sentence pair: '+d.q;
+  var rows=document.getElementById('comparison-rows');rows.innerHTML='';
+  d.rows.forEach(function(r){
+    var pct=Math.round(r.score*100);
+    var row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:var(--bg);border:1px solid var(--border);';
+    row.innerHTML='<span style="min-width:120px;font-size:12px;font-weight:600;color:'+r.col+';">'+r.method+'</span>'
+      +'<div style="flex:1;height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;"><div style="height:100%;width:'+pct+'%;background:'+r.col+';border-radius:4px;"></div></div>'
+      +'<span style="min-width:38px;font-size:12px;font-family:JetBrains Mono;color:'+r.col+';">'+r.score.toFixed(2)+'</span>'
+      +'<span style="font-size:11px;color:var(--muted);flex:1;">'+r.note+'</span>';
+    rows.appendChild(row);
+  });
+}
+
+/* =====================================================
+   S6: STS BENCHMARK BARS
+===================================================== */
+var STS_DATA={
+  nli:{
+    datasets:['STS12','STS13','STS14','STS15','STS16','STSb','SICK-R','Avg'],
+    methods:[
+      {name:'GloVe Avg',col:'#8892b0',vals:[52.5,50.0,54.3,57.2,51.8,58.0,53.8,61.32]},
+      {name:'InferSent',col:'#f7b731',vals:[59.2,58.9,57.1,71.3,71.5,68.4,65.8,65.01]},
+      {name:'USE',col:'#74c0fc',vals:[64.5,67.3,64.9,76.8,74.9,74.9,76.7,71.22]},
+      {name:'SBERT-NLI',col:'#51cf66',vals:[70.97,76.53,73.19,79.09,74.30,76.98,72.91,76.55]}
+    ]
+  }
+};
+function drawSTSBars(){
+  var cv=document.getElementById('canvas-sts-bars');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var d=STS_DATA.nli;var datasets=d.datasets;var methods=d.methods;
+  var padL=48,padR=10,padT=32,padB=50;var dW=W-padL-padR,dH=H-padT-padB;
+  var grpW=dW/datasets.length;var barW=(grpW-6)/methods.length;
+  var maxVal=92;
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(padL,padT);ctx.lineTo(padL,padT+dH);ctx.lineTo(padL+dW,padT+dH);ctx.stroke();
+  [60,70,80,90].forEach(function(v){var y=padT+dH*(1-(v-50)/(maxVal-50));ctx.strokeStyle='#1e2444';ctx.lineWidth=0.5;ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+dW,y);ctx.stroke();ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.textAlign='right';ctx.fillText(v,padL-3,y+3);});
+  datasets.forEach(function(ds,gi){
+    var gx=padL+gi*grpW;
+    methods.forEach(function(m,mi){
+      var val=m.vals[gi];var bx=gx+mi*barW+3;var bh=(val-50)/(maxVal-50)*dH;var by=padT+dH-bh;
+      ctx.fillStyle=m.col+'cc';ctx.fillRect(bx,by,barW-1,bh);
+      ctx.strokeStyle=m.col;ctx.lineWidth=0.5;ctx.strokeRect(bx,by,barW-1,bh);
+    });
+    ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText(ds,gx+grpW/2,padT+dH+14);
+  });
+  // Legend
+  methods.forEach(function(m,i){
+    ctx.fillStyle=m.col;ctx.fillRect(padL+i*120,padT+dH+28,12,8);
+    ctx.fillStyle=m.col;ctx.font='10px Inter';ctx.textAlign='left';ctx.fillText(m.name,padL+i*120+16,padT+dH+36);
+  });
+}
+
+/* =====================================================
+   S6: SENTEVAL
+===================================================== */
+function drawSentEval(){
+  var cv=document.getElementById('canvas-senteval');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var tasks=['MR','CR','SUBJ','MPQA','SST','TREC','MRPC'];
+  var methods2=[
+    {name:'InferSent',col:'#f7b731',vals:[81.1,86.3,92.4,90.2,84.6,88.2,75.8]},
+    {name:'USE',col:'#74c0fc',vals:[80.9,85.1,93.6,87.0,86.4,93.9,70.1]},
+    {name:'SBERT',col:'#51cf66',vals:[83.6,89.4,94.4,89.8,88.6,93.9,76.9]}
+  ];
+  var padL=40,padR=10,padT=28,padB=44;var dW=W-padL-padR,dH=H-padT-padB;
+  var grpW=dW/tasks.length;var barW=(grpW-4)/3;
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(padL,padT);ctx.lineTo(padL,padT+dH);ctx.lineTo(padL+dW,padT+dH);ctx.stroke();
+  [75,80,85,90,95].forEach(function(v){var y=padT+dH*(1-(v-70)/30);ctx.strokeStyle='#1e2444';ctx.lineWidth=0.5;ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+dW,y);ctx.stroke();ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.textAlign='right';ctx.fillText(v,padL-3,y+3);});
+  tasks.forEach(function(t,gi){
+    var gx=padL+gi*grpW;
+    methods2.forEach(function(m,mi){
+      var val=m.vals[gi];var bx=gx+mi*barW+2;var bh=(val-70)/30*dH;var by=padT+dH-bh;
+      ctx.fillStyle=m.col+'cc';ctx.fillRect(bx,by,barW-1,bh);
+    });
+    ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText(t,gx+grpW/2,padT+dH+14);
+  });
+  methods2.forEach(function(m,i){
+    ctx.fillStyle=m.col;ctx.fillRect(padL+i*100,padT+dH+26,10,8);
+    ctx.fillStyle=m.col;ctx.font='10px Inter';ctx.textAlign='left';ctx.fillText(m.name,padL+i*100+14,padT+dH+34);
+  });
+  var avgSBERT=Math.round(methods2[2].vals.reduce(function(a,b){return a+b;})/7*10)/10;
+  ctx.fillStyle='#51cf66';ctx.font='bold 11px JetBrains Mono';ctx.textAlign='right';ctx.fillText('SBERT avg: '+avgSBERT,W-10,padT+10);
+}
+
+/* =====================================================
+   S6: SPEED BENCHMARK
+===================================================== */
+function drawSpeedBench(){
+  var cv=document.getElementById('canvas-speed-bench');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var methods3=[
+    {name:'BERT Cross-Encoder',speed:130,col:'#ff6b6b'},
+    {name:'USE',speed:1318,col:'#74c0fc'},
+    {name:'InferSent',speed:1876,col:'#f7b731'},
+    {name:'SBERT ★',speed:2042,col:'#51cf66'}
+  ];
+  var padL=148,padR=80,padT=20,padB=10;var dW=W-padL-padR,dH=(H-padT-padB)/methods3.length-6;
+  var maxSpeed=2200;
+  methods3.forEach(function(m,i){
+    var by=padT+i*(dH+6);var bw=Math.round((m.speed/maxSpeed)*dW);
+    var isSBERT=m.name.indexOf('SBERT')>=0;
+    if(isSBERT){ctx.shadowColor=m.col;ctx.shadowBlur=8;}
+    ctx.fillStyle=m.col+(isSBERT?'cc':'88');ctx.fillRect(padL,by,bw,dH);
+    ctx.strokeStyle=m.col;ctx.lineWidth=1;ctx.strokeRect(padL,by,bw,dH);
+    ctx.shadowBlur=0;
+    ctx.fillStyle=m.col;ctx.font=(isSBERT?'bold ':'')+'11px Inter';ctx.textAlign='right';ctx.fillText(m.name,padL-6,by+dH/2+4);
+    ctx.fillStyle=m.col;ctx.font='bold 11px JetBrains Mono';ctx.textAlign='left';ctx.fillText(m.speed.toLocaleString()+' sent/s',padL+bw+6,by+dH/2+4);
+  });
+}
+
+/* =====================================================
+   S7: APPLICATIONS MAP
+===================================================== */
+var APP_NODES=[
+  {id:'sbert',label:'SBERT',x:0.5,y:0.5,col:'#ffd43b',r:28,info:''},
+  {id:'search',label:'Semantic\nSearch',x:0.5,y:0.12,col:'#74c0fc',r:22,info:'<strong style="color:#74c0fc">Semantic Search:</strong> Elasticsearch, Pinecone, Weaviate, Qdrant — all support SBERT-style dense vector search. Powers Spotify track discovery, LinkedIn job matching, academic paper search.'},
+  {id:'rag',label:'RAG\nRetrieval',x:0.82,y:0.28,col:'#7c6af4',r:22,info:'<strong style="color:#7c6af4">RAG Retrieval:</strong> Every RAG pipeline (LangChain, LlamaIndex, GPT plugins) encodes document chunks with SBERT descendants. The "R" in RAG would be impossibly slow without SBERT\'s insight.'},
+  {id:'cluster',label:'Document\nClustering',x:0.82,y:0.72,col:'#4ecdc4',r:22,info:'<strong style="color:#4ecdc4">Document Clustering:</strong> K-means on SBERT embeddings discovers semantic topic clusters without labels. News aggregation, customer support ticket routing, scientific paper taxonomy — all no-label clustering.'},
+  {id:'dedup',label:'Dedup-\nlication',x:0.5,y:0.88,col:'#51cf66',r:22,info:'<strong style="color:#51cf66">Deduplication:</strong> Find near-duplicate documents in a corpus in O(n) instead of O(n²). News agencies remove wire duplicates, legal teams find near-identical contract clauses, code search finds similar implementations.'},
+  {id:'recom',label:'Recom-\nmendation',x:0.18,y:0.72,col:'#f7b731',r:22,info:'<strong style="color:#f7b731">Recommendation:</strong> "Find articles similar to what you just read." E-commerce product recommendations, movie suggestions, academic paper recommendations — all via embedding similarity in production.'},
+  {id:'multilingual',label:'Cross-\nlingual',x:0.18,y:0.28,col:'#ff6b6b',r:22,info:'<strong style="color:#ff6b6b">Cross-lingual Similarity:</strong> Multilingual SBERT (mSBERT) works across 50+ languages. English query finds relevant French documents. International news monitoring, multilingual FAQ retrieval, cross-lingual academic search.'}
+];
+var APP_EDGES=[['sbert','search'],['sbert','rag'],['sbert','cluster'],['sbert','dedup'],['sbert','recom'],['sbert','multilingual']];
+var appSelected=null;
+function handleApplicationClick(e){
+  var cv=document.getElementById('canvas-applications');if(!cv)return;
+  var rect=cv.getBoundingClientRect();
+  var mx=(e.clientX-rect.left)*(cv.width/rect.width),my=(e.clientY-rect.top)*(cv.height/rect.height);
+  var W=cv.width,H=cv.height;var hit=null;
+  APP_NODES.forEach(function(n){var nx=n.x*W,ny=n.y*H;if(Math.sqrt((mx-nx)*(mx-nx)+(my-ny)*(my-ny))<n.r+6)hit=n;});
+  appSelected=hit?hit.id:null;drawApplications();
+  var info=document.getElementById('application-info');
+  if(info)info.innerHTML=hit&&hit.info?hit.info:'Click any application spoke to see real-world examples and who uses it.';
+}
+function drawApplications(){
+  var cv=document.getElementById('canvas-applications');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  APP_EDGES.forEach(function(e){
+    var a=APP_NODES.find(function(n){return n.id===e[0];}),b=APP_NODES.find(function(n){return n.id===e[1];});
+    if(!a||!b)return;
+    var sel=(appSelected===b.id);
+    ctx.strokeStyle=sel?b.col+'cc':'#2a3060';ctx.lineWidth=sel?2:1;
+    ctx.beginPath();ctx.moveTo(a.x*W,a.y*H);ctx.lineTo(b.x*W,b.y*H);ctx.stroke();
+  });
+  APP_NODES.forEach(function(n){
+    var nx=n.x*W,ny=n.y*H;var sel=(n.id===appSelected);var isHub=(n.id==='sbert');
+    if(isHub){ctx.shadowColor=n.col;ctx.shadowBlur=20;}
+    if(sel){ctx.shadowColor=n.col;ctx.shadowBlur=16;}
+    ctx.beginPath();ctx.arc(nx,ny,n.r,0,Math.PI*2);ctx.fillStyle=n.col+(sel?'44':isHub?'33':'22');ctx.fill();
+    ctx.strokeStyle=n.col;ctx.lineWidth=sel||isHub?2.5:1.5;ctx.stroke();ctx.shadowBlur=0;
+    var lines=n.label.split('\n');
+    lines.forEach(function(l,li){
+      ctx.fillStyle=n.col;ctx.font=(isHub?'bold ':'')+(isHub?'12':'10')+'px Inter';ctx.textAlign='center';
+      ctx.fillText(l,nx,ny+(li-(lines.length-1)/2)*13+4);
+    });
+  });
+}
+
+/* =====================================================
+   S7: CITATIONS
+===================================================== */
+function drawCitations(){
+  var cv=document.getElementById('canvas-citations');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var padL=52,padR=20,padT=24,padB=44;var dW=W-padL-padR,dH=H-padT-padB;
+  var data=[
+    {year:2019,cits:120},{year:2020,cits:680},{year:2021,cits:1850},{year:2022,cits:3600},{year:2023,cits:6200},{year:2024,cits:7900}
+  ];
+  var maxC=8000;
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(padL,padT);ctx.lineTo(padL,padT+dH);ctx.lineTo(padL+dW,padT+dH);ctx.stroke();
+  ctx.fillStyle='#8892b0';ctx.font='11px Inter';ctx.textAlign='center';ctx.fillText('Year',padL+dW/2,H-6);
+  [0,2000,4000,6000,8000].forEach(function(v){var y=padT+dH*(1-v/maxC);ctx.strokeStyle='#1e2444';ctx.lineWidth=0.5;ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+dW,y);ctx.stroke();ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.textAlign='right';ctx.fillText(v>=1000?Math.round(v/1000)+'K':v,padL-4,y+3);});
+  var milestones=[{year:2020,label:'SentenceTransformers\nlibrary released'},{year:2021,label:'RAG paper\nadopts SBERT'},{year:2022,label:'Semantic search\nboom begins'}];
+  // Area fill
+  ctx.beginPath();data.forEach(function(d,i){var x=padL+((d.year-2019)/5)*dW;var y=padT+dH*(1-d.cits/maxC);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+  ctx.lineTo(padL+dW,padT+dH);ctx.lineTo(padL,padT+dH);ctx.closePath();ctx.fillStyle='#ffd43b18';ctx.fill();
+  // Line
+  ctx.beginPath();data.forEach(function(d,i){var x=padL+((d.year-2019)/5)*dW;var y=padT+dH*(1-d.cits/maxC);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+  ctx.strokeStyle='#ffd43b';ctx.lineWidth=2.5;ctx.stroke();
+  // Dots + labels
+  data.forEach(function(d){
+    var x=padL+((d.year-2019)/5)*dW;var y=padT+dH*(1-d.cits/maxC);
+    ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fillStyle='#ffd43b';ctx.fill();
+    ctx.fillStyle='#ffd43b';ctx.font='9px JetBrains Mono';ctx.textAlign='center';ctx.fillText(d.cits>=1000?Math.round(d.cits/1000)+'K':d.cits,x,y-8);
+    ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText(d.year,x,padT+dH+14);
+  });
+  milestones.forEach(function(m){
+    var x=padL+((m.year-2019)/5)*dW;
+    ctx.strokeStyle='#ffd43b44';ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,padT+dH);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#ffd43b88';ctx.font='8px Inter';ctx.textAlign='center';
+    m.label.split('\n').forEach(function(l,li){ctx.fillText(l,x,padT+4+li*10);});
+  });
+}
+
+/* =====================================================
+   INIT ALL
+===================================================== */
+drawSpeedProblem(0);
+drawEmbeddingIntro();
+initSpaceExplorer();drawSpaceExplorer();
+setSimPair(0);
+drawSiamese();
+setPoolingTab('mean');
+setDimPair('cat');
+drawNLI();
+setLossTab('triplet');
+drawScatterCompare();
+drawSTSBars();
+drawSentEval();
+drawSpeedBench();
+drawApplications();
+drawCitations();
+updateNavOnScroll();
+</script>
+</body>
+</html>
