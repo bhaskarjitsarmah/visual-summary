@@ -1,0 +1,1774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>In-Context Learning — How LLMs Learn Without Learning</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0d0f18; --surface:#161a2e; --surface2:#1e2444;
+  --border:#2a3060; --text:#e2e8f0; --muted:#8892b0; --accent:#a29bfe;
+  --teal:#4ecdc4; --amber:#f7b731; --coral:#ff6b6b;
+  --mint:#51cf66; --sky:#74c0fc; --gold:#ffd43b; --pink:#f78fb3;
+  --purple:#7c6af4; --orange:#ff9f43;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); display:flex; min-height:100vh; }
+.sidebar { width:250px; background:var(--surface); border-right:1px solid var(--border); position:fixed; top:0; left:0; height:100vh; overflow-y:auto; z-index:100; }
+.sb-header { padding:20px; border-bottom:1px solid var(--border); }
+.sb-header h1 { font-size:14px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:1px; }
+.sb-header p { font-size:11px; color:var(--muted); margin-top:4px; }
+.nav-group { padding:10px 0; border-bottom:1px solid var(--border); }
+.nav-group-title { padding:0 18px 6px; font-size:10px; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); font-weight:600; }
+.nav-link { display:flex; align-items:center; gap:10px; padding:8px 18px; cursor:pointer; border-left:3px solid transparent; transition:all 0.2s; text-decoration:none; color:var(--muted); font-size:13px; }
+.nav-link:hover, .nav-link.active { background:rgba(162,155,254,0.1); color:var(--text); border-left-color:var(--accent); }
+.dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.main { margin-left:250px; flex:1; }
+.section { min-height:100vh; padding:56px 48px; border-bottom:1px solid var(--border); }
+.section-tag { font-size:11px; text-transform:uppercase; letter-spacing:2px; font-weight:600; margin-bottom:10px; }
+.section-title { font-size:30px; font-weight:700; margin-bottom:8px; line-height:1.2; }
+.section-sub { font-size:15px; color:var(--muted); max-width:640px; line-height:1.6; margin-bottom:36px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:22px; margin-bottom:24px; }
+.card-title { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:14px; }
+.g2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+.g3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:18px; }
+.g4 { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:14px; }
+.formula { font-family:'JetBrains Mono',monospace; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:14px 18px; font-size:13px; margin:14px 0; color:#e2b35e; white-space:pre-wrap; overflow-x:auto; }
+.sl-row { display:flex; align-items:center; gap:10px; margin:10px 0; }
+.sl-lbl { font-size:12px; color:var(--muted); min-width:160px; }
+.sl-val { font-family:'JetBrains Mono'; font-size:12px; color:var(--accent); min-width:60px; text-align:right; }
+input[type=range] { -webkit-appearance:none; flex:1; height:6px; border-radius:3px; background:var(--surface2); border:1px solid var(--border); outline:none; cursor:pointer; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:var(--accent); cursor:pointer; border:2px solid var(--bg); }
+.btn { background:var(--accent); color:#000; border:none; border-radius:8px; padding:10px 20px; font-size:13px; font-weight:600; cursor:pointer; transition:opacity 0.2s; font-family:'Inter',sans-serif; }
+.btn:hover { opacity:0.85; }
+.btn-outline { background:transparent; border:1px solid var(--border); color:var(--text); }
+.btn-outline:hover { background:var(--surface2); opacity:1; }
+.toggle-group { display:flex; gap:0; flex-wrap:wrap; }
+.toggle-btn { padding:8px 16px; border:1px solid var(--border); background:var(--surface); color:var(--muted); cursor:pointer; font-size:12px; font-weight:600; transition:all 0.2s; font-family:'Inter',sans-serif; }
+.toggle-btn:first-child { border-radius:6px 0 0 6px; }
+.toggle-btn:last-child { border-radius:0 6px 6px 0; }
+.toggle-btn.active { background:var(--accent); color:#000; border-color:var(--accent); }
+canvas { display:block; background:var(--bg); border-radius:8px; border:1px solid var(--border); }
+.highlight-box { background:rgba(162,155,254,0.07); border:1px solid rgba(162,155,254,0.3); border-radius:10px; padding:16px 20px; margin:16px 0; }
+.highlight-box p { font-size:14px; color:var(--text); line-height:1.6; }
+.stat-row { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:28px; }
+.stat { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px 20px; flex:1; min-width:140px; }
+.stat-val { font-size:26px; font-weight:700; font-family:'JetBrains Mono'; }
+.stat-lbl { font-size:11px; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:0.5px; }
+.section-bridge { margin-top:48px; padding-top:24px; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+.section-bridge-text { font-size:13px; color:var(--muted); }
+.section-bridge-link { font-size:13px; color:var(--accent); text-decoration:none; font-weight:600; }
+.accordion-item { border:1px solid var(--border); border-radius:8px; margin-bottom:8px; overflow:hidden; }
+.accordion-header { padding:14px 18px; cursor:pointer; font-size:13px; font-weight:600; display:flex; justify-content:space-between; align-items:center; background:var(--surface); }
+.accordion-header:hover { background:var(--surface2); }
+.accordion-body { display:none; padding:14px 18px; font-size:13px; color:var(--muted); line-height:1.6; border-top:1px solid var(--border); }
+.accordion-item.open .accordion-body { display:block; }
+.accordion-item.open .accordion-chevron { transform:rotate(180deg); }
+.accordion-chevron { transition:transform 0.2s; }
+.pipeline-map { display:flex; align-items:center; flex-wrap:wrap; gap:2px; background:var(--surface); border-bottom:1px solid var(--border); padding:8px 20px; position:sticky; top:0; z-index:50; }
+.pipe-step { display:flex; align-items:center; gap:6px; padding:5px 10px; border-radius:6px; font-size:11px; font-weight:600; color:var(--muted); transition:all 0.25s; text-decoration:none; border:1px solid transparent; white-space:nowrap; }
+.pipe-step:hover { background:var(--surface2); color:var(--text); }
+.pipe-step.active { background:var(--surface2); color:var(--text); border-color:currentColor; }
+.pipe-step .pipe-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.pipe-arrow { font-size:12px; color:var(--border); padding:0 1px; }
+.model-table { width:100%; border-collapse:collapse; font-size:13px; margin:14px 0; }
+.model-table th { background:var(--surface2); padding:10px 14px; text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); border-bottom:2px solid var(--border); }
+.model-table td { padding:10px 14px; border-bottom:1px solid var(--border); }
+.model-table tr:last-child td { border-bottom:none; }
+.model-table tr:hover td { background:var(--surface2); }
+.info-panel { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:12px 16px; font-size:13px; color:var(--muted); line-height:1.6; min-height:48px; margin-top:10px; }
+.decision-node { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 18px; margin:8px 0; font-size:13px; }
+.decision-q { font-weight:600; color:var(--text); margin-bottom:8px; }
+.decision-ans { display:flex; gap:12px; flex-wrap:wrap; }
+.decision-btn { padding:6px 14px; border-radius:6px; border:1px solid var(--border); background:var(--surface2); color:var(--muted); cursor:pointer; font-size:12px; font-weight:600; font-family:'Inter',sans-serif; transition:all 0.2s; }
+.decision-btn:hover { background:var(--accent); color:#000; border-color:var(--accent); }
+.decision-result { background:rgba(162,155,254,0.1); border:1px solid rgba(162,155,254,0.3); border-radius:8px; padding:12px 16px; font-size:13px; color:var(--accent); font-weight:600; margin-top:10px; display:none; }
+@media (max-width:768px) {
+  .sidebar { width:100%; height:auto; position:relative; border-right:none; border-bottom:1px solid var(--border); }
+  .sidebar .nav-group { display:none; }
+  .sb-header { padding:14px 18px; display:flex; align-items:center; justify-content:space-between; }
+  .sb-toggle { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); cursor:pointer; background:none; border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-family:'Inter',sans-serif; }
+  .sidebar.open .nav-group { display:block; }
+  body { flex-direction:column; }
+  .main { margin-left:0; }
+  .section { padding:32px 20px; min-height:unset; }
+  .g2 { grid-template-columns:1fr !important; }
+  .g3 { grid-template-columns:1fr !important; }
+  .g4 { grid-template-columns:1fr 1fr !important; }
+  canvas { max-width:100% !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- PASSWORD GATE -->
+<div id="pg-overlay" style="position:fixed;inset:0;z-index:99999;background:linear-gradient(135deg,#0d1117 0%,#161b22 100%);display:flex;align-items:center;justify-content:center;font-family:system-ui,-apple-system,sans-serif;">
+  <div style="background:#161b22;border:1px solid #30363d;border-radius:16px;padding:48px 40px;max-width:420px;width:90%;text-align:center;box-shadow:0 24px 80px #00000088;">
+    <div style="font-size:3rem;margin-bottom:16px;">🔒</div>
+    <div style="font-size:1.4rem;font-weight:700;color:#c9d1d9;margin-bottom:8px;">Visual Summary</div>
+    <div style="font-size:0.85rem;color:#8b949e;margin-bottom:6px;">In-Context Learning — How LLMs Learn Without Learning</div>
+    <div style="font-size:0.8rem;color:#8b949e;margin-bottom:28px;line-height:1.6;">Exclusive to <b style="color:#c9d1d9;">paid subscribers</b>.<br>Enter the password from your email to unlock.</div>
+    <input id="pg-input" type="password" placeholder="Enter subscriber password" onkeydown="if(event.key==='Enter')pgUnlock()" style="width:100%;padding:12px 16px;font-size:0.95rem;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:8px;outline:none;margin-bottom:12px;">
+    <div id="pg-error" style="font-size:0.78rem;color:#f85149;min-height:18px;margin-bottom:10px;"></div>
+    <button onclick="pgUnlock()" style="width:100%;padding:12px;font-size:0.95rem;font-weight:600;background:linear-gradient(135deg,#a29bfe,#7c6af4);color:#000;border:none;border-radius:8px;cursor:pointer;">Unlock →</button>
+    <div style="margin-top:20px;font-size:0.75rem;color:#8b949e;">Not a subscriber? <a href="https://visualsummary.substack.com" target="_blank" style="color:#a29bfe;text-decoration:none;">Join Visual Summary →</a></div>
+  </div>
+</div>
+<script>
+const PG_PASSWORD='visual2025';
+function pgUnlock(){
+  var val=document.getElementById('pg-input').value.trim();
+  var err=document.getElementById('pg-error');
+  if(val===PG_PASSWORD){
+    sessionStorage.setItem('pg_unlocked_10','1');
+    var o=document.getElementById('pg-overlay');
+    o.style.transition='opacity 0.4s';o.style.opacity='0';
+    setTimeout(function(){o.remove();},420);
+  } else {
+    err.textContent='Incorrect password.';
+    var inp=document.getElementById('pg-input');
+    inp.style.borderColor='#f85149';
+    setTimeout(function(){inp.style.borderColor='#30363d';},1500);
+  }
+}
+if(sessionStorage.getItem('pg_unlocked_10')==='1') document.getElementById('pg-overlay').remove();
+window.addEventListener('load',function(){var el=document.getElementById('pg-input');if(el)el.focus();});
+</script>
+
+<!-- SIDEBAR -->
+<nav class="sidebar" id="sidebar">
+  <div class="sb-header">
+    <div>
+      <h1>In-Context Learning</h1>
+      <p>How LLMs Learn Without Learning</p>
+      <p id="sb-progress" style="font-size:10px;color:#4ade80;margin-top:2px;display:none;"></p>
+    </div>
+    <button class="sb-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')" style="display:none;" id="sb-toggle-btn">&#9776; Menu</button>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">The Phenomenon</div>
+    <a class="nav-link" href="#s-discovery" onclick="setActive(this)"><span class="dot" style="background:#a29bfe"></span>The Discovery</a>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">The Mechanics</div>
+    <a class="nav-link" href="#s-mechanics" onclick="setActive(this)"><span class="dot" style="background:#74c0fc"></span>How It Works</a>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">The Three Theories</div>
+    <a class="nav-link" href="#s-theory1" onclick="setActive(this)"><span class="dot" style="background:#ff9f43"></span>Theory 1: Task Location</a>
+    <a class="nav-link" href="#s-theory2" onclick="setActive(this)"><span class="dot" style="background:#4ecdc4"></span>Theory 2: Gradient Descent</a>
+    <a class="nav-link" href="#s-theory3" onclick="setActive(this)"><span class="dot" style="background:#51cf66"></span>Theory 3: Bayesian Inference</a>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">The Extension &amp; Future</div>
+    <a class="nav-link" href="#s-cot" onclick="setActive(this)"><span class="dot" style="background:#ff6b6b"></span>Chain-of-Thought</a>
+    <a class="nav-link" href="#s-implications" onclick="setActive(this)"><span class="dot" style="background:#ffd43b"></span>What This Means</a>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+
+<!-- PIPELINE MAP -->
+<div class="pipeline-map" id="pipeline-map">
+  <a class="pipe-step" href="#s-discovery"><span class="pipe-dot" style="background:#a29bfe"></span>Discovery</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-mechanics"><span class="pipe-dot" style="background:#74c0fc"></span>Mechanics</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-theory1"><span class="pipe-dot" style="background:#ff9f43"></span>Task Location</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-theory2"><span class="pipe-dot" style="background:#4ecdc4"></span>Gradient Descent</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-theory3"><span class="pipe-dot" style="background:#51cf66"></span>Bayesian</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-cot"><span class="pipe-dot" style="background:#ff6b6b"></span>CoT</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-implications"><span class="pipe-dot" style="background:#ffd43b"></span>Implications</a>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 1: THE DISCOVERY -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="section" id="s-discovery">
+  <div class="section-tag" style="color:#a29bfe">The Phenomenon · ~12 min read</div>
+  <h2 class="section-title">The Discovery</h2>
+  <p class="section-sub">In 2020, OpenAI scaled GPT to 175 billion parameters — and found something nobody designed. By seeing a few input→output examples in the prompt, the frozen model learned new tasks instantly. No retraining. No weight updates. Just examples in a prompt.</p>
+
+  <div class="highlight-box" style="margin-bottom:28px;">
+    <p><b style="color:#a29bfe">TL;DR:</b> In 2020, OpenAI scaled GPT to 175 billion parameters and found something unexpected: the model could perform brand-new tasks just by reading a few examples in the prompt — without any retraining. They called it in-context learning. Nobody designed this. It emerged. Three years of research later, we still don't fully understand it.</p>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat"><div class="stat-val" style="color:#a29bfe">175B</div><div class="stat-lbl">GPT-3 parameters</div></div>
+    <div class="stat"><div class="stat-val" style="color:#74c0fc">3</div><div class="stat-lbl">Competing theories</div></div>
+    <div class="stat"><div class="stat-val" style="color:#ff9f43">&lt;5%</div><div class="stat-lbl">Accuracy drop with wrong labels</div></div>
+    <div class="stat"><div class="stat-val" style="color:#ff6b6b">30%</div><div class="stat-lbl">Gap from bad example order</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="color:#a29bfe">What is In-Context Learning?</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Click the buttons to see how the same frozen model changes behavior based on examples it sees in the prompt.</p>
+    <div class="toggle-group" style="margin-bottom:16px;">
+      <button class="toggle-btn active" onclick="setICLShot(0,this)">0-shot</button>
+      <button class="toggle-btn" onclick="setICLShot(1,this)">1-shot</button>
+      <button class="toggle-btn" onclick="setICLShot(4,this)">4-shot</button>
+    </div>
+    <canvas id="canvas-icl-demo" width="640" height="220"></canvas>
+  </div>
+
+  <div class="g2" style="margin-bottom:24px;">
+    <div class="card">
+      <div class="card-title" style="color:#ff6b6b">Fine-tuning (Traditional)</div>
+      <ul style="font-size:13px;color:var(--muted);line-height:2;list-style:none;">
+        <li>✗ Thousands of labelled examples</li>
+        <li>✗ Gradient updates, backprop</li>
+        <li>✗ New model checkpoint saved</li>
+        <li>✗ Hours of GPU compute</li>
+        <li>✗ Weights permanently changed</li>
+        <li>✗ One model per task</li>
+      </ul>
+    </div>
+    <div class="card" style="border-color:rgba(162,155,254,0.4);">
+      <div class="card-title" style="color:#a29bfe">In-Context Learning (ICL)</div>
+      <ul style="font-size:13px;color:var(--muted);line-height:2;list-style:none;">
+        <li>✓ 0–8 examples in the prompt</li>
+        <li>✓ Zero gradient updates</li>
+        <li>✓ No new checkpoint needed</li>
+        <li>✓ Milliseconds to adapt</li>
+        <li>✓ Weights completely frozen</li>
+        <li>✓ One model, infinite tasks</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="g3" style="margin-bottom:24px;">
+    <div class="card">
+      <div class="card-title" style="color:#a29bfe">Versatility</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;">One frozen model can perform classification, translation, summarization, coding — just by changing the examples in the prompt.</p>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#74c0fc">Speed</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;">New task in seconds, not hours. No training infrastructure needed. Change the prompt and you have a new capability.</p>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#51cf66">Cost</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;">No GPU cluster needed for adaptation. API access is sufficient. ICL democratized LLM capabilities for millions of developers.</p>
+    </div>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">ICL works — but how? We need to see the exact mechanics of the prompt.</span>
+    <a class="section-bridge-link" href="#s-mechanics">How It Works →</a>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 2: HOW IT WORKS -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="section" id="s-mechanics">
+  <div class="section-tag" style="color:#74c0fc">The Mechanics</div>
+  <h2 class="section-title">How It Works</h2>
+  <p class="section-sub">Every ICL prompt has the same anatomy: a sequence of (input, label) pairs — called demonstrations — followed by a test input. The model predicts the label for the final input. Simple in structure, mysterious in operation.</p>
+
+  <div class="card">
+    <div class="card-title" style="color:#74c0fc">Prompt Anatomy — Sentiment Classification</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Every ICL prompt follows this structure. The model "reads" all demonstrations, infers the pattern, and fills in the final label.</p>
+    <canvas id="canvas-prompt-anatomy" width="640" height="260"></canvas>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="color:#74c0fc">The Three Choices That Matter</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Adjust the sliders to see how <b>k</b> (number of examples), <b>order</b>, and <b>label correctness</b> affect accuracy. The results are surprising.</p>
+    <canvas id="canvas-choices" width="640" height="240"></canvas>
+    <div style="margin-top:16px;">
+      <div class="sl-row">
+        <span class="sl-lbl">k (examples shown)</span>
+        <input type="range" id="sl-k" min="0" max="8" step="1" value="4" oninput="updateChoices()">
+        <span class="sl-val" id="val-k">4</span>
+      </div>
+      <div class="sl-row">
+        <span class="sl-lbl">Example order</span>
+        <input type="range" id="sl-order" min="0" max="1" step="1" value="1" oninput="updateChoices()">
+        <span class="sl-val" id="val-order">Optimal</span>
+      </div>
+      <div class="sl-row">
+        <span class="sl-lbl">Label correctness</span>
+        <input type="range" id="sl-correct" min="0" max="1" step="1" value="1" oninput="updateChoices()">
+        <span class="sl-val" id="val-correct">Correct</span>
+      </div>
+    </div>
+    <div class="highlight-box" style="margin-top:12px;">
+      <p id="choices-insight" style="font-size:13px;"><b style="color:#a29bfe">Key insight:</b> Label correctness barely matters — order matters far more than whether labels are right or wrong!</p>
+    </div>
+  </div>
+
+  <div class="g2" style="margin-bottom:24px;">
+    <div class="card">
+      <div class="card-title" style="color:#74c0fc">The Cost Formula</div>
+      <div class="formula">ICL cost = (k + 1) x single-inference cost
+
+k-shot: process k demos + 1 test input
+4-shot = 5x the tokens = 5x compute cost
+8-shot = 9x cost vs zero-shot</div>
+      <p style="font-size:13px;color:var(--muted);margin-top:10px;line-height:1.6;">Every additional demonstration is another pass through the full context. ICL is powerful but not free — cost scales linearly with k.</p>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#74c0fc">What the Model "Sees"</div>
+      <canvas id="canvas-attention" width="320" height="160" style="max-width:100%;"></canvas>
+      <p style="font-size:12px;color:var(--muted);margin-top:8px;">Attention heatmap: the final prediction token (right) attends strongly across demonstration tokens — especially similar examples.</p>
+    </div>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">Three theories compete to explain what the model is actually doing inside.</span>
+    <a class="section-bridge-link" href="#s-theory1">Theory 1: Task Location →</a>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 3: THEORY 1 — TASK LOCATION -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="section" id="s-theory1">
+  <div class="section-tag" style="color:#ff9f43">The Task Location Hypothesis</div>
+  <h2 class="section-title">Theory 1: Task Location</h2>
+  <p class="section-sub">Min et al. (2022) ran a provocative experiment: what if you scrambled all the labels? They expected performance to collapse. Instead, accuracy barely dropped. Their conclusion: demonstrations don't teach the model the task — they locate which pre-trained task to use.</p>
+
+  <div class="card">
+    <div class="card-title" style="color:#ff9f43">The Random Label Experiment</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Min et al. (2022) swapped all labels to random wrong ones. Click "Shuffle Labels" to see what happened.</p>
+    <canvas id="canvas-random-labels" width="640" height="280"></canvas>
+    <div style="margin-top:14px;display:flex;gap:10px;">
+      <button class="btn" onclick="shuffleLabels()">Shuffle Labels</button>
+      <button class="btn btn-outline" onclick="resetLabels()">Reset</button>
+    </div>
+    <div class="highlight-box" style="margin-top:14px;">
+      <p><b style="color:#ff9f43">Result:</b> With correct labels: ~89% accuracy. With random (wrong) labels: ~85% accuracy. <b>Only a 4% drop.</b> The labels aren't the point.</p>
+    </div>
+  </div>
+
+  <div class="g4" style="margin-bottom:24px;">
+    <div class="card">
+      <div class="card-title" style="color:#ff9f43">Input Distribution</div>
+      <p style="font-size:12px;color:var(--muted);line-height:1.5;">Shows the model what kind of inputs to expect — sentiment text, not arithmetic or translation.</p>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#ff9f43">Output Format</div>
+      <p style="font-size:12px;color:var(--muted);line-height:1.5;">Establishes the label space: "Positive"/"Negative" — not "Yes"/"No" or "1"/"0".</p>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#ff9f43">Task Framing</div>
+      <p style="font-size:12px;color:var(--muted);line-height:1.5;">Makes clear this is a classification task vs. a generation or translation task.</p>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#ff9f43">Pattern Space</div>
+      <p style="font-size:12px;color:var(--muted);line-height:1.5;">Activates the right "subroutine" in the pre-trained model — locates the task in weight space.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="color:#ff9f43">Demonstrations as an Address, Not a Lesson</div>
+    <canvas id="canvas-pretraining" width="560" height="180"></canvas>
+    <p style="font-size:13px;color:var(--muted);margin-top:10px;line-height:1.6;">"The model already knows sentiment analysis from pre-training. The demonstrations say: <i>do THAT.</i>"</p>
+  </div>
+
+  <div class="highlight-box" style="border-color:rgba(255,159,67,0.4);background:rgba(255,159,67,0.05);">
+    <p><b style="color:#ff9f43">Key finding:</b> Random inputs (scrambled text, not just wrong labels) drop accuracy by 16%. So inputs matter more than labels. The content of the input, not the correctness of the label, drives ICL performance.</p>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">If demonstrations just locate tasks, what's happening computationally? Theory 2 offers an algorithmic answer.</span>
+    <a class="section-bridge-link" href="#s-theory2">Theory 2: Gradient Descent →</a>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 4: THEORY 2 — GRADIENT DESCENT -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="section" id="s-theory2">
+  <div class="section-tag" style="color:#4ecdc4">The Gradient Descent Hypothesis</div>
+  <h2 class="section-title">Theory 2: Implicit Gradient Descent</h2>
+  <p class="section-sub">Von Oswald et al. (2022) proved something remarkable: a transformer's forward pass, when processing in-context demonstrations, is mathematically equivalent to one step of gradient descent. The model isn't just reading examples — it's running an optimizer.</p>
+
+  <div class="card">
+    <div class="card-title" style="color:#4ecdc4">Gradient Descent ≡ Attention Mechanism</div>
+    <canvas id="canvas-gd-equiv" width="640" height="300"></canvas>
+    <p style="font-size:13px;color:var(--muted);margin-top:10px;line-height:1.6;">Both standard gradient descent and the ICL forward pass minimize the same objective function. One updates weights explicitly; the other does it implicitly through attention.</p>
+  </div>
+
+  <div class="g2" style="margin-bottom:24px;">
+    <div class="card">
+      <div class="card-title" style="color:#4ecdc4">The GD View of ICL</div>
+      <ul style="font-size:13px;color:var(--muted);line-height:2;list-style:none;">
+        <li>▸ Each demonstration = 1 training example</li>
+        <li>▸ Attention mechanism = the optimizer</li>
+        <li>▸ Forward pass = the training loop</li>
+        <li>▸ More examples = more gradient steps</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#4ecdc4">Implications</div>
+      <ul style="font-size:13px;color:var(--muted);line-height:2;list-style:none;">
+        <li>▸ Why more examples help: more steps</li>
+        <li>▸ Why order matters: steps are sequential</li>
+        <li>▸ Quality bounded by pre-training</li>
+        <li>▸ Early demos = early gradient steps</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="color:#4ecdc4">Interactive Loss Landscape — k Examples = k Steps Downhill</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Drag the slider to add more demonstrations. Each new example moves the optimizer one step closer to the task optimum.</p>
+    <canvas id="canvas-gd-sim" width="640" height="240"></canvas>
+    <div class="sl-row" style="margin-top:14px;">
+      <span class="sl-lbl">k (demonstrations)</span>
+      <input type="range" id="sl-gd-k" min="0" max="8" step="1" value="0" oninput="updateGDSim()">
+      <span class="sl-val" id="val-gd-k">0</span>
+    </div>
+    <div class="info-panel" id="gd-info">k=0: The model starts at its pre-trained position — optimized for language modeling, not your task.</div>
+  </div>
+
+  <div class="highlight-box" style="border-color:rgba(78,205,196,0.4);background:rgba(78,205,196,0.05);">
+    <p><b style="color:#4ecdc4">Critique:</b> The GD theory explains why more examples help and why order matters. But it doesn't explain why random labels barely hurt — gradient descent with wrong labels should fail badly. Theory 3 fills this gap.</p>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">Theory 2 gives us an algorithm. Theory 3 gives us a probabilistic framework that unifies the others.</span>
+    <a class="section-bridge-link" href="#s-theory3">Theory 3: Bayesian Inference →</a>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 5: THEORY 3 — BAYESIAN INFERENCE -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="section" id="s-theory3">
+  <div class="section-tag" style="color:#51cf66">The Bayesian Framework</div>
+  <h2 class="section-title">Theory 3: Bayesian Inference</h2>
+  <p class="section-sub">Xie et al. (2022) propose the cleanest theory: ICL is Bayesian inference. The model has a prior over tasks from pre-training. Each demonstration is evidence. The model updates its belief about which task you want, then predicts accordingly.</p>
+
+  <div class="card">
+    <div class="card-title" style="color:#51cf66">Bayesian Belief Update — Add Demonstrations</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Watch how the model's task belief distribution sharpens as you add more demonstrations. Click "Add Demo" to step through.</p>
+    <canvas id="canvas-bayesian" width="640" height="300"></canvas>
+    <div style="margin-top:14px;display:flex;gap:10px;align-items:center;">
+      <button class="btn" onclick="addBayesDemo()">+ Add Demo</button>
+      <button class="btn btn-outline" onclick="resetBayes()">Reset</button>
+      <span id="bayes-count" style="font-size:13px;color:var(--muted);">0 demonstrations shown</span>
+    </div>
+    <div class="formula" style="margin-top:14px;">P(concept | demos) ∝ P(demos | concept) × P(concept)
+
+Prior: what tasks appear in pre-training data?
+Likelihood: do these examples fit that task?
+Posterior: updated belief about what you want</div>
+  </div>
+
+  <div class="g2" style="margin-bottom:24px;">
+    <div class="card">
+      <div class="card-title" style="color:#51cf66">The Pre-training Prior</div>
+      <canvas id="canvas-prior" width="300" height="160" style="max-width:100%;"></canvas>
+      <p style="font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5;">The long-tailed distribution of tasks in pre-training data IS the prior. Common tasks are easy to locate with few examples.</p>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#51cf66">The Latent Concept</div>
+      <canvas id="canvas-latent" width="300" height="160" style="max-width:100%;"></canvas>
+      <p style="font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5;">The hidden concept C is never told to the model. It infers C from demonstrations, then uses C to predict the test label.</p>
+    </div>
+  </div>
+
+  <div class="highlight-box" style="border-color:rgba(81,207,102,0.4);background:rgba(81,207,102,0.05);">
+    <p><b style="color:#51cf66">Why random labels barely hurt:</b> Wrong labels are weak, misleading evidence. The prior from pre-training is strong. The model's posterior is dominated by the prior, not by a handful of wrong demonstrations. This is why 4 random labels barely move the needle.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="color:#51cf66">Theory Comparison</div>
+    <table class="model-table">
+      <tr><th>Property</th><th style="color:#ff9f43">Task Location</th><th style="color:#4ecdc4">Implicit GD</th><th style="color:#51cf66">Bayesian</th></tr>
+      <tr><td>Random labels barely hurt</td><td style="color:#51cf66">✓ labels just locate</td><td style="color:#ff6b6b">✗ GD needs correct signal</td><td style="color:#51cf66">✓ strong prior dominates</td></tr>
+      <tr><td>Order sensitivity</td><td style="color:#f7b731">Partial</td><td style="color:#51cf66">✓ steps are sequential</td><td style="color:#f7b731">Partial</td></tr>
+      <tr><td>More examples = better</td><td style="color:#51cf66">✓</td><td style="color:#51cf66">✓</td><td style="color:#51cf66">✓</td></tr>
+      <tr><td>Explains emergence at scale</td><td style="color:#f7b731">Partial</td><td style="color:#f7b731">Partial</td><td style="color:#51cf66">✓</td></tr>
+    </table>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">All three theories are partial explanations. Chain-of-Thought extends ICL by making the reasoning visible.</span>
+    <a class="section-bridge-link" href="#s-cot">Chain-of-Thought →</a>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 6: CHAIN-OF-THOUGHT -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="section" id="s-cot">
+  <div class="section-tag" style="color:#ff6b6b">The Extension</div>
+  <h2 class="section-title">Chain-of-Thought</h2>
+  <p class="section-sub">Standard ICL shows input→output. Chain-of-Thought shows input→reasoning→output. Adding intermediate steps to demonstrations dramatically improves performance on multi-step reasoning tasks — math, logic, commonsense.</p>
+
+  <div class="card">
+    <div class="card-title" style="color:#ff6b6b">Standard ICL vs Chain-of-Thought</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Toggle between approaches and watch how the reasoning changes — and how accuracy on math problems jumps from 20% to 70%.</p>
+    <div class="toggle-group" style="margin-bottom:16px;">
+      <button class="toggle-btn active" onclick="setCoTMode('standard',this)">Standard ICL</button>
+      <button class="toggle-btn" onclick="setCoTMode('cot',this)">Chain-of-Thought</button>
+    </div>
+    <canvas id="canvas-cot-compare" width="640" height="280"></canvas>
+    <div id="cot-accuracy" style="margin-top:14px;display:flex;gap:20px;flex-wrap:wrap;">
+      <div class="stat" style="flex:1;min-width:140px;"><div class="stat-val" id="cot-acc-val" style="color:#ff6b6b">20%</div><div class="stat-lbl">Accuracy on math benchmarks</div></div>
+      <div class="stat" style="flex:1;min-width:140px;"><div class="stat-val" style="color:#a29bfe">~100B+</div><div class="stat-lbl">Minimum params for CoT to work</div></div>
+    </div>
+  </div>
+
+  <div class="g3" style="margin-bottom:24px;">
+    <div class="card">
+      <div class="card-title" style="color:#ff6b6b">Decomposition</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;">Complex task → sequence of simple tasks. Each reasoning step is ICL-easy. The model solves hard problems by chaining simple ones.</p>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#ff6b6b">Verification</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;">Intermediate steps can be checked. Errors caught earlier. Humans can trace the reasoning to find exactly where it went wrong.</p>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#ff6b6b">Emergence</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;">Only works reliably above ~100B parameters. CoT requires genuine reasoning capacity — small models produce fluent-but-wrong chains.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="color:#ff6b6b">When Should You Use CoT?</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Work through this decision tree to find the right prompting strategy for your task.</p>
+    <div id="cot-decision">
+      <div class="decision-node" id="q1">
+        <div class="decision-q">Is your task multi-step? (math, logic, reasoning, planning)</div>
+        <div class="decision-ans">
+          <button class="decision-btn" onclick="cotDecide('q1','yes')">Yes</button>
+          <button class="decision-btn" onclick="cotDecide('q1','no')">No</button>
+        </div>
+        <div class="decision-result" id="q1-no">Standard few-shot ICL is the right choice. CoT adds overhead without benefit for single-step tasks like classification or extraction.</div>
+      </div>
+      <div class="decision-node" id="q2" style="display:none;">
+        <div class="decision-q">Is the model larger than ~100B parameters? (GPT-4, Claude, Gemini)</div>
+        <div class="decision-ans">
+          <button class="decision-btn" onclick="cotDecide('q2','yes')">Yes</button>
+          <button class="decision-btn" onclick="cotDecide('q2','no')">No, it's a smaller model</button>
+        </div>
+        <div class="decision-result" id="q2-no" style="color:#ff6b6b;">Standard ICL may work better. CoT in small models (&lt;7B) often produces plausible-sounding but wrong reasoning steps.</div>
+      </div>
+      <div class="decision-node" id="q3" style="display:none;">
+        <div class="decision-q">Do you have reasoning examples to include?</div>
+        <div class="decision-ans">
+          <button class="decision-btn" onclick="cotDecide('q3','yes')">Yes, I have worked examples</button>
+          <button class="decision-btn" onclick="cotDecide('q3','no')">No, I only have the question</button>
+        </div>
+        <div class="decision-result" id="q3-yes" style="color:#51cf66;">Use few-shot Chain-of-Thought. Include 3–5 examples with full step-by-step reasoning before your actual question.</div>
+        <div class="decision-result" id="q3-no" style="color:#a29bfe;">Use zero-shot CoT: append "Let's think step by step." to your prompt. This single phrase activates chain-of-thought reasoning without examples.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="highlight-box" style="border-color:rgba(255,107,107,0.4);background:rgba(255,107,107,0.05);">
+    <p><b style="color:#ff6b6b">Zero-shot CoT:</b> Simply appending "Let's think step by step." to a prompt activates chain-of-thought reasoning — no examples needed. This phrase has become one of the most-studied "magic strings" in NLP research.</p>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">ICL and CoT have transformed how we use LLMs. What does this mean for you practically?</span>
+    <a class="section-bridge-link" href="#s-implications">What This Means →</a>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 7: IMPLICATIONS -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="section" id="s-implications">
+  <div class="section-tag" style="color:#ffd43b">The Legacy &amp; Practical Guide</div>
+  <h2 class="section-title">What This Means</h2>
+  <p class="section-sub">ICL is now the default way to use LLMs. Understanding its mechanics — and its limits — is the difference between prompts that work and prompts that don't.</p>
+
+  <div class="card">
+    <div class="card-title" style="color:#ffd43b">Task Vectors — Compressing ICL</div>
+    <canvas id="canvas-task-vectors" width="640" height="220"></canvas>
+    <p style="font-size:13px;color:var(--muted);margin-top:10px;line-height:1.6;">2023 finding (Hendel et al.): a few ICL demonstrations can be compressed into a single "task vector" — an activation injected at a specific layer. Same performance, 1/k the inference cost. The model encodes "the task" as a direction in activation space.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="color:#ffd43b">Timeline of In-Context Learning</div>
+    <canvas id="canvas-timeline" width="640" height="220"></canvas>
+    <div class="info-panel" id="timeline-info">Click any milestone on the timeline to learn more.</div>
+  </div>
+
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title" style="color:#ffd43b">Write Better Prompts — Practical Guide</div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAcc(this)">
+        <span>1. Order matters — put the best examples last</span><span class="accordion-chevron">▼</span>
+      </div>
+      <div class="accordion-body">The most relevant examples should be closest to your test input (last in the prompt). Recency bias means the model weighs recent demonstrations more heavily. Shuffled examples can drop accuracy by up to 30% vs. optimal ordering.</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAcc(this)">
+        <span>2. Label space > label correctness</span><span class="accordion-chevron">▼</span>
+      </div>
+      <div class="accordion-body">Always use the real output format — "Positive"/"Negative" not "1"/"0" — even if some labels are approximate. The format of the label matters far more than whether every single label is perfectly correct.</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAcc(this)">
+        <span>3. k=4 is often the sweet spot</span><span class="accordion-chevron">▼</span>
+      </div>
+      <div class="accordion-body">Beyond k=8, returns diminish sharply while cost grows linearly. For most tasks, 4 high-quality, well-ordered examples outperform 16 random ones. Quality and order beat quantity.</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAcc(this)">
+        <span>4. Use CoT for multi-step tasks</span><span class="accordion-chevron">▼</span>
+      </div>
+      <div class="accordion-body">Add reasoning traces to your few-shot examples for math, logic, planning, and commonsense tasks. If you don't have examples, just add "Let's think step by step." to the prompt — zero-shot CoT works surprisingly well on large models.</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAcc(this)">
+        <span>5. Small models (&lt;7B params) — standard ICL beats CoT</span><span class="accordion-chevron">▼</span>
+      </div>
+      <div class="accordion-body">Chain-of-thought requires the model to have genuine reasoning capacity. Models below ~100B parameters tend to produce fluent-sounding but wrong reasoning chains. Standard few-shot ICL often gives better results on small models.</div>
+    </div>
+  </div>
+
+  <div class="g4" style="margin-bottom:24px;">
+    <div class="card">
+      <div class="card-title" style="color:#ff6b6b">Context Window</div>
+      <p style="font-size:12px;color:var(--muted);line-height:1.5;">Bounded by model's max tokens. Can't fit 100 examples. Token budget forces hard trade-offs between demo count and input length.</p>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#ff6b6b">Cost Scaling</div>
+      <p style="font-size:12px;color:var(--muted);line-height:1.5;">k-shot = (k+1)x inference cost. Expensive at API scale. Fine-tuning becomes cost-effective beyond ~10,000 calls/day with the same k examples.</p>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#ff6b6b">No Persistence</div>
+      <p style="font-size:12px;color:var(--muted);line-height:1.5;">Learning disappears after the conversation. The model doesn't remember previous interactions. Every new call starts fresh from frozen weights.</p>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#ff6b6b">Order Fragility</div>
+      <p style="font-size:12px;color:var(--muted);line-height:1.5;">Performance can swing 30% from shuffled examples. ICL is sensitive to the exact sequence. Always validate ordering on a held-out set.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="color:#ffd43b">Open Questions — Click to Explore</div>
+    <canvas id="canvas-open-questions" width="640" height="200"></canvas>
+    <div class="info-panel" id="oq-info">Click a question bubble to explore current research.</div>
+  </div>
+
+  <div class="stat-row" style="margin-top:24px;">
+    <div class="stat"><div class="stat-val" style="color:#a29bfe">175B</div><div class="stat-lbl">GPT-3 params (Brown 2020)</div></div>
+    <div class="stat"><div class="stat-val" style="color:#ff9f43">&lt;5%</div><div class="stat-lbl">Accuracy drop (wrong labels)</div></div>
+    <div class="stat"><div class="stat-val" style="color:#4ecdc4">30%</div><div class="stat-lbl">Gap from bad ordering</div></div>
+    <div class="stat"><div class="stat-val" style="color:#51cf66">3</div><div class="stat-lbl">Competing theories</div></div>
+    <div class="stat"><div class="stat-val" style="color:#ffd43b">∞</div><div class="stat-lbl">Tasks (same model)</div></div>
+  </div>
+</section>
+
+</div><!-- /main -->
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════════════════
+function lerp(a,b,t){return a+(b-a)*t;}
+function easeInOut(t){return t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2;}
+function drawRoundedRect(ctx,x,y,w,h,r,fill,stroke){
+  ctx.beginPath();ctx.roundRect(x,y,w,h,r);
+  if(fill){ctx.fillStyle=fill;ctx.fill();}
+  if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1;ctx.stroke();}
+}
+function drawArrow(ctx,x1,y1,x2,y2,color,size){
+  size=size||8;ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+  var angle=Math.atan2(y2-y1,x2-x1);
+  ctx.beginPath();ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-size*Math.cos(angle-0.4),y2-size*Math.sin(angle-0.4));
+  ctx.lineTo(x2-size*Math.cos(angle+0.4),y2-size*Math.sin(angle+0.4));
+  ctx.closePath();ctx.fill();
+}
+function seededRand(seed){var x=Math.sin(seed+1)*10000;return x-Math.floor(x);}
+
+// ═══════════════════════════════════════════════════════════
+// NAV
+// ═══════════════════════════════════════════════════════════
+var sectionIds=['s-discovery','s-mechanics','s-theory1','s-theory2','s-theory3','s-cot','s-implications'];
+function setActive(el){
+  document.querySelectorAll('.nav-link').forEach(function(l){l.classList.remove('active');});
+  if(el)el.classList.add('active');
+  document.querySelectorAll('.pipe-step').forEach(function(p){p.classList.remove('active');});
+}
+function updateNavOnScroll(){
+  var sp=document.getElementById('sb-progress');
+  var scrolled=window.scrollY;var total=document.body.scrollHeight-window.innerHeight;
+  var pct=total>0?Math.round(scrolled/total*100):0;
+  if(sp){sp.style.display=pct>2?'block':'none';sp.textContent=pct+'% read';}
+  var current='';
+  sectionIds.forEach(function(id){
+    var el=document.getElementById(id);
+    if(el&&el.getBoundingClientRect().top<=120)current=id;
+  });
+  if(current){
+    document.querySelectorAll('.nav-link').forEach(function(l){
+      l.classList.toggle('active',l.getAttribute('href')==='#'+current);
+    });
+    document.querySelectorAll('.pipe-step').forEach(function(p){
+      p.classList.toggle('active',p.getAttribute('href')==='#'+current);
+    });
+  }
+}
+window.addEventListener('scroll',updateNavOnScroll);
+// mobile toggle
+if(window.innerWidth<=768){
+  var tb=document.getElementById('sb-toggle-btn');
+  if(tb)tb.style.display='flex';
+}
+
+// ═══════════════════════════════════════════════════════════
+// ACCORDION
+// ═══════════════════════════════════════════════════════════
+function toggleAcc(header){
+  var item=header.parentElement;
+  item.classList.toggle('open');
+}
+
+// ═══════════════════════════════════════════════════════════
+// SECTION 1: ICL DEMO
+// ═══════════════════════════════════════════════════════════
+var iclShot=0;
+function setICLShot(n,el){
+  iclShot=n;
+  document.querySelectorAll('#s-discovery .toggle-btn').forEach(function(b){b.classList.remove('active');});
+  if(el)el.classList.add('active');
+  drawICLDemo();
+}
+function drawICLDemo(){
+  var c=document.getElementById('canvas-icl-demo');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+
+  var panels=[
+    {shot:0,label:'0-shot',color:'#8892b0',acc:62},
+    {shot:1,label:'1-shot',color:'#74c0fc',acc:75},
+    {shot:4,label:'4-shot',color:'#a29bfe',acc:89}
+  ];
+
+  var examples=[
+    {input:'"This movie is great!"',label:'Positive'},
+    {input:'"Terrible acting."',label:'Negative'},
+    {input:'"Loved every minute."',label:'Positive'},
+    {input:'"Boring plot."',label:'Negative'}
+  ];
+
+  var pw=196,ph=180,gap=26,startX=16;
+
+  panels.forEach(function(p,i){
+    var x=startX+i*(pw+gap);
+    var isActive=(iclShot===p.shot);
+    drawRoundedRect(ctx,x,16,pw,ph,8,isActive?'rgba(162,155,254,0.08)':'rgba(22,26,46,0.8)',isActive?'#a29bfe':'#2a3060');
+
+    // Header
+    ctx.fillStyle=p.color;ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText(p.label,x+pw/2,34);
+
+    var lineY=40;
+    ctx.strokeStyle='#2a3060';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(x+8,lineY);ctx.lineTo(x+pw-8,lineY);ctx.stroke();
+
+    var showCount=p.shot;
+    if(showCount>0){
+      examples.slice(0,Math.min(showCount,4)).forEach(function(ex,j){
+        var ey=48+j*26;
+        if(ey+20>ph+16-40)return;
+        drawRoundedRect(ctx,x+6,ey,pw-12,20,4,'rgba(42,48,96,0.6)','#2a3060');
+        ctx.fillStyle='#8892b0';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';
+        var txt=ex.input.length>18?ex.input.substring(0,16)+'..."':ex.input;
+        ctx.fillText(txt,x+10,ey+9);
+        ctx.fillStyle=ex.label==='Positive'?'#51cf66':'#ff6b6b';
+        ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='right';
+        ctx.fillText(ex.label,x+pw-8,ey+13);
+      });
+    } else {
+      ctx.fillStyle='#2a3060';ctx.font='10px Inter,sans-serif';ctx.textAlign='center';
+      ctx.fillText('(no examples)',x+pw/2,80);
+    }
+
+    // Test input
+    var testY=ph-42;
+    drawRoundedRect(ctx,x+6,testY,pw-12,22,4,'rgba(162,155,254,0.1)','rgba(162,155,254,0.4)');
+    ctx.fillStyle='#e2e8f0';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';
+    ctx.fillText('"I\'d watch it again."',x+10,testY+10);
+    ctx.fillStyle=isActive?'#a29bfe':'#555';
+    ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='right';
+    ctx.fillText(isActive?'Positive':'???',x+pw-8,testY+14);
+
+    // Accuracy bar
+    var barY=ph-10;
+    ctx.fillStyle='#1e2444';ctx.fillRect(x+6,barY,pw-12,8);
+    ctx.fillStyle=p.color;ctx.fillRect(x+6,barY,(pw-12)*p.acc/100,8);
+    ctx.fillStyle='#8892b0';ctx.font='9px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText('~'+p.acc+'% acc',x+pw/2,barY+20);
+  });
+}
+drawICLDemo();
+
+// ═══════════════════════════════════════════════════════════
+// SECTION 2: PROMPT ANATOMY
+// ═══════════════════════════════════════════════════════════
+function drawPromptAnatomy(){
+  var c=document.getElementById('canvas-prompt-anatomy');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+
+  var demos=[
+    {input:'"This movie is great!"',label:'Positive',color:'#a29bfe'},
+    {input:'"Terrible acting."',label:'Negative',color:'#a29bfe'},
+    {input:'"Loved every minute."',label:'Positive',color:'#a29bfe'},
+    {input:'"Boring plot."',label:'Negative',color:'#a29bfe'},
+  ];
+  var testEx={input:'"The story gripped me."',label:'???',color:'#ff9f43'};
+
+  var leftX=40,rightX=420,rowH=38,startY=20;
+
+  demos.forEach(function(d,i){
+    var y=startY+i*rowH;
+    drawRoundedRect(ctx,leftX,y,320,28,6,'rgba(162,155,254,0.08)','rgba(162,155,254,0.3)');
+    ctx.fillStyle='#e2e8f0';ctx.font='12px JetBrains Mono,monospace';ctx.textAlign='left';
+    ctx.fillText(d.input,leftX+10,y+18);
+    drawArrow(ctx,leftX+340,y+14,leftX+360,y+14,'#2a3060',6);
+    drawRoundedRect(ctx,leftX+368,y,80,28,6,'rgba(162,155,254,0.15)','rgba(162,155,254,0.5)');
+    ctx.fillStyle=d.label==='Positive'?'#51cf66':'#ff6b6b';ctx.font='bold 12px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText(d.label,leftX+408,y+18);
+
+    // Label
+    ctx.fillStyle='rgba(162,155,254,0.5)';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';
+    ctx.fillText('demo '+(i+1),leftX+460,y+18);
+  });
+
+  // Divider
+  var divY=startY+4*rowH+4;
+  ctx.strokeStyle='rgba(255,159,67,0.4)';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+  ctx.beginPath();ctx.moveTo(leftX,divY);ctx.lineTo(500,divY);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='rgba(255,159,67,0.6)';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';
+  ctx.fillText('test input',leftX+462,divY+14);
+
+  // Test
+  var ty=divY+6;
+  drawRoundedRect(ctx,leftX,ty,320,28,6,'rgba(255,159,67,0.1)','rgba(255,159,67,0.5)');
+  ctx.fillStyle='#e2e8f0';ctx.font='12px JetBrains Mono,monospace';ctx.textAlign='left';
+  ctx.fillText(testEx.input,leftX+10,ty+18);
+  drawArrow(ctx,leftX+340,ty+14,leftX+360,ty+14,'#ff9f43',6);
+  drawRoundedRect(ctx,leftX+368,ty,80,28,6,'rgba(255,159,67,0.15)','rgba(255,159,67,0.6)');
+  ctx.fillStyle='#ff9f43';ctx.font='bold 16px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('???',leftX+408,ty+20);
+
+  // Annotation bottom
+  ctx.fillStyle='#8892b0';ctx.font='11px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('The model fills in ??? by attending to all demonstrations simultaneously',W/2,H-8);
+}
+drawPromptAnatomy();
+
+// ═══════════════════════════════════════════════════════════
+// SECTION 2: CHOICES CANVAS
+// ═══════════════════════════════════════════════════════════
+var choicesK=4,choicesOrder=1,choicesCorrect=1;
+function updateChoices(){
+  choicesK=parseInt(document.getElementById('sl-k').value);
+  choicesOrder=parseInt(document.getElementById('sl-order').value);
+  choicesCorrect=parseInt(document.getElementById('sl-correct').value);
+  document.getElementById('val-k').textContent=choicesK;
+  document.getElementById('val-order').textContent=choicesOrder?'Optimal':'Random';
+  document.getElementById('val-correct').textContent=choicesCorrect?'Correct':'Random';
+
+  // Compute accuracy
+  var acc=50;
+  if(choicesK>=1)acc+=15;
+  if(choicesK>=4)acc+=10;
+  if(choicesK>=8)acc+=3;
+  if(choicesOrder)acc+=12;
+  if(choicesCorrect)acc+=4;
+  acc=Math.min(acc,96);
+
+  var insight='';
+  if(!choicesCorrect&&choicesOrder){
+    insight='<b style="color:#a29bfe">Key insight:</b> Wrong labels barely hurt (&lt;5% drop). ORDER matters far more than label correctness!';
+  } else if(!choicesOrder&&choicesCorrect){
+    insight='<b style="color:#ff9f43">Warning:</b> Bad ordering causes ~30% accuracy drop — worse than using wrong labels!';
+  } else if(choicesK===0){
+    insight='<b style="color:#74c0fc">Zero-shot:</b> The model tries to infer the task from context alone, without any examples.';
+  } else {
+    insight='<b style="color:#a29bfe">Key insight:</b> Label correctness barely matters — ORDER matters far more than whether labels are right or wrong!';
+  }
+  document.getElementById('choices-insight').innerHTML=insight;
+  drawChoices(acc);
+}
+function drawChoices(acc){
+  var c=document.getElementById('canvas-choices');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+
+  acc=acc||70;
+  // Big accuracy display
+  ctx.fillStyle='#1e2444';ctx.fillRect(20,20,W-40,H-40);
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=1;ctx.strokeRect(20,20,W-40,H-40);
+
+  // Bars for each factor
+  var factors=[
+    {label:'k='+choicesK+' examples',contrib:choicesK*3,color:'#a29bfe',max:24},
+    {label:choicesOrder?'Optimal order':'Random order',contrib:choicesOrder?12:0,color:'#74c0fc',max:12},
+    {label:choicesCorrect?'Correct labels':'Random labels',contrib:choicesCorrect?4:0,color:'#ff9f43',max:4}
+  ];
+
+  var baseline=50;
+  var barW=540,barX=80,barH=28,gap=16,startY=34;
+
+  ctx.fillStyle='#8892b0';ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='left';
+  ctx.fillText('Accuracy Breakdown',barX,startY-6);
+
+  factors.forEach(function(f,i){
+    var y=startY+i*(barH+gap);
+    ctx.fillStyle='#2a3060';ctx.fillRect(barX,y,barW,barH);
+    // baseline portion
+    ctx.fillStyle='rgba(42,48,96,0.8)';ctx.fillRect(barX,y,barW*baseline/100,barH);
+    // contribution
+    var contribW=barW*(f.contrib/100);
+    ctx.fillStyle=f.color+'88';ctx.fillRect(barX+barW*baseline/100,y,contribW,barH);
+
+    ctx.fillStyle=f.color;ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='left';
+    ctx.fillText(f.label,barX+4,y+17);
+    ctx.fillStyle='#e2e8f0';ctx.font='bold 10px JetBrains Mono,monospace';ctx.textAlign='right';
+    ctx.fillText('+'+f.contrib+'%',barX+barW-4,y+17);
+  });
+
+  // Total
+  var totalY=startY+3*(barH+gap)+8;
+  ctx.strokeStyle='rgba(162,155,254,0.4)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(barX,totalY);ctx.lineTo(barX+barW,totalY);ctx.stroke();
+
+  ctx.fillStyle='#2a3060';ctx.fillRect(barX,totalY+6,barW,barH+4);
+  ctx.fillStyle='#a29bfe';var totalW=barW*acc/100;
+  ctx.fillRect(barX,totalY+6,totalW,barH+4);
+  ctx.fillStyle='#e2e8f0';ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='left';
+  ctx.fillText('Total accuracy',barX+6,totalY+21);
+  ctx.fillStyle='#000';ctx.font='bold 14px JetBrains Mono,monospace';ctx.textAlign='right';
+  ctx.fillText('~'+acc+'%',barX+barW-6,totalY+22);
+}
+updateChoices();
+
+// ═══════════════════════════════════════════════════════════
+// SECTION 2: ATTENTION HEATMAP
+// ═══════════════════════════════════════════════════════════
+function drawAttention(){
+  var c=document.getElementById('canvas-attention');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+
+  var tokens=['great!','→','Pos','terrible','→','Neg','loved','→','Pos','boring','→','Neg','gripped'];
+  var n=tokens.length;
+  var cellW=(W-60)/n,cellH=(H-50)/2;
+  var startX=50,startY=20;
+
+  // Heatmap for last token (index n-1) attending to all
+  var weights=tokens.map(function(t,i){
+    // "gripped" is the test, similar to "loved"
+    if(i===6||i===7||i===8)return 0.7+seededRand(i)*0.25;  // loved → Pos
+    if(i===0||i===1||i===2)return 0.4+seededRand(i)*0.2;
+    if(i===3||i===4||i===5)return 0.2+seededRand(i)*0.15;
+    if(i===9||i===10||i===11)return 0.15+seededRand(i)*0.1;
+    return 0.5; // self
+  });
+
+  tokens.forEach(function(tok,i){
+    var x=startX+i*cellW;
+    var alpha=weights[i];
+    var r=Math.round(lerp(30,162,alpha));
+    var g=Math.round(lerp(30,155,alpha));
+    var b=Math.round(lerp(70,254,alpha));
+    ctx.fillStyle='rgb('+r+','+g+','+b+')';
+    ctx.fillRect(x,startY,cellW-2,cellH-2);
+
+    ctx.fillStyle='#e2e8f0';ctx.font='9px JetBrains Mono,monospace';ctx.textAlign='center';
+    ctx.fillText(tok,x+cellW/2,startY+cellH+14);
+  });
+
+  // Row label
+  ctx.fillStyle='#8892b0';ctx.font='9px Inter,sans-serif';ctx.textAlign='right';
+  ctx.fillText('test',startX-4,startY+cellH/2+3);
+
+  // Legend
+  var lgX=startX,lgY=H-20;
+  var grad=ctx.createLinearGradient(lgX,0,lgX+200,0);
+  grad.addColorStop(0,'rgb(30,30,70)');grad.addColorStop(1,'rgb(162,155,254)');
+  ctx.fillStyle=grad;ctx.fillRect(lgX,lgY,200,8);
+  ctx.fillStyle='#8892b0';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';
+  ctx.fillText('Low attention',lgX,lgY+18);ctx.textAlign='right';ctx.fillText('High',lgX+200,lgY+18);
+}
+drawAttention();
+
+// ═══════════════════════════════════════════════════════════
+// SECTION 3: RANDOM LABELS
+// ═══════════════════════════════════════════════════════════
+var labelsShuffled=false;
+var correctLabels=['Positive','Negative','Positive','Negative','Positive','Negative','Positive','Negative'];
+var randomLabels=['Negative','Positive','Negative','Positive','Negative','Positive','Negative','Positive'];
+var benchmarks=['SST-2','TREC','CB','AGNews','MRPC','RTE','SST-5','Avg'];
+var correctAcc=[89,87,79,85,82,81,55,80];
+var randomAcc=[85,83,74,80,78,76,51,75];
+
+function drawRandomLabels(){
+  var c=document.getElementById('canvas-random-labels');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+
+  var exs=[
+    {input:'"Great film!"',corr:'Positive',rand:'Negative'},
+    {input:'"Bad acting."',corr:'Negative',rand:'Positive'},
+    {input:'"A masterpiece."',corr:'Positive',rand:'Negative'},
+    {input:'"Boring and slow."',corr:'Negative',rand:'Positive'}
+  ];
+
+  // Left panel: correct labels
+  var lx=20,rx=W/2+10,pw=W/2-30,ph=120;
+  drawRoundedRect(ctx,lx,10,pw,ph,8,'rgba(81,207,102,0.06)','rgba(81,207,102,0.3)');
+  ctx.fillStyle='#51cf66';ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('Correct Labels',lx+pw/2,28);
+
+  exs.forEach(function(ex,i){
+    var y=36+i*18;
+    ctx.fillStyle='#8892b0';ctx.font='10px Inter,sans-serif';ctx.textAlign='left';
+    ctx.fillText(ex.input,lx+8,y+10);
+    ctx.fillStyle=ex.corr==='Positive'?'#51cf66':'#ff6b6b';ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='right';
+    ctx.fillText(ex.corr,lx+pw-8,y+10);
+  });
+
+  ctx.fillStyle='#51cf66';ctx.font='bold 20px JetBrains Mono,monospace';ctx.textAlign='center';
+  ctx.fillText('89%',lx+pw/2,ph-8);
+  ctx.fillStyle='#8892b0';ctx.font='10px Inter,sans-serif';
+  ctx.fillText('accuracy',lx+pw/2,ph+6);
+
+  // Right panel: random labels
+  drawRoundedRect(ctx,rx,10,pw,ph,8,'rgba(255,107,107,0.06)',labelsShuffled?'rgba(255,107,107,0.5)':'rgba(255,107,107,0.2)');
+  ctx.fillStyle=labelsShuffled?'#ff6b6b':'#8892b0';ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText(labelsShuffled?'Random Labels (Shuffled!)':'Random Labels',rx+pw/2,28);
+
+  exs.forEach(function(ex,i){
+    var y=36+i*18;
+    ctx.fillStyle='#8892b0';ctx.font='10px Inter,sans-serif';ctx.textAlign='left';
+    ctx.fillText(ex.input,rx+8,y+10);
+    var lbl=labelsShuffled?ex.rand:ex.corr;
+    ctx.fillStyle=labelsShuffled?(ex.rand==='Positive'?'#ff9f43':'#7c6af4'):(ex.corr==='Positive'?'#51cf66':'#ff6b6b');
+    ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='right';
+    ctx.fillText(lbl,rx+pw-8,y+10);
+  });
+
+  ctx.fillStyle=labelsShuffled?'#ff9f43':'#51cf66';ctx.font='bold 20px JetBrains Mono,monospace';ctx.textAlign='center';
+  ctx.fillText(labelsShuffled?'85%':'89%',rx+pw/2,ph-8);
+  ctx.fillStyle='#8892b0';ctx.font='10px Inter,sans-serif';
+  ctx.fillText(labelsShuffled?'only 4% drop!':'accuracy',rx+pw/2,ph+6);
+
+  // Bar chart
+  var bStartY=ph+22,bH=H-bStartY-20;
+  var bw=(W-40)/(benchmarks.length+1),bx=20;
+
+  ctx.fillStyle='#8892b0';ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='left';
+  ctx.fillText('Accuracy across benchmarks:',bx,bStartY);
+
+  benchmarks.forEach(function(bm,i){
+    var x=bx+i*bw+bw*0.1;
+    var bww=bw*0.35;
+    // Correct bar
+    var cH=(correctAcc[i]/100)*bH*0.8;
+    ctx.fillStyle='rgba(81,207,102,0.7)';
+    ctx.fillRect(x,bStartY+bH*0.2-cH,bww,cH);
+    // Random bar
+    var rH=(randomAcc[i]/100)*bH*0.8;
+    ctx.fillStyle=labelsShuffled?'rgba(255,107,107,0.7)':'rgba(255,107,107,0.3)';
+    ctx.fillRect(x+bww+2,bStartY+bH*0.2-rH,bww,rH);
+
+    ctx.fillStyle='#8892b0';ctx.font='8px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText(bm,x+bww,bStartY+bH*0.2+10);
+  });
+
+  // Legend
+  ctx.fillStyle='rgba(81,207,102,0.7)';ctx.fillRect(20,H-12,10,8);
+  ctx.fillStyle='#8892b0';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';
+  ctx.fillText('Correct labels',34,H-5);
+  ctx.fillStyle='rgba(255,107,107,0.7)';ctx.fillRect(140,H-12,10,8);
+  ctx.fillText('Random labels',154,H-5);
+}
+function shuffleLabels(){labelsShuffled=true;drawRandomLabels();}
+function resetLabels(){labelsShuffled=false;drawRandomLabels();}
+drawRandomLabels();
+
+// ═══════════════════════════════════════════════════════════
+// SECTION 3: PRETRAINING CABINET
+// ═══════════════════════════════════════════════════════════
+function drawPretrainingCabinet(){
+  var c=document.getElementById('canvas-pretraining');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+
+  // Pre-training data → frozen weights → prompt
+  var stages=[
+    {label:'Pre-training\nData',sub:'Text of the internet\nbooks, code, papers',color:'#74c0fc',x:40},
+    {label:'Frozen\nWeights',sub:'Tasks encoded as\ndirections in\nactivation space',color:'#a29bfe',x:220},
+    {label:'ICL\nPrompt',sub:'Demonstrations\nactivate the right\ntask direction',color:'#ff9f43',x:400}
+  ];
+
+  stages.forEach(function(s,i){
+    var boxW=140,boxH=100,y=H/2-boxH/2;
+    drawRoundedRect(ctx,s.x,y,boxW,boxH,8,'rgba(22,26,46,0.9)',s.color+'66');
+
+    ctx.fillStyle=s.color;ctx.font='bold 12px Inter,sans-serif';ctx.textAlign='center';
+    var lines=s.label.split('\n');
+    lines.forEach(function(l,li){ctx.fillText(l,s.x+boxW/2,y+22+li*16);});
+    ctx.fillStyle='#8892b0';ctx.font='9px Inter,sans-serif';
+    var subs=s.sub.split('\n');
+    subs.forEach(function(l,li){ctx.fillText(l,s.x+boxW/2,y+58+li*13);});
+
+    if(i<stages.length-1){
+      drawArrow(ctx,s.x+boxW+6,y+boxH/2,stages[i+1].x-6,y+boxH/2,'#2a3060',7);
+    }
+  });
+
+  ctx.fillStyle='#8892b0';ctx.font='10px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('"Demonstrations are an address, not a lesson."',W/2,H-8);
+}
+drawPretrainingCabinet();
+
+// ═══════════════════════════════════════════════════════════
+// SECTION 4: GD EQUIVALENCE
+// ═══════════════════════════════════════════════════════════
+function drawGDEquiv(){
+  var c=document.getElementById('canvas-gd-equiv');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+
+  var halfW=W/2-30;
+
+  // LEFT: Standard GD
+  drawRoundedRect(ctx,10,10,halfW,H-20,8,'rgba(22,26,46,0.9)','rgba(78,205,196,0.3)');
+  ctx.fillStyle='#4ecdc4';ctx.font='bold 12px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('Standard Gradient Descent',10+halfW/2,30);
+
+  // Parabola
+  var parCx=10+halfW/2,parCy=130,parA=0.003;
+  ctx.strokeStyle='#4ecdc4';ctx.lineWidth=2;
+  ctx.beginPath();
+  for(var xi=-120;xi<=120;xi+=2){
+    var yi=parA*xi*xi;
+    if(xi===-120)ctx.moveTo(parCx+xi,parCy+yi*60-40);
+    else ctx.lineTo(parCx+xi,parCy+yi*60-40);
+  }
+  ctx.stroke();
+
+  // Dot on parabola
+  var dotX=70;var dotY=parA*dotX*dotX*60-40;
+  ctx.fillStyle='#ff9f43';ctx.beginPath();ctx.arc(parCx+dotX,parCy+dotY,6,0,Math.PI*2);ctx.fill();
+
+  // Gradient arrow
+  var gradDx=-50;
+  drawArrow(ctx,parCx+dotX,parCy+dotY,parCx+dotX+gradDx,parCy+parA*(dotX+gradDx)*(dotX+gradDx)*60-40,'#51cf66',7);
+
+  ctx.fillStyle='#8892b0';ctx.font='10px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('Loss L(θ)',parCx,56);
+  ctx.fillText('Gradient arrow → step downhill',parCx,160);
+
+  ctx.fillStyle='#e2e8f0';ctx.font='10px JetBrains Mono,monospace';ctx.textAlign='center';
+  ctx.fillText('θ ← θ - α∇L',parCx,185);
+  ctx.fillStyle='#8892b0';ctx.font='9px Inter,sans-serif';
+  ctx.fillText('Weight update (explicit)',parCx,200);
+
+  ctx.fillStyle='#4ecdc4';ctx.font='9px Inter,sans-serif';
+  ctx.fillText('Requires: backprop, optimizer, multiple passes',parCx,220);
+  ctx.fillText('Result: permanent weight change',parCx,235);
+
+  // EQUIV symbol
+  ctx.fillStyle='#ffd43b';ctx.font='bold 28px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('≡',W/2,H/2+10);
+  ctx.fillStyle='#8892b0';ctx.font='9px Inter,sans-serif';
+  ctx.fillText('mathematically',W/2,H/2+25);
+  ctx.fillText('equivalent',W/2,H/2+37);
+
+  // RIGHT: ICL attention
+  var rx=W/2+20;
+  drawRoundedRect(ctx,rx,10,halfW,H-20,8,'rgba(22,26,46,0.9)','rgba(162,155,254,0.3)');
+  ctx.fillStyle='#a29bfe';ctx.font='bold 12px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('ICL Forward Pass (Attention)',rx+halfW/2,30);
+
+  // Same parabola
+  var rCx=rx+halfW/2;
+  ctx.strokeStyle='#a29bfe';ctx.lineWidth=2;
+  ctx.beginPath();
+  for(var xi=-120;xi<=120;xi+=2){
+    var yi=parA*xi*xi;
+    if(xi===-120)ctx.moveTo(rCx+xi,parCy+yi*60-40);
+    else ctx.lineTo(rCx+xi,parCy+yi*60-40);
+  }
+  ctx.stroke();
+
+  ctx.fillStyle='#ff9f43';ctx.beginPath();ctx.arc(rCx+dotX,parCy+dotY,6,0,Math.PI*2);ctx.fill();
+  drawArrow(ctx,rCx+dotX,parCy+dotY,rCx+dotX+gradDx,parCy+parA*(dotX+gradDx)*(dotX+gradDx)*60-40,'#51cf66',7);
+
+  ctx.fillStyle='#8892b0';ctx.font='10px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('Same loss landscape',rCx,56);
+  ctx.fillText('Same gradient direction',rCx,160);
+
+  ctx.fillStyle='#e2e8f0';ctx.font='10px JetBrains Mono,monospace';ctx.textAlign='center';
+  ctx.fillText('Attention(Q,K,V)',rCx,185);
+  ctx.fillStyle='#8892b0';ctx.font='9px Inter,sans-serif';
+  ctx.fillText('Implicit gradient update',rCx,200);
+
+  ctx.fillStyle='#a29bfe';ctx.font='9px Inter,sans-serif';
+  ctx.fillText('Requires: examples in prompt only',rCx,220);
+  ctx.fillText('Result: no weight change',rCx,235);
+
+  // Bottom annotation
+  ctx.fillStyle='#ffd43b';ctx.font='10px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('Both minimize the same objective — one explicitly, one implicitly through attention',W/2,H-8);
+}
+drawGDEquiv();
+
+// ═══════════════════════════════════════════════════════════
+// SECTION 4: GD SIMULATOR
+// ═══════════════════════════════════════════════════════════
+var gdK=0;
+var gdInfoTexts=[
+  'k=0: The model starts at its pre-trained position — optimized for language modeling, not your task.',
+  'k=1: One example gives the first gradient signal. The optimizer takes its first step toward the task.',
+  'k=2: Two examples refine the direction. The optimizer is converging.',
+  'k=3: Three examples — most of the useful signal has been captured.',
+  'k=4: Four examples (sweet spot). Good convergence, reasonable cost.',
+  'k=5: More examples continue to help, but gains are diminishing.',
+  'k=6: Marginal improvement. The optimizer is near the task optimum.',
+  'k=7: Very close to optimum. Cost is now 8× inference.',
+  'k=8: Near-optimal. Further examples provide minimal gain but linear cost increase.'
+];
+function updateGDSim(){
+  gdK=parseInt(document.getElementById('sl-gd-k').value);
+  document.getElementById('val-gd-k').textContent=gdK;
+  document.getElementById('gd-info').textContent=gdInfoTexts[gdK];
+  drawGDSim();
+}
+function drawGDSim(){
+  var c=document.getElementById('canvas-gd-sim');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+
+  // Loss landscape contours (bowl shape centered at task optimum)
+  var cx=W*0.65,cy=H*0.45;
+  for(var ring=6;ring>=1;ring--){
+    var r=ring*28;
+    var alpha=ring*0.08;
+    ctx.strokeStyle='rgba(162,155,254,'+alpha+')';ctx.lineWidth=1;
+    ctx.beginPath();ctx.ellipse(cx,cy,r*1.5,r,0,0,Math.PI*2);ctx.stroke();
+  }
+
+  // Optimal point
+  ctx.fillStyle='#51cf66';ctx.beginPath();ctx.arc(cx,cy,7,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#51cf66';ctx.font='10px Inter,sans-serif';ctx.textAlign='left';
+  ctx.fillText('Task optimum',cx+12,cy+4);
+
+  // Pre-trained start
+  var startX=W*0.15,startY=H*0.7;
+  ctx.fillStyle='#ff9f43';ctx.beginPath();ctx.arc(startX,startY,6,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#ff9f43';ctx.font='10px Inter,sans-serif';ctx.textAlign='left';
+  ctx.fillText('Pre-trained start',startX+10,startY+4);
+
+  // Path points
+  var steps=[];
+  for(var i=0;i<=8;i++){
+    var t=i/8;
+    var et=easeInOut(t);
+    steps.push({x:lerp(startX,cx,et),y:lerp(startY,cy,et)});
+  }
+
+  // Draw path up to gdK
+  if(gdK>0){
+    ctx.strokeStyle='rgba(162,155,254,0.4)';ctx.lineWidth=2;ctx.setLineDash([4,3]);
+    ctx.beginPath();ctx.moveTo(startX,startY);
+    for(var i=1;i<=gdK;i++){ctx.lineTo(steps[i].x,steps[i].y);}
+    ctx.stroke();ctx.setLineDash([]);
+  }
+
+  // Current dot
+  if(gdK>0){
+    var cur=steps[gdK];
+    ctx.fillStyle='#a29bfe';ctx.beginPath();ctx.arc(cur.x,cur.y,8,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(cur.x,cur.y,8,0,Math.PI*2);ctx.stroke();
+    ctx.fillStyle='#e2e8f0';ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText('k='+gdK,cur.x,cur.y-14);
+  }
+
+  // Axes labels
+  ctx.fillStyle='#8892b0';ctx.font='10px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('Loss Landscape (2D projection of weight space)',W/2,H-8);
+}
+drawGDSim();
+
+// ═══════════════════════════════════════════════════════════
+// SECTION 5: BAYESIAN
+// ═══════════════════════════════════════════════════════════
+var bayesDemos=0;
+var tasks=['Sentiment','Summarize','Translate','Classify','QA','Code','NLI','Extract','Paraphrase','Math'];
+function taskProb(taskIdx,demos){
+  if(taskIdx===0){return Math.min(0.05+demos*0.22,0.85);}// sentiment rises fast
+  if(taskIdx===1){return Math.max(0.15-demos*0.03,0.04);}
+  if(taskIdx===2){return Math.max(0.12-demos*0.025,0.03);}
+  var base=0.08+seededRand(taskIdx)*0.04;
+  return Math.max(base-demos*0.015,0.02);
+}
+function addBayesDemo(){
+  if(bayesDemos<4){bayesDemos++;document.getElementById('bayes-count').textContent=bayesDemos+' demonstration'+(bayesDemos!==1?'s':'')+' shown';drawBayesian();}
+}
+function resetBayes(){bayesDemos=0;document.getElementById('bayes-count').textContent='0 demonstrations shown';drawBayesian();}
+function drawBayesian(){
+  var c=document.getElementById('canvas-bayesian');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+
+  var probs=tasks.map(function(t,i){return taskProb(i,bayesDemos);});
+  var total=probs.reduce(function(a,b){return a+b;},0);
+  probs=probs.map(function(p){return p/total;});
+
+  var maxProb=Math.max.apply(null,probs);
+  var barW=(W-80)/(tasks.length);
+  var barMaxH=H-80;
+  var startX=40,baseY=H-40;
+
+  ctx.fillStyle='#8892b0';ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('Belief about which task you want (posterior probability)',W/2,20);
+  ctx.fillStyle='#8892b0';ctx.font='9px Inter,sans-serif';
+  ctx.fillText('After '+bayesDemos+' demonstration'+(bayesDemos!==1?'s':''),W/2,34);
+
+  tasks.forEach(function(task,i){
+    var x=startX+i*barW;
+    var bh=probs[i]*barMaxH/maxProb;
+    var isMax=(probs[i]===maxProb);
+    var color=isMax?'#51cf66':'rgba(162,155,254,0.5)';
+    ctx.fillStyle=color;
+    ctx.fillRect(x+2,baseY-bh,barW-4,bh);
+    if(isMax){
+      ctx.strokeStyle='#51cf66';ctx.lineWidth=1.5;
+      ctx.strokeRect(x+2,baseY-bh,barW-4,bh);
+    }
+    ctx.fillStyle=isMax?'#51cf66':'#8892b0';ctx.font='8px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText(task,x+barW/2,baseY+12);
+    if(probs[i]>0.08){
+      ctx.fillStyle='#e2e8f0';ctx.font='8px JetBrains Mono,monospace';
+      ctx.fillText(Math.round(probs[i]*100)+'%',x+barW/2,baseY-bh-4);
+    }
+  });
+
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(startX,baseY);ctx.lineTo(W-40,baseY);ctx.stroke();
+}
+drawBayesian();
+
+// ═══════════════════════════════════════════════════════════
+// SECTION 5: PRIOR DISTRIBUTION
+// ═══════════════════════════════════════════════════════════
+function drawPrior(){
+  var c=document.getElementById('canvas-prior');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+
+  var tasksAll=['Sentiment','QA','Translate','Summarize','Classify','NLI','Code','Math','Extract','Reason','Other'];
+  var freqs=[0.18,0.15,0.13,0.12,0.10,0.08,0.07,0.05,0.04,0.04,0.04];
+
+  ctx.fillStyle='#8892b0';ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('Task frequency in pre-training data (= prior)',W/2,14);
+
+  var bw=(W-30)/(tasksAll.length);
+  var maxF=0.18,baseY=H-22;
+  tasksAll.forEach(function(t,i){
+    var x=14+i*bw;
+    var bh=(freqs[i]/maxF)*(H-40);
+    var alpha=lerp(0.4,0.9,freqs[i]/maxF);
+    ctx.fillStyle='rgba(116,192,252,'+alpha+')';
+    ctx.fillRect(x+1,baseY-bh,bw-2,bh);
+    ctx.fillStyle='#8892b0';ctx.font='7px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText(t,x+bw/2,baseY+9);
+  });
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(14,baseY);ctx.lineTo(W-14,baseY);ctx.stroke();
+}
+drawPrior();
+
+// ═══════════════════════════════════════════════════════════
+// SECTION 5: LATENT CONCEPT
+// ═══════════════════════════════════════════════════════════
+function drawLatent(){
+  var c=document.getElementById('canvas-latent');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+
+  ctx.fillStyle='#8892b0';ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('Generative model for ICL',W/2,14);
+
+  var nodes=[
+    {x:W/2,y:40,label:'C',sub:'hidden concept',color:'#51cf66',r:22},
+    {x:W/4,y:110,label:'x1,y1',sub:'demo 1',color:'#a29bfe',r:18},
+    {x:W/2,y:110,label:'x2,y2',sub:'demo 2',color:'#a29bfe',r:18},
+    {x:W*0.75,y:110,label:'xn',sub:'test',color:'#ff9f43',r:18}
+  ];
+
+  // Arrows from C to demos
+  nodes.slice(1).forEach(function(n){
+    drawArrow(ctx,nodes[0].x,nodes[0].y+nodes[0].r,n.x,n.y-n.r,'#2a3060',5);
+  });
+
+  // Draw nodes
+  nodes.forEach(function(n){
+    ctx.fillStyle='rgba(22,26,46,0.9)';
+    ctx.strokeStyle=n.color;ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(n.x,n.y,n.r,0,Math.PI*2);ctx.fill();ctx.stroke();
+    ctx.fillStyle=n.color;ctx.font='bold 9px JetBrains Mono,monospace';ctx.textAlign='center';
+    ctx.fillText(n.label,n.x,n.y+4);
+    ctx.fillStyle='#8892b0';ctx.font='8px Inter,sans-serif';
+    ctx.fillText(n.sub,n.x,n.y+n.r+12);
+  });
+
+  // Dashed circle around C (hidden)
+  ctx.strokeStyle='rgba(81,207,102,0.4)';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+  ctx.beginPath();ctx.arc(nodes[0].x,nodes[0].y,nodes[0].r+8,0,Math.PI*2);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='rgba(81,207,102,0.6)';ctx.font='8px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('(unobserved)',W/2,H-6);
+}
+drawLatent();
+
+// ═══════════════════════════════════════════════════════════
+// SECTION 6: COT COMPARE
+// ═══════════════════════════════════════════════════════════
+var cotMode='standard';
+function setCoTMode(mode,el){
+  cotMode=mode;
+  document.querySelectorAll('#s-cot .toggle-btn').forEach(function(b){b.classList.remove('active');});
+  if(el)el.classList.add('active');
+  document.getElementById('cot-acc-val').textContent=mode==='cot'?'70%':'20%';
+  document.getElementById('cot-acc-val').style.color=mode==='cot'?'#51cf66':'#ff6b6b';
+  drawCoTCompare();
+}
+function drawCoTCompare(){
+  var c=document.getElementById('canvas-cot-compare');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+
+  var isCoT=(cotMode==='cot');
+  var promptColor=isCoT?'#51cf66':'#74c0fc';
+
+  // Prompt box
+  drawRoundedRect(ctx,20,10,W-40,isCoT?200:100,8,'rgba(22,26,46,0.9)',promptColor+'55');
+
+  ctx.fillStyle=promptColor;ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='left';
+  ctx.fillText(isCoT?'Chain-of-Thought Example':'Standard ICL Example',30,28);
+
+  ctx.fillStyle='#8892b0';ctx.font='10px Inter,sans-serif';
+  ctx.fillText('Q: Roger has 5 balls. He buys 2 cans of 3 balls each. How many balls does he have?',30,50);
+
+  if(isCoT){
+    ctx.fillStyle='#ffd43b';ctx.font='10px Inter,sans-serif';
+    ctx.fillText('A: Roger starts with 5 balls.',30,72);
+    ctx.fillText('   2 cans of 3 balls = 2 × 3 = 6 balls.',30,86);
+    ctx.fillText('   Total: 5 + 6 = 11 balls.',30,100);
+    ctx.fillStyle='#51cf66';ctx.font='bold 11px Inter,sans-serif';
+    ctx.fillText('   Answer: 11  ✓',30,116);
+
+    // Second example
+    ctx.strokeStyle='#2a3060';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(20,130);ctx.lineTo(W-20,130);ctx.stroke();
+    ctx.fillStyle='#8892b0';ctx.font='10px Inter,sans-serif';
+    ctx.fillText('Q: [New math problem] ...',30,150);
+    ctx.fillStyle='#ffd43b';ctx.font='10px Inter,sans-serif';
+    ctx.fillText('A: [Model generates step-by-step reasoning] ...',30,168);
+    ctx.fillStyle='#51cf66';ctx.font='bold 10px Inter,sans-serif';
+    ctx.fillText('   Answer: [Correct] ✓',30,186);
+  } else {
+    ctx.fillStyle='#74c0fc';ctx.font='bold 11px Inter,sans-serif';
+    ctx.fillText('A: 11',30,72);
+    ctx.fillStyle='#8892b0';ctx.font='9px Inter,sans-serif';
+    ctx.fillText('(Direct answer — no reasoning steps shown)',30,88);
+  }
+
+  // Accuracy comparison
+  var chartY=isCoT?226:116;
+  var chartH=H-chartY-20;
+  if(chartH<40)return;
+
+  var modes2=['Standard ICL','Chain-of-Thought'];
+  var accs=[20,70];
+  var colors=['rgba(116,192,252,0.7)','rgba(81,207,102,0.7)'];
+  var bw=100;
+
+  modes2.forEach(function(m,i){
+    var x=80+i*220;
+    var bh=(accs[i]/100)*chartH*0.9;
+    ctx.fillStyle=colors[i];
+    ctx.fillRect(x,chartY+chartH-bh,bw,bh);
+    if(isCoT&&i===1){
+      ctx.strokeStyle='#51cf66';ctx.lineWidth=2;
+      ctx.strokeRect(x,chartY+chartH-bh,bw,bh);
+    }
+    ctx.fillStyle=isCoT&&i===1?'#51cf66':'#8892b0';ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText(m,x+bw/2,chartY+chartH+12);
+    ctx.fillStyle='#e2e8f0';ctx.font='bold 13px JetBrains Mono,monospace';
+    ctx.fillText(accs[i]+'%',x+bw/2,chartY+chartH-bh-6);
+  });
+
+  ctx.fillStyle='#8892b0';ctx.font='9px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('Accuracy on math word problems (GSM8K benchmark)',W/2,H-4);
+}
+drawCoTCompare();
+
+// COT DECISION TREE
+function cotDecide(q,ans){
+  if(q==='q1'){
+    if(ans==='no'){
+      document.getElementById('q1-no').style.display='block';
+      document.getElementById('q2').style.display='none';
+      document.getElementById('q3').style.display='none';
+    } else {
+      document.getElementById('q1-no').style.display='none';
+      document.getElementById('q2').style.display='block';
+    }
+  } else if(q==='q2'){
+    document.getElementById('q2-no').style.display=ans==='no'?'block':'none';
+    if(ans==='yes')document.getElementById('q3').style.display='block';
+    else document.getElementById('q3').style.display='none';
+  } else if(q==='q3'){
+    document.getElementById('q3-yes').style.display=ans==='yes'?'block':'none';
+    document.getElementById('q3-no').style.display=ans==='no'?'block':'none';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// SECTION 7: TASK VECTORS
+// ═══════════════════════════════════════════════════════════
+function drawTaskVectors(){
+  var c=document.getElementById('canvas-task-vectors');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+
+  // Left: 4 demonstrations
+  var demos4=[
+    {label:'Demo 1',color:'#a29bfe',y:30},
+    {label:'Demo 2',color:'#74c0fc',y:70},
+    {label:'Demo 3',color:'#51cf66',y:110},
+    {label:'Demo 4',color:'#ff9f43',y:150}
+  ];
+
+  demos4.forEach(function(d){
+    drawRoundedRect(ctx,20,d.y,140,32,6,'rgba(22,26,46,0.9)',d.color+'66');
+    ctx.fillStyle=d.color;ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText(d.label,90,d.y+20);
+    drawArrow(ctx,162,d.y+16,210,H/2,'#2a3060',5);
+  });
+
+  // Center: merge box
+  drawRoundedRect(ctx,212,H/2-24,80,48,8,'rgba(162,155,254,0.15)','#a29bfe');
+  ctx.fillStyle='#a29bfe';ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('Task',252,H/2-6);
+  ctx.fillText('Vector',252,H/2+10);
+
+  drawArrow(ctx,294,H/2,380,H/2,'#a29bfe',7);
+
+  // Right: model box
+  drawRoundedRect(ctx,382,H/2-40,120,80,8,'rgba(22,26,46,0.9)','rgba(162,155,254,0.4)');
+  ctx.fillStyle='#a29bfe';ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('LLM',442,H/2-10);
+  ctx.fillStyle='#8892b0';ctx.font='9px Inter,sans-serif';
+  ctx.fillText('(inject at',442,H/2+6);
+  ctx.fillText('layer N)',442,H/2+18);
+
+  drawArrow(ctx,504,H/2,560,H/2,'#51cf66',7);
+
+  // Output
+  drawRoundedRect(ctx,562,H/2-20,60,40,6,'rgba(81,207,102,0.1)','rgba(81,207,102,0.5)');
+  ctx.fillStyle='#51cf66';ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('Output',592,H/2+4);
+
+  // Stats
+  ctx.fillStyle='#8892b0';ctx.font='10px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('Same performance as 4-shot ICL',W/2,H-30);
+  ctx.fillStyle='#ffd43b';ctx.font='bold 10px Inter,sans-serif';
+  ctx.fillText('1/4 the inference cost',W/2,H-14);
+}
+drawTaskVectors();
+
+// ═══════════════════════════════════════════════════════════
+// SECTION 7: TIMELINE
+// ═══════════════════════════════════════════════════════════
+var MILESTONES=[
+  {year:'2020',label:'GPT-3 discovers ICL',detail:'Brown et al. (2020) scale to 175B parameters and find few-shot in-context learning as an emergent capability. Nobody designed it — it appeared with scale.'},
+  {year:'Jan 2022',label:'Bayesian framework',detail:'Xie et al. formalize ICL as Bayesian inference: the LM has a prior over concepts from pre-training and updates it with each demonstration.'},
+  {year:'Feb 2022',label:'Random labels finding',detail:'Min et al. show that using random (wrong) labels barely hurts ICL accuracy — dropping by only 4%. Labels locate tasks, not teach them.'},
+  {year:'Jun 2022',label:'Chain-of-Thought',detail:'Wei et al. show that adding intermediate reasoning steps to demonstrations dramatically improves performance on math, logic, and commonsense tasks.'},
+  {year:'Aug 2022',label:'Stanford AI blog',detail:'Xie & Min write "How does in-context learning work?" — the clearest public synthesis of the three competing theories.'},
+  {year:'Dec 2022',label:'Implicit GD proof',detail:'Von Oswald et al. prove that a transformer\'s forward pass on demonstrations is mathematically equivalent to one step of gradient descent.'},
+  {year:'2023',label:'Task vectors',detail:'Hendel et al. show ICL can be compressed into a single "task vector" — an activation injected at a specific layer, with same performance at 1/k cost.'},
+  {year:'2024+',label:'ICL standard',detail:'ICL + CoT become the default interface for GPT-4, Claude, and Gemini. Instruction tuning makes raw ICL less necessary, but the mechanics underpin every prompt.'}
+];
+var selectedMilestone=-1;
+function drawTimeline(){
+  var c=document.getElementById('canvas-timeline');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+
+  var n=MILESTONES.length;
+  var lineY=H/2-10,startX=40,endX=W-40;
+  var gap=(endX-startX)/(n-1);
+
+  ctx.strokeStyle='#2a3060';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(startX,lineY);ctx.lineTo(endX,lineY);ctx.stroke();
+
+  MILESTONES.forEach(function(m,i){
+    var x=startX+i*gap;
+    var isSelected=(selectedMilestone===i);
+    ctx.fillStyle=isSelected?'#ffd43b':'#a29bfe';
+    ctx.beginPath();ctx.arc(x,lineY,isSelected?7:5,0,Math.PI*2);ctx.fill();
+
+    var above=(i%2===0);
+    var textY=above?lineY-30:lineY+25;
+    ctx.fillStyle=isSelected?'#ffd43b':'#8892b0';ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText(m.year,x,textY);
+    ctx.fillStyle=isSelected?'#e2e8f0':'#8892b0';ctx.font='8px Inter,sans-serif';
+    var words=m.label.split(' ');
+    var line1=words.slice(0,2).join(' '),line2=words.slice(2).join(' ');
+    ctx.fillText(line1,x,textY+12);
+    if(line2)ctx.fillText(line2,x,textY+22);
+  });
+}
+document.getElementById('canvas-timeline').addEventListener('click',function(e){
+  var c=this;
+  var rect=c.getBoundingClientRect();
+  var mx=(e.clientX-rect.left)*(c.width/rect.width);
+  var n=MILESTONES.length;
+  var gap=(c.width-80)/(n-1);
+  for(var i=0;i<n;i++){
+    var x=40+i*gap;
+    if(Math.abs(mx-x)<18){
+      selectedMilestone=(selectedMilestone===i)?-1:i;
+      drawTimeline();
+      var info=document.getElementById('timeline-info');
+      if(selectedMilestone>=0)info.innerHTML='<b style="color:#ffd43b">'+MILESTONES[selectedMilestone].year+' — '+MILESTONES[selectedMilestone].label+':</b> '+MILESTONES[selectedMilestone].detail;
+      else info.textContent='Click any milestone on the timeline to learn more.';
+      break;
+    }
+  }
+});
+drawTimeline();
+
+// ═══════════════════════════════════════════════════════════
+// SECTION 7: OPEN QUESTIONS
+// ═══════════════════════════════════════════════════════════
+var OQ=[
+  {x:0.15,y:0.45,label:'Why does scale\nunlock ICL?',detail:'ICL barely works in models below 1B parameters and dramatically improves above ~100B. Scale seems to enable the formation of task-structured representations in weight space — but the exact mechanism is unknown.',color:'#a29bfe'},
+  {x:0.5,y:0.35,label:'Can k demos compress\nto 1 task vector?',detail:'Task vectors (Hendel et al. 2023) show this is partially possible. But task vectors don\'t yet generalize perfectly across all inputs. Active research: can we distill any k-shot ICL call into a single lightweight activation?',color:'#74c0fc'},
+  {x:0.82,y:0.48,label:'Is ICL truly\ntask-agnostic?',detail:'Current evidence suggests ICL works best for tasks well-represented in pre-training data. For truly novel tasks (rare languages, specialized domains), ICL often struggles. The boundary of ICL generalization is an open question.',color:'#51cf66'}
+];
+var selectedOQ=-1;
+function drawOpenQuestions(){
+  var c=document.getElementById('canvas-open-questions');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+
+  var t=Date.now()/1800;
+  OQ.forEach(function(q,i){
+    var pulse=Math.sin(t+i*2.1)*4;
+    var x=q.x*W,y=q.y*H+pulse;
+    var r=52;
+    var isSelected=(selectedOQ===i);
+
+    ctx.fillStyle='rgba(22,26,46,0.95)';
+    ctx.strokeStyle=q.color+(isSelected?'':'88');
+    ctx.lineWidth=isSelected?2:1;
+    ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();ctx.stroke();
+
+    if(isSelected){
+      ctx.shadowColor=q.color;ctx.shadowBlur=12;
+      ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.stroke();
+      ctx.shadowBlur=0;
+    }
+
+    ctx.fillStyle=q.color;ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='center';
+    var lines=q.label.split('\n');
+    lines.forEach(function(l,li){ctx.fillText(l,x,y-(lines.length-1)*7+li*14);});
+  });
+}
+var oqRaf;
+function animateOQ(){
+  drawOpenQuestions();
+  oqRaf=requestAnimationFrame(animateOQ);
+}
+document.getElementById('canvas-open-questions').addEventListener('click',function(e){
+  var c=this;
+  var rect=c.getBoundingClientRect();
+  var mx=(e.clientX-rect.left)*(c.width/rect.width);
+  var my=(e.clientY-rect.top)*(c.height/rect.height);
+  var hit=-1;
+  OQ.forEach(function(q,i){
+    var dx=mx-q.x*c.width,dy=my-q.y*c.height;
+    if(Math.sqrt(dx*dx+dy*dy)<56)hit=i;
+  });
+  selectedOQ=(hit===selectedOQ)?-1:hit;
+  var info=document.getElementById('oq-info');
+  if(selectedOQ>=0)info.innerHTML='<b style="color:'+OQ[selectedOQ].color+'">'+OQ[selectedOQ].label.replace('\n',' ')+':</b> '+OQ[selectedOQ].detail;
+  else info.textContent='Click a question bubble to explore current research.';
+});
+animateOQ();
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+updateNavOnScroll();
+</script>
+</body>
+</html>
