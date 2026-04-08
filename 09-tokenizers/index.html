@@ -156,11 +156,11 @@ window.addEventListener('load',function(){var el=document.getElementById('pg-inp
     <a class="nav-link" href="#s-spectrum" onclick="setActive(this)"><span class="dot" style="background:#74c0fc"></span>The Spectrum</a>
     <a class="nav-link" href="#s-bpe" onclick="setActive(this)"><span class="dot" style="background:#4ecdc4"></span>Byte Pair Encoding</a>
     <a class="nav-link" href="#s-wordpiece" onclick="setActive(this)"><span class="dot" style="background:#7c6af4"></span>WordPiece &amp; Unigram</a>
-    <a class="nav-link" href="#s-sentencepiece" onclick="setActive(this)"><span class="dot" style="background:#51cf66"></span>SentencePiece &amp; Byte-BPE</a>
   </div>
   <div class="nav-group">
     <div class="nav-group-title">The Consequences</div>
     <a class="nav-link" href="#s-tax" onclick="setActive(this)"><span class="dot" style="background:#ff6b6b"></span>The Token Tax</a>
+    <a class="nav-link" href="#s-sentencepiece" onclick="setActive(this)"><span class="dot" style="background:#51cf66"></span>SentencePiece — The Fix</a>
     <a class="nav-link" href="#s-future" onclick="setActive(this)"><span class="dot" style="background:#ffd43b"></span>The Future</a>
   </div>
 </nav>
@@ -178,9 +178,9 @@ window.addEventListener('load',function(){var el=document.getElementById('pg-inp
   <span class="pipe-arrow">›</span>
   <a class="pipe-step" href="#s-wordpiece"><span class="pipe-dot" style="background:#7c6af4"></span>WordPiece</a>
   <span class="pipe-arrow">›</span>
-  <a class="pipe-step" href="#s-sentencepiece"><span class="pipe-dot" style="background:#51cf66"></span>SentencePiece</a>
-  <span class="pipe-arrow">›</span>
   <a class="pipe-step" href="#s-tax"><span class="pipe-dot" style="background:#ff6b6b"></span>Token Tax</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-sentencepiece"><span class="pipe-dot" style="background:#51cf66"></span>The Fix</a>
   <span class="pipe-arrow">›</span>
   <a class="pipe-step" href="#s-future"><span class="pipe-dot" style="background:#ffd43b"></span>Future</a>
 </div>
@@ -262,6 +262,13 @@ window.addEventListener('load',function(){var el=document.getElementById('pg-inp
     </div>
   </div>
 
+  <!-- Guess the Token Count Quiz -->
+  <div class="card">
+    <div class="card-title">Guess the Token Count — Can You Beat the Model?</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Before reading further, guess how many tokens GPT-4 uses for each sentence. Drag the slider, then click Reveal. Most people guess too low for non-English text.</p>
+    <div id="quiz-sentences" style="display:flex;flex-direction:column;gap:18px;"></div>
+  </div>
+
   <div class="analogy-card">
     <div class="analogy-label">The Kitchen Prep Analogy</div>
     <p>"Tokenization is like a chef who pre-chops every ingredient before cooking. The way they chop determines the recipe's speed, cost, and flavour — but nobody reads the prep-cook's instructions. They just taste the final dish. Understanding the chopping reveals why some cuisines (languages) are cheaper and faster to prepare than others."</p>
@@ -329,6 +336,31 @@ window.addEventListener('load',function(){var el=document.getElementById('pg-inp
         <tr><td style="font-weight:600;">ALBERT</td><td>Unigram (SentencePiece)</td><td style="font-family:'JetBrains Mono',monospace;color:#4ecdc4;">30,000</td><td>2019</td></tr>
       </tbody>
     </table>
+  </div>
+
+  <!-- Same sentence, 5 models -->
+  <div class="card">
+    <div class="card-title">Same Sentence — 5 Models — Click a Bar to Compare</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:10px;">How many tokens does each model need for the same sentence? More tokens = more cost + less context window. Click any model bar to see its split.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;" id="fivemodel-btns">
+      <button class="btn btn-outline" style="font-size:11px;padding:6px 10px;" onclick="setFiveModelSentence(0)">English</button>
+      <button class="btn btn-outline" style="font-size:11px;padding:6px 10px;" onclick="setFiveModelSentence(1)">Korean</button>
+      <button class="btn btn-outline" style="font-size:11px;padding:6px 10px;" onclick="setFiveModelSentence(2)">Code</button>
+    </div>
+    <canvas id="canvas-five-models" width="640" height="260" style="width:100%;max-width:640px;cursor:pointer;" onclick="handleFiveModelClick(event)"></canvas>
+    <div id="five-model-info" class="info-panel" style="margin-top:10px;"></div>
+  </div>
+
+  <!-- Type your own -->
+  <div class="card">
+    <div class="card-title">Type Your Own Text — See It Tokenized Live</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:10px;">Type anything — your name, a sentence in your language, a piece of code. See simulated BPE tokenization appear in real time.</p>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+      <input type="text" id="live-type-input" placeholder="Type anything here…" oninput="renderLiveType()" style="flex:1;min-width:200px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:10px 14px;font-size:14px;font-family:'Inter',sans-serif;outline:none;">
+      <span id="live-type-count" style="font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;background:var(--surface2);color:var(--accent);white-space:nowrap;">0 tokens</span>
+    </div>
+    <div class="token-chip-row" id="live-type-chips" style="min-height:44px;"></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:8px;">Tip: try your name, a Korean/Arabic sentence, or emoji — and watch the token count change.</div>
   </div>
 
   <div class="section-bridge">
@@ -507,15 +539,104 @@ window.addEventListener('load',function(){var el=document.getElementById('pg-inp
 
   <div class="section-bridge">
     <span class="section-bridge-text">BPE and WordPiece assume spaces as word boundaries. SentencePiece doesn't.</span>
-    <a class="section-bridge-link" href="#s-sentencepiece">SentencePiece &amp; Byte-BPE →</a>
+    <a class="section-bridge-link" href="#s-tax">The Token Tax →</a>
   </div>
 </section>
 
-<!-- ===== SECTION 5: s-sentencepiece ===== -->
+<!-- ===== SECTION 5: s-tax ===== -->
+<section class="section" id="s-tax">
+  <div class="section-tag" style="color:#ff6b6b">The Consequences</div>
+  <div class="section-title" style="color:#ff6b6b">The Token Tax</div>
+  <div class="section-sub">Token fertility — tokens per word — reliably predicts model accuracy across languages. English gets 1.0×. Korean pays 2.36×. Russian and Hebrew pay 3×. This isn't a bug; it's baked into every tokenizer trained predominantly on English text.</div>
+
+  <div class="stat-row">
+    <div class="stat">
+      <div class="stat-val" style="color:#51cf66">1.0×</div>
+      <div class="stat-lbl">English fertility (baseline)</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" style="color:#f7b731">2.36×</div>
+      <div class="stat-lbl">Korean token fertility</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" style="color:#ff6b6b">3×</div>
+      <div class="stat-lbl">Russian / Hebrew fertility</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" style="color:#ff6b6b">4×</div>
+      <div class="stat-lbl">Economic cost multiplier</div>
+    </div>
+  </div>
+
+  <!-- Price Tag Visual -->
+  <div class="card">
+    <div class="card-title">The Price Tag — Same Message, Different Cost</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:10px;">The same semantic content costs vastly different amounts depending on language. Click any price tag to see the breakdown.</p>
+    <canvas id="canvas-price-tags" width="640" height="220" style="width:100%;max-width:640px;cursor:pointer;" onclick="handlePriceTagClick(event)"></canvas>
+    <div id="price-tag-info" class="info-panel" style="margin-top:10px;"></div>
+  </div>
+
+  <!-- Fertility map -->
+  <div class="card">
+    <div class="card-title">Token Fertility by Language — Click a Region</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:10px;">Fertility rate = average tokens needed per word, relative to English. Higher fertility = more expensive inference and lower model accuracy.</p>
+    <canvas id="canvas-fertility-map" width="640" height="300" style="width:100%;max-width:640px;cursor:pointer;" onclick="handleFertilityClick(event)"></canvas>
+    <div id="fertility-info" class="info-panel" style="margin-top:10px;"></div>
+  </div>
+
+  <!-- Token cost calculator -->
+  <div class="card">
+    <div class="card-title">Token Tax Calculator</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Estimate the token overhead for the same content in different languages. API cost at $0.01 per 1K tokens.</p>
+    <div style="margin-bottom:10px;">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">Base English text (estimated tokens):</div>
+      <input type="number" id="tax-base-tokens" value="100" min="1" max="100000" oninput="updateTaxCalc()" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:14px;width:140px;font-family:'JetBrains Mono',monospace;">
+    </div>
+    <div id="tax-calc-results" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;"></div>
+  </div>
+
+  <!-- Why does this happen -->
+  <div class="card">
+    <div class="card-title">Why Does the Tax Exist?</div>
+    <div class="g3">
+      <div style="border:1px solid rgba(255,107,107,0.3);border-radius:10px;padding:16px;background:rgba(255,107,107,0.05);">
+        <div style="font-weight:700;color:#ff6b6b;margin-bottom:8px;font-size:13px;">Training Data Bias</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;">Internet text used to train tokenizers is ~50% English. English subword units get most of the 50,000 merge budget. Other languages get the leftovers.</div>
+      </div>
+      <div style="border:1px solid rgba(247,183,49,0.3);border-radius:10px;padding:16px;background:rgba(247,183,49,0.05);">
+        <div style="font-weight:700;color:#f7b731;margin-bottom:8px;font-size:13px;">Byte-to-Character Ratio</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;">Latin script ≈ 1 byte/char. Arabic, CJK characters ≈ 2–4 bytes/char. Byte-level BPE penalizes complex scripts at the very foundation.</div>
+      </div>
+      <div style="border:1px solid rgba(116,192,252,0.3);border-radius:10px;padding:16px;background:rgba(116,192,252,0.05);">
+        <div style="font-weight:700;color:#74c0fc;margin-bottom:8px;font-size:13px;">The Merge Budget</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;">50,000 BPE merges must cover all languages. English consumes the lion's share, leaving less representational capacity for every other language.</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="background:rgba(255,107,107,0.07);border:1px solid rgba(255,107,107,0.3);border-radius:10px;padding:16px 20px;margin-bottom:24px;">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#ff6b6b;margin-bottom:8px;">Research Finding</div>
+    <p style="font-size:14px;color:var(--text);line-height:1.7;">"Tokenization is a tax that low-resource languages cannot afford to pay, charged on every token, in every layer. Scale partially recovers the gap — meaning smaller models spend raw parameter budget reconstructing what should have been clean input from the start."</p>
+  </div>
+
+  <!-- Fertility scatter -->
+  <div class="card">
+    <div class="card-title">Fertility vs Model Accuracy — The Negative Correlation</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:10px;">Languages with higher token fertility consistently show lower downstream model accuracy. The correlation is strong and holds across model families.</p>
+    <canvas id="canvas-fertility-scatter" width="640" height="260" style="width:100%;max-width:640px;"></canvas>
+  </div>
+
+  <div class="section-bridge">
+    <span class="section-bridge-text">The problem is real. SentencePiece was built specifically to solve it.</span>
+    <a class="section-bridge-link" href="#s-sentencepiece">SentencePiece — The Fix →</a>
+  </div>
+</section>
+
+<!-- ===== SECTION 6: s-sentencepiece ===== -->
 <section class="section" id="s-sentencepiece">
-  <div class="section-tag" style="color:#51cf66">Language-Agnostic</div>
+  <div class="section-tag" style="color:#51cf66">The Fix — Language-Agnostic</div>
   <div class="section-title" style="color:#51cf66">SentencePiece &amp; Byte-BPE</div>
-  <div class="section-sub">Japanese, Chinese, Thai, Arabic — none of them use spaces to separate words. SentencePiece treats the entire raw text as a byte stream, encoding spaces as a special ▁ character. One simple change makes tokenization truly language-agnostic.</div>
+  <div class="section-sub">The token tax exists because every algorithm so far assumes spaces = word boundaries. SentencePiece eliminates that assumption entirely — treating raw text as a byte stream and encoding the space as just another character (▁). One change, universal coverage.</div>
 
   <!-- Space problem -->
   <div class="card">
@@ -576,88 +697,7 @@ window.addEventListener('load',function(){var el=document.getElementById('pg-inp
   </div>
 
   <div class="section-bridge">
-    <span class="section-bridge-text">All algorithms work well for English. The real problem: other languages.</span>
-    <a class="section-bridge-link" href="#s-tax">The Token Tax →</a>
-  </div>
-</section>
-
-<!-- ===== SECTION 6: s-tax ===== -->
-<section class="section" id="s-tax">
-  <div class="section-tag" style="color:#ff6b6b">The Consequences</div>
-  <div class="section-title" style="color:#ff6b6b">The Token Tax</div>
-  <div class="section-sub">Token fertility — tokens per word — reliably predicts model accuracy across languages. English gets 1.0×. Korean pays 2.36×. Russian and Hebrew pay 3×. This isn't a bug; it's baked into every tokenizer trained predominantly on English text.</div>
-
-  <div class="stat-row">
-    <div class="stat">
-      <div class="stat-val" style="color:#51cf66">1.0×</div>
-      <div class="stat-lbl">English fertility (baseline)</div>
-    </div>
-    <div class="stat">
-      <div class="stat-val" style="color:#f7b731">2.36×</div>
-      <div class="stat-lbl">Korean token fertility</div>
-    </div>
-    <div class="stat">
-      <div class="stat-val" style="color:#ff6b6b">3×</div>
-      <div class="stat-lbl">Russian / Hebrew fertility</div>
-    </div>
-    <div class="stat">
-      <div class="stat-val" style="color:#ff6b6b">4×</div>
-      <div class="stat-lbl">Economic cost multiplier</div>
-    </div>
-  </div>
-
-  <!-- Fertility map -->
-  <div class="card">
-    <div class="card-title">Token Fertility by Language — Click a Region</div>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:10px;">Fertility rate = average tokens needed per word, relative to English. Higher fertility = more expensive inference and lower model accuracy.</p>
-    <canvas id="canvas-fertility-map" width="640" height="300" style="width:100%;max-width:640px;cursor:pointer;" onclick="handleFertilityClick(event)"></canvas>
-    <div id="fertility-info" class="info-panel" style="margin-top:10px;"></div>
-  </div>
-
-  <!-- Token cost calculator -->
-  <div class="card">
-    <div class="card-title">Token Tax Calculator</div>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Estimate the token overhead for the same content in different languages. API cost at $0.01 per 1K tokens.</p>
-    <div style="margin-bottom:10px;">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">Base English text (estimated tokens):</div>
-      <input type="number" id="tax-base-tokens" value="100" min="1" max="100000" oninput="updateTaxCalc()" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:14px;width:140px;font-family:'JetBrains Mono',monospace;">
-    </div>
-    <div id="tax-calc-results" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;"></div>
-  </div>
-
-  <!-- Why does this happen -->
-  <div class="card">
-    <div class="card-title">Why Does the Tax Exist?</div>
-    <div class="g3">
-      <div style="border:1px solid rgba(255,107,107,0.3);border-radius:10px;padding:16px;background:rgba(255,107,107,0.05);">
-        <div style="font-weight:700;color:#ff6b6b;margin-bottom:8px;font-size:13px;">Training Data Bias</div>
-        <div style="font-size:12px;color:var(--muted);line-height:1.6;">Internet text used to train tokenizers is ~50% English. English subword units get most of the 50,000 merge budget. Other languages get the leftovers.</div>
-      </div>
-      <div style="border:1px solid rgba(247,183,49,0.3);border-radius:10px;padding:16px;background:rgba(247,183,49,0.05);">
-        <div style="font-weight:700;color:#f7b731;margin-bottom:8px;font-size:13px;">Byte-to-Character Ratio</div>
-        <div style="font-size:12px;color:var(--muted);line-height:1.6;">Latin script ≈ 1 byte/char. Arabic, CJK characters ≈ 2–4 bytes/char. Byte-level BPE penalizes complex scripts at the very foundation.</div>
-      </div>
-      <div style="border:1px solid rgba(116,192,252,0.3);border-radius:10px;padding:16px;background:rgba(116,192,252,0.05);">
-        <div style="font-weight:700;color:#74c0fc;margin-bottom:8px;font-size:13px;">The Merge Budget</div>
-        <div style="font-size:12px;color:var(--muted);line-height:1.6;">50,000 BPE merges must cover all languages. English consumes the lion's share, leaving less representational capacity for every other language.</div>
-      </div>
-    </div>
-  </div>
-
-  <div style="background:rgba(255,107,107,0.07);border:1px solid rgba(255,107,107,0.3);border-radius:10px;padding:16px 20px;margin-bottom:24px;">
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#ff6b6b;margin-bottom:8px;">Research Finding</div>
-    <p style="font-size:14px;color:var(--text);line-height:1.7;">"Tokenization is a tax that low-resource languages cannot afford to pay, charged on every token, in every layer. Scale partially recovers the gap — meaning smaller models spend raw parameter budget reconstructing what should have been clean input from the start."</p>
-  </div>
-
-  <!-- Fertility scatter -->
-  <div class="card">
-    <div class="card-title">Fertility vs Model Accuracy — The Negative Correlation</div>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:10px;">Languages with higher token fertility consistently show lower downstream model accuracy. The correlation is strong and holds across model families.</p>
-    <canvas id="canvas-fertility-scatter" width="640" height="260" style="width:100%;max-width:640px;"></canvas>
-  </div>
-
-  <div class="section-bridge">
-    <span class="section-bridge-text">The survey's verdict: no silver bullet. But something radical is coming.</span>
+    <span class="section-bridge-text">Now you understand the problem. Here's the fix designed for it.</span>
     <a class="section-bridge-link" href="#s-future">The Future →</a>
   </div>
 </section>
@@ -803,7 +843,7 @@ function seededRand(seed){var s=seed;return function(){s=(s*1664525+1013904223)&
 /* =====================================================
    NAV
 ===================================================== */
-var sectionIds=['s-hidden','s-spectrum','s-bpe','s-wordpiece','s-sentencepiece','s-tax','s-future'];
+var sectionIds=['s-hidden','s-spectrum','s-bpe','s-wordpiece','s-tax','s-sentencepiece','s-future'];
 function setActive(el){document.querySelectorAll('.nav-link').forEach(function(l){l.classList.remove('active');});el.classList.add('active');}
 function updateNavOnScroll(){
   var scrollY=window.scrollY+120;var current=sectionIds[0];
@@ -1771,6 +1811,253 @@ function renderFinalGrid(){
 }
 
 /* =====================================================
+   GUESS THE TOKEN COUNT QUIZ
+===================================================== */
+var QUIZ_DATA=[
+  {sentence:'The quick brown fox jumps over the lazy dog.',answer:9,hint:'Classic English pangram — all common words, all single tokens.',color:'#74c0fc'},
+  {sentence:'인공지능은 자연어 처리를 혁신했습니다.',answer:21,hint:'Korean: 21 tokens for a 9-word sentence. That\'s 2.3× the English rate.',color:'#ff6b6b'},
+  {sentence:'Hello! 🌍🚀🤖 Let\'s tokenize everything.',answer:14,hint:'Emoji are 1–3 tokens each in byte-level BPE. The 3 emoji alone = 5 tokens.',color:'#f7b731'}
+];
+var quizStates=[{guess:9,revealed:false},{guess:9,revealed:false},{guess:9,revealed:false}];
+
+function initQuiz(){
+  var container=document.getElementById('quiz-sentences');
+  if(!container)return;
+  container.innerHTML='';
+  QUIZ_DATA.forEach(function(q,i){
+    var div=document.createElement('div');
+    div.style.cssText='background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;';
+    div.innerHTML=
+      '<div style="font-family:\'JetBrains Mono\',monospace;font-size:13px;color:var(--text);margin-bottom:10px;">'+q.sentence+'</div>'+
+      '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'+
+        '<span style="font-size:12px;color:var(--muted);min-width:110px;">Your guess:</span>'+
+        '<input type="range" id="quiz-slider-'+i+'" min="1" max="50" value="'+quizStates[i].guess+'" oninput="updateQuizSlider('+i+')" style="flex:1;min-width:120px;">'+
+        '<span id="quiz-guess-val-'+i+'" style="font-family:\'JetBrains Mono\',monospace;font-size:14px;font-weight:700;color:'+q.color+';min-width:40px;">'+quizStates[i].guess+'</span>'+
+        '<button class="btn" style="padding:6px 14px;font-size:12px;" onclick="revealQuiz('+i+')">Reveal</button>'+
+      '</div>'+
+      '<div id="quiz-result-'+i+'" style="margin-top:10px;display:none;"></div>';
+    container.appendChild(div);
+  });
+}
+function updateQuizSlider(i){
+  quizStates[i].guess=+document.getElementById('quiz-slider-'+i).value;
+  document.getElementById('quiz-guess-val-'+i).textContent=quizStates[i].guess;
+}
+function revealQuiz(i){
+  var q=QUIZ_DATA[i];var g=quizStates[i].guess;var a=q.answer;
+  var diff=Math.abs(g-a);
+  var rating=diff===0?'🎯 Exact!':diff<=2?'🔥 Very close!':diff<=5?'😮 Surprised?':'😱 Way off!';
+  var resultEl=document.getElementById('quiz-result-'+i);
+  resultEl.style.display='block';
+  resultEl.innerHTML=
+    '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">'+
+      '<span style="font-size:18px;">'+rating+'</span>'+
+      '<span style="font-size:13px;color:var(--muted);">You guessed <strong style="color:'+q.color+'">'+g+'</strong> — actual answer: <strong style="color:#51cf66">'+a+' tokens</strong></span>'+
+    '</div>'+
+    '<div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.6;">'+q.hint+'</div>';
+}
+
+/* =====================================================
+   FIVE MODELS COMPARISON
+===================================================== */
+var FIVE_MODEL_DATA=[
+  {
+    sentence:'The mitochondria is the powerhouse of the cell.',
+    models:[
+      {name:'GPT-2\n(BPE 50K)',tokens:9,split:['The','·mit','·och','·ond','·ria','·is','·the','·powerhouse','·of·the·cell','.'],color:'#ff9f43'},
+      {name:'BERT\n(WP 30K)',tokens:10,split:['The','mit','##och','##ond','##ria','is','the','powerhouse','of','the','cell','.'],color:'#74c0fc'},
+      {name:'T5\n(Unigram)',tokens:9,split:['▁The','▁mit','ochondria','▁is','▁the','▁power','house','▁of','▁the','▁cell','.'],color:'#4ecdc4'},
+      {name:'LLaMA 3\n(128K)',tokens:8,split:['The','·mit','ochondria','·is','·the','·powerhouse','·of','·the','·cell','.'],color:'#ffd43b'},
+      {name:'Char-level',tokens:47,split:['T','h','e','·','m','i','t','o','c','h','o','n','d','r','i','a','·','i','s','·','…'],color:'#8892b0'}
+    ]
+  },
+  {
+    sentence:'인공지능은 자연어 처리를 혁신했습니다.',
+    models:[
+      {name:'GPT-2\n(BPE 50K)',tokens:21,split:['인','/공','/지','/능','/은','·자','/연','/어','·처','/리','/를','·혁','/신','/했','/습','/니','/다','.'],color:'#ff9f43'},
+      {name:'BERT\n(WP 30K)',tokens:19,split:['인공','##지능','##은','자연','##어','처리','##를','혁신','##했','##습','##니','##다','.'],color:'#74c0fc'},
+      {name:'T5\n(Unigram)',tokens:11,split:['▁인공지능','은','▁자연어','▁처리를','▁혁신','했습니다','.'],color:'#4ecdc4'},
+      {name:'LLaMA 3\n(128K)',tokens:13,split:['인공지능','은','·자연어','·처리를','·혁신','했습니다','.'],color:'#ffd43b'},
+      {name:'Char-level',tokens:19,split:['인','공','지','능','은','·','자','연','어','·','처','리','를','·','혁','신','했','습','…'],color:'#8892b0'}
+    ]
+  },
+  {
+    sentence:'def tokenize(text): return text.split()',
+    models:[
+      {name:'GPT-2\n(BPE 50K)',tokens:11,split:['def','·token','ize','(','text','):','·return','·text','.split','()'],color:'#ff9f43'},
+      {name:'BERT\n(WP 30K)',tokens:13,split:['def','token','##ize','(','text',')',':','return','text','.','split','(',')'],color:'#74c0fc'},
+      {name:'T5\n(Unigram)',tokens:12,split:['▁def','▁token','ize','(','text',')',':','▁return','▁text','.','split','()'],color:'#4ecdc4'},
+      {name:'LLaMA 3\n(128K)',tokens:10,split:['def','·tokenize','(','text','):','·return','·text','.','split','()'],color:'#ffd43b'},
+      {name:'Char-level',tokens:39,split:['d','e','f','·','t','o','k','e','n','i','z','e','(','t','e','x','t',')',':','·','r','e','t','u','r','n','·','t','e','x','t','.','s','p','l','i','t','(','…'],color:'#8892b0'}
+    ]
+  }
+];
+var fiveModelIdx=0;
+var fiveModelSelected=null;
+
+function setFiveModelSentence(idx){
+  fiveModelIdx=idx;fiveModelSelected=null;
+  drawFiveModels();
+  document.getElementById('five-model-info').textContent='Click any bar to see how that model splits the sentence.';
+}
+function drawFiveModels(){
+  var cv=document.getElementById('canvas-five-models');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width;var H=cv.height;
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+  var d=FIVE_MODEL_DATA[fiveModelIdx];
+  var maxTok=Math.max.apply(null,d.models.map(function(m){return m.tokens;}));
+  var pad={l:90,r:30,t:30,b:20};var pw=W-pad.l-pad.r;var ph=H-pad.t-pad.b;
+  var bh=Math.floor(ph/d.models.length)-8;
+
+  ctx.fillStyle='#8892b0';ctx.font='11px Inter';ctx.textAlign='center';
+  ctx.fillText(d.sentence,W/2,16);
+
+  d.models.forEach(function(m,i){
+    var y=pad.t+i*(bh+8);var bw=Math.round(m.tokens/maxTok*pw);
+    var isSel=(fiveModelSelected===i);
+    // Model name
+    ctx.fillStyle=isSel?m.color:'#8892b0';ctx.font=(isSel?'bold ':'')+'10px Inter';
+    ctx.textAlign='right';
+    m.name.split('\n').forEach(function(line,li){ctx.fillText(line,pad.l-6,y+10+li*12);});
+    // Bar
+    ctx.fillStyle=m.color+(isSel?'':'55');ctx.fillRect(pad.l,y,bw,bh);
+    if(isSel){ctx.strokeStyle=m.color;ctx.lineWidth=2;ctx.strokeRect(pad.l,y,bw,bh);}
+    // Token count
+    ctx.fillStyle=isSel?m.color:'#8892b0';ctx.font=(isSel?'bold ':'')+'12px JetBrains Mono';ctx.textAlign='left';
+    ctx.fillText(m.tokens+' tokens',pad.l+bw+6,y+bh/2+5);
+  });
+}
+function handleFiveModelClick(e){
+  var cv=document.getElementById('canvas-five-models');if(!cv)return;
+  var r=cv.getBoundingClientRect();
+  var scaleY=cv.height/r.height;
+  var my=(e.clientY-r.top)*scaleY;
+  var d=FIVE_MODEL_DATA[fiveModelIdx];
+  var pad={t:30,b:20};var ph=cv.height-pad.t-pad.b;
+  var bh=Math.floor(ph/d.models.length)-8;
+  var idx=Math.floor((my-pad.t)/(bh+8));
+  if(idx>=0&&idx<d.models.length){
+    fiveModelSelected=idx;
+    drawFiveModels();
+    var m=d.models[idx];
+    var chips=m.split.map(function(t,i){
+      return '<span style="display:inline-flex;padding:2px 7px;border-radius:4px;font-family:\'JetBrains Mono\',monospace;font-size:11px;font-weight:600;background:'+m.color+'22;color:'+m.color+';border:1px solid '+m.color+'44;margin:2px;">'+t+'</span>';
+    }).join('');
+    document.getElementById('five-model-info').innerHTML=
+      '<strong style="color:'+m.color+'">'+m.name.replace('\n',' ')+'</strong> — '+m.tokens+' tokens<br><div style="margin-top:6px;line-height:1.8;">'+chips+'</div>';
+  }
+}
+
+/* =====================================================
+   LIVE TYPE TOKENIZER
+===================================================== */
+var LIVE_COMMON_TOKENS=['the','is','are','was','were','in','of','to','a','an','and','or','not','that','for','on','with','as','at','by','from','it','its','be','been','have','has','had','do','does','did','will','would','can','could','may','might','shall','should','must','this','these','those','he','she','they','we','you','I','my','your','his','her','our','their'];
+var LIVE_TOKEN_COLORS=['#ff9f43','#74c0fc','#4ecdc4','#7c6af4','#51cf66','#ff6b6b','#ffd43b','#f78fb3','#a29bfe'];
+
+function simulateBPE(text){
+  if(!text)return[];
+  // Simulate BPE: known words as 1 token, unknown words as 2-3 subwords, non-ASCII as more
+  var words=text.split(/(\s+|[^\w\s])/u).filter(function(w){return w.length>0;});
+  var tokens=[];
+  words.forEach(function(w){
+    if(/^\s+$/.test(w)){tokens.push('·');return;}
+    if(/^[^\w\s]$/.test(w)){tokens.push(w);return;}
+    var lw=w.toLowerCase();
+    if(LIVE_COMMON_TOKENS.indexOf(lw)>=0){tokens.push(w);return;}
+    // Non-ASCII (CJK, Arabic, emoji): each char/codepoint is a token
+    if(/[^\u0000-\u007F]/.test(w)){
+      var chars=Array.from(w);
+      chars.forEach(function(c){tokens.push(c);});
+      return;
+    }
+    // Long words: split roughly at 60% point
+    if(w.length>6){
+      var sp=Math.round(w.length*0.55);
+      tokens.push(w.slice(0,sp));tokens.push('##'+w.slice(sp));
+    } else if(w.length>3){
+      tokens.push(w.slice(0,-2));tokens.push('##'+w.slice(-2));
+    } else {
+      tokens.push(w);
+    }
+  });
+  // Remove lone space tokens merged into adjacent
+  return tokens.filter(function(t){return t!=='·'||tokens.length<=3;});
+}
+
+function renderLiveType(){
+  var text=document.getElementById('live-type-input').value;
+  var tokens=simulateBPE(text);
+  var countEl=document.getElementById('live-type-count');
+  var chipsEl=document.getElementById('live-type-chips');
+  chipsEl.innerHTML='';
+  var realTokens=tokens.filter(function(t){return t!=='·';});
+  countEl.textContent=realTokens.length+' tokens';
+  tokens.forEach(function(t,i){
+    if(t==='·'){var sp=document.createElement('span');sp.style.cssText='display:inline-block;width:8px;';chipsEl.appendChild(sp);return;}
+    var span=document.createElement('span');span.className='token-pill';
+    var col=LIVE_TOKEN_COLORS[i%LIVE_TOKEN_COLORS.length];
+    span.style.background=col+'22';span.style.color=col;span.style.borderColor=col+'44';
+    span.textContent=t;chipsEl.appendChild(span);
+  });
+}
+
+/* =====================================================
+   PRICE TAG VISUAL
+===================================================== */
+var PRICE_TAG_DATA=[
+  {lang:'English',flag:'🇬🇧',sentence:'I love artificial intelligence.',tokens:5,cost:0.05,color:'#51cf66',note:'5 tokens — the baseline. All words are common English subwords.'},
+  {lang:'Spanish',flag:'🇪🇸',sentence:'Amo la inteligencia artificial.',tokens:6,cost:0.06,color:'#74c0fc',note:'6 tokens — Spanish is close to English in the BPE vocabulary. 1.2× multiplier.'},
+  {lang:'Russian',flag:'🇷🇺',sentence:'Я люблю искусственный интеллект.',tokens:14,cost:0.14,color:'#f7b731',note:'14 tokens — Cyrillic script has far fewer merges in the training vocabulary. 2.8× multiplier.'},
+  {lang:'Korean',flag:'🇰🇷',sentence:'나는 인공지능을 사랑합니다.',tokens:12,cost:0.12,color:'#ff6b6b',note:'12 tokens — Korean is agglutinative with complex morphology. 2.4× multiplier.'},
+  {lang:'Arabic',flag:'🇸🇦',sentence:'أنا أحب الذكاء الاصطناعي.',tokens:13,cost:0.13,color:'#ffd43b',note:'13 tokens — Arabic right-to-left script with few BPE merges in English-trained models. 2.6× multiplier.'}
+];
+var priceTagSelected=null;
+
+function drawPriceTags(){
+  var cv=document.getElementById('canvas-price-tags');if(!cv)return;
+  var ctx=cv.getContext('2d');var W=cv.width;var H=cv.height;
+  ctx.fillStyle='#0d0f18';ctx.fillRect(0,0,W,H);
+  var n=PRICE_TAG_DATA.length;var tagW=Math.floor((W-20)/n)-6;var tagH=H-40;var startX=10;
+  PRICE_TAG_DATA.forEach(function(d,i){
+    var x=startX+i*(tagW+6);var isSel=(priceTagSelected===i);
+    // Tag background
+    drawRoundedRect(ctx,x,10,tagW,tagH,8,isSel?d.color+'33':'#161a2e',d.color+(isSel?'':' 77'),isSel?2:1);
+    // Hang hole
+    ctx.fillStyle=d.color+(isSel?'':'88');ctx.beginPath();ctx.arc(x+tagW/2,14,5,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#0d0f18';ctx.beginPath();ctx.arc(x+tagW/2,14,2.5,0,Math.PI*2);ctx.fill();
+    // Flag + language
+    ctx.font='18px Inter';ctx.textAlign='center';ctx.fillText(d.flag,x+tagW/2,48);
+    ctx.fillStyle=isSel?d.color:'#e2e8f0';ctx.font=(isSel?'bold ':'')+'11px Inter';ctx.fillText(d.lang,x+tagW/2,66);
+    // Price
+    ctx.fillStyle=d.color;ctx.font='bold 16px JetBrains Mono';ctx.fillText('$'+d.cost.toFixed(2),x+tagW/2,96);
+    ctx.fillStyle='#8892b0';ctx.font='9px Inter';ctx.fillText('per message',x+tagW/2,110);
+    // Token count
+    ctx.fillStyle=d.color;ctx.font='bold 13px JetBrains Mono';ctx.fillText(d.tokens+' tokens',x+tagW/2,130);
+    // Multiplier badge
+    var mult=(d.tokens/5).toFixed(1);
+    var badgeColor=d.tokens<=6?'#51cf66':d.tokens<=9?'#f7b731':'#ff6b6b';
+    drawRoundedRect(ctx,x+tagW/2-20,138,40,16,8,badgeColor+'33',badgeColor+'88',1);
+    ctx.fillStyle=badgeColor;ctx.font='bold 9px Inter';ctx.fillText(mult+'×',x+tagW/2,150);
+  });
+  // Axis label
+  ctx.fillStyle='#8892b0';ctx.font='10px Inter';ctx.textAlign='center';
+  ctx.fillText('Same message: "I love artificial intelligence." — Cost at $0.01/1K tokens',W/2,H-6);
+}
+function handlePriceTagClick(e){
+  var cv=document.getElementById('canvas-price-tags');if(!cv)return;
+  var r=cv.getBoundingClientRect();var scaleX=cv.width/r.width;
+  var mx=(e.clientX-r.left)*scaleX;
+  var n=PRICE_TAG_DATA.length;var tagW=Math.floor((cv.width-20)/n)-6;var startX=10;
+  var idx=Math.floor((mx-startX)/(tagW+6));
+  if(idx>=0&&idx<n){
+    priceTagSelected=idx;drawPriceTags();
+    var d=PRICE_TAG_DATA[idx];
+    document.getElementById('price-tag-info').innerHTML=
+      '<strong style="color:'+d.color+'">'+d.flag+' '+d.lang+'</strong> — "'+d.sentence+'" — '+d.tokens+' tokens ($'+d.cost.toFixed(2)+')<br><span style="color:#8892b0;font-size:12px;">'+d.note+'</span>';
+  }
+}
+
+/* =====================================================
    VOCABULARY BUDGET
 ===================================================== */
 var BUDGET_LEVELS=[
@@ -1890,11 +2177,15 @@ function drawVocabBudget(idx){
 /* =====================================================
    INIT ALL
 ===================================================== */
+initQuiz();
 renderTokChips();
 drawSpectrum(0.5);
 initSpectrumSlider();
 drawOOV();
 drawCharLen();
+setFiveModelSentence(0);
+renderLiveType();
+drawPriceTags();
 drawBPEStep(0);
 drawVocabBudget(2);
 setBPEWord('unhappiness');
