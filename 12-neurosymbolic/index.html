@@ -1,0 +1,1582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Neurosymbolic AI — Why, What, and How</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#c9d1d9;--muted:#8b949e;
+  --accent:#e17055;--accent2:#d63031;--accent3:#fdcb6e;
+  --neural:#74c0fc;--symbolic:#51cf66;--bridge:#e17055;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+
+/* SIDEBAR */
+.sidebar{
+  width:240px;min-width:240px;height:100vh;position:sticky;top:0;
+  background:var(--surface);border-right:1px solid var(--border);
+  overflow-y:auto;padding:0 0 40px;flex-shrink:0;
+}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.sidebar-logo-title{font-size:13px;font-weight:700;color:var(--accent);}
+.sidebar-logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+nav{padding:10px 0;}
+.nav-group{margin-bottom:4px;}
+.nav-group-title{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;padding:10px 16px 4px;}
+.nav-link{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;color:var(--muted);cursor:pointer;border-radius:0;transition:all .15s;}
+.nav-link:hover,.nav-link.active{color:var(--text);background:rgba(225,112,85,.08);}
+.nav-link.active{color:var(--accent);}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+
+/* MAIN */
+.main{flex:1;overflow-y:auto;height:100vh;scroll-behavior:smooth;}
+
+/* PIPELINE MAP */
+.pipeline-map{
+  position:sticky;top:0;z-index:50;
+  background:rgba(13,17,23,.96);backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border);
+  padding:8px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;
+}
+.pipe-step{
+  display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);
+  padding:2px 6px;border-radius:4px;transition:color .15s;
+}
+.pipe-step:hover{color:var(--text);}
+.pipe-dot{width:6px;height:6px;border-radius:50%;}
+.pipe-arrow{color:var(--border);font-size:12px;}
+
+/* SECTION */
+.section{min-height:100vh;padding:60px 48px 80px;border-bottom:1px solid var(--border);position:relative;}
+.section-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px;}
+.section-title{font-size:28px;font-weight:800;color:var(--text);margin-bottom:8px;line-height:1.25;}
+.section-sub{font-size:14px;color:var(--muted);margin-bottom:28px;max-width:680px;}
+
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:16px;}
+.card-title{font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px;}
+.card-body{font-size:13px;color:var(--muted);line-height:1.6;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+
+/* CANVAS */
+canvas{display:block;border-radius:10px;background:var(--surface);border:1px solid var(--border);}
+.canvas-wrap{position:relative;margin-bottom:20px;}
+.canvas-label{font-size:10px;color:var(--muted);text-align:center;margin-top:6px;}
+
+/* BUTTONS */
+.btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s;}
+.btn:hover{opacity:.85;}
+.btn-outline{background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:8px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-outline:hover{background:rgba(225,112,85,.1);}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+.btn-tab{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+
+/* FORMULA / CODE */
+.formula{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-family:'Courier New',monospace;font-size:12px;color:#a8ff78;line-height:1.7;margin-bottom:16px;white-space:pre;}
+
+/* PROGRESS BAR */
+.prog-bar{height:8px;background:var(--border);border-radius:4px;overflow:hidden;margin:4px 0;}
+.prog-fill{height:100%;border-radius:4px;transition:width .4s;}
+
+/* STATS */
+.stats-row{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:24px;}
+.stat{text-align:center;}
+.stat-val{font-size:28px;font-weight:800;color:var(--accent);}
+.stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;}
+
+/* QUIZ */
+.quiz-q{font-size:15px;font-weight:600;margin-bottom:16px;color:var(--text);}
+.quiz-opt{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:8px;cursor:pointer;font-size:13px;transition:all .15s;}
+.quiz-opt:hover{border-color:var(--accent);}
+.quiz-opt.correct{border-color:#51cf66;background:rgba(81,207,102,.1);color:#51cf66;}
+.quiz-opt.wrong{border-color:#ff6b6b;background:rgba(255,107,107,.1);color:#ff6b6b;}
+.quiz-feedback{font-size:12px;color:var(--muted);margin-top:8px;min-height:16px;}
+
+/* SECTION BRIDGE */
+.section-bridge{margin-top:48px;padding-top:28px;border-top:1px solid var(--border);text-align:right;}
+.section-bridge-link{font-size:12px;color:var(--accent);font-weight:600;border:1px solid var(--accent);border-radius:6px;padding:6px 14px;transition:all .15s;}
+.section-bridge-link:hover{background:rgba(225,112,85,.1);}
+
+/* ACCORDION */
+.accordion-item{border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+.accordion-header{padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;background:var(--surface);}
+.accordion-header:hover{background:#1c2128;}
+.accordion-chevron{transition:transform .2s;font-size:10px;color:var(--muted);}
+.accordion-body{padding:14px 16px;font-size:12px;color:var(--muted);display:none;border-top:1px solid var(--border);}
+
+/* TAXONOMY GRID */
+.tax-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;}
+.tax-card{background:var(--surface);border:2px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:all .2s;}
+.tax-card:hover,.tax-card.active{border-color:var(--accent);}
+.tax-card.active{background:rgba(225,112,85,.06);}
+.tax-num{font-size:10px;color:var(--muted);font-weight:700;letter-spacing:1px;margin-bottom:4px;}
+.tax-name{font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px;}
+.tax-ex{font-size:10px;color:var(--muted);}
+.tax-detail{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;display:none;margin-bottom:16px;}
+.tax-detail.show{display:block;}
+
+/* KG NODES */
+.kg-info{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:12px;color:var(--muted);min-height:44px;margin-top:10px;}
+
+/* SPECTRUM LABELS */
+.spec-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);padding:0 4px;margin-top:4px;}
+
+/* XAI compare */
+.xai-col{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;flex:1;}
+.xai-col-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;}
+.xai-step{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;font-size:12px;color:var(--muted);}
+.xai-icon{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;}
+
+/* BADGE */
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;}
+
+/* PASSWORD GATE */
+#pg-gate{
+  position:fixed;inset:0;background:#0d1117;z-index:9999;
+  display:flex;align-items:center;justify-content:center;
+}
+.pg-box{background:#161b22;border:1px solid #30363d;border-radius:16px;padding:40px 48px;max-width:420px;width:100%;text-align:center;}
+.pg-icon{font-size:2.5rem;margin-bottom:16px;}
+.pg-title{font-size:1.3rem;font-weight:800;color:#c9d1d9;margin-bottom:6px;}
+.pg-sub{font-size:12px;color:#8b949e;margin-bottom:24px;}
+.pg-input{width:100%;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:10px 14px;color:#c9d1d9;font-size:14px;outline:none;text-align:center;}
+.pg-input:focus{border-color:#e17055;}
+.pg-btn{margin-top:12px;width:100%;background:#e17055;color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;}
+.pg-err{color:#ff6b6b;font-size:11px;margin-top:8px;min-height:16px;}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════ PASSWORD GATE ═══════════════════════════ -->
+<div id="pg-gate">
+  <div class="pg-box">
+    <div class="pg-icon">🧠</div>
+    <div class="pg-title">Neurosymbolic AI</div>
+    <div class="pg-sub">Why, What, and How — Interactive Visual Blog</div>
+    <input class="pg-input" id="pg-input" type="password" placeholder="Enter password" onkeydown="if(event.key==='Enter')pgCheck()">
+    <button class="pg-btn" onclick="pgCheck()">Unlock</button>
+    <div class="pg-err" id="pg-err"></div>
+  </div>
+</div>
+
+<script>
+var PG_PASSWORD='visual2025';
+var PG_KEY='pg_unlocked_12';
+function pgCheck(){
+  var v=document.getElementById('pg-input').value.trim();
+  if(v===PG_PASSWORD){
+    sessionStorage.setItem(PG_KEY,'1');
+    document.getElementById('pg-gate').style.display='none';
+    document.getElementById('pg-main').style.display='flex';
+    initAll();
+  } else {
+    document.getElementById('pg-err').textContent='Incorrect password.';
+  }
+}
+if(sessionStorage.getItem(PG_KEY)==='1'){
+  document.getElementById('pg-gate').style.display='none';
+}
+</script>
+
+<!-- ═══════════════════════════ MAIN ═══════════════════════════ -->
+<div id="pg-main" style="display:none;width:100%;">
+
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-title">Neurosymbolic AI</div>
+    <div class="sidebar-logo-sub">Sheth, Roy & Gaur · IEEE IS 2023</div>
+  </div>
+  <nav>
+  <div class="nav-group">
+    <div class="nav-group-title">The Problem</div>
+    <a class="nav-link" href="#s-problem" onclick="setActive(this)"><span class="dot" style="background:#ff6b6b"></span>Two Worlds Problem</a>
+    <a class="nav-link" href="#s-waves" onclick="setActive(this)"><span class="dot" style="background:#fdcb6e"></span>3 Waves of AI</a>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">The Framework</div>
+    <a class="nav-link" href="#s-sys12" onclick="setActive(this)"><span class="dot" style="background:#74c0fc"></span>System 1 vs System 2</a>
+    <a class="nav-link" href="#s-percog" onclick="setActive(this)"><span class="dot" style="background:#e17055"></span>Perception → Cognition</a>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">The Architecture</div>
+    <a class="nav-link" href="#s-taxonomy" onclick="setActive(this)"><span class="dot" style="background:#a29bfe"></span>Kautz's 6 Types</a>
+    <a class="nav-link" href="#s-spectrum" onclick="setActive(this)"><span class="dot" style="background:#e17055"></span>The Spectrum</a>
+    <a class="nav-link" href="#s-lowlift" onclick="setActive(this)"><span class="dot" style="background:#51cf66"></span>Lowering &amp; Lifting</a>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">In Practice</div>
+    <a class="nav-link" href="#s-kg" onclick="setActive(this)"><span class="dot" style="background:#fdcb6e"></span>Knowledge Graphs</a>
+    <a class="nav-link" href="#s-systems" onclick="setActive(this)"><span class="dot" style="background:#74c0fc"></span>Real Systems</a>
+    <a class="nav-link" href="#s-apps" onclick="setActive(this)"><span class="dot" style="background:#e17055"></span>Applications</a>
+    <a class="nav-link" href="#s-xai" onclick="setActive(this)"><span class="dot" style="background:#51cf66"></span>Explainability</a>
+    <a class="nav-link" href="#s-quiz" onclick="setActive(this)"><span class="dot" style="background:#a29bfe"></span>Architecture Quiz</a>
+  </div>
+  </nav>
+</nav>
+
+<div style="flex:1;display:flex;flex-direction:column;">
+
+<div class="pipeline-map" id="pipeline-map">
+  <a class="pipe-step" href="#s-problem"><span class="pipe-dot" style="background:#ff6b6b"></span>Problem</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-waves"><span class="pipe-dot" style="background:#fdcb6e"></span>History</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-sys12"><span class="pipe-dot" style="background:#74c0fc"></span>Sys1/2</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-percog"><span class="pipe-dot" style="background:#e17055"></span>Percog</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-taxonomy"><span class="pipe-dot" style="background:#a29bfe"></span>Kautz</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-spectrum"><span class="pipe-dot" style="background:#e17055"></span>Spectrum</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-lowlift"><span class="pipe-dot" style="background:#51cf66"></span>Low/Lift</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-kg"><span class="pipe-dot" style="background:#fdcb6e"></span>KG</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-systems"><span class="pipe-dot" style="background:#74c0fc"></span>Systems</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-apps"><span class="pipe-dot" style="background:#e17055"></span>Apps</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-xai"><span class="pipe-dot" style="background:#51cf66"></span>XAI</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-quiz"><span class="pipe-dot" style="background:#a29bfe"></span>Quiz</a>
+</div>
+
+<main class="main">
+
+<!-- ═══════ SECTION 1: THE TWO WORLDS PROBLEM ═══════ -->
+<section class="section" id="s-problem">
+  <div class="section-tag" style="color:#ff6b6b">The Problem</div>
+  <h2 class="section-title">Two Brilliant Minds. Two Fatal Flaws.</h2>
+  <p class="section-sub">Pure neural networks can't reason. Pure symbolic systems can't perceive. Neither alone is enough for real-world AI.</p>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val" style="color:#74c0fc">Deep Learning</div><div class="stat-lbl">Perception champion</div></div>
+    <div class="stat"><div class="stat-val" style="color:#ff6b6b">+</div><div class="stat-lbl">but</div></div>
+    <div class="stat"><div class="stat-val" style="color:#51cf66">Symbolic AI</div><div class="stat-lbl">Reasoning champion</div></div>
+    <div class="stat"><div class="stat-val" style="color:#ff6b6b">+</div><div class="stat-lbl">but</div></div>
+    <div class="stat"><div class="stat-val" style="color:#e17055">NeSy</div><div class="stat-lbl">Best of both</div></div>
+  </div>
+
+  <canvas id="c-problem" width="820" height="320"></canvas>
+  <div class="canvas-label">Click each panel to see where each approach fails</div>
+
+  <div class="btn-row" style="margin-top:14px;">
+    <button class="btn" onclick="showFail('neural')">Neural fails at reasoning</button>
+    <button class="btn-outline" onclick="showFail('symbolic')">Symbolic fails at perception</button>
+    <button class="btn-outline" onclick="showFail('nesy')">NeSy handles both</button>
+  </div>
+  <div id="fail-msg" class="card" style="margin-top:4px;">
+    <div class="card-title" style="color:#ff6b6b">Neural networks: great at patterns, poor at logic</div>
+    <div class="card-body">Given a logical chain — "All birds fly. Tweety is a bird. Does Tweety fly?" — a neural network learns statistical patterns but cannot guarantee the correct logical inference. It might answer "yes" for common birds but fail for penguins, which violates the rule. It has no explicit representation of the rule itself.</div>
+  </div>
+
+  <div class="grid2" style="margin-top:16px;">
+    <div class="card">
+      <div class="card-title" style="color:#74c0fc">What Neural Does Well</div>
+      <div class="card-body">
+        Pattern recognition · Image classification · Speech synthesis ·
+        Language generation · Statistical inference from large datasets.
+        <br><br>
+        Trained end-to-end on data. No hand-crafted rules needed.
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#51cf66">What Symbolic Does Well</div>
+      <div class="card-body">
+        Logical deduction · Constraint satisfaction · Explainable decisions ·
+        Knowledge representation · Guaranteed correctness within a formal system.
+        <br><br>
+        Rules are explicit, verifiable, and editable by humans.
+      </div>
+    </div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-waves">The History →</a>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 2: 3 WAVES OF AI ═══════ -->
+<section class="section" id="s-waves">
+  <div class="section-tag" style="color:#fdcb6e">Historical Context</div>
+  <h2 class="section-title">Three Waves of AI — and Why the Third Is Different</h2>
+  <p class="section-sub">AI has reset itself twice. The third wave doesn't discard the past — it synthesizes it.</p>
+
+  <canvas id="c-waves" width="820" height="280"></canvas>
+  <div class="canvas-label">Click each wave to expand its story</div>
+
+  <div id="wave-detail" class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#fdcb6e" id="wave-title">1st Wave — Expert Systems (1950s–1980s)</div>
+    <div class="card-body" id="wave-body">The first wave of AI was symbolic through and through. Researchers wrote explicit rules: IF patient has fever AND cough THEN suspect flu. Systems like MYCIN (medical diagnosis) and SHRDLU (natural language) showed impressive narrow competence. But they were brittle — any fact outside the hand-crafted knowledge base caused failure. The knowledge acquisition bottleneck killed this era: you could never write enough rules to cover the real world.</div>
+  </div>
+
+  <div class="grid3" style="margin-top:16px;">
+    <div class="card" style="border-color:#fdcb6e44;">
+      <div class="card-title" style="color:#fdcb6e">1st Wave · GOFAI</div>
+      <div class="card-body">Expert systems, logic programming, knowledge engineering. MYCIN, SHRDLU, Prolog. Brittle at scale — knowledge bottleneck.</div>
+    </div>
+    <div class="card" style="border-color:#74c0fc44;">
+      <div class="card-title" style="color:#74c0fc">2nd Wave · Deep Learning</div>
+      <div class="card-body">AlexNet (2012), transformers (2017), GPT-3 (2020). Data-driven, scalable, but opaque — hallucinations, no formal reasoning guarantees.</div>
+    </div>
+    <div class="card" style="border-color:#e1705544;">
+      <div class="card-title" style="color:#e17055">3rd Wave · Neurosymbolic</div>
+      <div class="card-body">Integrating neural perception with symbolic cognition. 236 publications in 2023 alone. Safety-critical applications driving adoption.</div>
+    </div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-sys12">System 1 vs System 2 →</a>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 3: SYSTEM 1 VS SYSTEM 2 ═══════ -->
+<section class="section" id="s-sys12">
+  <div class="section-tag" style="color:#74c0fc">Cognitive Science Foundation</div>
+  <h2 class="section-title">System 1 vs System 2 — The Human Blueprint</h2>
+  <p class="section-sub">Kahneman's dual-process theory maps directly onto neural vs symbolic AI. We need both to be intelligent.</p>
+
+  <canvas id="c-sys12" width="820" height="300"></canvas>
+
+  <div class="btn-row" style="margin-top:14px;">
+    <button class="btn-tab active" id="tab-s1" onclick="setS12(1)">System 1 Tasks</button>
+    <button class="btn-tab" id="tab-s2" onclick="setS12(2)">System 2 Tasks</button>
+  </div>
+
+  <div id="s12-tasks" class="grid3">
+    <div class="card" style="border-color:#74c0fc55;cursor:pointer;" onclick="classifyTask(this,'neural')">
+      <div class="card-title" style="color:#74c0fc">Recognize a face</div>
+      <div class="card-body">Instantaneous. Effortless. No conscious reasoning.</div>
+      <div style="margin-top:8px;font-size:10px;color:var(--muted);">→ Click to classify</div>
+    </div>
+    <div class="card" style="border-color:#74c0fc55;cursor:pointer;" onclick="classifyTask(this,'neural')">
+      <div class="card-title" style="color:#74c0fc">Hear a familiar voice</div>
+      <div class="card-body">Pattern matching from experience. No rule lookup.</div>
+      <div style="margin-top:8px;font-size:10px;color:var(--muted);">→ Click to classify</div>
+    </div>
+    <div class="card" style="border-color:#74c0fc55;cursor:pointer;" onclick="classifyTask(this,'neural')">
+      <div class="card-title" style="color:#74c0fc">Read emotional tone</div>
+      <div class="card-body">You know someone is angry before they finish the sentence.</div>
+      <div style="margin-top:8px;font-size:10px;color:var(--muted);">→ Click to classify</div>
+    </div>
+  </div>
+
+  <div id="s12-fb" class="card" style="margin-top:12px;display:none;">
+    <div class="card-title" id="s12-fb-title"></div>
+    <div class="card-body" id="s12-fb-body"></div>
+  </div>
+
+  <div class="grid2" style="margin-top:16px;">
+    <div class="card" style="border-color:#74c0fc44;">
+      <div class="card-title" style="color:#74c0fc">System 1 → Neural Networks</div>
+      <div class="card-body">
+        Fast · Automatic · Pattern-based · Unconscious<br><br>
+        Neural networks are trained to be superb System 1 machines — recognizing patterns in images, text, and audio instantly. But System 1 can be fooled by adversarial examples and has no ability to reason about why.
+      </div>
+    </div>
+    <div class="card" style="border-color:#51cf66aa;">
+      <div class="card-title" style="color:#51cf66">System 2 → Symbolic AI</div>
+      <div class="card-body">
+        Slow · Deliberate · Rule-based · Explainable<br><br>
+        Symbolic systems are built for System 2 — following logical chains, applying constraints, planning. But they require perception to be pre-solved: they need symbols to already exist before they can reason.
+      </div>
+    </div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-percog">Perception → Cognition →</a>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 4: PERCEPTION → COGNITION ═══════ -->
+<section class="section" id="s-percog">
+  <div class="section-tag" style="color:#e17055">The Core Framework</div>
+  <h2 class="section-title">Machine Perception + Machine Cognition</h2>
+  <p class="section-sub">The Sheth-Roy-Gaur paper's central insight: AI must do what humans do — perceive the world, then reason about it.</p>
+
+  <canvas id="c-percog" width="820" height="260"></canvas>
+  <div class="canvas-label">Step through the pipeline</div>
+
+  <div class="btn-row" style="margin-top:14px;">
+    <button class="btn" onclick="stepPercog()">Next Step →</button>
+    <button class="btn-outline" onclick="resetPercog()">Reset</button>
+  </div>
+
+  <div id="percog-explain" class="card">
+    <div class="card-title" style="color:#e17055" id="percog-title">Step 1 — Raw Input</div>
+    <div class="card-body" id="percog-body">The pipeline starts with raw sensory data: an X-ray image, a driving scene, a patient's text record. This is the unstructured input that only neural networks can handle at scale.</div>
+  </div>
+
+  <div class="grid2" style="margin-top:16px;">
+    <div class="card" style="border-color:#74c0fc44;">
+      <div class="card-title" style="color:#74c0fc">Machine Perception</div>
+      <div class="card-body">Large-scale pattern recognition from raw data using neural networks trained with self-supervised learning. Converts unstructured input (pixels, tokens) into structured symbols (concepts, entities, relationships). This is where deep learning excels.</div>
+    </div>
+    <div class="card" style="border-color:#51cf66aa;">
+      <div class="card-title" style="color:#51cf66">Machine Cognition</div>
+      <div class="card-body">More complex computation: using knowledge of the environment to guide reasoning, analogy, and long-term planning. Takes symbols from perception and applies domain knowledge (from knowledge graphs, ontologies, logical rules) to reach explainable conclusions.</div>
+    </div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-taxonomy">Kautz's 6 Architecture Types →</a>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 5: KAUTZ'S TAXONOMY ═══════ -->
+<section class="section" id="s-taxonomy">
+  <div class="section-tag" style="color:#a29bfe">Architecture Taxonomy</div>
+  <h2 class="section-title">Kautz's Six Types of Neurosymbolic AI</h2>
+  <p class="section-sub">Henry Kautz's taxonomy organizes neurosymbolic architectures by how deeply neural and symbolic components are integrated. Click each to explore.</p>
+
+  <div class="tax-grid">
+    <div class="tax-card active" id="tax-0" onclick="clickTax(0)">
+      <div class="tax-num">TYPE 1</div>
+      <div class="tax-name">Symbolic Neural</div>
+      <div class="tax-ex">BERT · GPT · RoBERTa</div>
+    </div>
+    <div class="tax-card" id="tax-1" onclick="clickTax(1)">
+      <div class="tax-num">TYPE 2</div>
+      <div class="tax-name">Symbolic[Neural]</div>
+      <div class="tax-ex">AlphaGo · game trees</div>
+    </div>
+    <div class="tax-card" id="tax-2" onclick="clickTax(2)">
+      <div class="tax-num">TYPE 3</div>
+      <div class="tax-name">Neural | Symbolic</div>
+      <div class="tax-ex">Neural-Concept Learner</div>
+    </div>
+    <div class="tax-card" id="tax-3" onclick="clickTax(3)">
+      <div class="tax-num">TYPE 4</div>
+      <div class="tax-name">Neural:Symbolic→Neural</div>
+      <div class="tax-ex">Data synthesis pipelines</div>
+    </div>
+    <div class="tax-card" id="tax-4" onclick="clickTax(4)">
+      <div class="tax-num">TYPE 5</div>
+      <div class="tax-name">NeuralSymbolic</div>
+      <div class="tax-ex">Neural Theorem Provers · LTN</div>
+    </div>
+    <div class="tax-card" id="tax-5" onclick="clickTax(5)">
+      <div class="tax-num">TYPE 6</div>
+      <div class="tax-name">Neural[Symbolic]</div>
+      <div class="tax-ex">Symbolic logic in neural nets</div>
+    </div>
+  </div>
+
+  <div id="tax-detail" class="tax-detail show">
+    <div style="display:flex;gap:16px;align-items:flex-start;">
+      <div style="flex:1;">
+        <div style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:1px;margin-bottom:6px;" id="tax-d-tag">TYPE 1 · LOOSEST INTEGRATION</div>
+        <div style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:10px;" id="tax-d-name">Symbolic Neural</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:12px;" id="tax-d-desc">Neural models where words or tokens are the inputs and outputs — the "symbols" are just discrete tokens, not formal logic. The symbolic layer is minimal: just a vocabulary and tokenization. The neural network does all the heavy lifting.<br><br>This is the loosest form of neurosymbolic AI — symbolic in name only.</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Examples:</div>
+        <div style="font-size:12px;color:#a29bfe;" id="tax-d-ex">BERT · GPT-3 · RoBERTa · T5 · Most modern LLMs</div>
+      </div>
+      <canvas id="c-tax" width="240" height="180"></canvas>
+    </div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-spectrum">The Neural-Symbolic Spectrum →</a>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 6: THE SPECTRUM ═══════ -->
+<section class="section" id="s-spectrum">
+  <div class="section-tag" style="color:#e17055">Design Space</div>
+  <h2 class="section-title">The Neural-Symbolic Spectrum</h2>
+  <p class="section-sub">Moving from purely symbolic to purely neural is a continuous tradeoff across four dimensions. Drag the slider to explore.</p>
+
+  <canvas id="c-spectrum" width="820" height="380"></canvas>
+  <div class="spec-labels">
+    <span>◀ Purely Symbolic</span>
+    <span>Neurosymbolic Hybrid</span>
+    <span>Purely Neural ▶</span>
+  </div>
+
+  <div id="spec-info" class="card" style="margin-top:16px;">
+    <div class="card-title" style="color:#e17055" id="spec-info-title">Balanced Hybrid</div>
+    <div class="card-body" id="spec-info-body">This is the neurosymbolic sweet spot — combining neural perception with symbolic reasoning. Accuracy is high (neural handles complex patterns), interpretability is maintained (symbolic rules are explicit), data efficiency improves (symbolic priors reduce training data needs), and reasoning power is strong.</div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-lowlift">Lowering &amp; Lifting →</a>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 7: LOWERING & LIFTING ═══════ -->
+<section class="section" id="s-lowlift">
+  <div class="section-tag" style="color:#51cf66">Integration Techniques</div>
+  <h2 class="section-title">Lowering and Lifting</h2>
+  <p class="section-sub">The two fundamental operations for bridging the neural-symbolic gap. Lowering moves knowledge into neural space; lifting extracts structure from it.</p>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="tab-lower" onclick="setLowLift('lower')">Lowering (Symbolic → Neural)</button>
+    <button class="btn-tab" id="tab-lift" onclick="setLowLift('lift')">Lifting (Neural → Symbolic)</button>
+  </div>
+
+  <canvas id="c-lowlift" width="820" height="280"></canvas>
+
+  <div id="lowlift-info" class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#51cf66" id="ll-title">Lowering — Embedding Symbolic Knowledge into Neural Space</div>
+    <div class="card-body" id="ll-body">Lowering takes structured symbolic knowledge (knowledge graphs, logical rules, ontologies) and compresses it into continuous neural representations — embedding vectors that a neural network can work with.<br><br>
+    Key technique: <strong>Knowledge Graph Embeddings</strong> — methods like TransE, RotatE, and DistMult embed KG entities and relations into a high-dimensional vector space using graph neural networks. The geometry of this space preserves relational structure, so reasoning can happen via vector arithmetic.<br><br>
+    Limitation: Compression is lossy — some symbolic semantics (e.g., complex relation types) are difficult to preserve in continuous space.</div>
+  </div>
+
+  <div class="grid2" style="margin-top:16px;">
+    <div class="card">
+      <div class="card-title" style="color:#51cf66">Lowering Techniques</div>
+      <div class="card-body">
+        <div style="margin-bottom:6px;">→ <strong>KG Embeddings</strong>: TransE, RotatE, DistMult</div>
+        <div style="margin-bottom:6px;">→ <strong>Logic Tensor Networks</strong>: logical formulas as tensor operations</div>
+        <div style="margin-bottom:6px;">→ <strong>Neural Probabilistic Logic</strong>: soft logical constraints</div>
+        <div>→ <strong>Graph Neural Networks</strong>: structure-preserving encoding</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#fdcb6e">Lifting Techniques</div>
+      <div class="card-body">
+        <div style="margin-bottom:6px;">→ <strong>Rule Extraction</strong>: distill rules from trained networks</div>
+        <div style="margin-bottom:6px;">→ <strong>Concept Learning</strong>: extract symbolic concepts (e.g., ILP)</div>
+        <div style="margin-bottom:6px;">→ <strong>Attention as Structure</strong>: interpret attention heads as relations</div>
+        <div>→ <strong>Probing Classifiers</strong>: identify symbolic structure in embeddings</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-kg">Knowledge Graphs →</a>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 8: KNOWLEDGE GRAPHS ═══════ -->
+<section class="section" id="s-kg">
+  <div class="section-tag" style="color:#fdcb6e">Symbolic Substrate</div>
+  <h2 class="section-title">Knowledge Graphs — The Symbolic Backbone</h2>
+  <p class="section-sub">Knowledge graphs encode facts as triples (subject, relation, object). They are the most common symbolic substrate in neurosymbolic systems. Click nodes to explore.</p>
+
+  <canvas id="c-kg" width="820" height="360"></canvas>
+  <div class="kg-info" id="kg-info">Click a node in the graph to see its connections and role in neurosymbolic reasoning.</div>
+
+  <div class="grid2" style="margin-top:16px;">
+    <div class="card">
+      <div class="card-title" style="color:#fdcb6e">Why KGs in NeSy?</div>
+      <div class="card-body">Knowledge graphs provide the structured, human-understandable world model that symbolic systems need. A neurosymbolic system uses a neural network to perceive raw data, then grounds those perceptions in a knowledge graph to reason about what they mean and what to do next.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#e17055">Medical KG Example</div>
+      <div class="card-body">
+        A patient has a high fever and cough. The neural model reads the clinical note and identifies these symptoms. The medical knowledge graph then connects:<br><br>
+        Fever + Cough → Influenza (0.72)<br>
+        Influenza → treat with → Antiviral<br>
+        Patient age &lt;5 → dosage → Paediatric<br><br>
+        The decision is explainable because the KG chain is visible.
+      </div>
+    </div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-systems">Real Systems →</a>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 9: REAL SYSTEMS ═══════ -->
+<section class="section" id="s-systems">
+  <div class="section-tag" style="color:#74c0fc">Named Systems</div>
+  <h2 class="section-title">Neurosymbolic Systems in the Wild</h2>
+  <p class="section-sub">Three landmark systems that demonstrate how neural and symbolic components combine in practice.</p>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="sys-btn-0" onclick="setSystem(0)">DeepProbLog</button>
+    <button class="btn-tab" id="sys-btn-1" onclick="setSystem(1)">AlphaGo</button>
+    <button class="btn-tab" id="sys-btn-2" onclick="setSystem(2)">Neural Theorem Prover</button>
+  </div>
+
+  <canvas id="c-systems" width="820" height="300"></canvas>
+
+  <div id="sys-info" class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#74c0fc" id="sys-title">DeepProbLog</div>
+    <div class="card-body" id="sys-body">DeepProbLog extends ProbLog (a probabilistic logic programming language) with <em>neural predicates</em> — facts whose truth value is computed by a neural network rather than stored as a fixed probability.<br><br>
+    Example: <code>digit(X, 7) :- neural_net(image(X), 7, P), P > 0.5.</code><br><br>
+    The neural network reads an image and outputs a probability. The symbolic probabilistic logic program uses that probability in reasoning. This allows end-to-end training: gradients flow from the logical inference back through the neural network. Kautz Type: NeuralSymbolic (Type 5).</div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-apps">Applications →</a>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 10: APPLICATIONS ═══════ -->
+<section class="section" id="s-apps">
+  <div class="section-tag" style="color:#e17055">Real-World Impact</div>
+  <h2 class="section-title">Where Neurosymbolic AI Is Deployed</h2>
+  <p class="section-sub">Safety-critical domains demand both accuracy (neural) and explainability (symbolic). NeSy is uniquely positioned here.</p>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="app-btn-0" onclick="setApp(0)">Healthcare</button>
+    <button class="btn-tab" id="app-btn-1" onclick="setApp(1)">Autonomous Driving</button>
+    <button class="btn-tab" id="app-btn-2" onclick="setApp(2)">Criminal Justice</button>
+  </div>
+
+  <canvas id="c-apps" width="820" height="280"></canvas>
+
+  <div id="app-info" class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#e17055" id="app-title">Healthcare: Explainable Clinical Decision Support</div>
+    <div class="card-body" id="app-body">Neural networks can detect patterns in medical images (tumours, arrhythmias) with superhuman accuracy, but cannot explain their reasoning or guarantee they respect clinical guidelines.<br><br>
+    A neurosymbolic system adds a medical knowledge graph on top: the neural component identifies potential findings from raw data, the symbolic layer checks them against guidelines (e.g., WHO treatment protocols, drug interaction rules, dosage constraints), and produces a recommendation with a full reasoning trace that a clinician can audit.<br><br>
+    This satisfies regulatory requirements for explainability in medical devices (EU MDR Article 22), something a pure neural system cannot do.</div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-xai">Explainability Deep Dive →</a>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 11: EXPLAINABILITY ═══════ -->
+<section class="section" id="s-xai">
+  <div class="section-tag" style="color:#51cf66">Trustworthy AI</div>
+  <h2 class="section-title">Black Box vs Glass Box</h2>
+  <p class="section-sub">The same medical question, two answers. Which one would you trust with your health?</p>
+
+  <div id="xai-scenario" class="card" style="border-color:#e1705544;margin-bottom:20px;">
+    <div class="card-title" style="color:#e17055">Scenario</div>
+    <div class="card-body">A 58-year-old patient presents with chest pain, shortness of breath, and elevated troponin levels. The AI system is asked: "What is the recommended treatment?"</div>
+  </div>
+
+  <div style="display:flex;gap:16px;margin-bottom:16px;">
+    <div class="xai-col">
+      <div class="xai-col-title" style="color:#ff6b6b">Pure Neural LLM</div>
+      <div class="xai-step">
+        <div class="xai-icon" style="background:rgba(255,107,107,.2);color:#ff6b6b;">?</div>
+        <div>Processes all tokens in parallel through 96 attention layers.</div>
+      </div>
+      <div class="xai-step">
+        <div class="xai-icon" style="background:rgba(255,107,107,.2);color:#ff6b6b;">?</div>
+        <div>No explicit knowledge of cardiology guidelines.</div>
+      </div>
+      <div class="xai-step">
+        <div class="xai-icon" style="background:rgba(255,107,107,.2);color:#ff6b6b;">!</div>
+        <div><strong style="color:#c9d1d9;">"Consider aspirin and anticoagulation therapy."</strong></div>
+      </div>
+      <div style="font-size:11px;color:#ff6b6b;margin-top:10px;padding:8px;background:rgba(255,107,107,.05);border-radius:6px;">No reasoning trace. Cannot verify against guidelines. May hallucinate dosages. Cannot explain why.</div>
+    </div>
+    <div class="xai-col" style="border-color:#51cf66;">
+      <div class="xai-col-title" style="color:#51cf66">Neurosymbolic System</div>
+      <div class="xai-step">
+        <div class="xai-icon" style="background:rgba(81,207,102,.2);color:#51cf66;">1</div>
+        <div>Neural: chest pain + elevated troponin → probable NSTEMI (confidence 0.91)</div>
+      </div>
+      <div class="xai-step">
+        <div class="xai-icon" style="background:rgba(81,207,102,.2);color:#51cf66;">2</div>
+        <div>KG lookup: NSTEMI → ACC/AHA Guideline Class I → dual antiplatelet therapy</div>
+      </div>
+      <div class="xai-step">
+        <div class="xai-icon" style="background:rgba(81,207,102,.2);color:#51cf66;">3</div>
+        <div>Constraint check: patient age 58, no known bleeding history → standard dose cleared</div>
+      </div>
+      <div class="xai-step">
+        <div class="xai-icon" style="background:rgba(81,207,102,.2);color:#51cf66;">✓</div>
+        <div><strong style="color:#c9d1d9;">"Aspirin 325mg + Clopidogrel 75mg. Guideline: ACC/AHA 2022 §4.2."</strong></div>
+      </div>
+      <div style="font-size:11px;color:#51cf66;margin-top:10px;padding:8px;background:rgba(81,207,102,.05);border-radius:6px;">Full reasoning trace. Verifiable against published guidelines. Dosage from patient-specific constraints. Auditable by clinicians.</div>
+    </div>
+  </div>
+
+  <canvas id="c-xai" width="820" height="200"></canvas>
+  <div class="canvas-label">Comparison across five trust dimensions</div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-quiz">Architecture Quiz →</a>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 12: ARCHITECTURE QUIZ ═══════ -->
+<section class="section" id="s-quiz">
+  <div class="section-tag" style="color:#a29bfe">Test Your Knowledge</div>
+  <h2 class="section-title">Design the Right Architecture</h2>
+  <p class="section-sub">Given a real-world scenario, which neurosymbolic approach would you choose? Five questions — one point each.</p>
+
+  <div id="quiz-area">
+    <div class="card" style="border-color:#a29bfe44;">
+      <div class="quiz-q" id="qz-q"></div>
+      <div id="qz-opts"></div>
+      <div class="quiz-feedback" id="qz-fb"></div>
+    </div>
+    <div class="btn-row" style="margin-top:12px;">
+      <button class="btn" id="qz-next-btn" onclick="quizNext()" style="display:none;">Next Question →</button>
+    </div>
+    <div style="font-size:12px;color:var(--muted);">Question <span id="qz-num">1</span> of 5 · Score: <span id="qz-score">0</span></div>
+  </div>
+
+  <div id="quiz-done" style="display:none;" class="card" style="text-align:center;border-color:#a29bfe;">
+    <div class="card-title" style="color:#a29bfe;font-size:18px;">Quiz Complete!</div>
+    <div class="card-body" style="font-size:20px;font-weight:800;color:var(--text);margin:12px 0;" id="qz-final-score"></div>
+    <div class="card-body" id="qz-verdict"></div>
+    <button class="btn" onclick="resetQuiz()" style="margin-top:16px;">Try Again</button>
+  </div>
+
+  <div class="card" style="margin-top:20px;border-color:#30363d;">
+    <div class="card-title" style="color:var(--muted)">Paper Reference</div>
+    <div class="card-body">
+      Sheth, A., Roy, K., &amp; Gaur, M. (2023). <em>Neurosymbolic Artificial Intelligence (Why, What, and How).</em> IEEE Intelligent Systems, 38(3), 56–62. arXiv:2305.00813<br><br>
+      Kautz, H. (2020). The Third AI Summer. <em>AAAI Proceedings.</em> — Source of the 6-type taxonomy.<br><br>
+      Research volume data: Neuro-Symbolic AI in 2024: A Systematic Review. arXiv:2501.05435 (236 publications in 2023).
+    </div>
+  </div>
+</section>
+
+</main>
+</div><!-- /flex column -->
+</div><!-- /pg-main -->
+
+<script>
+// ════════════════════════════════════════════
+// UTILITIES
+// ════════════════════════════════════════════
+function lerp(a,b,t){return a+(b-a)*t;}
+function easeOut(t){return 1-(1-t)*(1-t);}
+function seededRand(s){var x=Math.sin(s+1)*10000;return x-Math.floor(x);}
+function drawRoundedRect(ctx,x,y,w,h,r,fill,stroke){
+  ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);
+  ctx.closePath();if(fill){ctx.fillStyle=fill;ctx.fill();}if(stroke){ctx.strokeStyle=stroke;ctx.stroke();}
+}
+function setActive(el){
+  document.querySelectorAll('.nav-link').forEach(function(a){a.classList.remove('active');});
+  if(el)el.classList.add('active');
+}
+function toggleAcc(hdr){
+  var body=hdr.nextElementSibling;
+  var chev=hdr.querySelector('.accordion-chevron');
+  var open=body.style.display==='block';
+  body.style.display=open?'none':'block';
+  if(chev)chev.style.transform=open?'':'rotate(180deg)';
+}
+
+// ════════════════════════════════════════════
+// INIT ALL
+// ════════════════════════════════════════════
+function initAll(){
+  drawProblem('neural');
+  drawWaves(0);
+  drawSys12();
+  initPercog();
+  initTaxCanvas(0);
+  initSpectrum();
+  initLowLift('lower');
+  initKG();
+  drawSystems(0);
+  drawApps(0);
+  drawXAI();
+  initQuiz();
+}
+if(sessionStorage.getItem('pg_unlocked_12')==='1'){
+  document.getElementById('pg-main').style.display='flex';
+  window.addEventListener('load',initAll);
+}
+
+// ════════════════════════════════════════════
+// S1: TWO WORLDS PROBLEM
+// ════════════════════════════════════════════
+var failMode='neural';
+function showFail(mode){
+  failMode=mode;
+  drawProblem(mode);
+  var titles={neural:'Neural networks: great at patterns, poor at logic',symbolic:'Symbolic AI: great at logic, poor at perception',nesy:'Neurosymbolic AI: both perception and reasoning'};
+  var bodies={
+    neural:'Given a logical chain — "All birds fly. Tweety is a bird. Does Tweety fly?" — a neural network learns statistical patterns but cannot guarantee the correct logical inference. It might answer "yes" for common birds but fail for penguins, which violates the rule. It has no explicit representation of the rule itself.',
+    symbolic:'Give a symbolic AI system a photograph to classify. It fails entirely — it has no mechanism to process raw pixel data into symbols without a separate perception component. The rules say "IF wings AND feathers THEN bird" but they cannot check whether a given image has wings or feathers.',
+    nesy:'A neurosymbolic system uses a neural network to perceive the image (identifying wings, feathers, size) and a symbolic reasoner to apply the rules ("has wings AND feathers → bird"). It gets both right, and can explain its reasoning at every step.'
+  };
+  document.getElementById('fail-msg').querySelector('.card-title').textContent=titles[mode];
+  document.getElementById('fail-msg').querySelector('.card-title').style.color=mode==='nesy'?'#51cf66':'#ff6b6b';
+  document.getElementById('fail-msg').querySelector('.card-body').textContent=bodies[mode];
+}
+function drawProblem(mode){
+  var cv=document.getElementById('c-problem');if(!cv)return;
+  var ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);
+  var W=cv.width,H=cv.height;
+  var panelW=W/3-8;
+  var panels=[
+    {label:'Pure Neural',color:'#74c0fc',x:4,check:mode==='neural'||mode==='nesy',cross:mode==='neural'?'Reasoning':'',tag:'PERCEPTION ✓'},
+    {label:'Pure Symbolic',color:'#51cf66',x:panelW+12,check:mode==='symbolic'||mode==='nesy',cross:mode==='symbolic'?'Perception':'',tag:'REASONING ✓'},
+    {label:'Neurosymbolic',color:'#e17055',x:2*(panelW+8)+4,check:true,cross:'',tag:'BOTH ✓'}
+  ];
+  panels.forEach(function(p,i){
+    var active=(i===0&&mode==='neural')||(i===1&&mode==='symbolic')||(i===2&&mode==='nesy');
+    var borderC=active?p.color:'#30363d';
+    drawRoundedRect(ctx,p.x,4,panelW,H-8,10,'#161b22',borderC);
+    ctx.font='700 11px Inter,sans-serif';ctx.textAlign='center';ctx.fillStyle=p.color;
+    ctx.fillText(p.label,p.x+panelW/2,30);
+    // dots indicating capabilities
+    var items=i===0?[{t:'Image recognition',ok:true},{t:'Speech → text',ok:true},{t:'Pattern matching',ok:true},{t:'Logical deduction',ok:mode==='nesy'},{t:'Explain decisions',ok:mode==='nesy'}]:
+              i===1?[{t:'Logical deduction',ok:true},{t:'Rule application',ok:true},{t:'Explainable',ok:true},{t:'Image recognition',ok:mode==='nesy'},{t:'Handle raw data',ok:mode==='nesy'}]:
+              [{t:'Neural perception',ok:true},{t:'Symbolic reasoning',ok:true},{t:'Explainable',ok:true},{t:'Handles raw data',ok:true},{t:'Formal guarantees',ok:true}];
+    items.forEach(function(item,j){
+      var iy=52+j*42;
+      var ok=item.ok;
+      ctx.beginPath();ctx.arc(p.x+24,iy+8,8,0,Math.PI*2);ctx.fillStyle=ok?p.color+'44':'#30363d';ctx.fill();
+      ctx.fillStyle=ok?p.color:'#555';ctx.font='700 12px Inter,sans-serif';ctx.textAlign='center';
+      ctx.fillText(ok?'✓':'✗',p.x+24,iy+13);
+      ctx.font='11px Inter,sans-serif';ctx.textAlign='left';ctx.fillStyle=ok?'#c9d1d9':'#555';
+      ctx.fillText(item.t,p.x+40,iy+13);
+    });
+    ctx.font='700 9px Inter,sans-serif';ctx.textAlign='center';ctx.fillStyle=p.color;
+    ctx.fillText(p.tag,p.x+panelW/2,H-16);
+  });
+}
+
+// ════════════════════════════════════════════
+// S2: 3 WAVES
+// ════════════════════════════════════════════
+var waveActive=0;
+var waveData=[
+  {label:'1st Wave',period:'1950s – 1980s',color:'#fdcb6e',x:0.15,
+   title:'1st Wave — Expert Systems (1950s–1980s)',
+   body:'The first wave of AI was symbolic through and through. Researchers wrote explicit rules: IF patient has fever AND cough THEN suspect flu. Systems like MYCIN (medical diagnosis) and SHRDLU (natural language) showed impressive narrow competence. But they were brittle — any fact outside the hand-crafted knowledge base caused failure. The knowledge acquisition bottleneck killed this era: you could never write enough rules to cover the real world.'},
+  {label:'2nd Wave',period:'2012 – 2020',color:'#74c0fc',x:0.5,
+   title:'2nd Wave — Deep Learning (2012–2020)',
+   body:'AlexNet\'s 2012 ImageNet win kicked off the second wave. Deep learning showed that data-driven, end-to-end trained neural networks could match or exceed human performance on perception tasks. GPT-3 (2020) demonstrated emergent language ability at scale. But these systems hallucinate, cannot reason formally, cannot explain their decisions, and are unsafe in high-stakes domains without guardrails.'},
+  {label:'3rd Wave',period:'2020 – present',color:'#e17055',x:0.83,
+   title:'3rd Wave — Neurosymbolic AI (2020–present)',
+   body:'The third wave doesn\'t discard the past — it synthesises it. Neurosymbolic systems combine neural perception (handling raw data at scale) with symbolic cognition (formal reasoning, knowledge graphs, explainability). Publications grew from 53 in 2020 to 236 in 2023. Drivers include LLM hallucination failures, regulatory requirements for explainability, and the need for safety in autonomous systems.'}
+];
+function drawWaves(active){
+  waveActive=active;
+  var cv=document.getElementById('c-waves');if(!cv)return;
+  var ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);
+  var W=cv.width,H=cv.height;
+  // timeline line
+  ctx.strokeStyle='#30363d';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(40,H/2);ctx.lineTo(W-40,H/2);ctx.stroke();
+  // draw arrow
+  ctx.fillStyle='#30363d';ctx.beginPath();ctx.moveTo(W-32,H/2-6);ctx.lineTo(W-20,H/2);ctx.lineTo(W-32,H/2+6);ctx.fill();
+  ctx.fillStyle='#8b949e';ctx.font='10px Inter,sans-serif';ctx.textAlign='right';
+  ctx.fillText('Time →',W-16,H/2+20);
+  waveData.forEach(function(w,i){
+    var cx=40+(W-80)*w.x;
+    var isActive=i===active;
+    // stem
+    ctx.strokeStyle=isActive?w.color:'#30363d';ctx.lineWidth=isActive?2:1;
+    ctx.beginPath();ctx.moveTo(cx,H/2);ctx.lineTo(cx,i%2===0?H/2-70:H/2+70);ctx.stroke();
+    // node
+    ctx.beginPath();ctx.arc(cx,H/2,isActive?12:8,0,Math.PI*2);
+    ctx.fillStyle=isActive?w.color:w.color+'44';ctx.fill();
+    if(isActive){ctx.strokeStyle=w.color;ctx.lineWidth=2;ctx.stroke();}
+    // label
+    var ty=i%2===0?H/2-90:H/2+90;
+    ctx.font=isActive?'700 12px Inter,sans-serif':'11px Inter,sans-serif';
+    ctx.textAlign='center';ctx.fillStyle=isActive?w.color:'#8b949e';
+    ctx.fillText(w.label,cx,ty);
+    ctx.font='10px Inter,sans-serif';ctx.fillStyle='#8b949e';
+    ctx.fillText(w.period,cx,ty+14);
+    // click zone stored implicitly via event handler
+    w._cx=cx;w._cy=H/2;
+  });
+}
+document.addEventListener('click',function(e){
+  var cv=document.getElementById('c-waves');if(!cv)return;
+  var r=cv.getBoundingClientRect();
+  var mx=e.clientX-r.left,my=e.clientY-r.top;
+  waveData.forEach(function(w,i){
+    if(w._cx&&Math.hypot(mx-w._cx,my-cv.height/2)<20){
+      drawWaves(i);
+      document.getElementById('wave-title').textContent=w.title;
+      document.getElementById('wave-body').textContent=w.body;
+    }
+  });
+});
+
+// ════════════════════════════════════════════
+// S3: SYSTEM 1 VS 2
+// ════════════════════════════════════════════
+var sys12Mode=1;
+var sys12Tasks2=[
+  {t:'Solve 17 × 24',ok:'symbolic'},
+  {t:'Plan a route',ok:'symbolic'},
+  {t:'Evaluate an argument',ok:'symbolic'}
+];
+function drawSys12(){
+  var cv=document.getElementById('c-sys12');if(!cv)return;
+  var ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);
+  var W=cv.width,H=cv.height;
+  // Brain halves
+  var midX=W/2;
+  // Left: System 1 (neural)
+  drawRoundedRect(ctx,20,20,midX-36,H-40,14,'#74c0fc11','#74c0fc55');
+  ctx.font='700 13px Inter,sans-serif';ctx.textAlign='center';ctx.fillStyle='#74c0fc';
+  ctx.fillText('System 1',midX/2,50);
+  ctx.font='10px Inter,sans-serif';ctx.fillStyle='#8b949e';
+  ctx.fillText('Fast · Automatic · Intuitive',midX/2,66);
+  ctx.fillText('→ Neural Networks',midX/2,80);
+  var s1items=['Face recognition','Pattern detection','Emotional reading','Language fluency','Sensory processing'];
+  s1items.forEach(function(t,i){
+    ctx.beginPath();ctx.arc(48,105+i*34,5,0,Math.PI*2);ctx.fillStyle='#74c0fc';ctx.fill();
+    ctx.font='11px Inter,sans-serif';ctx.textAlign='left';ctx.fillStyle='#c9d1d9';
+    ctx.fillText(t,62,109+i*34);
+  });
+  // Right: System 2 (symbolic)
+  drawRoundedRect(ctx,midX+16,20,midX-36,H-40,14,'#51cf6611','#51cf6655');
+  ctx.font='700 13px Inter,sans-serif';ctx.textAlign='center';ctx.fillStyle='#51cf66';
+  ctx.fillText('System 2',midX+((W-midX)/2),50);
+  ctx.font='10px Inter,sans-serif';ctx.fillStyle='#8b949e';
+  ctx.fillText('Slow · Deliberate · Logical',midX+((W-midX)/2),66);
+  ctx.fillText('→ Symbolic AI',midX+((W-midX)/2),80);
+  var s2items=['Logical deduction','Mathematical proof','Strategic planning','Rule application','Causal reasoning'];
+  var rx=midX+36;
+  s2items.forEach(function(t,i){
+    ctx.beginPath();ctx.arc(rx,105+i*34,5,0,Math.PI*2);ctx.fillStyle='#51cf66';ctx.fill();
+    ctx.font='11px Inter,sans-serif';ctx.textAlign='left';ctx.fillStyle='#c9d1d9';
+    ctx.fillText(t,rx+14,109+i*34);
+  });
+  // Bridge in center
+  ctx.font='700 10px Inter,sans-serif';ctx.textAlign='center';ctx.fillStyle='#e17055';
+  ctx.fillText('⟷',midX,H/2);
+  ctx.font='9px Inter,sans-serif';ctx.fillStyle='#e17055';
+  ctx.fillText('NeSy',midX,H/2+14);
+}
+function setS12(n){
+  sys12Mode=n;
+  document.getElementById('tab-s1').className='btn-tab'+(n===1?' active':'');
+  document.getElementById('tab-s2').className='btn-tab'+(n===2?' active':'');
+  var tasks=n===1?[
+    {t:'Recognize a face',ok:'neural',body:'Automatic, effortless pattern matching from visual memory — pure System 1.'},
+    {t:'Hear a familiar voice',ok:'neural',body:'Acoustic pattern recognition below the level of conscious thought.'},
+    {t:'Read emotional tone',ok:'neural',body:'You pick up on micro-expressions and vocal patterns before processing the words.'}
+  ]:sys12Tasks2.map(function(t){return {t:t.t,ok:t.ok,body:t.ok==='symbolic'?'Requires deliberate step-by-step reasoning — pure System 2. Symbolic AI excels here.':'Pattern matching.'};});
+  var div=document.getElementById('s12-tasks');
+  div.innerHTML=tasks.map(function(task,i){
+    var c=task.ok==='neural'?'#74c0fc':'#51cf66';
+    return '<div class="card" style="border-color:'+c+'55;cursor:pointer;" onclick="classifyTask(this,\''+task.ok+'\',\''+task.t.replace(/'/g,'')+'\',\''+task.body.replace(/'/g,'').replace(/\n/g,' ')+'\')"><div class="card-title" style="color:'+c+'">'+task.t+'</div><div class="card-body">Click to classify</div></div>';
+  }).join('');
+  document.getElementById('s12-fb').style.display='none';
+}
+function classifyTask(el,type,title,body){
+  document.getElementById('s12-fb').style.display='block';
+  document.getElementById('s12-fb-title').textContent=type==='neural'?'System 1 — Neural':'System 2 — Symbolic';
+  document.getElementById('s12-fb-title').style.color=type==='neural'?'#74c0fc':'#51cf66';
+  document.getElementById('s12-fb-body').textContent=body||'This task is handled by '+(type==='neural'?'System 1 (neural pattern recognition)':'System 2 (symbolic deliberate reasoning)')+'.';
+}
+
+// ════════════════════════════════════════════
+// S4: PERCEPTION → COGNITION
+// ════════════════════════════════════════════
+var percogStep=0;
+var percogSteps=[
+  {title:'Step 1 — Raw Input',
+   body:'The pipeline starts with raw sensory data: an X-ray image, a driving scene, a patient\'s text record. This is unstructured data that only neural networks can handle at scale.',
+   active:[0]},
+  {title:'Step 2 — Neural Perception',
+   body:'A neural network (CNN, transformer) processes the raw data and extracts features — identifying objects, patterns, anomalies. Output: structured concepts (e.g., "elevated troponin detected", "pedestrian at 3m ahead").',
+   active:[0,1]},
+  {title:'Step 3 — Symbol Grounding',
+   body:'Neural concepts are grounded as symbols — discrete, named entities that can participate in logical reasoning. "Elevated troponin" becomes a symbol with known relationships to other medical concepts.',
+   active:[0,1,2]},
+  {title:'Step 4 — Knowledge Graph Lookup',
+   body:'The symbolic layer queries a knowledge graph to find what the detected symbols imply. "Elevated troponin + chest pain" maps to known disease patterns and clinical guidelines.',
+   active:[0,1,2,3]},
+  {title:'Step 5 — Symbolic Reasoning',
+   body:'A symbolic reasoner applies rules, constraints, and logic to the grounded symbols. It reasons through possibilities, applies clinical guidelines, and checks safety constraints.',
+   active:[0,1,2,3,4]},
+  {title:'Step 6 — Explainable Decision',
+   body:'The system outputs a decision with a full reasoning trace: what was detected, which rules applied, which guidelines were consulted, and what conclusion was reached — all auditable by a human expert.',
+   active:[0,1,2,3,4,5]}
+];
+function initPercog(){percogStep=0;drawPercog();}
+function stepPercog(){if(percogStep<percogSteps.length-1)percogStep++;drawPercog();}
+function resetPercog(){percogStep=0;drawPercog();}
+function drawPercog(){
+  var cv=document.getElementById('c-percog');if(!cv)return;
+  var ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);
+  var W=cv.width,H=cv.height;
+  var s=percogSteps[percogStep];
+  var nodes=[
+    {label:'Raw\nInput',icon:'📷',color:'#74c0fc'},
+    {label:'Neural\nPerception',icon:'🧠',color:'#74c0fc'},
+    {label:'Symbol\nGrounding',icon:'⚡',color:'#e17055'},
+    {label:'Knowledge\nGraph',icon:'🕸',color:'#fdcb6e'},
+    {label:'Symbolic\nReasoning',icon:'⚖️',color:'#51cf66'},
+    {label:'Explainable\nDecision',icon:'✅',color:'#51cf66'}
+  ];
+  var nodeW=100,nodeH=70,gap=(W-nodes.length*nodeW)/(nodes.length+1);
+  nodes.forEach(function(n,i){
+    var nx=gap*(i+1)+nodeW*i;
+    var active=s.active.indexOf(i)>-1;
+    // arrow
+    if(i>0){
+      var prevX=gap*i+nodeW*(i-1)+nodeW;
+      ctx.strokeStyle=active&&s.active.indexOf(i-1)>-1?n.color:'#30363d';
+      ctx.lineWidth=active&&s.active.indexOf(i-1)>-1?2:1;
+      ctx.beginPath();ctx.moveTo(prevX+4,H/2);ctx.lineTo(nx-4,H/2);ctx.stroke();
+      // arrowhead
+      ctx.fillStyle=active&&s.active.indexOf(i-1)>-1?n.color:'#30363d';
+      ctx.beginPath();ctx.moveTo(nx-10,H/2-4);ctx.lineTo(nx-2,H/2);ctx.lineTo(nx-10,H/2+4);ctx.fill();
+    }
+    drawRoundedRect(ctx,nx,H/2-nodeH/2,nodeW,nodeH,8,
+      active?n.color+'22':'#161b22',active?n.color:'#30363d');
+    ctx.font='18px serif';ctx.textAlign='center';
+    ctx.fillText(n.icon,nx+nodeW/2,H/2-5);
+    ctx.font=active?'700 9px Inter,sans-serif':'9px Inter,sans-serif';
+    ctx.fillStyle=active?n.color:'#555';
+    n.label.split('\n').forEach(function(line,li){
+      ctx.fillText(line,nx+nodeW/2,H/2+nodeH/2-18+li*13);
+    });
+  });
+  var info=percogSteps[percogStep];
+  document.getElementById('percog-title').textContent=info.title;
+  document.getElementById('percog-body').textContent=info.body;
+}
+
+// ════════════════════════════════════════════
+// S5: KAUTZ TAXONOMY
+// ════════════════════════════════════════════
+var taxData=[
+  {num:'TYPE 1 · LOOSEST INTEGRATION',name:'Symbolic Neural',
+   desc:'Neural models where words or tokens are the inputs and outputs — the "symbols" are just discrete tokens, not formal logic. The symbolic layer is minimal: just vocabulary and tokenization. The neural network does all the heavy lifting.\n\nThis is the loosest form of neurosymbolic AI — symbolic in name only.',
+   ex:'BERT · GPT-3 · RoBERTa · T5 · Most modern LLMs',
+   arch:[{label:'Tokens (symbols)',color:'#a29bfe'},{label:'Neural Network',color:'#74c0fc'},{label:'Token Output',color:'#a29bfe'}]},
+  {num:'TYPE 2 · SYMBOLIC ORCHESTRATES NEURAL',name:'Symbolic[Neural]',
+   desc:'The outer structure is symbolic — a search algorithm, a planning system, a game tree — and it calls a neural network as a subroutine for evaluation or scoring.\n\nAlphaGo is the canonical example: Monte Carlo Tree Search (symbolic) invokes a neural network to evaluate board positions and estimate move probabilities.',
+   ex:'AlphaGo · AlphaZero · Planning systems with learned heuristics',
+   arch:[{label:'MCTS / Planner',color:'#51cf66'},{label:'↓ calls ↓',color:'#555'},{label:'Neural Evaluator',color:'#74c0fc'}]},
+  {num:'TYPE 3 · PARALLEL PIPELINE',name:'Neural | Symbolic',
+   desc:'Neural and symbolic modules run in parallel or in sequence without being deeply integrated. The neural component handles perception and grounding; the symbolic component handles reasoning. Data flows one-way between them.\n\nThe Neural-Concept Learner is a representative example: a neural net perceives a visual scene, and a symbolic reasoner answers questions about it using the perceived concepts.',
+   ex:'Neural-Concept Learner · NSCL · Scene graph systems',
+   arch:[{label:'Neural: Perceive',color:'#74c0fc'},{label:'→ symbols →',color:'#555'},{label:'Symbolic: Reason',color:'#51cf66'}]},
+  {num:'TYPE 4 · SYMBOLIC GENERATES TRAINING DATA',name:'Neural:Symbolic→Neural',
+   desc:'Symbolic systems generate synthetic labelled training data that a neural network then learns from. The symbolic "teacher" creates examples that encode domain knowledge; the neural "student" learns to generalise.\n\nExample: a symbolic mathematics engine generates (expression, answer) pairs that train a neural arithmetic learner.',
+   ex:'Symbolic math generators · Knowledge-grounded data synthesis · AlphaCode training',
+   arch:[{label:'Symbolic Generator',color:'#51cf66'},{label:'→ data →',color:'#555'},{label:'Neural Learner',color:'#74c0fc'}]},
+  {num:'TYPE 5 · TIGHTLY COUPLED',name:'NeuralSymbolic',
+   desc:'Neural networks are directly generated from or tightly coupled to symbolic structures. The boundary between neural and symbolic dissolves — reasoning happens through differentiable approximations of logical inference.\n\nDeepProbLog: neural predicates embedded in probabilistic logic programming. Logic Tensor Networks: logical formulas encoded as tensor operations with end-to-end gradient flow.',
+   ex:'DeepProbLog · Logic Tensor Networks · Neural Theorem Provers · Differentiable ILP',
+   arch:[{label:'Neural+Logic fused',color:'#e17055'},{label:'Differentiable inference',color:'#e17055'},{label:'End-to-end gradient',color:'#e17055'}]},
+  {num:'TYPE 6 · SYMBOLIC EMBEDDED IN NEURAL',name:'Neural[Symbolic]',
+   desc:'Symbolic reasoning is embedded inside neural networks — logic gates, modal operators, or structured representations are implemented as neural computations. The network itself performs symbolic inference, not as a separate module but as an internal operation.\n\nThis is the tightest form: fully differentiable yet formally logical. Early connectionist modal and temporal logics (Garcez, Lamb, Gabbay) demonstrated this approach.',
+   ex:'Connectionist modal logics · Symbolic recurrent nets · Logic embeddings in GNNs',
+   arch:[{label:'Neural Network',color:'#74c0fc'},{label:'⊃ [Symbolic logic]',color:'#51cf66'},{label:'Unified learning',color:'#e17055'}]}
+];
+function clickTax(i){
+  for(var j=0;j<6;j++)document.getElementById('tax-'+j).className='tax-card';
+  document.getElementById('tax-'+i).className='tax-card active';
+  var d=taxData[i];
+  document.getElementById('tax-d-tag').textContent=d.num;
+  document.getElementById('tax-d-name').textContent=d.name;
+  document.getElementById('tax-d-desc').innerHTML=d.desc.replace(/\n\n/g,'<br><br>');
+  document.getElementById('tax-d-ex').textContent=d.ex;
+  document.getElementById('tax-detail').className='tax-detail show';
+  initTaxCanvas(i);
+}
+function initTaxCanvas(i){
+  var cv=document.getElementById('c-tax');if(!cv)return;
+  var ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);
+  var d=taxData[i];
+  var W=cv.width,H=cv.height;
+  drawRoundedRect(ctx,0,0,W,H,8,'#0d1117','#30363d');
+  d.arch.forEach(function(a,j){
+    var y=30+j*52;
+    var isArrow=a.label.startsWith('→')||a.label.startsWith('↓')||a.label.startsWith('⊃')||a.label.startsWith('Diff')||a.label.startsWith('End');
+    if(!isArrow){
+      drawRoundedRect(ctx,16,y,W-32,38,6,a.color+'22',a.color);
+    }
+    ctx.font=isArrow?'10px Inter,sans-serif':'700 10px Inter,sans-serif';
+    ctx.textAlign='center';ctx.fillStyle=a.color;
+    ctx.fillText(a.label,W/2,y+(isArrow?8:24));
+  });
+}
+
+// ════════════════════════════════════════════
+// S6: SPECTRUM
+// ════════════════════════════════════════════
+var specPos=0.5;
+var specDragging=false;
+function initSpectrum(){
+  var cv=document.getElementById('c-spectrum');if(!cv)return;
+  drawSpectrum();
+  cv.addEventListener('mousedown',function(e){
+    var r=cv.getBoundingClientRect();
+    var y=e.clientY-r.top;
+    if(y>40&&y<80){specDragging=true;}
+  });
+  cv.addEventListener('mousemove',function(e){
+    if(!specDragging)return;
+    var r=cv.getBoundingClientRect();
+    var x=e.clientX-r.left;
+    specPos=Math.max(0,Math.min(1,(x-60)/(cv.width-120)));
+    drawSpectrum();updateSpecInfo();
+  });
+  window.addEventListener('mouseup',function(){specDragging=false;});
+}
+function updateSpecInfo(){
+  var titles=['Fully Symbolic','Mostly Symbolic','Balanced Hybrid','Mostly Neural','Fully Neural'];
+  var bodies=[
+    'Pure expert systems and logic programs. Perfect interpretability, zero learning from data. Fails on perception and unstructured input. Example: Prolog, MYCIN.',
+    'Symbolic framework with neural components for perception only. High interpretability, good reasoning. Limited scalability. Example: Symbolic[Neural] (Type 2).',
+    'This is the neurosymbolic sweet spot — combining neural perception with symbolic reasoning. High accuracy AND interpretability. Example: DeepProbLog, NTP.',
+    'Neural-dominant with symbolic constraints or post-hoc explanations. High accuracy on perception tasks, limited formal reasoning guarantees. Example: LLMs with tool use.',
+    'Pure deep learning. Maximum accuracy on perception benchmarks, zero formal reasoning guarantees, opaque decisions. Example: GPT-4, PaLM.'
+  ];
+  var idx=Math.floor(specPos*4.99);idx=Math.min(4,idx);
+  document.getElementById('spec-info-title').textContent=titles[idx];
+  document.getElementById('spec-info-body').textContent=bodies[idx];
+}
+function drawSpectrum(){
+  var cv=document.getElementById('c-spectrum');if(!cv)return;
+  var ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);
+  var W=cv.width,H=cv.height;
+  var sliderX=60+(W-120)*specPos;
+  // Gradient bar
+  var grad=ctx.createLinearGradient(60,0,W-60,0);
+  grad.addColorStop(0,'#51cf66');grad.addColorStop(0.5,'#e17055');grad.addColorStop(1,'#74c0fc');
+  drawRoundedRect(ctx,60,52,W-120,20,10,null,'transparent');
+  ctx.fillStyle=grad;ctx.beginPath();ctx.roundRect(60,52,W-120,20,10);ctx.fill();
+  // Slider handle
+  ctx.beginPath();ctx.arc(sliderX,62,12,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();
+  ctx.strokeStyle='#e17055';ctx.lineWidth=2;ctx.stroke();
+  // Axis labels
+  var axes=['Interpretability','Reasoning Power','Data Efficiency','Raw Accuracy'];
+  var axColors=['#51cf66','#51cf66','#fdcb6e','#74c0fc'];
+  // For each axis, draw a horizontal bar showing value
+  axes.forEach(function(ax,i){
+    var y=110+i*60;
+    // symbolic value decreases left to right for some, increases for others
+    var symVal,neurVal;
+    if(ax==='Interpretability'){symVal=1;neurVal=0.1;}
+    else if(ax==='Reasoning Power'){symVal=0.9;neurVal=0.25;}
+    else if(ax==='Data Efficiency'){symVal=0.85;neurVal=0.3;}
+    else{symVal=0.3;neurVal=0.95;}
+    var val=lerp(symVal,neurVal,specPos);
+    ctx.font='700 10px Inter,sans-serif';ctx.textAlign='left';ctx.fillStyle=axColors[i];
+    ctx.fillText(ax,60,y-2);
+    // bar bg
+    drawRoundedRect(ctx,60,y+2,W-120,12,6,'#21262d','transparent');
+    // bar fill
+    var fillW=(W-120)*val;
+    if(fillW>4){
+      var fg=ctx.createLinearGradient(60,0,60+fillW,0);
+      fg.addColorStop(0,axColors[i]);fg.addColorStop(1,axColors[i]+'88');
+      drawRoundedRect(ctx,60,y+2,fillW,12,6,null,'transparent');
+      ctx.fillStyle=fg;ctx.beginPath();ctx.roundRect(60,y+2,fillW,12,6);ctx.fill();
+    }
+    ctx.font='700 10px Inter,sans-serif';ctx.textAlign='right';ctx.fillStyle='#c9d1d9';
+    ctx.fillText(Math.round(val*100)+'%',W-60,y+12);
+  });
+  // Labels
+  ctx.font='10px Inter,sans-serif';ctx.textAlign='left';ctx.fillStyle='#51cf66';
+  ctx.fillText('Symbolic',60,44);
+  ctx.textAlign='right';ctx.fillStyle='#74c0fc';
+  ctx.fillText('Neural',W-60,44);
+  ctx.textAlign='center';ctx.fillStyle='#e17055';
+  ctx.fillText('▲ Drag',sliderX,44);
+}
+
+// ════════════════════════════════════════════
+// S7: LOWERING & LIFTING
+// ════════════════════════════════════════════
+var llMode='lower';
+var llAnim=0;
+var llAnimId=null;
+function initLowLift(mode){
+  llMode=mode;
+  if(llAnimId)cancelAnimationFrame(llAnimId);
+  llAnim=0;
+  animLowLift();
+}
+function setLowLift(mode){
+  llMode=mode;
+  document.getElementById('tab-lower').className='btn-tab'+(mode==='lower'?' active':'');
+  document.getElementById('tab-lift').className='btn-tab'+(mode==='lift'?' active':'');
+  var titles={lower:'Lowering — Embedding Symbolic Knowledge into Neural Space',lift:'Lifting — Extracting Symbolic Structure from Neural Representations'};
+  var bodies={
+    lower:'Lowering takes structured symbolic knowledge (knowledge graphs, logical rules, ontologies) and compresses it into continuous neural representations — embedding vectors that a neural network can work with.\n\nKey technique: Knowledge Graph Embeddings — methods like TransE, RotatE, and DistMult embed KG entities and relations into a high-dimensional vector space using graph neural networks. The geometry of this space preserves relational structure, so reasoning can happen via vector arithmetic.\n\nLimitation: Compression is lossy — some symbolic semantics are difficult to preserve in continuous space.',
+    lift:'Lifting goes the other way: extracting discrete, human-readable symbolic structures from trained neural networks. This is harder — neural representations are entangled across millions of parameters.\n\nKey techniques: rule extraction from trained networks (decision trees approximating a neural network\'s behaviour), concept learning (Inductive Logic Programming learning rules from examples), and probing classifiers (linear probes that identify whether a specific symbolic concept is linearly decodable from a layer\'s activations).\n\nLifting is essential for interpretability: it lets you understand what a neural network has implicitly learned.'
+  };
+  document.getElementById('ll-title').textContent=titles[mode];
+  document.getElementById('ll-body').textContent=bodies[mode];
+  initLowLift(mode);
+}
+function animLowLift(){
+  drawLowLift();
+  llAnim=(llAnim+0.008)%1;
+  llAnimId=requestAnimationFrame(animLowLift);
+}
+function drawLowLift(){
+  var cv=document.getElementById('c-lowlift');if(!cv)return;
+  var ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);
+  var W=cv.width,H=cv.height;
+  var t=llAnim;
+  if(llMode==='lower'){
+    // Left: KG nodes
+    var kgnodes=[{x:120,y:80,label:'Disease',color:'#fdcb6e'},{x:60,y:160,label:'Symptom',color:'#51cf66'},{x:180,y:160,label:'Drug',color:'#74c0fc'},{x:120,y:240,label:'Patient',color:'#a29bfe'}];
+    kgnodes.forEach(function(n){
+      ctx.beginPath();ctx.arc(n.x,n.y,22,0,Math.PI*2);ctx.fillStyle=n.color+'33';ctx.fill();
+      ctx.strokeStyle=n.color;ctx.lineWidth=2;ctx.stroke();
+      ctx.font='700 9px Inter,sans-serif';ctx.textAlign='center';ctx.fillStyle=n.color;
+      ctx.fillText(n.label,n.x,n.y+4);
+    });
+    ctx.strokeStyle='#30363d';ctx.lineWidth=1;
+    [[0,1],[0,2],[1,3],[2,3]].forEach(function(e){
+      ctx.beginPath();ctx.moveTo(kgnodes[e[0]].x,kgnodes[e[0]].y);ctx.lineTo(kgnodes[e[1]].x,kgnodes[e[1]].y);ctx.stroke();
+    });
+    ctx.font='700 11px Inter,sans-serif';ctx.textAlign='center';ctx.fillStyle='#fdcb6e';
+    ctx.fillText('Knowledge Graph',120,275);
+    // Arrow in center
+    var arrowX=280+Math.sin(t*Math.PI*2)*4;
+    ctx.font='12px Inter,sans-serif';ctx.fillStyle='#51cf66';
+    ctx.textAlign='center';ctx.fillText('Lowering',arrowX,H/2-8);
+    ctx.fillText('⟶',arrowX,H/2+8);
+    ctx.font='9px Inter,sans-serif';ctx.fillStyle='#8b949e';
+    ctx.fillText('KG Embedding',arrowX,H/2+26);
+    // Right: embedding space
+    var eCx=560,eCy=H/2;
+    ctx.beginPath();ctx.arc(eCx,eCy,110,0,Math.PI*2);ctx.strokeStyle='#30363d';ctx.lineWidth=1;ctx.stroke();
+    ctx.font='700 11px Inter,sans-serif';ctx.textAlign='center';ctx.fillStyle='#74c0fc';
+    ctx.fillText('Embedding Space',eCx,H/2+130);
+    var embedPts=[{x:-60,y:-40,c:'#fdcb6e'},{x:20,y:-70,c:'#51cf66'},{x:70,y:30,c:'#74c0fc'},{x:-20,y:60,c:'#a29bfe'}];
+    embedPts.forEach(function(p,i){
+      var px=eCx+p.x+Math.sin(t*Math.PI*2+i)*4;
+      var py=eCy+p.y+Math.cos(t*Math.PI*2+i)*3;
+      ctx.beginPath();ctx.arc(px,py,10,0,Math.PI*2);ctx.fillStyle=p.c+'55';ctx.fill();
+      ctx.strokeStyle=p.c;ctx.lineWidth=2;ctx.stroke();
+    });
+    // Relation vector
+    ctx.strokeStyle='#e17055';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(eCx-60,eCy-40);ctx.lineTo(eCx+20,eCy-70);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font='8px Inter,sans-serif';ctx.fillStyle='#e17055';ctx.textAlign='center';
+    ctx.fillText('relation vector',eCx-20,eCy-66);
+  } else {
+    // Lifting: neural → symbolic
+    // Left: neural network
+    var layers=[[{y:80},{y:140},{y:200},{y:260}],[{y:100},{y:160},{y:220}],[{y:120},{y:180}],[{y:150}]];
+    var lxs=[80,200,320,420];
+    layers.forEach(function(layer,li){
+      layer.forEach(function(n,ni){
+        var active=Math.floor(t*layer.length)===ni;
+        ctx.beginPath();ctx.arc(lxs[li],n.y,active?12:8,0,Math.PI*2);
+        ctx.fillStyle=active?'#74c0fc33':'#161b22';ctx.fill();
+        ctx.strokeStyle=active?'#74c0fc':'#30363d';ctx.lineWidth=active?2:1;ctx.stroke();
+        if(li<layers.length-1){
+          layers[li+1].forEach(function(n2){
+            ctx.strokeStyle='#21262d';ctx.lineWidth=0.5;
+            ctx.beginPath();ctx.moveTo(lxs[li],n.y);ctx.lineTo(lxs[li+1],n2.y);ctx.stroke();
+          });
+        }
+      });
+    });
+    ctx.font='700 11px Inter,sans-serif';ctx.textAlign='center';ctx.fillStyle='#74c0fc';
+    ctx.fillText('Neural Network',250,290);
+    // Arrow
+    var ax2=490+Math.sin(t*Math.PI*2)*4;
+    ctx.font='12px Inter,sans-serif';ctx.fillStyle='#fdcb6e';ctx.textAlign='center';
+    ctx.fillText('Lifting',ax2,H/2-8);ctx.fillText('⟶',ax2,H/2+8);
+    ctx.font='9px Inter,sans-serif';ctx.fillStyle='#8b949e';
+    ctx.fillText('Rule extraction',ax2,H/2+26);
+    // Right: extracted rules
+    var rules=['IF fever > 38.5 AND','cough = true','THEN flu = 0.82','──────────────','IF age < 5 AND','drug = amox','THEN dose = peds'];
+    var rxBase=550;
+    drawRoundedRect(ctx,rxBase,30,220,240,8,'#0d1117','#51cf66');
+    ctx.font='11px Courier New,monospace';ctx.fillStyle='#51cf66';ctx.textAlign='left';
+    rules.forEach(function(r,i){
+      var highlight=Math.floor(t*rules.length)===i;
+      if(highlight){ctx.fillStyle='#51cf66';ctx.font='700 11px Courier New,monospace';}
+      else{ctx.fillStyle='#51cf6677';ctx.font='11px Courier New,monospace';}
+      ctx.fillText(r,rxBase+14,60+i*30);
+    });
+    ctx.font='700 11px Inter,sans-serif';ctx.textAlign='center';ctx.fillStyle='#51cf66';
+    ctx.fillText('Extracted Rules',rxBase+110,288);
+  }
+}
+
+// ════════════════════════════════════════════
+// S8: KNOWLEDGE GRAPH
+// ════════════════════════════════════════════
+var kgNodes=[
+  {id:0,x:410,y:180,label:'NSTEMI',color:'#ff6b6b',info:'Non-ST Elevation Myocardial Infarction — detected by neural model from ECG + troponin levels. Central disease node with 4 connected treatment concepts.'},
+  {id:1,x:200,y:80,label:'Chest Pain',color:'#fdcb6e',info:'Symptom detected by neural NLP from clinical notes. Relation: NSTEMI ←has_symptom— Chest Pain (confidence 0.91).'},
+  {id:2,x:620,y:80,label:'Troponin ↑',color:'#fdcb6e',info:'Biomarker detected by neural model from lab values. Relation: NSTEMI ←has_biomarker— Elevated Troponin (diagnostic weight 0.94).'},
+  {id:3,x:160,y:290,label:'Aspirin',color:'#74c0fc',info:'Treatment node. Relation: NSTEMI —treated_by→ Aspirin (ACC/AHA 2022 Class I recommendation, dosage: 325mg loading).'},
+  {id:4,x:410,y:340,label:'Clopidogrel',color:'#74c0fc',info:'Dual antiplatelet agent. Relation: NSTEMI —treated_by→ Clopidogrel (co-administered with aspirin per guideline §4.2).'},
+  {id:5,x:660,y:290,label:'Guideline\nACC/AHA',color:'#51cf66',info:'Clinical guideline node. Relation: Treatment —follows_guideline→ ACC/AHA 2022. Symbolic constraint: validates all treatment decisions.'},
+  {id:6,x:410,y:80,label:'Age: 58',color:'#a29bfe',info:'Patient attribute. Relation: Patient —has_attribute→ Age 58. Used by symbolic reasoner to select adult-dose protocol (not paediatric).'}
+];
+var kgEdges=[[0,1],[0,2],[0,3],[0,4],[0,5],[0,6],[3,5],[4,5]];
+var kgSelected=-1;
+function initKG(){
+  var cv=document.getElementById('c-kg');if(!cv)return;
+  drawKG();
+  cv.addEventListener('click',function(e){
+    var r=cv.getBoundingClientRect();
+    var mx=e.clientX-r.left,my=e.clientY-r.top;
+    var hit=-1;
+    kgNodes.forEach(function(n,i){
+      if(Math.hypot(mx-n.x,my-n.y)<26)hit=i;
+    });
+    kgSelected=hit;
+    drawKG();
+    if(hit>-1){
+      document.getElementById('kg-info').textContent=kgNodes[hit].label.replace('\n',' ')+': '+kgNodes[hit].info;
+    } else {
+      document.getElementById('kg-info').textContent='Click a node in the graph to see its connections and role in neurosymbolic reasoning.';
+    }
+  });
+}
+function drawKG(){
+  var cv=document.getElementById('c-kg');if(!cv)return;
+  var ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);
+  // edges
+  kgEdges.forEach(function(e){
+    var a=kgNodes[e[0]],b=kgNodes[e[1]];
+    var active=kgSelected===e[0]||kgSelected===e[1];
+    ctx.strokeStyle=active?a.color:'#30363d';ctx.lineWidth=active?2:1;
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+  });
+  // nodes
+  kgNodes.forEach(function(n,i){
+    var sel=kgSelected===i;
+    ctx.beginPath();ctx.arc(n.x,n.y,sel?28:22,0,Math.PI*2);
+    ctx.fillStyle=n.color+(sel?'44':'22');ctx.fill();
+    ctx.strokeStyle=n.color;ctx.lineWidth=sel?3:1.5;ctx.stroke();
+    var lines=n.label.split('\n');
+    ctx.font=(sel?'700 ':'')+'9px Inter,sans-serif';ctx.textAlign='center';ctx.fillStyle=n.color;
+    lines.forEach(function(l,li){ctx.fillText(l,n.x,n.y+3+(li-(lines.length-1)/2)*12);});
+  });
+}
+
+// ════════════════════════════════════════════
+// S9: REAL SYSTEMS
+// ════════════════════════════════════════════
+var sysIdx=0;
+var systemsData=[
+  {label:'DeepProbLog',color:'#74c0fc',kautz:'Type 5 — NeuralSymbolic',
+   desc:'DeepProbLog extends ProbLog (probabilistic logic programming) with neural predicates — facts whose truth value is output by a neural network. Gradients flow from logical inference back through the neural network for end-to-end training.',
+   code:'digit(X,7) :- nn_pred(img(X),7,P), P>0.5.\naddition(X,Y,Z) :- digit(X,A), digit(Y,B), Z is A+B.',
+   steps:['Neural reads image','Outputs probabilities per digit','ProbLog uses probability in logic','Gradients flow back to neural net','System learns from logical supervision']},
+  {label:'AlphaGo',color:'#51cf66',kautz:'Type 2 — Symbolic[Neural]',
+   desc:'AlphaGo uses Monte Carlo Tree Search (a symbolic planning algorithm) as the outer structure, invoking two neural networks — a policy network (which moves to consider) and a value network (how good is this position) — as subroutines for evaluation.',
+   code:'MCTS search tree (symbolic)\n  ↓ at each node:\n  Policy net → P(move | board)\n  Value net  → V(position)\n  ↓ backup symbolic values\nBest move selected',
+   steps:['MCTS expands symbolic tree','Policy net scores candidate moves','Value net evaluates positions','MCTS aggregates scores','Best move backed up the tree']},
+  {label:'Neural Theorem Prover',color:'#a29bfe',kautz:'Type 5 — NeuralSymbolic',
+   desc:'Neural Theorem Provers (NTPs) construct a neural network directly from a symbolic AND-OR proof tree generated from a knowledge base. Each AND/OR node becomes a neural operator, making the proof search differentiable and learnable.',
+   code:'KB rule: grandparent(X,Z) ← parent(X,Y), parent(Y,Z)\nNTP builds AND-OR tree:\n  AND: [parent(X,Y)_net, parent(Y,Z)_net]\n  Score = min(score_A, score_B)\n  ∇ flows through tree to embeddings',
+   steps:['KB rules define AND-OR tree','Each rule becomes a neural path','Scores propagate differentiably','Embeddings updated by gradient','New rules can be induced']}
+];
+function setSystem(i){
+  sysIdx=i;
+  for(var j=0;j<3;j++)document.getElementById('sys-btn-'+j).className='btn-tab';
+  document.getElementById('sys-btn-'+i).className='btn-tab active';
+  var d=systemsData[i];
+  document.getElementById('sys-title').textContent=d.label;
+  document.getElementById('sys-title').style.color=d.color;
+  document.getElementById('sys-body').innerHTML='<span style="font-size:10px;color:'+d.color+';font-weight:700;background:'+d.color+'22;padding:2px 8px;border-radius:10px;margin-right:8px;">'+d.kautz+'</span><br><br>'+d.desc+'<br><br><div class="formula">'+d.code+'</div>';
+  drawSystems(i);
+}
+function drawSystems(i){
+  var cv=document.getElementById('c-systems');if(!cv)return;
+  var ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);
+  var W=cv.width,H=cv.height;
+  var d=systemsData[i];
+  var steps=d.steps;
+  steps.forEach(function(s,j){
+    var x=60+j*(W-120)/(steps.length-1);
+    var active=j===Math.floor(Date.now()/1000%steps.length);
+    ctx.beginPath();ctx.arc(x,H/2,active?20:14,0,Math.PI*2);
+    ctx.fillStyle=d.color+(active?'44':'22');ctx.fill();
+    ctx.strokeStyle=d.color;ctx.lineWidth=active?2:1;ctx.stroke();
+    ctx.font=(active?'700 ':'')+'9px Inter,sans-serif';ctx.fillStyle=d.color;ctx.textAlign='center';
+    ctx.fillText((j+1)+'',x,H/2+4);
+    var words=s.split(' ');var lines=[];var cur='';
+    words.forEach(function(w){if((cur+' '+w).trim().length>14){lines.push(cur.trim());cur=w;}else{cur=(cur+' '+w).trim();}});
+    lines.push(cur);
+    lines.forEach(function(l,li){
+      ctx.font='9px Inter,sans-serif';ctx.fillStyle=active?d.color:'#8b949e';
+      ctx.fillText(l,x,H/2+(active?30:22)+li*12);
+    });
+    if(j>0){
+      ctx.strokeStyle=d.color+'55';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(x-((W-120)/(steps.length-1))+18,H/2);ctx.lineTo(x-18,H/2);ctx.stroke();
+    }
+  });
+  ctx.font='700 11px Inter,sans-serif';ctx.textAlign='center';ctx.fillStyle=d.color;
+  ctx.fillText(d.label+' — Architecture Flow',W/2,24);
+  // Refresh periodically for animation
+  setTimeout(function(){if(sysIdx===i)drawSystems(i);},1000);
+}
+
+// ════════════════════════════════════════════
+// S10: APPLICATIONS
+// ════════════════════════════════════════════
+var appIdx=0;
+var appsData=[
+  {label:'Healthcare',color:'#e17055',
+   title:'Healthcare: Explainable Clinical Decision Support',
+   body:'Neural networks can detect patterns in medical images (tumours, arrhythmias) with superhuman accuracy, but cannot explain their reasoning or guarantee they respect clinical guidelines.\n\nA neurosymbolic system adds a medical knowledge graph: the neural component identifies potential findings from raw data, the symbolic layer checks them against guidelines (WHO protocols, drug interaction rules, dosage constraints), and produces a recommendation with a full reasoning trace that clinicians can audit.\n\nThis satisfies regulatory requirements for explainability in medical devices (EU MDR Article 22).',
+   steps:['Read ECG image','Detect arrhythmia (neural)','Match to ICD-10 code','Check drug interactions (KG)','Apply dosage constraints','Output with guideline reference']},
+  {label:'Autonomous Driving',color:'#74c0fc',
+   title:'Autonomous Driving: Scene Understanding + Safety Constraints',
+   body:'Autonomous vehicles must perceive complex scenes (pedestrians, vehicles, road signs) AND follow traffic laws AND explain decisions that led to any incident.\n\nA neurosymbolic AV system uses neural networks for scene perception (object detection, depth estimation, semantic segmentation) and a symbolic reasoner that encodes traffic laws as logical rules. The symbolic layer can guarantee: "never exceed speed limit", "always yield to pedestrians", "stop at red light" — formal, verifiable safety constraints that a pure neural network cannot guarantee.\n\nKnowledge graphs of driving scenes connect detected objects to their roles and rules.',
+   steps:['Perceive scene (neural)','Detect objects + depth','Ground to scene graph','Apply traffic rules (symbolic)','Plan safe trajectory','Explain every decision']},
+  {label:'Criminal Justice',color:'#a29bfe',
+   title:'Criminal Justice: Fairness-Aware Decision Support',
+   body:'AI systems used in bail, sentencing, or parole decisions must be explainable and auditable. Pure neural systems (like COMPAS) have been shown to encode racial biases with no explanation of why.\n\nA neurosymbolic approach encodes legal constraints and fairness rules symbolically: "Decision must not depend on race or protected attributes", "Reasoning must be explainable to the defendant". The neural component assesses risk from case features; the symbolic layer enforces constraints and generates a human-readable reasoning trace.\n\nThis makes the system\'s decisions challengeable in court — a legal requirement in many jurisdictions.',
+   steps:['Intake case features','Risk assessment (neural)','Apply legal constraints','Fairness check (symbolic)','Generate explanation','Flag for human review']}
+];
+function setApp(i){
+  appIdx=i;
+  for(var j=0;j<3;j++)document.getElementById('app-btn-'+j).className='btn-tab';
+  document.getElementById('app-btn-'+i).className='btn-tab active';
+  var d=appsData[i];
+  document.getElementById('app-title').textContent=d.title;
+  document.getElementById('app-title').style.color=d.color;
+  document.getElementById('app-body').textContent=d.body;
+  drawApps(i);
+}
+function drawApps(i){
+  var cv=document.getElementById('c-apps');if(!cv)return;
+  var ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);
+  var W=cv.width,H=cv.height;
+  var d=appsData[i];
+  var steps=d.steps;
+  var half=Math.ceil(steps.length/2);
+  // Neural steps (first half, blue)
+  // Symbolic steps (second half, color)
+  steps.forEach(function(s,j){
+    var isNeural=j<2;
+    var isBridge=j===2;
+    var isSymbolic=j>=3;
+    var c=isNeural?'#74c0fc':isBridge?'#e17055':d.color;
+    var x=60+j*(W-120)/(steps.length-1);
+    drawRoundedRect(ctx,x-36,H/2-30,72,60,8,c+'22',c);
+    ctx.font='9px Inter,sans-serif';ctx.textAlign='center';ctx.fillStyle=c;
+    var words=s.split(' ');var lines2=[];var cur2='';
+    words.forEach(function(w){if((cur2+' '+w).trim().length>10){lines2.push(cur2.trim());cur2=w;}else{cur2=(cur2+' '+w).trim();}});
+    lines2.push(cur2);
+    lines2.forEach(function(l,li){ctx.fillText(l,x,H/2-6+li*13);});
+    if(j>0){
+      ctx.strokeStyle=c+'55';ctx.lineWidth=1;
+      var px=60+(j-1)*(W-120)/(steps.length-1)+36;
+      ctx.beginPath();ctx.moveTo(px,H/2);ctx.lineTo(x-36,H/2);ctx.stroke();
+    }
+  });
+  // Legend
+  ctx.font='9px Inter,sans-serif';ctx.fillStyle='#74c0fc';ctx.textAlign='left';
+  ctx.fillText('■ Neural',60,H-16);
+  ctx.fillStyle='#e17055';ctx.fillText('■ Grounding',130,H-16);
+  ctx.fillStyle=d.color;ctx.fillText('■ Symbolic',200,H-16);
+}
+
+// ════════════════════════════════════════════
+// S11: XAI
+// ════════════════════════════════════════════
+function drawXAI(){
+  var cv=document.getElementById('c-xai');if(!cv)return;
+  var ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);
+  var W=cv.width,H=cv.height;
+  var dims=['Accuracy','Explainability','Safety guarantee','Regulatory compliance','Trust'];
+  var neural=[0.92,0.08,0.05,0.1,0.2];
+  var nesy=[0.89,0.95,0.9,0.92,0.91];
+  var barH=28,gap=12,startY=20;
+  dims.forEach(function(d,i){
+    var y=startY+i*(barH+gap);
+    ctx.font='10px Inter,sans-serif';ctx.textAlign='left';ctx.fillStyle='#8b949e';
+    ctx.fillText(d,0,y+18);
+    var bx=160;
+    // Neural bar
+    var nw=(W-bx-20)*neural[i];
+    drawRoundedRect(ctx,bx,y,nw,barH/2-2,3,'#ff6b6b44',null);
+    ctx.font='8px Inter,sans-serif';ctx.fillStyle='#ff6b6b';ctx.textAlign='left';
+    ctx.fillText('LLM: '+Math.round(neural[i]*100)+'%',bx+nw+4,y+10);
+    // NeSy bar
+    var sw=(W-bx-20)*nesy[i];
+    drawRoundedRect(ctx,bx,y+barH/2,sw,barH/2-2,3,'#51cf6644',null);
+    ctx.fillStyle='#51cf66';
+    ctx.fillText('NeSy: '+Math.round(nesy[i]*100)+'%',bx+sw+4,y+barH-4);
+  });
+  // Legend
+  ctx.font='10px Inter,sans-serif';ctx.fillStyle='#ff6b6b';ctx.textAlign='left';
+  ctx.fillText('■ Pure LLM',W-200,H-6);
+  ctx.fillStyle='#51cf66';ctx.fillText('■ Neurosymbolic',W-130,H-6);
+}
+
+// ════════════════════════════════════════════
+// S12: QUIZ
+// ════════════════════════════════════════════
+var quizQs=[
+  {q:'A medical imaging system needs to detect tumours in X-rays AND explain its reasoning to clinicians. Which approach is best?',
+   opts:['Pure deep learning CNN','Neurosymbolic: CNN perception + symbolic clinical guidelines','Pure symbolic expert system','Large language model with chain-of-thought'],
+   correct:1,
+   explain:'Correct! The CNN handles raw image perception (neural), while a symbolic layer with clinical knowledge graphs provides explainable recommendations. This is the classic NeSy architecture for healthcare.'},
+  {q:'An AI chess engine needs to consider millions of board positions and select the best move. What Kautz architecture type does AlphaGo/AlphaZero use?',
+   opts:['Type 1: Symbolic Neural','Type 3: Neural | Symbolic','Type 2: Symbolic[Neural]','Type 6: Neural[Symbolic]'],
+   correct:2,
+   explain:'Correct! AlphaGo uses Type 2 (Symbolic[Neural]) — Monte Carlo Tree Search (symbolic planning) is the outer structure, which calls neural networks as subroutines to evaluate board positions and estimate move probabilities.'},
+  {q:'You need to extract human-readable rules from a trained neural network to make it auditable. Which technique is this?',
+   opts:['Lowering (KG Embedding)','Symbol grounding','Lifting (Rule Extraction)','System 1 acceleration'],
+   correct:2,
+   explain:'Correct! Lifting extracts symbolic structures from neural representations. Going neural → symbolic. Lowering is the reverse: embedding symbolic knowledge into neural space.'},
+  {q:'DeepProbLog allows gradients to flow from logical inference back through neural network parameters. Which Kautz type is this?',
+   opts:['Type 2: Symbolic[Neural]','Type 4: Neural:Symbolic→Neural','Type 5: NeuralSymbolic','Type 1: Symbolic Neural'],
+   correct:2,
+   explain:'Correct! DeepProbLog is Type 5 (NeuralSymbolic) — neural networks are generated from or tightly coupled to symbolic structures (ProbLog), with end-to-end gradient flow through the logical inference.'},
+  {q:'An autonomous vehicle AI must guarantee it never runs a red light, regardless of sensor noise. What does the symbolic layer provide that neural networks cannot?',
+   opts:['Higher perception accuracy','Formal safety guarantees through logical constraints','Faster inference speed','Better generalisation to new roads'],
+   correct:1,
+   explain:'Correct! Symbolic AI provides formal guarantees — the rule "STOP at red light" is a hard logical constraint, not a statistical tendency. Neural networks can only provide probabilistic behaviour, not provable guarantees.'}
+];
+var qzIdx=0,qzScore=0,qzAnswered=false;
+function initQuiz(){qzIdx=0;qzScore=0;qzAnswered=false;renderQuiz();}
+function renderQuiz(){
+  var q=quizQs[qzIdx];
+  document.getElementById('qz-q').textContent=(qzIdx+1)+'. '+q.q;
+  document.getElementById('qz-num').textContent=qzIdx+1;
+  document.getElementById('qz-score').textContent=qzScore;
+  document.getElementById('qz-fb').textContent='';
+  document.getElementById('qz-next-btn').style.display='none';
+  var html=q.opts.map(function(o,i){
+    return '<div class="quiz-opt" id="qz-opt-'+i+'" onclick="quizAnswer('+i+')">'+String.fromCharCode(65+i)+'. '+o+'</div>';
+  }).join('');
+  document.getElementById('qz-opts').innerHTML=html;
+  qzAnswered=false;
+}
+function quizAnswer(i){
+  if(qzAnswered)return;
+  qzAnswered=true;
+  var q=quizQs[qzIdx];
+  var correct=i===q.correct;
+  if(correct)qzScore++;
+  document.getElementById('qz-opt-'+i).className='quiz-opt '+(correct?'correct':'wrong');
+  if(!correct)document.getElementById('qz-opt-'+q.correct).className='quiz-opt correct';
+  document.getElementById('qz-fb').textContent=(correct?'✓ ':'✗ ')+q.explain;
+  document.getElementById('qz-score').textContent=qzScore;
+  document.getElementById('qz-next-btn').style.display='inline-block';
+  document.getElementById('qz-next-btn').textContent=qzIdx===quizQs.length-1?'See Results':'Next Question →';
+}
+function quizNext(){
+  if(qzIdx===quizQs.length-1){
+    document.getElementById('quiz-area').style.display='none';
+    document.getElementById('quiz-done').style.display='block';
+    document.getElementById('qz-final-score').textContent=qzScore+'/'+quizQs.length;
+    var v=qzScore===5?'Perfect score! You have a deep understanding of neurosymbolic AI architectures.':
+          qzScore>=4?'Excellent! You understand the key concepts well.':
+          qzScore>=3?'Good work. Review Kautz\'s taxonomy and the lowering/lifting concepts.':
+          'Keep exploring! Re-read the sections on architecture types and integration techniques.';
+    document.getElementById('qz-verdict').textContent=v;
+  } else {
+    qzIdx++;renderQuiz();
+  }
+}
+function resetQuiz(){
+  document.getElementById('quiz-area').style.display='block';
+  document.getElementById('quiz-done').style.display='none';
+  initQuiz();
+}
+</script>
+</body>
+</html>
