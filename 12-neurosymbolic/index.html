@@ -216,6 +216,16 @@ if(sessionStorage.getItem(PG_KEY)==='1'){
     <a class="nav-link" href="#s-xai" onclick="setActive(this)"><span class="dot" style="background:#51cf66"></span>Explainability</a>
     <a class="nav-link" href="#s-quiz" onclick="setActive(this)"><span class="dot" style="background:#a29bfe"></span>Architecture Quiz</a>
   </div>
+  <div class="nav-group">
+    <div class="nav-group-title">Deep Dives</div>
+    <a class="nav-link" href="#s-hallucination" onclick="setActive(this)"><span class="dot" style="background:#ff6b6b"></span>Hallucination Demo</a>
+    <a class="nav-link" href="#s-diffgrad" onclick="setActive(this)"><span class="dot" style="background:#74c0fc"></span>Differentiable Reasoning</a>
+    <a class="nav-link" href="#s-benchmarks" onclick="setActive(this)"><span class="dot" style="background:#51cf66"></span>Benchmarks</a>
+    <a class="nav-link" href="#s-grounding" onclick="setActive(this)"><span class="dot" style="background:#fdcb6e"></span>Symbol Grounding</a>
+    <a class="nav-link" href="#s-llms" onclick="setActive(this)"><span class="dot" style="background:#a29bfe"></span>NeSy + LLMs</a>
+    <a class="nav-link" href="#s-builder" onclick="setActive(this)"><span class="dot" style="background:#e17055"></span>Pipeline Builder</a>
+    <a class="nav-link" href="#s-failures" onclick="setActive(this)"><span class="dot" style="background:#ff6b6b"></span>Failure Modes</a>
+  </div>
   </nav>
 </nav>
 
@@ -245,6 +255,20 @@ if(sessionStorage.getItem(PG_KEY)==='1'){
   <a class="pipe-step" href="#s-xai"><span class="pipe-dot" style="background:#51cf66"></span>XAI</a>
   <span class="pipe-arrow">›</span>
   <a class="pipe-step" href="#s-quiz"><span class="pipe-dot" style="background:#a29bfe"></span>Quiz</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-hallucination"><span class="pipe-dot" style="background:#ff6b6b"></span>Halluc.</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-diffgrad"><span class="pipe-dot" style="background:#74c0fc"></span>∇Logic</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-benchmarks"><span class="pipe-dot" style="background:#51cf66"></span>Benchmarks</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-grounding"><span class="pipe-dot" style="background:#fdcb6e"></span>Grounding</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-llms"><span class="pipe-dot" style="background:#a29bfe"></span>+LLMs</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-builder"><span class="pipe-dot" style="background:#e17055"></span>Builder</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-failures"><span class="pipe-dot" style="background:#ff6b6b"></span>Limits</a>
 </div>
 
 <main class="main">
@@ -721,6 +745,10 @@ if(sessionStorage.getItem(PG_KEY)==='1'){
     <button class="btn" onclick="resetQuiz()" style="margin-top:16px;">Try Again</button>
   </div>
 
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-hallucination">Hallucination Demo →</a>
+  </div>
+
   <div class="card" style="margin-top:20px;border-color:#30363d;">
     <div class="card-title" style="color:var(--muted)">Paper Reference</div>
     <div class="card-body">
@@ -728,6 +756,307 @@ if(sessionStorage.getItem(PG_KEY)==='1'){
       Kautz, H. (2020). The Third AI Summer. <em>AAAI Proceedings.</em> — Source of the 6-type taxonomy.<br><br>
       Research volume data: Neuro-Symbolic AI in 2024: A Systematic Review. arXiv:2501.05435 (236 publications in 2023).
     </div>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 13: HALLUCINATION DEMO ═══════ -->
+<section class="section" id="s-hallucination">
+  <div class="section-tag" style="color:#ff6b6b">The Core Problem</div>
+  <h2 class="section-title">LLMs Hallucinate. NeSy Can't.</h2>
+  <p class="section-sub">Symbolic constraints act as a hard guardrail — the reasoner physically cannot generate an answer that violates the knowledge graph. Choose a scenario to see the difference live.</p>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="hal-btn-0" onclick="setHal(0)">Drug Dosage</button>
+    <button class="btn-tab" id="hal-btn-1" onclick="setHal(1)">Drug Interaction</button>
+    <button class="btn-tab" id="hal-btn-2" onclick="setHal(2)">Clinical Guideline</button>
+    <button class="btn-tab" id="hal-btn-3" onclick="setHal(3)">Legal Citation</button>
+  </div>
+
+  <div id="hal-question" class="card" style="border-color:#e1705544;margin-bottom:16px;">
+    <div class="card-title" style="color:#e17055">Query</div>
+    <div class="card-body" id="hal-q-text"></div>
+  </div>
+
+  <div style="display:flex;gap:16px;margin-bottom:16px;">
+    <div class="xai-col" style="border-color:#ff6b6b;">
+      <div class="xai-col-title" style="color:#ff6b6b">Pure LLM Response</div>
+      <div id="hal-llm-content"></div>
+      <div style="margin-top:12px;padding:8px;background:rgba(255,107,107,.06);border-radius:6px;font-size:11px;" id="hal-llm-verdict"></div>
+    </div>
+    <div class="xai-col" style="border-color:#51cf66;">
+      <div class="xai-col-title" style="color:#51cf66">NeSy System Response</div>
+      <div id="hal-nesy-content"></div>
+      <div style="margin-top:12px;padding:8px;background:rgba(81,207,102,.06);border-radius:6px;font-size:11px;" id="hal-nesy-verdict"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="color:#ff6b6b">Why Does This Happen?</div>
+    <div class="card-body">LLMs generate text by predicting the next probable token — they have no mechanism to enforce that output is factually grounded. They can generate any plausible-sounding text, even if it contradicts known facts. A NeSy system's symbolic reasoner only produces conclusions that are derivable from its knowledge graph — hallucination is structurally impossible within the symbolic layer. The risk moves to whether the KG itself is correct and complete.</div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-diffgrad">Differentiable Reasoning →</a>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 14: DIFFERENTIABLE REASONING ═══════ -->
+<section class="section" id="s-diffgrad">
+  <div class="section-tag" style="color:#74c0fc">Technical Deep Dive</div>
+  <h2 class="section-title">How Gradients Flow Through Logic</h2>
+  <p class="section-sub">The key innovation of Type 5 NeSy systems: making symbolic inference differentiable so the neural component can be trained end-to-end from logical supervision.</p>
+
+  <div class="btn-row">
+    <button class="btn" onclick="stepDiffGrad()">Step Forward →</button>
+    <button class="btn-outline" onclick="resetDiffGrad()">Reset</button>
+  </div>
+
+  <canvas id="c-diffgrad" width="820" height="340"></canvas>
+
+  <div id="dg-explain" class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#74c0fc" id="dg-title">The AND-OR Proof Tree</div>
+    <div class="card-body" id="dg-body">A Neural Theorem Prover (NTP) converts KB rules into an AND-OR proof tree. Each internal node is either an AND-node (all sub-goals must succeed) or an OR-node (at least one sub-goal must succeed). This tree structure mirrors logical inference — but every operation is implemented as a differentiable neural computation.</div>
+  </div>
+
+  <div class="grid2" style="margin-top:16px;">
+    <div class="card">
+      <div class="card-title" style="color:#74c0fc">Forward Pass — Inference</div>
+      <div class="card-body">During inference, scores flow <em>downward</em> through the proof tree: the root query is unified against KB rules, generating sub-goals, until leaf nodes hit ground facts. Each unification is a soft dot-product over learnable entity embeddings — not a hard match. Result: a probability score for the query.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#e17055">Backward Pass — Learning</div>
+      <div class="card-body">During training, gradients flow <em>upward</em> through the tree: the loss signal (query was true/false) propagates back through every AND/OR operation to the entity and relation embeddings. The embeddings adjust so that true queries score higher and false queries score lower — learning both the proof structure and the representations simultaneously.</div>
+    </div>
+  </div>
+
+  <div class="formula">AND-node score: s(A∧B) = min(s(A), s(B))     ← differentiable minimum
+OR-node  score: s(A∨B) = max(s(A), s(B))     ← differentiable maximum
+Unification:    s(p,q)  = σ(embed(p)·embed(q)) ← neural soft match
+∇loss flows through min/max/σ back to embed(·)</div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-benchmarks">Benchmark Results →</a>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 15: BENCHMARKS ═══════ -->
+<section class="section" id="s-benchmarks">
+  <div class="section-tag" style="color:#51cf66">Empirical Evidence</div>
+  <h2 class="section-title">Do NeSy Systems Actually Perform Better?</h2>
+  <p class="section-sub">On tasks requiring systematic reasoning, neurosymbolic systems consistently outperform pure neural baselines. Click each benchmark for details.</p>
+
+  <canvas id="c-benchmarks" width="820" height="320"></canvas>
+  <div class="canvas-label">Click a benchmark bar to learn more</div>
+
+  <div id="bm-detail" class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#51cf66" id="bm-title">CLEVR — Visual Reasoning</div>
+    <div class="card-body" id="bm-body">CLEVR is a diagnostic benchmark for visual question answering that requires compositional reasoning: "How many small red objects are to the left of the large metal cube?" End-to-end neural models struggle with this systematic compositional structure. Neurosymbolic systems (like the Neural-Symbolic Concept Learner, NS-CL) first perceive objects with a neural scene parser, then answer questions with a symbolic program executor — achieving near-perfect accuracy on out-of-distribution compositions that neural baselines fail to generalise to.</div>
+  </div>
+
+  <div class="grid3" style="margin-top:16px;">
+    <div class="card">
+      <div class="card-title" style="color:#74c0fc">Where NeSy Wins Big</div>
+      <div class="card-body">Systematic generalisation · Out-of-distribution reasoning · Tasks requiring formal logic chains · Low-data regimes (symbolic priors reduce data needs) · Compositional tasks</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#fdcb6e">Where the Gap Narrows</div>
+      <div class="card-body">Large-scale perceptual tasks (ImageNet, speech) where neural-only is sufficient · Tasks where reasoning structure is not well-defined · Domains without good knowledge graphs</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#ff6b6b">Caveat</div>
+      <div class="card-body">Numbers are representative of trends in the literature (2019–2024). Exact figures vary by system and test split. NeSy systems often trade raw perceptual accuracy for reasoning gains — the right choice depends on the task.</div>
+    </div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-grounding">Symbol Grounding Problem →</a>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 16: SYMBOL GROUNDING ═══════ -->
+<section class="section" id="s-grounding">
+  <div class="section-tag" style="color:#fdcb6e">Fundamental Challenge</div>
+  <h2 class="section-title">The Symbol Grounding Problem</h2>
+  <p class="section-sub">How does a neural representation become a symbol? The gap between continuous activations and discrete symbolic concepts is one of the deepest unsolved problems in NeSy AI.</p>
+
+  <canvas id="c-grounding" width="820" height="300"></canvas>
+  <div class="canvas-label">Toggle between ungrounded and grounded states</div>
+
+  <div class="btn-row" style="margin-top:14px;">
+    <button class="btn-tab active" id="grnd-btn-0" onclick="setGrounding(0)">Ungrounded</button>
+    <button class="btn-tab" id="grnd-btn-1" onclick="setGrounding(1)">Grounded</button>
+    <button class="btn-tab" id="grnd-btn-2" onclick="setGrounding(2)">Grounding Failure</button>
+  </div>
+
+  <div id="grnd-info" class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#fdcb6e" id="grnd-title">The Ungrounded Gap</div>
+    <div class="card-body" id="grnd-body">A neural network trained on chest X-rays develops an internal representation — a vector in high-dimensional space — that correlates with "pneumonia". But this vector has no inherent meaning. It's just numbers. For a symbolic reasoner to use it, someone must define: this vector region = the symbol PNEUMONIA. This mapping is the grounding step, and getting it right is non-trivial — especially at the boundaries of concepts and for rare conditions.</div>
+  </div>
+
+  <div class="grid2" style="margin-top:16px;">
+    <div class="card">
+      <div class="card-title" style="color:#fdcb6e">Approaches to Grounding</div>
+      <div class="card-body">
+        <div style="margin-bottom:6px;">→ <strong>Threshold grounding</strong>: neural output &gt; 0.5 → symbol is true</div>
+        <div style="margin-bottom:6px;">→ <strong>Soft grounding</strong>: neural output = probability of symbol truth (DeepProbLog)</div>
+        <div style="margin-bottom:6px;">→ <strong>Concept learning</strong>: learn concept boundaries jointly with downstream task</div>
+        <div>→ <strong>Human annotation</strong>: human experts label which neural clusters correspond to which symbols</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#ff6b6b">When Grounding Fails</div>
+      <div class="card-body">
+        <div style="margin-bottom:6px;">→ <strong>Ambiguous boundaries</strong>: "fever" vs "high fever" — where is the threshold?</div>
+        <div style="margin-bottom:6px;">→ <strong>Distribution shift</strong>: grounding learned on training data breaks on new populations</div>
+        <div style="margin-bottom:6px;">→ <strong>Polysemy</strong>: the same neural region encodes multiple concepts</div>
+        <div>→ <strong>Cascading errors</strong>: wrong grounding → wrong symbols → wrong reasoning → wrong decision</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-llms">NeSy + LLMs →</a>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 17: NESY + LLMS ═══════ -->
+<section class="section" id="s-llms">
+  <div class="section-tag" style="color:#a29bfe">The Modern Connection</div>
+  <h2 class="section-title">Augmenting LLMs with Symbolic Reasoning</h2>
+  <p class="section-sub">Modern LLMs are being extended with symbolic components — each augmentation is a form of neurosymbolic integration. Select a technique to see how it works.</p>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="llm-btn-0" onclick="setLLMTab(0)">Chain-of-Thought</button>
+    <button class="btn-tab" id="llm-btn-1" onclick="setLLMTab(1)">Tool Use</button>
+    <button class="btn-tab" id="llm-btn-2" onclick="setLLMTab(2)">RAG (Knowledge Retrieval)</button>
+    <button class="btn-tab" id="llm-btn-3" onclick="setLLMTab(3)">Neuro-Symbolic Programming</button>
+  </div>
+
+  <canvas id="c-llms" width="820" height="260"></canvas>
+
+  <div id="llm-info" class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#a29bfe" id="llm-title">Chain-of-Thought — Emergent Symbolic Reasoning</div>
+    <div class="card-body" id="llm-body">Chain-of-thought prompting (Wei et al., 2022) elicits step-by-step reasoning from LLMs: "Let's think step by step..." The model generates intermediate reasoning steps before answering. This is a form of emergent neurosymbolic behaviour — the LLM's neural layers approximate symbolic reasoning chains, improving performance on multi-step problems significantly.<br><br>Kautz type: closest to Type 1 (Symbolic Neural) — the "symbolic" component is the token-level reasoning chain, not formal logic. The reasoning isn't formally verified and can still contain logical errors, but it dramatically outperforms direct answering on tasks like grade-school math and commonsense QA.</div>
+  </div>
+
+  <div class="grid3" style="margin-top:16px;">
+    <div class="card">
+      <div class="card-title" style="color:#a29bfe">Kautz Mapping</div>
+      <div class="card-body">CoT → Type 1 · Tool Use → Type 2 (Symbolic[Neural]) · RAG → Type 3 (Neural|Symbolic) · NSP → Type 5 (NeuralSymbolic). Each augmentation moves the LLM further toward the symbolic end of the spectrum.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#74c0fc">Capability Gains</div>
+      <div class="card-body">Tool use: LLMs call calculators, code interpreters, search engines — eliminating arithmetic errors and knowledge staleness. RAG: retrieved facts constrain generation, reducing hallucination on factual queries. NSP: formal programs guarantee correctness on structured tasks.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#e17055">Remaining Gaps</div>
+      <div class="card-body">These augmentations are still limited — the LLM decides when to use tools (and can decide incorrectly), RAG retrieval quality is imperfect, and NSP requires human-designed program schemas. True end-to-end NeSy integration remains an open research area.</div>
+    </div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-builder">Build Your Pipeline →</a>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 18: PIPELINE BUILDER ═══════ -->
+<section class="section" id="s-builder">
+  <div class="section-tag" style="color:#e17055">Interactive Designer</div>
+  <h2 class="section-title">Build Your Own NeSy Pipeline</h2>
+  <p class="section-sub">Choose your components across three layers. The system will tell you which Kautz type you've built and predict its tradeoff profile.</p>
+
+  <div class="grid3" style="margin-bottom:20px;">
+    <div class="card" style="border-color:#74c0fc44;">
+      <div class="card-title" style="color:#74c0fc">1. Neural Backbone</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+        <label style="font-size:12px;display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="radio" name="bld-neural" value="cnn" onchange="updateBuilder()" checked> CNN (vision tasks)</label>
+        <label style="font-size:12px;display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="radio" name="bld-neural" value="transformer" onchange="updateBuilder()"> Transformer (language)</label>
+        <label style="font-size:12px;display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="radio" name="bld-neural" value="gnn" onchange="updateBuilder()"> GNN (graph-structured)</label>
+        <label style="font-size:12px;display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="radio" name="bld-neural" value="none" onchange="updateBuilder()"> None (pure symbolic)</label>
+      </div>
+    </div>
+    <div class="card" style="border-color:#fdcb6e44;">
+      <div class="card-title" style="color:#fdcb6e">2. Knowledge Source</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+        <label style="font-size:12px;display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="radio" name="bld-know" value="kg" onchange="updateBuilder()" checked> Knowledge Graph</label>
+        <label style="font-size:12px;display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="radio" name="bld-know" value="rules" onchange="updateBuilder()"> Hand-crafted Rules</label>
+        <label style="font-size:12px;display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="radio" name="bld-know" value="ontology" onchange="updateBuilder()"> Ontology / OWL</label>
+        <label style="font-size:12px;display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="radio" name="bld-know" value="none" onchange="updateBuilder()"> None (data-driven)</label>
+      </div>
+    </div>
+    <div class="card" style="border-color:#51cf6644;">
+      <div class="card-title" style="color:#51cf66">3. Symbolic Reasoner</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+        <label style="font-size:12px;display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="radio" name="bld-sym" value="problog" onchange="updateBuilder()" checked> Probabilistic Logic (ProbLog)</label>
+        <label style="font-size:12px;display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="radio" name="bld-sym" value="ilp" onchange="updateBuilder()"> Theorem Prover / ILP</label>
+        <label style="font-size:12px;display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="radio" name="bld-sym" value="constraint" onchange="updateBuilder()"> Constraint Solver</label>
+        <label style="font-size:12px;display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="radio" name="bld-sym" value="none" onchange="updateBuilder()"> None (neural only)</label>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="c-builder" width="820" height="280"></canvas>
+
+  <div id="bld-result" class="card" style="margin-top:14px;border-color:#e1705544;">
+    <div class="card-title" style="color:#e17055" id="bld-kautz">Kautz Type 5 — NeuralSymbolic</div>
+    <div class="card-body" id="bld-desc">CNN backbone perceives raw data, probabilistic logic grounds and reasons over a knowledge graph. End-to-end trainable with differentiable inference. Strong at both perception and reasoning. Closest system: DeepProbLog.</div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-failures">Failure Modes →</a>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 19: FAILURE MODES ═══════ -->
+<section class="section" id="s-failures">
+  <div class="section-tag" style="color:#ff6b6b">Honest Limitations</div>
+  <h2 class="section-title">Where Neurosymbolic AI Still Fails</h2>
+  <p class="section-sub">NeSy is not a silver bullet. These are the real failure modes that the field is actively working to solve.</p>
+
+  <canvas id="c-failures" width="820" height="240"></canvas>
+  <div class="canvas-label">Combinatorial explosion: the cost of symbolic reasoning grows exponentially with depth</div>
+
+  <div style="margin-top:16px;">
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAcc(this)">
+        <span style="color:#ff6b6b">⚠ Combinatorial Explosion</span>
+        <span class="accordion-chevron">▼</span>
+      </div>
+      <div class="accordion-body">Symbolic reasoning is search through a space of logical proofs. As the number of facts and rules grows, the search space explodes exponentially. A knowledge graph with 10,000 entities and 100 relation types has 10 billion possible triples. Proof search to depth 3 becomes intractable. Approximate inference (beam search, Monte Carlo) helps but sacrifices completeness guarantees — the system may miss valid proofs.</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAcc(this)">
+        <span style="color:#ff6b6b">⚠ Lossy Knowledge Graph Compression</span>
+        <span class="accordion-chevron">▼</span>
+      </div>
+      <div class="accordion-body">Lowering (KG embedding) compresses the full semantics of a knowledge graph into continuous vectors. This compression is inherently lossy — complex relationship types (negation, quantifiers, conditional facts) are difficult to preserve. A KG embedding that says "aspirin treats headache" cannot easily represent "aspirin does NOT treat bacterial infections" — negation is structurally awkward in vector space.</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAcc(this)">
+        <span style="color:#fdcb6e">⚠ Brittleness of Hand-crafted Rules</span>
+        <span class="accordion-chevron">▼</span>
+      </div>
+      <div class="accordion-body">Symbolic rules are written by human experts and fail on any case outside their scope — exactly the knowledge acquisition bottleneck that killed first-wave AI. Medical guidelines cover typical presentations; edge cases, co-morbidities, and off-label drug uses require judgment that rules cannot provide. The tension between rule completeness and maintainability is a fundamental limitation of rule-based symbolic components.</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAcc(this)">
+        <span style="color:#fdcb6e">⚠ Grounding Cascades</span>
+        <span class="accordion-chevron">▼</span>
+      </div>
+      <div class="accordion-body">Errors in the neural perception layer cascade into the symbolic reasoner. If the neural component mis-grounds "elevated troponin" (calling it "normal" when it's borderline), the symbolic reasoner — operating on that incorrect symbol — will reach a confidently wrong conclusion. NeSy systems inherit neural error rates and then amplify them through logical chains. Error propagation across the neural-symbolic boundary is an active research problem.</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAcc(this)">
+        <span style="color:#e17055">⚠ Scalability to Open-World Settings</span>
+        <span class="accordion-chevron">▼</span>
+      </div>
+      <div class="accordion-body">Classical symbolic AI operates under the Closed World Assumption — if a fact isn't in the KB, it's false. But the real world is open: unknown facts exist. NeSy systems struggle when users ask about entities or relations not in the knowledge graph. Large KGs (Wikidata has 100M+ facts) help but don't fully solve this — new concepts emerge continuously, and keeping symbolic knowledge bases current at LLM data scale is an unsolved engineering challenge.</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:20px;border-color:#51cf6644;">
+    <div class="card-title" style="color:#51cf66">The Research Frontier</div>
+    <div class="card-body">Despite these limitations, neurosymbolic AI is the most active research area in AI safety and interpretable ML. The 3rd wave is still early — the publication count grew 4.5× from 2020 to 2023. Open challenges include: scalable approximate symbolic inference, differentiable KG update, automated grounding from raw data, and hybrid systems that can handle both open-world perception and formal safety guarantees simultaneously.</div>
   </div>
 </section>
 
@@ -776,6 +1105,13 @@ function initAll(){
   drawApps(0);
   drawXAI();
   initQuiz();
+  initHal(0);
+  initDiffGrad();
+  initBenchmarks();
+  initGrounding(0);
+  initLLMTab(0);
+  updateBuilder();
+  initFailures();
 }
 if(sessionStorage.getItem('pg_unlocked_12')==='1'){
   document.getElementById('pg-main').style.display='flex';
@@ -1576,6 +1912,458 @@ function resetQuiz(){
   document.getElementById('quiz-area').style.display='block';
   document.getElementById('quiz-done').style.display='none';
   initQuiz();
+}
+
+// ════════════════════════════════════════════
+// S13: HALLUCINATION DEMO
+// ════════════════════════════════════════════
+var halData=[
+  {q:'What is the maximum safe daily dose of acetaminophen (paracetamol) for a healthy adult?',
+   llm:{text:'"The maximum safe dose of acetaminophen is generally around 3,000–4,000mg per day, though some sources suggest up to 5,000mg may be tolerated by healthy adults. Always consult your pharmacist for guidance specific to your situation."',
+        issue:'⚠ Hallucination risk: "up to 5,000mg" is dangerously incorrect. The FDA maximum is 4,000mg/day; hepatotoxicity risk rises above 3,000mg. A patient following this could suffer liver damage.'},
+   nesy:{steps:['Neural: query type = drug dosage question','KG lookup: acetaminophen → max_dose_adult','KG fact: 4,000mg/day (FDA 2023)','Constraint check: patient profile = healthy adult','Constraint: hepatotoxicity risk > 3,000mg/day for chronic use'],
+         answer:'"Maximum safe dose: 4,000mg/day for healthy adults (FDA guideline). For chronic use or alcohol consumption, limit to 2,000mg/day. Source: FDA Drug Safety Communication 2023, §4.1."',
+         note:'✓ Grounded in FDA drug database. Cannot exceed or contradict the knowledge graph fact.'}},
+  {q:'Does aspirin interact dangerously with warfarin?',
+   llm:{text:'"Aspirin and warfarin can interact, and patients should be cautious. The interaction is generally manageable with monitoring. Many patients safely take low-dose aspirin with warfarin under physician supervision."',
+        issue:'⚠ Understatement risk: this response is dangerously vague. Aspirin + warfarin is a major interaction that significantly increases bleeding risk — the symbolic layer would flag this as a high-severity warning requiring explicit physician consultation, not a casual mention.'},
+   nesy:{steps:['Neural: entities = aspirin, warfarin','KG lookup: aspirin —interacts_with→ warfarin','KG severity: HIGH (bleeding risk)','Guideline: FDA black box — avoid combination','Constraint: flag for physician review'],
+         answer:'"HIGH severity interaction. Aspirin + warfarin significantly increases bleeding risk (GI, intracranial). Concomitant use contraindicated except under specialist supervision with INR monitoring. Source: FDA 2022 Drug Interaction Database, Severity Class 1."',
+         note:'✓ Severity class retrieved directly from drug interaction KG. Cannot downgrade a Class 1 interaction.'}},
+  {q:'What is the first-line treatment for community-acquired pneumonia in a non-hospitalised adult?',
+   llm:{text:'"Community-acquired pneumonia is typically treated with antibiotics. Amoxicillin is often used, or doxycycline as an alternative. Azithromycin is another option commonly prescribed. The choice depends on local resistance patterns and patient factors."',
+        issue:'⚠ Vagueness risk: this answer is technically correct but unhelpful — no dosage, no duration, no stratification by severity. A clinician following this cannot prescribe. The symbolic layer enforces guideline-level specificity.'},
+   nesy:{steps:['Neural: condition = CAP, setting = outpatient','KG: CAP →first_line→ Amoxicillin 1g TDS 5d','Severity check: CRB-65 score = 0 (low severity)','Allergy constraint: no penicillin allergy flagged','Output: guideline §3.2.1'],
+         answer:'"First-line (BTS 2023): Amoxicillin 500mg–1g three times daily for 5 days. Penicillin allergy: Doxycycline 200mg loading then 100mg once daily for 5 days. Atypical cover add Clarithromycin. Source: BTS CAP Guideline 2023, §3.2.1."',
+         note:'✓ Dosage, duration, and alternatives from clinical guideline KG. Penicillin allergy constraint automatically applied.'}},
+  {q:'Can you cite the legal precedent for duty of care in AI-assisted medical decisions?',
+   llm:{text:'"The landmark case of Bolam v Friern Hospital Management Committee [1957] established the standard of care in medical negligence. This has been applied to AI systems in cases such as Smith v MedAI Corp [2021], which established that AI recommendations must meet the same standard as a reasonable clinician."',
+        issue:'⚠ Fabrication: "Smith v MedAI Corp [2021]" does not exist. LLMs routinely fabricate plausible-sounding case citations. A lawyer acting on this could face serious professional consequences.'},
+   nesy:{steps:['Neural: query = legal precedent, domain = AI medical','KG lookup: duty_of_care AND ai AND medical_device','KG: no direct AI-specific case found','Symbolic: flag knowledge gap honestly','Output: related precedents only'],
+         answer:'"No established precedent specifically for AI-assisted decisions found in KB (as of 2024). Related: Bolam [1957] (medical standard of care), Barnett v Chelsea [1969] (causation). AI-specific liability remains unsettled — refer to EU AI Act Article 22 for regulatory framework. Consult legal counsel."',
+         note:'✓ Refuses to fabricate. Acknowledges knowledge gap explicitly — a fundamental advantage of KG-grounded systems.'}}
+];
+var halIdx=0;
+function initHal(i){halIdx=i;renderHal();}
+function setHal(i){
+  halIdx=i;
+  for(var j=0;j<4;j++)document.getElementById('hal-btn-'+j).className='btn-tab';
+  document.getElementById('hal-btn-'+i).className='btn-tab active';
+  renderHal();
+}
+function renderHal(){
+  var d=halData[halIdx];
+  document.getElementById('hal-q-text').textContent=d.q;
+  document.getElementById('hal-llm-content').innerHTML='<div style="font-size:12px;color:#c9d1d9;font-style:italic;padding:10px;background:#1c2128;border-radius:6px;margin-bottom:8px;">'+d.llm.text+'</div>';
+  document.getElementById('hal-llm-verdict').innerHTML='<span style="color:#ff6b6b;">'+d.llm.issue+'</span>';
+  var steps=d.nesy.steps.map(function(s,i){return '<div style="display:flex;gap:8px;margin-bottom:6px;font-size:11px;"><span style="color:#51cf66;font-weight:700;min-width:16px;">'+(i+1)+'</span><span style="color:#8b949e;">'+s+'</span></div>';}).join('');
+  document.getElementById('hal-nesy-content').innerHTML=steps+'<div style="font-size:12px;color:#c9d1d9;font-style:italic;padding:10px;background:#1c2128;border-radius:6px;margin-top:8px;">'+d.nesy.answer+'</div>';
+  document.getElementById('hal-nesy-verdict').innerHTML='<span style="color:#51cf66;">'+d.nesy.note+'</span>';
+}
+
+// ════════════════════════════════════════════
+// S14: DIFFERENTIABLE REASONING
+// ════════════════════════════════════════════
+var dgStep=0;
+var dgSteps=[
+  {title:'The AND-OR Proof Tree',body:'A Neural Theorem Prover (NTP) converts KB rules into an AND-OR proof tree. Each internal node is either an AND-node (all sub-goals must succeed) or an OR-node (at least one sub-goal must succeed). This tree structure mirrors logical inference — but every operation is implemented as a differentiable neural computation.'},
+  {title:'Forward Pass — Computing Scores',body:'During the forward pass, query scores are computed top-down through the proof tree. Each unification checks if two predicates match — using a soft dot-product between learnable entity/relation embeddings rather than hard equality. Scores propagate down: AND-nodes take the minimum of children (weakest link); OR-nodes take the maximum. Highlighted nodes show the currently active computation path.'},
+  {title:'Backward Pass — Gradient Flow',body:'Once a forward score is computed, the loss function penalises wrong answers. The gradient ∂loss/∂score flows upward through the tree, reaching every AND/OR node and eventually back to the entity and relation embeddings. The embeddings shift to make true queries score higher and false queries score lower. Gradients in orange flow backward through the tree.'},
+  {title:'End-to-End Learning',body:'After many training examples, the system has simultaneously learned: (1) entity embeddings that make logically related entities close in vector space, (2) relation embeddings that capture semantic relationships, and (3) proof strategies that find valid inference paths efficiently. New rules can be induced from the learned embeddings — "lifting" structure back to symbolic form.'}
+];
+function initDiffGrad(){dgStep=0;drawDiffGrad();}
+function stepDiffGrad(){if(dgStep<dgSteps.length-1)dgStep++;drawDiffGrad();}
+function resetDiffGrad(){dgStep=0;drawDiffGrad();}
+function drawDiffGrad(){
+  var cv=document.getElementById('c-diffgrad');if(!cv)return;
+  var ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);
+  var W=cv.width,H=cv.height;
+  // Draw proof tree nodes
+  var nodes=[
+    {id:'root',x:W/2,y:40,label:'grandparent(A,C)?',type:'OR',color:'#a29bfe'},
+    {id:'rule1',x:W/2-160,y:120,label:'parent(A,B)\n∧parent(B,C)',type:'AND',color:'#74c0fc'},
+    {id:'rule2',x:W/2+160,y:120,label:'parent(A,C)\ndirectly',type:'AND',color:'#74c0fc'},
+    {id:'leaf1',x:W/2-240,y:220,label:'parent(A,B)',type:'LEAF',color:'#51cf66'},
+    {id:'leaf2',x:W/2-80,y:220,label:'parent(B,C)',type:'LEAF',color:'#51cf66'},
+    {id:'leaf3',x:W/2+160,y:220,label:'parent(A,C)',type:'LEAF',color:'#fdcb6e'}
+  ];
+  var edges=[['root','rule1'],['root','rule2'],['rule1','leaf1'],['rule1','leaf2'],['rule2','leaf3']];
+  // forward: highlight active path based on step
+  var fwdActive=dgStep>=1?['root','rule1','leaf1','leaf2']:[];
+  // backward: show gradient flow
+  var bwdActive=dgStep>=2?['root','rule1','leaf1','leaf2']:[];
+  edges.forEach(function(e){
+    var a=nodes.find(function(n){return n.id===e[0];});
+    var b=nodes.find(function(n){return n.id===e[1];});
+    var fwd=fwdActive.indexOf(a.id)>-1&&fwdActive.indexOf(b.id)>-1;
+    var bwd=bwdActive.indexOf(a.id)>-1&&bwdActive.indexOf(b.id)>-1;
+    ctx.strokeStyle=bwd&&dgStep>=2?'#e17055':fwd?'#74c0fc':'#30363d';
+    ctx.lineWidth=bwd&&dgStep>=2?2:fwd?2:1;
+    if(bwd&&dgStep>=2)ctx.setLineDash([5,3]); else ctx.setLineDash([]);
+    ctx.beginPath();ctx.moveTo(a.x,a.y+18);ctx.lineTo(b.x,b.y-18);ctx.stroke();
+    ctx.setLineDash([]);
+    // arrowhead direction
+    var dir=dgStep>=2?-1:1;
+    var tx=b.x+(a.x-b.x)*0.15,ty=b.y-18+(a.y+18-(b.y-18))*0.15;
+    if(dgStep>=2){tx=a.x+(b.x-a.x)*0.85;ty=a.y+18+(b.y-18-(a.y+18))*0.85;}
+    var ang=Math.atan2(b.y-a.y,b.x-a.x);
+    if(dgStep>=2)ang=Math.atan2(a.y-b.y,a.x-b.x);
+    ctx.fillStyle=bwd&&dgStep>=2?'#e17055':fwd?'#74c0fc':'#30363d';
+    ctx.beginPath();
+    ctx.moveTo(tx+Math.cos(ang)*6,ty+Math.sin(ang)*6);
+    ctx.lineTo(tx+Math.cos(ang+2.4)*4,ty+Math.sin(ang+2.4)*4);
+    ctx.lineTo(tx+Math.cos(ang-2.4)*4,ty+Math.sin(ang-2.4)*4);
+    ctx.fill();
+  });
+  nodes.forEach(function(n){
+    var active=fwdActive.indexOf(n.id)>-1;
+    var backActive=bwdActive.indexOf(n.id)>-1&&dgStep>=2;
+    var bord=backActive?'#e17055':active?n.color:'#30363d';
+    var bg=backActive?'rgba(225,112,85,.15)':active?n.color+'22':'#161b22';
+    drawRoundedRect(ctx,n.x-60,n.y-18,120,36,6,bg,bord);
+    ctx.font='700 9px Inter,sans-serif';ctx.textAlign='center';ctx.fillStyle=backActive?'#e17055':active?n.color:'#555';
+    n.label.split('\n').forEach(function(l,li){ctx.fillText(l,n.x,n.y+2+(li-(n.label.split('\n').length-1)/2)*12);});
+    if(n.type!=='LEAF'){
+      ctx.font='700 8px Inter,sans-serif';ctx.fillStyle=active?n.color:'#555';
+      ctx.fillText(n.type,n.x,n.y+22);
+    }
+    // score labels
+    if(active&&dgStep>=1){
+      var score=n.id==='root'?'0.87':n.id==='rule1'?'0.87':n.id==='leaf1'?'0.91':n.id==='leaf2'?'0.87':'0.72';
+      ctx.font='700 9px Inter,sans-serif';ctx.fillStyle=n.color;
+      ctx.fillText('s='+score,n.x+68,n.y+4);
+    }
+    if(backActive&&dgStep>=2){
+      ctx.font='700 9px Inter,sans-serif';ctx.fillStyle='#e17055';
+      ctx.fillText('∇',n.x-70,n.y+4);
+    }
+  });
+  // Legend
+  ctx.font='10px Inter,sans-serif';ctx.fillStyle='#74c0fc';ctx.textAlign='left';
+  ctx.fillText('→ Forward (inference)',24,H-16);
+  ctx.fillStyle='#e17055';ctx.fillText('⤺ Backward (gradient)',200,H-16);
+  ctx.fillStyle='#8b949e';ctx.fillText('Step '+(dgStep+1)+'/'+dgSteps.length,W-100,H-16);
+  // Update card
+  document.getElementById('dg-title').textContent=dgSteps[dgStep].title;
+  document.getElementById('dg-body').textContent=dgSteps[dgStep].body;
+}
+
+// ════════════════════════════════════════════
+// S15: BENCHMARKS
+// ════════════════════════════════════════════
+var bmData=[
+  {name:'CLEVR\n(Visual Reasoning)',neural:72,nesy:98,
+   title:'CLEVR — Compositional Visual Reasoning',
+   body:'CLEVR tests compositional visual QA: "How many small red objects are left of the large metal cube?" End-to-end neural models learn shortcuts. NeSy (Neural-Symbolic Concept Learner, NS-CL) first perceives objects with a neural scene parser, then executes questions as symbolic programs — achieving near-perfect accuracy on out-of-distribution compositions neural models fail to generalise to. (Representative of Mao et al. 2019 results.)'},
+  {name:'bAbI-20\n(Text Reasoning)',neural:72,nesy:97,
+   title:'bAbI-20 — 20 Text Reasoning Tasks',
+   body:'bAbI is a set of 20 tasks testing basic reasoning: deduction, induction, counting, spatial reasoning, coreference. LSTMs and transformers plateau around 70–80%. NeSy systems (Neural Theorem Provers, End-to-End Memory Networks with symbolic constraints) solve most tasks near-perfectly because the reasoning chains are explicit and formal rather than implicit in weights. (Representative of Rocktäschel & Riedel 2017, Sukhbaatar et al. 2015 results.)'},
+  {name:'Arithmetic\n(Math Reasoning)',neural:55,nesy:94,
+   title:'Arithmetic Reasoning — Symbolic vs Statistical',
+   body:'Multi-step arithmetic problems (e.g., "John has 5 apples and gives 2 to Mary, who already had 3. How many does Mary have?") reveal a fundamental neural limitation: LLMs learn statistical patterns over number strings rather than true arithmetic operations. NeSy systems route arithmetic to a symbolic calculator, achieving near-perfect accuracy where LLMs plateau due to pattern overfitting. (Representative of Miao et al. 2020, Tool-augmented LLM results.)'},
+  {name:'VQA v2\n(General Vision-QA)',neural:65,nesy:68,
+   title:'VQA v2 — General Visual Question Answering',
+   body:'VQA v2 is a harder, less compositional benchmark where neural models already perform well by learning visual-linguistic correlations. NeSy improvements are modest (~3%) because the task is less systematically compositional — the symbolic reasoning advantage is smaller when brute-force neural correlation learning is sufficient. This shows NeSy is not universally better — the benefit is largest on tasks requiring systematic reasoning.'}
+];
+var bmSelected=0;
+function initBenchmarks(){drawBenchmarks();}
+function drawBenchmarks(){
+  var cv=document.getElementById('c-benchmarks');if(!cv)return;
+  var ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);
+  var W=cv.width,H=cv.height;
+  var barGrp=160,barW=50,gap=30,startX=80;
+  bmData.forEach(function(b,i){
+    var gx=startX+i*(barGrp+gap);
+    var sel=bmSelected===i;
+    // Group label
+    ctx.font=(sel?'700 ':'')+'9px Inter,sans-serif';ctx.textAlign='center';ctx.fillStyle=sel?'#e17055':'#8b949e';
+    b.name.split('\n').forEach(function(l,li){ctx.fillText(l,gx+barGrp/2,H-8+li*0);});
+    b.name.split('\n').forEach(function(l,li){ctx.fillText(l,gx+barGrp/2,H-8+(li-1)*12);});
+    // Neural bar
+    var nH=(H-60)*b.neural/100;
+    var ny=H-40-nH;
+    drawRoundedRect(ctx,gx,ny,barW,nH,4,'#74c0fc55',sel?'#74c0fc':'#74c0fc44');
+    ctx.font='700 10px Inter,sans-serif';ctx.textAlign='center';ctx.fillStyle='#74c0fc';
+    ctx.fillText(b.neural+'%',gx+barW/2,ny-4);
+    // NeSy bar
+    var sH=(H-60)*b.nesy/100;
+    var sy=H-40-sH;
+    drawRoundedRect(ctx,gx+barW+10,sy,barW,sH,4,'#51cf6655',sel?'#51cf66':'#51cf6644');
+    ctx.font='700 10px Inter,sans-serif';ctx.textAlign='center';ctx.fillStyle='#51cf66';
+    ctx.fillText(b.nesy+'%',gx+barW+10+barW/2,sy-4);
+    // Delta
+    ctx.font='700 10px Inter,sans-serif';ctx.fillStyle=sel?'#e17055':'#fdcb6e';
+    ctx.fillText('+'+( b.nesy-b.neural)+'%',gx+barGrp/2,Math.min(ny,sy)-16);
+    // click zone
+    b._x=gx;b._w=barGrp;
+  });
+  // Axis
+  ctx.strokeStyle='#30363d';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(60,20);ctx.lineTo(60,H-40);ctx.lineTo(W-20,H-40);ctx.stroke();
+  // Y labels
+  [0,25,50,75,100].forEach(function(v){
+    var y=H-40-(H-60)*v/100;
+    ctx.font='9px Inter,sans-serif';ctx.textAlign='right';ctx.fillStyle='#555';
+    ctx.fillText(v+'%',54,y+4);
+    ctx.strokeStyle='#21262d';ctx.lineWidth=0.5;
+    ctx.beginPath();ctx.moveTo(60,y);ctx.lineTo(W-20,y);ctx.stroke();
+  });
+  // Legend
+  ctx.font='10px Inter,sans-serif';ctx.fillStyle='#74c0fc';ctx.textAlign='left';
+  ctx.fillText('■ Neural baseline',W-220,24);
+  ctx.fillStyle='#51cf66';ctx.fillText('■ NeSy system',W-120,24);
+}
+document.addEventListener('click',function(e){
+  var cv=document.getElementById('c-benchmarks');if(!cv)return;
+  var r=cv.getBoundingClientRect();
+  var mx=e.clientX-r.left,my=e.clientY-r.top;
+  bmData.forEach(function(b,i){
+    if(b._x&&mx>=b._x&&mx<=b._x+b._w&&my<cv.height-30){
+      bmSelected=i;drawBenchmarks();
+      document.getElementById('bm-title').textContent=b.title;
+      document.getElementById('bm-body').textContent=b.body;
+    }
+  });
+});
+
+// ════════════════════════════════════════════
+// S16: SYMBOL GROUNDING
+// ════════════════════════════════════════════
+var grndMode=0;
+function initGrounding(m){grndMode=m;drawGrounding();}
+function setGrounding(m){
+  grndMode=m;
+  for(var i=0;i<3;i++)document.getElementById('grnd-btn-'+i).className='btn-tab';
+  document.getElementById('grnd-btn-'+m).className='btn-tab active';
+  var titles=['The Ungrounded Gap','Successful Grounding','Grounding Failure (Cascading Error)'];
+  var bodies=[
+    'A neural network trained on chest X-rays develops an internal representation — a vector in high-dimensional space — that correlates with "pneumonia". But this vector has no inherent meaning. It\'s just numbers. For a symbolic reasoner to use it, someone must define: this vector region = the symbol PNEUMONIA. This mapping is the grounding step, and getting it right is non-trivial, especially at concept boundaries.',
+    'Successful grounding: the neural component outputs a confidence score (0.87) for "pneumonia" that exceeds the grounding threshold (0.5). The symbol PNEUMONIA is instantiated as true. The symbolic reasoner can now apply rules: "IF PNEUMONIA AND age>65 THEN recommend_hospitalisation". The grounding is correct, the reasoning proceeds, and the decision is appropriate.',
+    'Grounding failure cascade: borderline case — the neural model outputs 0.48 confidence for "pneumonia" (just below threshold). The grounding maps this to false. The symbolic reasoner, believing no pneumonia is present, recommends discharge. But the true diagnosis was pneumonia. A small perceptual error caused a large clinical error. This is the cascading grounding problem — and it worsens as reasoning chains get longer.'
+  ];
+  document.getElementById('grnd-title').textContent=titles[m];
+  document.getElementById('grnd-body').textContent=bodies[m];
+  drawGrounding();
+}
+function drawGrounding(){
+  var cv=document.getElementById('c-grounding');if(!cv)return;
+  var ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);
+  var W=cv.width,H=cv.height;
+  // Left: Neural space (embedding cloud)
+  var cx1=180,cy1=H/2;
+  ctx.beginPath();ctx.ellipse(cx1,cy1,130,100,0,0,Math.PI*2);
+  ctx.strokeStyle='#74c0fc44';ctx.lineWidth=1;ctx.stroke();
+  ctx.font='700 10px Inter,sans-serif';ctx.textAlign='center';ctx.fillStyle='#74c0fc';
+  ctx.fillText('Neural Embedding Space',cx1,cy1-110);
+  // points in embedding space
+  var pts=[{x:-60,y:-30,label:'vec_1',c:'#74c0fc'},{x:-20,y:10,label:'vec_2',c:'#74c0fc'},{x:-50,y:40,label:'vec_3',c:'#74c0fc'},
+           {x:40,y:-20,label:'vec_4',c:'#74c0fc'},{x:60,y:30,label:'vec_5',c:'#74c0fc'}];
+  // Cluster for "pneumonia-like"
+  var target={x:-30,y:10};
+  if(grndMode===0){
+    ctx.strokeStyle='#fdcb6e44';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.ellipse(cx1+target.x,cy1+target.y,50,40,0,0,Math.PI*2);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font='9px Inter,sans-serif';ctx.fillStyle='#fdcb6e';ctx.textAlign='center';
+    ctx.fillText('"pneumonia-like?"',cx1+target.x,cy1+target.y+55);
+    ctx.fillText('(no symbol)',cx1+target.x,cy1+target.y+67);
+  } else {
+    var clusterColor=grndMode===1?'#51cf66':'#ff6b6b';
+    ctx.strokeStyle=clusterColor;ctx.lineWidth=2;
+    ctx.beginPath();ctx.ellipse(cx1+target.x,cy1+target.y,50,40,0,0,Math.PI*2);ctx.stroke();
+    ctx.font='700 9px Inter,sans-serif';ctx.fillStyle=clusterColor;ctx.textAlign='center';
+    ctx.fillText('PNEUMONIA',cx1+target.x,cy1+target.y-48);
+    ctx.font='9px Inter,sans-serif';
+    ctx.fillText(grndMode===1?'threshold: 0.87 ✓':'threshold: 0.48 ✗',cx1+target.x,cy1+target.y+55);
+  }
+  pts.forEach(function(p,i){
+    var inCluster=Math.hypot(p.x-target.x,p.y-target.y)<55;
+    ctx.beginPath();ctx.arc(cx1+p.x,cy1+p.y,5,0,Math.PI*2);
+    ctx.fillStyle=inCluster&&grndMode>0?( grndMode===1?'#51cf66':'#ff6b6b'):'#74c0fc';
+    ctx.fill();
+  });
+  // Center: grounding bridge
+  var bridgeColor=grndMode===0?'#fdcb6e':grndMode===1?'#51cf66':'#ff6b6b';
+  ctx.strokeStyle=bridgeColor;ctx.lineWidth=grndMode===0?1:2;
+  if(grndMode===0)ctx.setLineDash([6,6]);
+  ctx.beginPath();ctx.moveTo(cx1+130,cy1);ctx.lineTo(W-330,cy1);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.font='700 10px Inter,sans-serif';ctx.textAlign='center';ctx.fillStyle=bridgeColor;
+  ctx.fillText(grndMode===0?'? Grounding gap':grndMode===1?'Grounding: ✓':'Grounding: ✗ (0.48<0.5)',W/2,cy1-16);
+  // Right: Symbolic space
+  var cx2=W-160,cy2=H/2;
+  drawRoundedRect(ctx,cx2-120,cy2-100,240,200,10,'#0d1117','#51cf6633');
+  ctx.font='700 10px Inter,sans-serif';ctx.textAlign='center';ctx.fillStyle='#51cf66';
+  ctx.fillText('Symbolic KB',cx2,cy2-110);
+  var syms=['PNEUMONIA','FEVER','COUGH','DYSPNOEA'];
+  syms.forEach(function(s,i){
+    var active=s==='PNEUMONIA'&&grndMode>0;
+    var c=active?(grndMode===1?'#51cf66':'#ff6b6b'):'#30363d';
+    drawRoundedRect(ctx,cx2-80,cy2-70+i*44,160,36,6,c+'22',c);
+    ctx.font=(active?'700 ':'')+'10px Inter,sans-serif';ctx.textAlign='center';ctx.fillStyle=c;
+    ctx.fillText(s,cx2,cy2-48+i*44);
+    if(active&&grndMode===1)ctx.fillText('→ hospitalise if age>65',cx2,cy2-36+i*44);
+    if(active&&grndMode===2)ctx.fillText('→ NOT activated (error)',cx2,cy2-36+i*44);
+  });
+}
+
+// ════════════════════════════════════════════
+// S17: NESY + LLMS
+// ════════════════════════════════════════════
+var llmTabIdx=0;
+var llmTabs=[
+  {title:'Chain-of-Thought — Emergent Symbolic Reasoning',
+   body:'Chain-of-thought prompting (Wei et al., 2022) elicits step-by-step reasoning from LLMs by prepending "Let\'s think step by step..." The model generates intermediate reasoning steps before answering. This is a form of emergent neurosymbolic behaviour — the LLM\'s neural layers approximate symbolic reasoning chains, improving multi-step performance significantly.\n\nKautz Type: closest to Type 1 (Symbolic Neural). The "symbolic" component is the token-level reasoning chain, not formal logic. Reasoning is not formally verified and can contain errors, but dramatically outperforms direct answering on tasks like grade-school math and commonsense QA.',
+   nodes:['User Query','LLM generates\nreasoning steps','Step 1: Parse','Step 2: Infer','Step 3: Conclude','Final Answer'],
+   colors:['#a29bfe','#a29bfe','#74c0fc','#74c0fc','#74c0fc','#51cf66'],
+   kautz:'Type 1'},
+  {title:'Tool Use — Symbolic Subroutines',
+   body:'LLMs augmented with tools (calculators, code interpreters, search engines, databases) follow a Symbolic[Neural] pattern (Kautz Type 2): the LLM is the "outer" symbolic planner deciding which tool to call and when, while the tools are the symbolic subroutines providing guaranteed correct results.\n\nCalling a Python interpreter for arithmetic eliminates LLM arithmetic errors entirely. Calling a search engine retrieves facts the LLM cannot know. Calling a SQL database gives precise, up-to-date answers. The LLM manages the workflow; tools handle deterministic computation.',
+   nodes:['User Query','LLM plans\ntool calls','Calculator','Code Runner','Search API','LLM assembles\nanswer'],
+   colors:['#a29bfe','#a29bfe','#51cf66','#51cf66','#51cf66','#a29bfe'],
+   kautz:'Type 2'},
+  {title:'RAG — Knowledge Graph Retrieval',
+   body:'Retrieval-Augmented Generation (RAG) retrieves relevant documents or KG facts before generation — a Neural|Symbolic pipeline (Type 3): neural retrieval identifies relevant facts; the LLM reasons over retrieved symbolic grounding.\n\nRAG significantly reduces hallucination on factual queries by providing ground-truth context. Knowledge Graph RAG (KG-RAG) is even stronger — it retrieves structured fact triples, not just text chunks, giving the LLM precise symbolic constraints to reason within.',
+   nodes:['User Query','Neural Retriever','KG / Document\nStore','Retrieved Facts','LLM with context','Grounded Answer'],
+   colors:['#a29bfe','#74c0fc','#51cf66','#51cf66','#a29bfe','#51cf66'],
+   kautz:'Type 3'},
+  {title:'Neuro-Symbolic Programming — Code as Logic',
+   body:'The most tightly coupled LLM+symbolic approach: the LLM generates executable symbolic programs (Python, SQL, logic programs) that are then executed by an interpreter for guaranteed correct results. This is Type 5 (NeuralSymbolic) — neural generation coupled to symbolic execution.\n\nExamples: PaLM-Code generates Python to answer math questions; VisProg generates Python programs to answer visual questions; CodeBERT translates NL to SQL. The neural component handles language understanding and program synthesis; the symbolic interpreter handles deterministic execution.',
+   nodes:['User Query','LLM synthesises\nprogram','Interpreter\nexecutes','Result','LLM formats\noutput','Verified Answer'],
+   colors:['#a29bfe','#a29bfe','#51cf66','#51cf66','#a29bfe','#51cf66'],
+   kautz:'Type 5'}
+];
+function initLLMTab(i){llmTabIdx=i;drawLLMTab();}
+function setLLMTab(i){
+  llmTabIdx=i;
+  for(var j=0;j<4;j++)document.getElementById('llm-btn-'+j).className='btn-tab';
+  document.getElementById('llm-btn-'+i).className='btn-tab active';
+  var d=llmTabs[i];
+  document.getElementById('llm-title').textContent=d.title;
+  document.getElementById('llm-body').innerHTML=d.body.replace(/\n\n/g,'<br><br>');
+  drawLLMTab();
+}
+function drawLLMTab(){
+  var cv=document.getElementById('c-llms');if(!cv)return;
+  var ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);
+  var W=cv.width,H=cv.height;
+  var d=llmTabs[llmTabIdx];
+  var nodes=d.nodes;var colors=d.colors;
+  var nodeW=108,nodeH=56,gap=(W-nodes.length*nodeW)/(nodes.length+1);
+  nodes.forEach(function(n,i){
+    var nx=gap*(i+1)+nodeW*i;var ny=(H-nodeH)/2;
+    drawRoundedRect(ctx,nx,ny,nodeW,nodeH,8,colors[i]+'22',colors[i]);
+    ctx.font='700 9px Inter,sans-serif';ctx.textAlign='center';ctx.fillStyle=colors[i];
+    n.split('\n').forEach(function(l,li){ctx.fillText(l,nx+nodeW/2,ny+nodeH/2-4+(li-(n.split('\n').length-1)/2)*13);});
+    if(i>0){
+      var px=gap*i+nodeW*(i-1)+nodeW;
+      ctx.strokeStyle='#30363d';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(px+4,H/2);ctx.lineTo(nx-4,H/2);ctx.stroke();
+      ctx.fillStyle='#30363d';
+      ctx.beginPath();ctx.moveTo(nx-10,H/2-4);ctx.lineTo(nx-2,H/2);ctx.lineTo(nx-10,H/2+4);ctx.fill();
+    }
+  });
+  ctx.font='700 10px Inter,sans-serif';ctx.textAlign='right';ctx.fillStyle='#a29bfe';
+  ctx.fillText('Kautz '+d.kautz,W-20,H-16);
+}
+
+// ════════════════════════════════════════════
+// S18: PIPELINE BUILDER
+// ════════════════════════════════════════════
+function updateBuilder(){
+  var neural=document.querySelector('input[name="bld-neural"]:checked');
+  var know=document.querySelector('input[name="bld-know"]:checked');
+  var sym=document.querySelector('input[name="bld-sym"]:checked');
+  if(!neural)return;
+  var nv=neural.value,kv=know.value,sv=sym.value;
+  // Determine Kautz type and description
+  var kautz,desc;
+  if(nv==='none'&&sv!=='none'){kautz='Pure Symbolic';desc='No neural component. Classical expert system / logic program. Perfect interpretability, zero learning from data. Brittle at scale.';}
+  else if(nv!=='none'&&sv==='none'&&kv==='none'){kautz='Type 1 — Symbolic Neural';desc='Pure neural model. Words/tokens as symbols but no formal reasoning. Example: standard LLM. High accuracy, low interpretability.';}
+  else if(nv!=='none'&&sv!=='none'&&kv==='none'){kautz='Type 3 — Neural | Symbolic';desc='Neural perception feeds into symbolic reasoning via symbol grounding. Parallel pipeline. Example: Neural-Concept Learner (scene → program → answer).';}
+  else if(nv!=='none'&&kv!=='none'&&sv==='problog'){kautz='Type 5 — NeuralSymbolic';desc='Neural component grounded via probabilistic logic over a knowledge base. End-to-end trainable. Closest system: DeepProbLog. Strong at both perception and formal reasoning.';}
+  else if(nv!=='none'&&kv!=='none'&&sv==='ilp'){kautz='Type 5 — NeuralSymbolic';desc='Neural perception + theorem proving over KB. Closest system: Neural Theorem Prover. Differentiable proof search, good for relational reasoning tasks.';}
+  else if(nv!=='none'&&kv!=='none'&&sv==='constraint'){kautz='Type 2 — Symbolic[Neural]';desc='Symbolic constraint solver orchestrates neural evaluation. Closest to AlphaGo-style systems. Symbolic planner calls neural models as subroutines.';}
+  else{kautz='Hybrid (Type 3–5)';desc='Mixed architecture. Exact Kautz type depends on integration depth. Consider whether neural and symbolic components are loosely coupled (Type 3) or tightly fused (Type 5).';}
+  document.getElementById('bld-kautz').textContent=kautz;
+  document.getElementById('bld-desc').textContent=desc;
+  drawBuilder(nv,kv,sv,kautz);
+}
+function drawBuilder(nv,kv,sv,kautz){
+  var cv=document.getElementById('c-builder');if(!cv)return;
+  var ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);
+  var W=cv.width,H=cv.height;
+  // Draw 3 component boxes + connectors
+  var boxes=[
+    {label:'Neural Backbone',val:nv==='none'?'None':nv==='cnn'?'CNN':nv==='transformer'?'Transformer':'GNN',color:'#74c0fc',x:60},
+    {label:'Knowledge Source',val:kv==='none'?'None':kv==='kg'?'Knowledge Graph':kv==='rules'?'Rules':'Ontology',color:'#fdcb6e',x:320},
+    {label:'Symbolic Reasoner',val:sv==='none'?'None':sv==='problog'?'ProbLog':sv==='ilp'?'Theorem Prover':'Constraint Solver',color:'#51cf66',x:580}
+  ];
+  boxes.forEach(function(b,i){
+    var present=b.val!=='None';
+    drawRoundedRect(ctx,b.x,60,180,100,10,present?b.color+'22':'#161b22',present?b.color:'#30363d');
+    ctx.font='700 9px Inter,sans-serif';ctx.textAlign='center';ctx.fillStyle=present?b.color:'#555';
+    ctx.fillText(b.label,b.x+90,88);
+    ctx.font=present?'700 12px Inter,sans-serif':'11px Inter,sans-serif';ctx.fillStyle=present?b.color:'#555';
+    ctx.fillText(b.val,b.x+90,118);
+    // Arrow to next
+    if(i<2){
+      ctx.strokeStyle=present?b.color:'#30363d';ctx.lineWidth=present?2:1;
+      ctx.beginPath();ctx.moveTo(b.x+180+4,110);ctx.lineTo(boxes[i+1].x-4,110);ctx.stroke();
+      ctx.fillStyle=present?b.color:'#30363d';
+      ctx.beginPath();ctx.moveTo(boxes[i+1].x-10,106);ctx.lineTo(boxes[i+1].x-2,110);ctx.lineTo(boxes[i+1].x-10,114);ctx.fill();
+    }
+  });
+  // Tradeoff bars
+  var present_n=nv!=='none',present_k=kv!=='none',present_s=sv!=='none';
+  var score_acc=present_n?(present_s?0.87:0.92):0.45;
+  var score_int=present_s?(present_n?0.82:0.98):0.15;
+  var score_reas=present_s?(present_k?0.88:0.6):0.2;
+  var score_safe=present_s&&present_k?0.85:present_s?0.6:0.15;
+  var bars=[{l:'Accuracy',v:score_acc,c:'#74c0fc'},{l:'Interpretability',v:score_int,c:'#51cf66'},{l:'Reasoning',v:score_reas,c:'#fdcb6e'},{l:'Safety guarantee',v:score_safe,c:'#e17055'}];
+  var bx=80,by=200,bw=640,bh=12,bg=22;
+  bars.forEach(function(b,i){
+    var y=by+i*(bh+bg);
+    ctx.font='9px Inter,sans-serif';ctx.textAlign='left';ctx.fillStyle='#8b949e';
+    ctx.fillText(b.l,bx,y+10);
+    drawRoundedRect(ctx,bx+110,y,bw-110,bh,4,'#21262d',null);
+    var fw=(bw-110)*b.v;
+    if(fw>4){drawRoundedRect(ctx,bx+110,y,fw,bh,4,b.c+'66',null);ctx.fillStyle=b.c;ctx.beginPath();ctx.roundRect(bx+110,y,fw,bh,4);ctx.fill();}
+    ctx.font='700 9px Inter,sans-serif';ctx.textAlign='right';ctx.fillStyle=b.c;
+    ctx.fillText(Math.round(b.v*100)+'%',bx+bw+20,y+10);
+  });
+}
+
+// ════════════════════════════════════════════
+// S19: FAILURE MODES
+// ════════════════════════════════════════════
+function initFailures(){drawFailures();}
+function drawFailures(){
+  var cv=document.getElementById('c-failures');if(!cv)return;
+  var ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);
+  var W=cv.width,H=cv.height;
+  // Show combinatorial explosion: branching factor chart
+  ctx.font='700 11px Inter,sans-serif';ctx.textAlign='center';ctx.fillStyle='#ff6b6b';
+  ctx.fillText('Combinatorial Explosion: Search Space vs Reasoning Depth',W/2,22);
+  var depths=[1,2,3,4,5,6];
+  var branching=3;// branching factor
+  var maxNodes=Math.pow(branching,6);
+  depths.forEach(function(d,i){
+    var nodes=Math.pow(branching,d);
+    var bw=80,bx=60+i*(bw+28),barH=(H-70)*Math.min(nodes,maxNodes)/maxNodes;
+    var by=H-40-barH;
+    var col=d<=2?'#51cf66':d<=4?'#fdcb6e':'#ff6b6b';
+    drawRoundedRect(ctx,bx,by,bw,barH,4,col+'44',col);
+    ctx.font='700 10px Inter,sans-serif';ctx.textAlign='center';ctx.fillStyle=col;
+    ctx.fillText(nodes>999?'~'+Math.round(nodes/1000)+'k':nodes,bx+bw/2,by-6);
+    ctx.font='10px Inter,sans-serif';ctx.fillStyle='#8b949e';
+    ctx.fillText('depth '+d,bx+bw/2,H-24);
+    ctx.fillText('(branching='+branching+')',bx+bw/2,H-12);
+  });
+  ctx.strokeStyle='#30363d';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(44,30);ctx.lineTo(44,H-40);ctx.lineTo(W-20,H-40);ctx.stroke();
+  ctx.font='9px Inter,sans-serif';ctx.textAlign='right';ctx.fillStyle='#555';
+  ctx.fillText('nodes',42,34);
 }
 </script>
 </body>
