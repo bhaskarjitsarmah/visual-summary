@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>vLLM & PagedAttention — A Visual Guide</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#c9d1d9;--muted:#8b949e;
+  --accent:#7c3aed;--accent2:#a78bfa;--accent3:#c4b5fd;
+  --ok:#51cf66;--warn:#fdcb6e;--danger:#ff6b6b;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+.sidebar{width:240px;min-width:240px;height:100vh;position:sticky;top:0;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:0 0 40px;flex-shrink:0;}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.sidebar-logo-title{font-size:13px;font-weight:700;color:var(--accent2);}
+.sidebar-logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.nav-group{margin-bottom:4px;}
+.nav-group-title{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;padding:10px 16px 4px;}
+.nav-link{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;}
+.nav-link:hover,.nav-link.active{color:var(--text);background:rgba(124,58,237,.08);}
+.nav-link.active{color:var(--accent2);}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.main{flex:1;overflow-y:auto;height:100vh;}
+.pipeline-map{position:sticky;top:0;z-index:50;background:rgba(13,17,23,.96);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+.pipe-step{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);padding:2px 6px;border-radius:4px;transition:color .15s;}
+.pipe-step:hover{color:var(--text);}
+.pipe-dot{width:6px;height:6px;border-radius:50%;}
+.pipe-arrow{color:var(--border);font-size:12px;}
+.section{min-height:100vh;padding:60px 48px 80px;border-bottom:1px solid var(--border);}
+.section-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px;}
+.section-title{font-size:28px;font-weight:800;color:var(--text);margin-bottom:8px;line-height:1.25;}
+.section-sub{font-size:14px;color:var(--muted);margin-bottom:28px;max-width:680px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:16px;}
+.card-title{font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px;}
+.card-body{font-size:13px;color:var(--muted);line-height:1.6;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+canvas{display:block;border-radius:10px;background:var(--surface);border:1px solid var(--border);}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s;}
+.btn:hover{opacity:.85;}
+.btn-tab{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+.formula{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-family:'Courier New',monospace;font-size:12px;color:#a78bfa;line-height:1.7;margin-bottom:16px;white-space:pre;}
+.stats-row{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:24px;}
+.stat{text-align:center;}
+.stat-val{font-size:28px;font-weight:800;color:var(--accent2);}
+.stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;}
+.section-bridge{margin-top:48px;padding-top:28px;border-top:1px solid var(--border);text-align:right;}
+.section-bridge-link{font-size:12px;color:var(--accent2);font-weight:600;border:1px solid var(--accent2);border-radius:6px;padding:6px 14px;transition:all .15s;}
+.section-bridge-link:hover{background:rgba(124,58,237,.1);}
+.accordion-item{border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+.accordion-header{padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;background:var(--surface);}
+.accordion-header:hover{background:#1c2128;}
+.accordion-chevron{transition:transform .2s;font-size:10px;color:var(--muted);}
+.accordion-body{padding:14px 16px;font-size:12px;color:var(--muted);display:none;border-top:1px solid var(--border);}
+.quiz-q{font-size:15px;font-weight:600;margin-bottom:16px;color:var(--text);}
+.quiz-opt{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:8px;cursor:pointer;font-size:13px;transition:all .15s;}
+.quiz-opt:hover{border-color:var(--accent2);}
+.quiz-opt.correct{border-color:#51cf66;background:rgba(81,207,102,.1);color:#51cf66;}
+.quiz-opt.wrong{border-color:#ff6b6b;background:rgba(255,107,107,.1);color:#ff6b6b;}
+.quiz-feedback{font-size:12px;color:var(--muted);margin-top:8px;min-height:16px;}
+#pg-gate{position:fixed;inset:0;background:#0d1117;z-index:9999;display:flex;align-items:center;justify-content:center;}
+.pg-box{background:#161b22;border:1px solid #30363d;border-radius:16px;padding:40px 48px;max-width:420px;width:100%;text-align:center;}
+.pg-icon{font-size:2.5rem;margin-bottom:16px;}
+.pg-title{font-size:1.3rem;font-weight:800;color:#c9d1d9;margin-bottom:6px;}
+.pg-sub{font-size:12px;color:#8b949e;margin-bottom:24px;}
+.pg-input{width:100%;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:10px 14px;color:#c9d1d9;font-size:14px;outline:none;text-align:center;}
+.pg-input:focus{border-color:#7c3aed;}
+.pg-btn{margin-top:12px;width:100%;background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;}
+.pg-err{color:#ff6b6b;font-size:11px;margin-top:8px;min-height:16px;}
+.mem-block{display:inline-block;border-radius:4px;font-size:9px;font-weight:700;text-align:center;line-height:1;padding:2px 4px;transition:all .3s;}
+</style>
+</head>
+<body>
+
+<div id="pg-gate">
+  <div class="pg-box">
+    <div class="pg-icon">⚡</div>
+    <div class="pg-title">vLLM & PagedAttention</div>
+    <div class="pg-sub">A Visual Guide to Efficient LLM Serving — Interactive Blog</div>
+    <input class="pg-input" id="pg-input" type="password" placeholder="Enter password" onkeydown="if(event.key==='Enter')pgCheck()">
+    <button class="pg-btn" onclick="pgCheck()">Unlock</button>
+    <div class="pg-err" id="pg-err"></div>
+  </div>
+</div>
+
+<script>
+var PG_PASSWORD='visual2025';var PG_KEY='pg_unlocked_14';
+function pgCheck(){var v=document.getElementById('pg-input').value.trim();if(v===PG_PASSWORD){sessionStorage.setItem(PG_KEY,'1');document.getElementById('pg-gate').style.display='none';document.getElementById('pg-main').style.display='flex';initAll();}else{document.getElementById('pg-err').textContent='Incorrect password.';}}
+if(sessionStorage.getItem(PG_KEY)==='1'){document.getElementById('pg-gate').style.display='none';}
+</script>
+
+<div id="pg-main" style="display:none;width:100%;">
+
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-title">vLLM & PagedAttention</div>
+    <div class="sidebar-logo-sub">Kwon et al. · SOSP 2023 · arXiv:2309.06180</div>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">The Problem</div>
+    <a class="nav-link" href="#s-crisis" onclick="setActive(this)"><span class="dot" style="background:#ff6b6b"></span>Memory Crisis</a>
+    <a class="nav-link" href="#s-analogy" onclick="setActive(this)"><span class="dot" style="background:#fdcb6e"></span>The OS Analogy</a>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">PagedAttention</div>
+    <a class="nav-link" href="#s-paged" onclick="setActive(this)"><span class="dot" style="background:#7c3aed"></span>The Algorithm</a>
+    <a class="nav-link" href="#s-waste" onclick="setActive(this)"><span class="dot" style="background:#a78bfa"></span>Waste Eliminated</a>
+    <a class="nav-link" href="#s-blocks" onclick="setActive(this)"><span class="dot" style="background:#c4b5fd"></span>Block Tables</a>
+    <a class="nav-link" href="#s-cow" onclick="setActive(this)"><span class="dot" style="background:#51cf66"></span>Copy-on-Write</a>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">The System</div>
+    <a class="nav-link" href="#s-batching" onclick="setActive(this)"><span class="dot" style="background:#fdcb6e"></span>Continuous Batching</a>
+    <a class="nav-link" href="#s-results" onclick="setActive(this)"><span class="dot" style="background:#51cf66"></span>Throughput Results</a>
+    <a class="nav-link" href="#s-arch" onclick="setActive(this)"><span class="dot" style="background:#7c3aed"></span>vLLM Architecture</a>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">Wrap-up</div>
+    <a class="nav-link" href="#s-deploy" onclick="setActive(this)"><span class="dot" style="background:#fdcb6e"></span>Production & Deployment</a>
+    <a class="nav-link" href="#s-quiz" onclick="setActive(this)"><span class="dot" style="background:#a78bfa"></span>Knowledge Quiz</a>
+  </div>
+</nav>
+
+<div style="flex:1;display:flex;flex-direction:column;">
+<div class="pipeline-map">
+  <a class="pipe-step" href="#s-crisis"><span class="pipe-dot" style="background:#ff6b6b"></span>Crisis</a><span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-analogy"><span class="pipe-dot" style="background:#fdcb6e"></span>OS Analogy</a><span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-paged"><span class="pipe-dot" style="background:#7c3aed"></span>PagedAttn</a><span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-waste"><span class="pipe-dot" style="background:#a78bfa"></span>Waste</a><span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-blocks"><span class="pipe-dot" style="background:#c4b5fd"></span>Blocks</a><span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-cow"><span class="pipe-dot" style="background:#51cf66"></span>CoW</a><span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-batching"><span class="pipe-dot" style="background:#fdcb6e"></span>Batching</a><span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-results"><span class="pipe-dot" style="background:#51cf66"></span>Results</a><span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-arch"><span class="pipe-dot" style="background:#7c3aed"></span>Arch</a><span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-deploy"><span class="pipe-dot" style="background:#fdcb6e"></span>Deploy</a><span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-quiz"><span class="pipe-dot" style="background:#a78bfa"></span>Quiz</a>
+</div>
+<main class="main">
+
+<!-- ═══════ SECTION 1: MEMORY CRISIS ═══════ -->
+<section class="section" id="s-crisis">
+  <div class="section-tag" style="color:#ff6b6b">The Core Problem</div>
+  <h2 class="section-title">The KV Cache Memory Crisis</h2>
+  <p class="section-sub">LLM serving is bottlenecked not by compute — but by memory. Before vLLM, 60–80% of GPU memory was wasted. Understanding why requires understanding the KV cache.</p>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val" style="color:#ff6b6b">1.7 GB</div><div class="stat-lbl">KV cache per request (LLaMA-13B)</div></div>
+    <div class="stat"><div class="stat-val" style="color:#fdcb6e">60–80%</div><div class="stat-lbl">Memory wasted by prior systems</div></div>
+    <div class="stat"><div class="stat-val" style="color:#51cf66">&lt;4%</div><div class="stat-lbl">Waste with PagedAttention</div></div>
+    <div class="stat"><div class="stat-val" style="color:#a78bfa">24×</div><div class="stat-lbl">Max throughput gain vs HuggingFace</div></div>
+  </div>
+
+  <canvas id="c-crisis" width="820" height="300"></canvas>
+  <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:6px;">Click a request to see its KV cache memory footprint · Dark = wasted space</div>
+
+  <div id="crisis-detail" class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#ff6b6b" id="crisis-title">What is the KV Cache?</div>
+    <div class="card-body" id="crisis-body">During autoregressive generation, the attention mechanism must attend over all previously generated tokens. To avoid recomputing key (K) and value (V) vectors at every step, they are cached — this is the KV cache. For a large model like LLaMA-13B, a single request can consume up to 1.7 GB of KV cache. At batch sizes of 32+, this exhausts GPU memory entirely.</div>
+  </div>
+
+  <div class="grid3" style="margin-top:16px;">
+    <div class="card" style="border-color:#ff6b6b44;">
+      <div class="card-title" style="color:#ff6b6b">Why Cache at All?</div>
+      <div class="card-body">Without caching, each new token requires recomputing K and V for every previous token — O(n²) work. With KV cache, each step is O(n) — a massive practical speedup. The cache is non-negotiable for serving at scale.</div>
+    </div>
+    <div class="card" style="border-color:#fdcb6e44;">
+      <div class="card-title" style="color:#fdcb6e">The Size Problem</div>
+      <div class="card-body">KV cache size scales with: model size (hidden dim × layers), sequence length, and batch size. For LLaMA-65B at 2048 tokens, a single request requires ~3.2 GB. A batch of 10 requests needs 32 GB — the full A100 memory.</div>
+    </div>
+    <div class="card" style="border-color:#7c3aed44;">
+      <div class="card-title" style="color:#a78bfa">The Waste Problem</div>
+      <div class="card-body">Prior systems allocated memory for the maximum possible sequence length upfront. If a request generates 200 tokens instead of 2048, 90% of allocated KV cache is unused. This reservation waste is why GPU utilisation was so poor.</div>
+    </div>
+  </div>
+
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-analogy">The OS Analogy →</a></div>
+</section>
+
+<!-- ═══════ SECTION 2: OS ANALOGY ═══════ -->
+<section class="section" id="s-analogy">
+  <div class="section-tag" style="color:#fdcb6e">Inspiration</div>
+  <h2 class="section-title">The OS Analogy — Borrowing from Decades of Systems Research</h2>
+  <p class="section-sub">The insight behind PagedAttention was not new to computer science — it came from operating systems. Virtual memory and paging solved the exact same problem for RAM in the 1960s. Click each concept to see the parallel.</p>
+
+  <canvas id="c-analogy" width="820" height="320"></canvas>
+  <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:6px;">Click a row to explore the OS ↔ LLM serving analogy</div>
+
+  <div id="analogy-detail" class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#fdcb6e" id="analogy-title">Virtual Memory ↔ KV Cache</div>
+    <div class="card-body" id="analogy-body">In an OS, every process gets a virtual address space — a contiguous view of memory that is actually backed by scattered physical pages. The process doesn’t know or care about the physical layout. PagedAttention does the same for KV cache: each request sees a logical sequence of KV blocks, but the physical GPU memory backing them can be anywhere on the device.</div>
+  </div>
+
+  <div class="grid2" style="margin-top:16px;">
+    <div class="card" style="border-color:#fdcb6e44;">
+      <div class="card-title" style="color:#fdcb6e">Why This Matters</div>
+      <div class="card-body">Virtual memory let OS researchers pack many more processes into RAM by eliminating external fragmentation and enabling demand paging. PagedAttention does the same for GPU memory — eliminating the need to reserve contiguous space and enabling dynamic allocation of KV cache as tokens are generated.</div>
+    </div>
+    <div class="card" style="border-color:#a78bfa44;">
+      <div class="card-title" style="color:#a78bfa">What Didn’t Transfer</div>
+      <div class="card-body">OS swapping to disk is feasible because CPUs are slow relative to disk latency. GPU inference cannot swap to CPU RAM without destroying latency. vLLM addresses this with preemption — if memory runs out, lower-priority requests are paused and their KV cache is either swapped or recomputed.</div>
+    </div>
+  </div>
+
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-paged">PagedAttention Algorithm →</a></div>
+</section>
+
+<!-- ═══════ SECTION 3: PAGEDATTENTION ═══════ -->
+<section class="section" id="s-paged">
+  <div class="section-tag" style="color:#7c3aed">The Core Algorithm</div>
+  <h2 class="section-title">PagedAttention — How It Works</h2>
+  <p class="section-sub">PagedAttention modifies the attention computation to work over non-contiguous blocks of KV cache. The key insight: attention doesn’t require contiguous memory — it only requires that the right K and V vectors are gathered at attention time.</p>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="pa-btn-0" onclick="setPA(0)">Step 1: Prefill</button>
+    <button class="btn-tab" id="pa-btn-1" onclick="setPA(1)">Step 2: Block Alloc</button>
+    <button class="btn-tab" id="pa-btn-2" onclick="setPA(2)">Step 3: Decode</button>
+    <button class="btn-tab" id="pa-btn-3" onclick="setPA(3)">Step 4: Gather</button>
+  </div>
+
+  <canvas id="c-paged" width="820" height="300"></canvas>
+
+  <div id="pa-detail" class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#7c3aed" id="pa-title">Step 1: Prefill Phase</div>
+    <div class="card-body" id="pa-body">During prefill, the entire prompt is processed in one forward pass. All prompt token K and V vectors are computed and stored into KV cache blocks. Blocks are allocated on demand — only as many blocks as needed for the prompt length are allocated. For a 512-token prompt with block size 16, this allocates 32 blocks immediately.</div>
+  </div>
+
+  <div class="formula">PagedAttention block structure:
+
+  block_size = 16 tokens (configurable, power of 2)
+  num_blocks = ceil(seq_len / block_size)
+
+  Physical block layout:
+    block[i].keys   = float16[block_size, num_heads, head_dim]
+    block[i].values = float16[block_size, num_heads, head_dim]
+
+  Attention gather (decode step):
+    for each logical block b in block_table[request_id]:
+      physical_block = block_table[request_id][b]
+      K_slice = gpu_mem[physical_block].keys
+      V_slice = gpu_mem[physical_block].values
+      attn_score += softmax(Q · K_slice.T) · V_slice</div>
+
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-waste">Memory Waste Eliminated →</a></div>
+</section>
+
+<!-- ═══════ SECTION 4: WASTE ELIMINATED ═══════ -->
+<section class="section" id="s-waste">
+  <div class="section-tag" style="color:#a78bfa">Memory Efficiency</div>
+  <h2 class="section-title">Three Sources of Waste — All Eliminated</h2>
+  <p class="section-sub">Prior LLM serving systems wasted memory in three distinct ways. PagedAttention addresses each one. Click each waste type to see the before/after.</p>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="w-btn-0" onclick="setWaste(0)">Internal Fragmentation</button>
+    <button class="btn-tab" id="w-btn-1" onclick="setWaste(1)">Reservation Waste</button>
+    <button class="btn-tab" id="w-btn-2" onclick="setWaste(2)">No Sharing</button>
+  </div>
+
+  <canvas id="c-waste" width="820" height="280"></canvas>
+
+  <div id="waste-detail" class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#a78bfa" id="waste-title">Internal Fragmentation</div>
+    <div class="card-body" id="waste-body">Traditional systems allocate KV cache in large contiguous chunks — one per request. When a request ends mid-chunk, the remaining space is lost. With block-based allocation, blocks are exactly block_size tokens. Only the last block of a sequence has any waste, and that waste is at most (block_size - 1) token slots. For block_size=16, maximum waste per request is 15 token slots — far less than wasting hundreds of tokens in a pre-allocated buffer.</div>
+  </div>
+
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-blocks">Block Table Mechanics →</a></div>
+</section>
+
+<!-- ═══════ SECTION 5: BLOCK TABLES ═══════ -->
+<section class="section" id="s-blocks">
+  <div class="section-tag" style="color:#c4b5fd">Data Structures</div>
+  <h2 class="section-title">Block Tables — Logical to Physical Mapping</h2>
+  <p class="section-sub">Each request maintains a block table — a mapping from logical block indices (0, 1, 2, …) to physical block indices in GPU memory. Click "Add Token" to simulate generation and watch the block table grow.</p>
+
+  <div class="btn-row">
+    <button class="btn" id="bt-add-btn" onclick="btAddToken()">+ Generate Token</button>
+    <button class="btn-tab" onclick="btReset()" style="margin-left:8px;">Reset</button>
+  </div>
+
+  <canvas id="c-blocks" width="820" height="320"></canvas>
+  <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:6px;">Green = used token slot · Grey = free slot in last block · Blue = newly allocated block</div>
+
+  <div class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#c4b5fd">How the Block Table Works</div>
+    <div class="card-body">Each entry in the block table is a (logical_block_idx → physical_block_idx) pair. When generating a new token, the system checks the last logical block. If it has free slots, the K and V vectors are written there. If the block is full, a new physical block is allocated from the free block pool, and a new entry is appended to the block table. Physical blocks can be anywhere in GPU memory — they don’t need to be adjacent.</div>
+  </div>
+
+  <div class="grid2" style="margin-top:16px;">
+    <div class="card" style="border-color:#c4b5fd44;">
+      <div class="card-title" style="color:#c4b5fd">Free Block Pool</div>
+      <div class="card-body">The memory manager maintains a global pool of free physical blocks. When a request needs a new block, one is taken from the pool. When a request completes, all its blocks are returned to the pool — immediately available for new requests. No fragmented dead zones, no reserved-but-unused space.</div>
+    </div>
+    <div class="card" style="border-color:#7c3aed44;">
+      <div class="card-title" style="color:#a78bfa">Reference Counting</div>
+      <div class="card-body">Physical blocks have reference counts. A block shared between multiple requests (e.g., via copy-on-write for beam search) has ref_count &gt; 1. The block is only freed when all references are released. This enables safe memory sharing without copying.</div>
+    </div>
+  </div>
+
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-cow">Copy-on-Write →</a></div>
+</section>
+
+<!-- ═══════ SECTION 6: COPY-ON-WRITE ═══════ -->
+<section class="section" id="s-cow">
+  <div class="section-tag" style="color:#51cf66">Memory Sharing</div>
+  <h2 class="section-title">Copy-on-Write — Sharing KV Cache Across Requests</h2>
+  <p class="section-sub">When multiple requests share the same prompt prefix (e.g., beam search or parallel sampling), their KV cache blocks can be physically shared — no copying. A fork only happens when a request writes a diverging token.</p>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="cow-btn-0" onclick="setCOW(0)">Parallel Sampling</button>
+    <button class="btn-tab" id="cow-btn-1" onclick="setCOW(1)">Beam Search</button>
+    <button class="btn-tab" id="cow-btn-2" onclick="setCOW(2)">Shared System Prompt</button>
+  </div>
+
+  <canvas id="c-cow" width="820" height="320"></canvas>
+  <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:6px;">Gold = shared blocks (ref_count &gt; 1) · Green = diverged private blocks · Click "Step" to animate</div>
+
+  <div class="btn-row" style="margin-top:14px;">
+    <button class="btn" onclick="cowStep()">Step →</button>
+    <button class="btn-tab" onclick="cowReset()">Reset</button>
+  </div>
+
+  <div id="cow-detail" class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#51cf66" id="cow-title">Parallel Sampling</div>
+    <div class="card-body" id="cow-body">When sampling N outputs from the same prompt (e.g., generating 5 alternative responses), all N sequences start from identical KV cache. With copy-on-write, all N block tables point to the same physical blocks for the prompt. Only when each sequence generates its first diverging token is a private copy of that block created. Memory savings: up to 55% reduction. Throughput gain: up to 2.2× improvement over systems that copy KV cache upfront.</div>
+  </div>
+
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-batching">Continuous Batching →</a></div>
+</section>
+
+<!-- ═══════ SECTION 7: CONTINUOUS BATCHING ═══════ -->
+<section class="section" id="s-batching">
+  <div class="section-tag" style="color:#fdcb6e">Scheduling</div>
+  <h2 class="section-title">Continuous Batching — Eliminating GPU Idle Time</h2>
+  <p class="section-sub">Static batching holds the GPU idle until every request in a batch finishes. Continuous batching inserts new requests mid-flight — the moment a slot frees up. Combined with PagedAttention, this is what makes vLLM’s throughput gains possible.</p>
+
+  <canvas id="c-batching" width="820" height="300"></canvas>
+  <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:6px;">Click "Run" to animate · Blue = active token generation · Dark = GPU idle · Gold = waiting queue</div>
+
+  <div class="btn-row" style="margin-top:14px;">
+    <button class="btn" onclick="batchRun()">▶ Run</button>
+    <button class="btn-tab" onclick="batchReset()">Reset</button>
+    <button class="btn-tab active" id="batch-mode-btn" onclick="toggleBatchMode()">Static Batching</button>
+  </div>
+
+  <div class="grid2" style="margin-top:16px;">
+    <div class="card" style="border-color:#ff6b6b44;">
+      <div class="card-title" style="color:#ff6b6b">Static Batching (Old)</div>
+      <div class="card-body">Collect N requests. Run all N through prefill. Generate tokens for all N until every single one is done. Only then start the next batch. Short requests wait for long ones — GPU throughput suffers. Common in early HuggingFace serving and FasterTransformer.</div>
+    </div>
+    <div class="card" style="border-color:#51cf6644;">
+      <div class="card-title" style="color:#51cf66">Continuous Batching (vLLM)</div>
+      <div class="card-body">Each iteration, the scheduler checks for completed requests and immediately queues new ones. The GPU never idles waiting for slow requests. First coined by Orca (2022) — vLLM combines it with PagedAttention for memory-efficient continuous batching at scale.</div>
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">What is an "iteration" in vLLM’s scheduler? <span class="accordion-chevron">▼</span></div>
+    <div class="accordion-body">Each scheduler iteration processes one decode step across all active requests — generating one token per request. After each iteration, the scheduler: (1) collects newly finished requests, (2) frees their blocks back to the pool, (3) checks the waiting queue, (4) if free blocks are available, promotes waiting requests to running. This happens hundreds of times per second.</div>
+  </div>
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">What happens when memory runs out mid-batch? <span class="accordion-chevron">▼</span></div>
+    <div class="accordion-body">vLLM uses preemption. If the scheduler cannot allocate blocks for the next step, it can: (a) swap a running request’s KV cache to CPU RAM and resume it later, or (b) recompute — drop the KV cache and re-run prefill when GPU memory is freed. Recompute wastes compute but avoids the PCIe bandwidth bottleneck of swap. The scheduler prefers swap for short sequences and recompute for long ones where swap cost dominates.</div>
+  </div>
+
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-results">Throughput Results →</a></div>
+</section>
+
+<!-- ═══════ SECTION 8: THROUGHPUT RESULTS ═══════ -->
+<section class="section" id="s-results">
+  <div class="section-tag" style="color:#51cf66">Benchmarks</div>
+  <h2 class="section-title">Throughput Results — The Numbers</h2>
+  <p class="section-sub">vLLM was benchmarked on A10G and A100 GPUs against HuggingFace Transformers, Text Generation Inference (TGI), Orca, and FasterTransformer. Results from SOSP 2023.</p>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="res-btn-0" onclick="setResult(0)">vs HuggingFace</button>
+    <button class="btn-tab" id="res-btn-1" onclick="setResult(1)">vs TGI</button>
+    <button class="btn-tab" id="res-btn-2" onclick="setResult(2)">vs FasterTransformer</button>
+    <button class="btn-tab" id="res-btn-3" onclick="setResult(3)">Memory Efficiency</button>
+  </div>
+
+  <canvas id="c-results" width="820" height="300"></canvas>
+
+  <div id="results-detail" class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#51cf66" id="res-title">vLLM vs HuggingFace Transformers</div>
+    <div class="card-body" id="res-body">On LLaMA-7B (A10G GPU), vLLM achieves up to 24× higher throughput than HuggingFace Transformers. On LLaMA-13B, the gains are 15×. The gap is largest at high request rates — HuggingFace stalls on memory allocation while vLLM continues serving with its dynamic block allocator. Even at low request rates (where memory isn’t the bottleneck), vLLM still shows 4–8× advantage from continuous batching alone.</div>
+  </div>
+
+  <div class="grid3" style="margin-top:16px;">
+    <div class="card" style="border-color:#51cf6644;">
+      <div class="card-title" style="color:#51cf66">Production Impact</div>
+      <div class="card-body">LMSYS Chatbot Arena uses vLLM in production. Compared to their previous HuggingFace backend, they observed up to 30× throughput improvement, enabling them to handle 30K–60K daily requests with 50% fewer GPUs.</div>
+    </div>
+    <div class="card" style="border-color:#a78bfa44;">
+      <div class="card-title" style="color:#a78bfa">Beam Search Gains</div>
+      <div class="card-body">For beam search (width 4), copy-on-write reduces memory usage by up to 55% and delivers 2.2× throughput improvement vs systems that copy KV cache per beam. The longer the shared prefix, the larger the gain.</div>
+    </div>
+    <div class="card" style="border-color:#fdcb6e44;">
+      <div class="card-title" style="color:#fdcb6e">Memory Utilisation</div>
+      <div class="card-body">Prior systems waste 60–80% of KV cache memory to fragmentation and over-reservation. PagedAttention achieves less than 4% waste — near the theoretical minimum given fixed block sizes. This directly translates to larger effective batch sizes.</div>
+    </div>
+  </div>
+
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-arch">vLLM Architecture →</a></div>
+</section>
+
+<!-- ═══════ SECTION 9: ARCHITECTURE ═══════ -->
+<section class="section" id="s-arch">
+  <div class="section-tag" style="color:#7c3aed">System Design</div>
+  <h2 class="section-title">vLLM Architecture — How the System Is Built</h2>
+  <p class="section-sub">vLLM has a clean separation between the scheduling/memory layer and the compute layer. Click a component to explore its role.</p>
+
+  <canvas id="c-arch" width="820" height="380"></canvas>
+  <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:6px;">Click a component to explore its responsibilities</div>
+
+  <div id="arch-detail" class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#7c3aed" id="arch-title">LLM Engine</div>
+    <div class="card-body" id="arch-body">The LLM Engine is the central orchestrator. It receives incoming requests from the API server, passes them to the Scheduler for batching decisions, dispatches batches to Workers via Ray (for multi-GPU), and returns completed outputs to the caller. The Engine maintains the global view of all active, waiting, and preempted requests.</div>
+  </div>
+
+  <div class="grid3" style="margin-top:16px;">
+    <div class="card" style="border-color:#7c3aed44;">
+      <div class="card-title" style="color:#7c3aed">Scheduler</div>
+      <div class="card-body">Decides each iteration: which waiting requests to admit, which running requests to preempt, and which preempted requests to resume. Implements the continuous batching policy and coordinates with the Block Manager on memory availability.</div>
+    </div>
+    <div class="card" style="border-color:#a78bfa44;">
+      <div class="card-title" style="color:#a78bfa">Block Manager</div>
+      <div class="card-body">Owns the global free-block pool. Allocates and frees physical KV cache blocks. Maintains block tables for each request. Handles copy-on-write when forking shared blocks for beam search or parallel sampling.</div>
+    </div>
+    <div class="card" style="border-color:#c4b5fd44;">
+      <div class="card-title" style="color:#c4b5fd">Worker (GPU)</div>
+      <div class="card-body">Executes forward passes on the model. Contains the PagedAttention CUDA kernel — a custom attention implementation that gathers K/V from non-contiguous physical blocks using the block table. One worker per GPU; coordinated via Ray for tensor parallelism.</div>
+    </div>
+  </div>
+
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-deploy">Production & Deployment →</a></div>
+</section>
+
+<!-- ═══════ SECTION 10: PRODUCTION & DEPLOYMENT ═══════ -->
+<section class="section" id="s-deploy">
+  <div class="section-tag" style="color:#fdcb6e">Real-World Use</div>
+  <h2 class="section-title">Production & Deployment — vLLM in the Wild</h2>
+  <p class="section-sub">vLLM is now one of the most widely deployed LLM serving frameworks. It supports OpenAI-compatible APIs, tensor parallelism, quantisation, and a growing ecosystem of integrations.</p>
+
+  <canvas id="c-deploy" width="820" height="260"></canvas>
+
+  <div class="grid2" style="margin-top:16px;">
+    <div class="card" style="border-color:#fdcb6e44;">
+      <div class="card-title" style="color:#fdcb6e">OpenAI-Compatible API</div>
+      <div class="card-body">vLLM exposes a drop-in OpenAI-compatible REST API. Any application that calls the OpenAI completions or chat completions endpoint can switch to a self-hosted vLLM instance with zero code changes. This has driven rapid adoption for cost-sensitive deployments.</div>
+    </div>
+    <div class="card" style="border-color:#a78bfa44;">
+      <div class="card-title" style="color:#a78bfa">Tensor Parallelism</div>
+      <div class="card-body">For models too large for a single GPU (e.g., LLaMA-70B requires 140+ GB fp16), vLLM shards the model across multiple GPUs using tensor parallelism via Megatron-LM’s approach. The PagedAttention kernel and block tables work correctly across shards — each GPU holds a portion of the KV cache blocks.</div>
+    </div>
+  </div>
+
+  <div class="grid3" style="margin-top:14px;">
+    <div class="card">
+      <div class="card-title" style="color:#51cf66">Quantisation Support</div>
+      <div class="card-body">AWQ, GPTQ, SqueezeLLM — vLLM supports quantised models out of the box. 4-bit quantisation reduces model weights by 4× and KV cache by ~2×, enabling larger batch sizes on the same hardware.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#ff6b6b">Prefix Caching</div>
+      <div class="card-body">v0.2+ adds automatic prefix caching: if multiple requests share a common system prompt, the prompt’s KV cache blocks are computed once and reused across all subsequent requests — even across separate API calls.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#fdcb6e">Speculative Decoding</div>
+      <div class="card-body">vLLM implements speculative decoding — a small draft model proposes multiple tokens; the large model verifies in parallel. Reduces end-to-end latency for latency-sensitive applications without changing output distribution.</div>
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">How does vLLM handle multi-modal models? <span class="accordion-chevron">▼</span></div>
+    <div class="accordion-body">Later vLLM versions added support for multi-modal inputs (images, video). Image features are embedded into tokens and processed through the same PagedAttention mechanism. The block manager allocates KV cache for vision tokens alongside text tokens transparently.</div>
+  </div>
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">What is the overhead of PagedAttention vs standard attention? <span class="accordion-chevron">▼</span></div>
+    <div class="accordion-body">The custom CUDA kernel adds a small gather overhead compared to FlashAttention on contiguous memory. In practice this is 2–5% slower per attention operation. But because PagedAttention enables much larger batch sizes (more requests in parallel), the total throughput is far higher — the per-request cost is amortised across more concurrent work.</div>
+  </div>
+
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-quiz">Knowledge Quiz →</a></div>
+</section>
+
+<!-- ═══════ SECTION 11: QUIZ ═══════ -->
+<section class="section" id="s-quiz">
+  <div class="section-tag" style="color:#a78bfa">Knowledge Check</div>
+  <h2 class="section-title">Test Your Understanding</h2>
+  <p class="section-sub">Eight questions covering PagedAttention, KV cache management, and vLLM’s design decisions. Click an option to check your answer.</p>
+  <div id="quiz-container"></div>
+  <div style="margin-top:24px;">
+    <button class="btn" onclick="resetQuiz()">Reset Quiz</button>
+    <span id="quiz-score" style="margin-left:16px;font-size:13px;color:var(--muted);"></span>
+  </div>
+</section>
+
+</main>
+</div>
+</div>
+
+<script>
+// ─── UTILS ───────────────────────────────────────────────────────────────────
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function lerp(a,b,t){return a+(b-a)*t;}
+function drawRR(ctx,x,y,w,h,r,fill,stroke,lw){
+  ctx.beginPath();ctx.roundRect(x,y,w,h,r);
+  if(fill){ctx.fillStyle=fill;ctx.fill();}
+  if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=lw||1.5;ctx.stroke();}
+}
+function setActive(el){document.querySelectorAll('.nav-link').forEach(function(l){l.classList.remove('active');});if(el)el.classList.add('active');}
+function toggleAcc(hdr){var b=hdr.nextElementSibling,c=hdr.querySelector('.accordion-chevron'),o=b.style.display==='block';b.style.display=o?'none':'block';if(c)c.style.transform=o?'':'rotate(180deg)';}
+function updateNav(){
+  var main=document.querySelector('.main');if(!main)return;
+  var ids=['s-crisis','s-analogy','s-paged','s-waste','s-blocks','s-cow','s-batching','s-results','s-arch','s-deploy','s-quiz'];
+  main.addEventListener('scroll',function(){
+    var sy=main.scrollTop;
+    ids.forEach(function(id){
+      var sec=document.getElementById(id);if(!sec)return;
+      if(sec.offsetTop-100<=sy&&sec.offsetTop+sec.offsetHeight-100>sy){
+        var l=document.querySelector('.nav-link[href="#'+id+'"]');if(l)setActive(l);
+      }
+    });
+  });
+}
+if(sessionStorage.getItem('pg_unlocked_14')==='1'){
+  document.getElementById('pg-main').style.display='flex';
+}
+
+// ─── S1: CRISIS ──────────────────────────────────────────────────────────────
+var crisisItems=[
+  {label:'Request A\n(short: 128 tok)',used:0.12,color:'#51cf66',
+   title:'Short Request — Minimal KV Cache',
+   body:'A 128-token request on LLaMA-13B uses about 0.11 GB of KV cache. With static allocation (pre-reserve max length = 2048), the system allocates 1.7 GB upfront — 93% wasted. PagedAttention allocates only 8 blocks (128/16) — exactly what is needed.'},
+  {label:'Request B\n(medium: 512 tok)',used:0.45,color:'#fdcb6e',
+   title:'Medium Request — Moderate Cache',
+   body:'A 512-token request uses ~0.42 GB of KV cache. Static systems still allocate the full 1.7 GB maximum, wasting 75%. PagedAttention dynamically allocates 32 blocks and grows as needed — no reservation.'},
+  {label:'Request C\n(long: 1024 tok)',used:0.87,color:'#e17055',
+   title:'Long Request — Large Cache',
+   body:'A 1024-token sequence on LLaMA-13B consumes ~0.85 GB of KV cache. Getting close to the full allocation, but still 48% waste with static systems. PagedAttention: 64 blocks, no waste beyond the last partially-filled block.'},
+  {label:'Request D\n(max: 2048 tok)',used:1.0,color:'#ff6b6b',
+   title:'Maximum Length Request',
+   body:'Only requests that actually reach the maximum context length justify the full allocation. In practice, most LLM requests are far shorter than the maximum. Static systems penalise every request with the cost of the worst case.'},
+];
+var crisisSelected=0;
+function drawCrisis(){
+  var c=document.getElementById('c-crisis');if(!c)return;
+  var ctx=c.getContext('2d');ctx.clearRect(0,0,820,300);
+  var W=820,H=300,n=crisisItems.length,bw=160,bh=200,gap=28;
+  var totalW=n*bw+(n-1)*gap,ox=(W-totalW)/2,oy=(H-bh)/2+20;
+  crisisItems.forEach(function(req,i){
+    var x=ox+i*(bw+gap),active=(i===crisisSelected);
+    // full allocation background
+    drawRR(ctx,x,oy,bw,bh,8,'#1a2030',active?req.color:'#30363d',active?2:1);
+    // static (wasted)
+    var usedH=Math.round(req.used*bh);
+    var wasteH=bh-usedH;
+    drawRR(ctx,x+4,oy+4,bw-8,wasteH-4,4,'#ff6b6b22',null);
+    // used
+    drawRR(ctx,x+4,oy+wasteH,bw-8,usedH-4,4,req.color+(active?'cc':'66'),null);
+    // waste label
+    ctx.fillStyle='#ff6b6b88';ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText(Math.round((1-req.used)*100)+'% wasted',x+bw/2,oy+wasteH/2+4);
+    // used label
+    ctx.fillStyle=active?'#fff':'#c9d1d9';ctx.font='bold 10px Inter,sans-serif';
+    ctx.fillText(Math.round(req.used*100)+'% used',x+bw/2,oy+wasteH+usedH/2+4);
+    // bottom label
+    ctx.fillStyle=active?req.color:'#8b949e';ctx.font='bold 9px Inter,sans-serif';
+    req.label.split('\n').forEach(function(ln,li,arr){ctx.fillText(ln,x+bw/2,oy+bh+16+li*13);});
+    if(active){ctx.strokeStyle=req.color;ctx.lineWidth=2;ctx.setLineDash([3,3]);ctx.beginPath();ctx.roundRect(x-2,oy-2,bw+4,bh+4,10);ctx.stroke();ctx.setLineDash([]);}
+  });
+  // PagedAttention comparison
+  ctx.fillStyle='#8b949e';ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='left';
+  ctx.fillText('PagedAttention: allocates only what is needed (<4% waste)',ox,oy+bh+50);
+  var req=crisisItems[crisisSelected];
+  var paW=Math.round(req.used*(n*bw+(n-1)*gap));
+  drawRR(ctx,ox,oy+bh+56,paW,12,4,'#7c3aed88',null);
+  ctx.fillStyle='#a78bfa';ctx.textAlign='left';ctx.font='9px Inter,sans-serif';
+  ctx.fillText(Math.round(req.used*100)+'% used (no waste)',ox+paW+6,oy+bh+65);
+}
+function initCrisis(){
+  var c=document.getElementById('c-crisis');if(!c)return;drawCrisis();
+  c.addEventListener('click',function(e){
+    var rect=c.getBoundingClientRect(),mx=(e.clientX-rect.left)*(820/rect.width);
+    var n=crisisItems.length,bw=160,gap=28,totalW=n*bw+(n-1)*gap,ox=(820-totalW)/2;
+    crisisItems.forEach(function(req,i){
+      if(mx>=ox+i*(bw+gap)&&mx<=ox+i*(bw+gap)+bw){
+        crisisSelected=i;
+        document.getElementById('crisis-title').textContent=req.title;
+        document.getElementById('crisis-body').textContent=req.body;
+        document.querySelector('#crisis-detail .card-title').style.color=req.color;
+        drawCrisis();
+      }
+    });
+  });
+}
+
+// ─── S2: OS ANALOGY ──────────────────────────────────────────────────────────
+var analogyRows=[
+  {os:'Virtual Address Space',llm:'Logical KV Block Sequence',color:'#fdcb6e',
+   title:'Virtual Memory ↔ KV Cache',
+   body:'In an OS, every process gets a virtual address space — a contiguous view of memory that is actually backed by scattered physical pages. PagedAttention does the same: each request sees a logical sequence of KV blocks 0, 1, 2, …, but the physical GPU memory backing them can be anywhere.'},
+  {os:'Physical Memory Pages',llm:'Physical KV Cache Blocks',color:'#0984e3',
+   title:'Physical Pages ↔ Physical Blocks',
+   body:'Physical pages are the actual RAM. Physical KV blocks are the actual GPU memory slots that store K/V tensors. Both are fixed-size, managed by a global allocator, and reused after the owning process/request terminates.'},
+  {os:'Page Table',llm:'Block Table',color:'#a78bfa',
+   title:'Page Table ↔ Block Table',
+   body:'The OS page table maps virtual page numbers to physical frame numbers. The block table maps logical block indices to physical block indices. Both are per-request/per-process data structures that the memory manager updates dynamically.'},
+  {os:'Demand Paging',llm:'On-Demand Block Allocation',color:'#51cf66',
+   title:'Demand Paging ↔ Dynamic Allocation',
+   body:'OS demand paging allocates a physical page only when the virtual address is first accessed — not upfront. vLLM allocates a new physical block only when the current block fills up. Neither system reserves space for future accesses that may never come.'},
+  {os:'Copy-on-Write (fork)',llm:'Copy-on-Write (beam/sampling)',color:'#e17055',
+   title:'Process Fork CoW ↔ Beam Search CoW',
+   body:'When a Unix process forks, parent and child initially share the same physical pages. A page is copied only when one of them writes to it. vLLM does the same for beam search: all beams share the prompt blocks; a block is copied only when a beam writes a diverging token.'},
+];
+var analogySelected=0;
+function drawAnalogy(){
+  var c=document.getElementById('c-analogy');if(!c)return;
+  var ctx=c.getContext('2d');ctx.clearRect(0,0,820,320);
+  var W=820,rowH=52,gap=6,oy=16,colW=260;
+  // headers
+  ctx.fillStyle='#8b949e';ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('Operating System',colW/2+30,oy-2);
+  ctx.fillText('vLLM / PagedAttention',W/2+colW/2+30,oy-2);
+  ctx.fillStyle='#30363d';ctx.fillRect(W/2-1,oy+4,2,analogyRows.length*(rowH+gap)+20);
+  analogyRows.forEach(function(row,i){
+    var y=oy+8+i*(rowH+gap),active=(i===analogySelected);
+    // OS cell
+    drawRR(ctx,30,y,colW,rowH,8,active?row.color+'22':'#161b22',active?row.color:'#30363d',active?2:1);
+    ctx.fillStyle=active?'#c9d1d9':'#8b949e';ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText(row.os,30+colW/2,y+rowH/2+4);
+    // arrow
+    ctx.fillStyle=active?row.color:'#30363d';ctx.font='16px Inter,sans-serif';
+    ctx.fillText('⟷',W/2-14,y+rowH/2+6);
+    // LLM cell
+    drawRR(ctx,W-30-colW,y,colW,rowH,8,active?row.color+'22':'#161b22',active?row.color:'#30363d',active?2:1);
+    ctx.fillStyle=active?'#c9d1d9':'#8b949e';ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText(row.llm,W-30-colW/2,y+rowH/2+4);
+  });
+}
+function initAnalogy(){
+  var c=document.getElementById('c-analogy');if(!c)return;drawAnalogy();
+  c.addEventListener('click',function(e){
+    var rect=c.getBoundingClientRect(),my=(e.clientY-rect.top)*(320/rect.height);
+    var rowH=52,gap=6,oy=24;
+    analogyRows.forEach(function(row,i){
+      var y=oy+i*(rowH+gap);
+      if(my>=y&&my<=y+rowH){
+        analogySelected=i;
+        document.getElementById('analogy-title').textContent=row.title;
+        document.getElementById('analogy-body').textContent=row.body;
+        document.querySelector('#analogy-detail .card-title').style.color=row.color;
+        drawAnalogy();
+      }
+    });
+  });
+}
+
+// ─── S3: PAGEDATTENTION STEPS ────────────────────────────────────────────────
+var PA_STEPS=[
+  {title:'Step 1: Prefill Phase',color:'#7c3aed',
+   body:'The entire prompt is processed in one forward pass. All prompt K and V vectors are computed and stored into freshly allocated KV cache blocks. Blocks are filled left-to-right. For a 40-token prompt with block_size=16: block 0 (tokens 0-15) and block 1 (tokens 16-31) are full; block 2 holds tokens 32-39 (partially filled).'},
+  {title:'Step 2: Block Allocation',color:'#a78bfa',
+   body:'The block manager picks free physical blocks from the pool and assigns them to this request’s block table. Entry 0→physical_block_7, entry 1→physical_block_23, entry 2→physical_block_4. These physical blocks need not be adjacent in memory.'},
+  {title:'Step 3: Decode Step',color:'#51cf66',
+   body:'At each decode step, the model generates one new token. Its K and V vectors are written into the current last block. If the block is full (all 16 slots used), a new physical block is allocated from the pool, added to the block table, and generation continues.'},
+  {title:'Step 4: Attention Gather',color:'#fdcb6e',
+   body:'For attention computation, the PagedAttention CUDA kernel gathers K and V tensors from all physical blocks listed in the block table. The query Q attends over all gathered K/V vectors — the non-contiguous layout is invisible to the attention math. Result: identical attention scores to contiguous KV cache, with far better memory utilisation.'},
+];
+var activePA=0;
+function setPA(i){
+  activePA=i;
+  document.querySelectorAll('[id^=pa-btn-]').forEach(function(b,j){b.classList.toggle('active',j===i);});
+  var s=PA_STEPS[i];
+  document.getElementById('pa-title').textContent=s.title;
+  document.getElementById('pa-body').textContent=s.body;
+  document.querySelector('#pa-detail .card-title').style.color=s.color;
+  drawPA();
+}
+function drawPA(){
+  var c=document.getElementById('c-paged');if(!c)return;
+  var ctx=c.getContext('2d');ctx.clearRect(0,0,820,300);
+  var W=820,H=300,BSIZE=16,numBlocks=5,bw=100,bh=120,gap=30;
+  var totalW=numBlocks*bw+(numBlocks-1)*gap,ox=(W-totalW)/2,oy=60;
+  // tokens in each block
+  var tokens=[16,16,8,0,0]; // prefill fills first 2.5 blocks (40 tokens)
+  if(activePA>=2)tokens[2]=Math.min(BSIZE,tokens[2]+1); // decode adds token
+  if(activePA>=2&&tokens[2]>=BSIZE){tokens[3]=1;}
+  var blockColors=['#7c3aed','#a78bfa','#c4b5fd','#51cf66','#30363d'];
+  var phys=[7,23,4,11,0];
+  // draw physical memory label
+  ctx.fillStyle='#8b949e';ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('GPU Physical Memory — Block Table for Request',W/2,oy-36);
+  for(var i=0;i<numBlocks;i++){
+    var x=ox+i*(bw+gap),used=tokens[i],empty=BSIZE-used;
+    var active=(i<3)||(activePA>=2&&i===3);
+    var col=active?blockColors[i]:'#30363d';
+    // block container
+    drawRR(ctx,x,oy,bw,bh,8,'#1a2030',col,active?2:1);
+    // token slots
+    var slotW=8,slotH=8,slotGap=3;
+    var perRow=Math.floor((bw-16)/(slotW+slotGap));
+    for(var j=0;j<BSIZE;j++){
+      var sx=x+8+(j%perRow)*(slotW+slotGap);
+      var sy=oy+20+Math.floor(j/perRow)*(slotH+slotGap);
+      drawRR(ctx,sx,sy,slotW,slotH,2,j<used?col+'cc':'#30363d',null);
+    }
+    // block label
+    ctx.fillStyle=active?'#c9d1d9':'#8b949e';ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText('Block '+i,x+bw/2,oy+bh-16);
+    ctx.fillStyle='#8b949e';ctx.font='9px Inter,sans-serif';
+    ctx.fillText('Phys #'+phys[i],x+bw/2,oy+bh-4);
+    // active PA indicator
+    if(activePA===3&&active){
+      ctx.strokeStyle='#fdcb6e';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);
+      ctx.beginPath();ctx.roundRect(x-3,oy-3,bw+6,bh+6,10);ctx.stroke();ctx.setLineDash([]);
+    }
+  }
+  // block table
+  ctx.fillStyle='#8b949e';ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('Block Table',W/2,oy+bh+28);
+  for(var i=0;i<3+(activePA>=2?1:0);i++){
+    var x=ox+i*(bw+gap),col=blockColors[i];
+    drawRR(ctx,x,oy+bh+34,bw,22,4,'#161b22',col,1);
+    ctx.fillStyle=col;ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText(i+' → Phys '+phys[i],x+bw/2,oy+bh+49);
+  }
+}
+
+// ─── S4: WASTE ───────────────────────────────────────────────────────────────
+var WASTE=[
+  {title:'Internal Fragmentation',color:'#a78bfa',
+   body:'Traditional systems allocate KV cache in one large contiguous chunk per request, sized for the maximum possible length. When a request ends mid-chunk, the remaining space is permanently lost for that request’s lifetime. PagedAttention: only the last block per sequence has any wasted space, and that is at most (block_size - 1) = 15 slots.'},
+  {title:'Memory Reservation Waste',color:'#fdcb6e',
+   body:'Systems that pre-allocate based on max_seq_len tie up GPU memory for the full duration of a request — even if the actual output is much shorter. This prevents other requests from using that memory. Dynamic block allocation solves this: memory is only held for tokens that have been generated.'},
+  {title:'No Sharing Across Requests',color:'#e17055',
+   body:'When multiple requests share an identical prefix (system prompt, few-shot examples, common context), traditional systems store duplicate KV cache for each request. For a 1000-token system prompt with 32 concurrent requests, that is 32× the necessary memory. Copy-on-write sharing collapses this to one shared copy.'},
+];
+var activeWaste=0;
+function setWaste(i){
+  activeWaste=i;
+  document.querySelectorAll('[id^=w-btn-]').forEach(function(b,j){b.classList.toggle('active',j===i);});
+  var w=WASTE[i];
+  document.getElementById('waste-title').textContent=w.title;
+  document.getElementById('waste-body').textContent=w.body;
+  document.querySelector('#waste-detail .card-title').style.color=w.color;
+  drawWaste();
+}
+function drawWaste(){
+  var c=document.getElementById('c-waste');if(!c)return;
+  var ctx=c.getContext('2d');ctx.clearRect(0,0,820,280);
+  var W=820,H=280;
+  if(activeWaste===0){
+    // fragmentation: before vs after
+    var bw=360,bh=180,gap=40,oy=30,ox=40;
+    ctx.fillStyle='#8b949e';ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText('BEFORE (static alloc)',ox+bw/2,oy-8);ctx.fillText('AFTER (PagedAttention)',ox+bw+gap+bw/2,oy-8);
+    var reqs=[{used:0.15,col:'#51cf66'},{used:0.4,col:'#fdcb6e'},{used:0.7,col:'#e17055'},{used:0.3,col:'#a78bfa'}];
+    var rw=Math.floor((bw-12)/reqs.length)-4;
+    reqs.forEach(function(r,i){
+      var rx=ox+6+i*(rw+4);
+      drawRR(ctx,rx,oy,rw,bh,4,'#ff6b6b22','#ff6b6b44',1);
+      drawRR(ctx,rx,oy+bh*(1-r.used),rw,bh*r.used,4,r.col+'88',null);
+      ctx.fillStyle='#ff6b6b88';ctx.font='8px Inter,sans-serif';ctx.textAlign='center';
+      ctx.fillText(Math.round((1-r.used)*100)+'% waste',rx+rw/2,oy+bh*(1-r.used)/2+4);
+    });
+    // after: blocks exactly sized
+    var ox2=ox+bw+gap;
+    reqs.forEach(function(r,i){
+      var rx=ox2+6+i*(rw+4);
+      var usedH=bh*r.used;
+      var numBlocks=Math.ceil(r.used*12);
+      for(var b=0;b<numBlocks;b++){
+        var blockH=Math.min(usedH/(numBlocks),bh/12);
+        drawRR(ctx,rx,oy+bh-((b+1)*(bh/12)),rw,bh/12-2,3,r.col+'aa',r.col+'66',1);
+      }
+      ctx.fillStyle='#51cf66';ctx.font='8px Inter,sans-serif';ctx.textAlign='center';
+      ctx.fillText('<4% waste',rx+rw/2,oy+8);
+    });
+  } else if(activeWaste===1){
+    // reservation: timeline
+    var nReqs=6,barH=28,gap2=10,ox=40,oy=20;
+    ctx.fillStyle='#8b949e';ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='left';
+    ctx.fillText('Static: memory reserved for max_len entire lifetime',ox,oy);
+    for(var i=0;i<nReqs;i++){
+      var actualLen=0.15+Math.sin(i*1.7+1)*0.3+Math.random()*0.1;
+      actualLen=clamp(actualLen,0.1,0.9);
+      var totalW2=W-ox-60,y=oy+18+i*(barH+gap2);
+      drawRR(ctx,ox,y,totalW2,barH,4,'#fdcb6e22','#fdcb6e44',1);
+      drawRR(ctx,ox,y,Math.round(totalW2*actualLen),barH,4,'#fdcb6e99',null);
+      ctx.fillStyle='#fdcb6e';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';
+      ctx.fillText('Req '+(i+1)+': '+Math.round(actualLen*100)+'% used, '+Math.round((1-actualLen)*100)+'% reserved & wasted',ox+Math.round(totalW2*actualLen)+6,y+barH/2+3);
+    }
+  } else {
+    // sharing: duplicate vs shared
+    var promptBlocks=5,seqBlocks=3,nSeqs=4,bSize=28,gap3=6;
+    var oy=30,ox=30;
+    ctx.fillStyle='#8b949e';ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText('WITHOUT sharing: '+nSeqs+'× duplicate prompt blocks',200,oy-8);
+    ctx.fillText('WITH CoW sharing: 1× shared prompt blocks',620,oy-8);
+    for(var s=0;s<nSeqs;s++){
+      var sy=oy+s*(bSize*2+20);
+      for(var b=0;b<promptBlocks;b++){
+        drawRR(ctx,ox+b*(bSize+gap3),sy,bSize,bSize*1.6,4,'#e1705566','#e17055',1.5);
+        ctx.fillStyle='#e17055';ctx.font='7px Inter,sans-serif';ctx.textAlign='center';
+        ctx.fillText('P'+b,ox+b*(bSize+gap3)+bSize/2,sy+bSize*0.9);
+      }
+      for(var b=0;b<seqBlocks;b++){
+        drawRR(ctx,ox+(promptBlocks+1+b)*(bSize+gap3),sy,bSize,bSize*1.6,4,'#51cf6666','#51cf66',1.5);
+        ctx.fillStyle='#51cf66';ctx.font='7px Inter,sans-serif';ctx.textAlign='center';
+        ctx.fillText('S'+b,ox+(promptBlocks+1+b)*(bSize+gap3)+bSize/2,sy+bSize*0.9);
+      }
+    }
+    // shared
+    var ox2=470;
+    for(var b=0;b<promptBlocks;b++){
+      drawRR(ctx,ox2+b*(bSize+gap3),oy+bSize,bSize,bSize*1.6,4,'#fdcb6e88','#fdcb6e',2);
+      ctx.fillStyle='#fdcb6e';ctx.font='7px Inter,sans-serif';ctx.textAlign='center';
+      ctx.fillText('P'+b,ox2+b*(bSize+gap3)+bSize/2,oy+bSize*1.9);
+    }
+    for(var s=0;s<nSeqs;s++){
+      var sy=oy+s*(bSize+10);
+      for(var b=0;b<seqBlocks;b++){
+        drawRR(ctx,ox2+promptBlocks*(bSize+gap3)+40+b*(bSize+gap3),sy,bSize,bSize*1.6,4,'#51cf6666','#51cf66',1.5);
+        ctx.fillStyle='#51cf66';ctx.font='7px Inter,sans-serif';ctx.textAlign='center';
+        ctx.fillText('S'+b,ox2+promptBlocks*(bSize+gap3)+40+b*(bSize+gap3)+bSize/2,sy+bSize*0.9);
+      }
+      ctx.beginPath();ctx.moveTo(ox2+promptBlocks*(bSize+gap3)+2,oy+bSize+bSize*0.8);
+      ctx.lineTo(ox2+promptBlocks*(bSize+gap3)+38,sy+bSize*0.8);
+      ctx.strokeStyle='#fdcb6e44';ctx.lineWidth=1;ctx.stroke();
+    }
+    ctx.fillStyle='#fdcb6e';ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText('Shared (×1)',ox2+promptBlocks*(bSize+gap3)/2+20,oy+bSize*3.2);
+    ctx.fillStyle='#51cf66';ctx.fillText('Private per seq',ox2+promptBlocks*(bSize+gap3)+60,oy+bSize*3.2);
+  }
+}
+
+// ─── S5: BLOCK TABLE ─────────────────────────────────────────────────────────
+var btTokens=0,btBlockSize=16,BT_PHYS=[7,23,4,11,18,2,31,9];
+function btReset(){btTokens=0;drawBT();}
+function btAddToken(){if(btTokens<btBlockSize*8){btTokens++;drawBT();}}
+function drawBT(){
+  var c=document.getElementById('c-blocks');if(!c)return;
+  var ctx=c.getContext('2d');ctx.clearRect(0,0,820,320);
+  var W=820,bw=80,bh=100,gap=12,oy=30,ox=24;
+  var numLogical=Math.max(1,Math.ceil(btTokens/btBlockSize));
+  ctx.fillStyle='#8b949e';ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='left';
+  ctx.fillText('Tokens generated: '+btTokens+'  |  Logical blocks: '+numLogical+'  |  Block table entries: '+numLogical,ox,oy-8);
+  for(var i=0;i<numLogical;i++){
+    var x=ox+i*(bw+gap),tokInBlock=(i<numLogical-1)?btBlockSize:((btTokens-1)%btBlockSize+1);
+    var isFull=(i<numLogical-1),isNew=(i===numLogical-1&&btTokens%btBlockSize===1&&btTokens>0);
+    var col=isFull?'#a78bfa':isNew?'#0984e3':'#7c3aed';
+    drawRR(ctx,x,oy,bw,bh,8,'#1a2030',col,2);
+    ctx.fillStyle=col;ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText('Logical '+i,x+bw/2,oy+14);
+    // token slots
+    for(var j=0;j<btBlockSize;j++){
+      var sx=x+6+j%8*9,sy=oy+22+Math.floor(j/8)*9;
+      drawRR(ctx,sx,sy,7,7,2,j<tokInBlock?col+'cc':'#30363d',null);
+    }
+    ctx.fillStyle='#8b949e';ctx.font='9px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText(tokInBlock+'/'+btBlockSize,x+bw/2,oy+bh-8);
+    // block table entry below
+    drawRR(ctx,x,oy+bh+12,bw,28,4,'#161b22',col,1);
+    ctx.fillStyle=col;ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText(i+' → '+BT_PHYS[i],x+bw/2,oy+bh+30);
+  }
+  // legend
+  ctx.fillStyle='#51cf66';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';
+  ctx.fillText('● Full block',ox,oy+bh+60);
+  ctx.fillStyle='#0984e3';ctx.fillText('● Newly allocated',ox+80,oy+bh+60);
+  ctx.fillStyle='#7c3aed';ctx.fillText('● Active (partial)',ox+200,oy+bh+60);
+  ctx.fillStyle='#8b949e';ctx.fillText('Block table (logical → physical)',ox,oy+bh+8);
+}
+function initBlocks(){drawBT();}
+
+// ─── S6: COPY-ON-WRITE ───────────────────────────────────────────────────────
+var cowMode=0,cowPhase=0;
+var COW_INFO=[
+  {title:'Parallel Sampling',color:'#51cf66',
+   body:'When sampling N outputs from the same prompt, all N sequences share prompt KV blocks. A block is copied only when a sequence writes its first new token into that block. Memory savings: up to 55%. Throughput gain: up to 2.2× vs systems that copy upfront.'},
+  {title:'Beam Search',color:'#fdcb6e',
+   body:'Beam search maintains B hypotheses (beams). All beams start from the same prompt — shared blocks. As beams diverge, only the blocks at the divergence point are copied. Early steps share more; later steps share less. The shared prefix is never duplicated.'},
+  {title:'Shared System Prompt',color:'#a78bfa',
+   body:'Many API deployments use the same long system prompt for all users. Without prefix caching, each request recomputes and stores this prompt’s KV cache independently. With copy-on-write prefix sharing, the prompt KV cache is computed once and shared — read-only — across all concurrent requests.'},
+];
+function setCOW(i){cowMode=i;cowPhase=0;document.querySelectorAll('[id^=cow-btn-]').forEach(function(b,j){b.classList.toggle('active',j===i);});var d=COW_INFO[i];document.getElementById('cow-title').textContent=d.title;document.getElementById('cow-body').textContent=d.body;document.querySelector('#cow-detail .card-title').style.color=d.color;drawCOW();}
+function cowStep(){cowPhase=Math.min(cowPhase+1,4);drawCOW();}
+function cowReset(){cowPhase=0;drawCOW();}
+function drawCOW(){
+  var c=document.getElementById('c-cow');if(!c)return;
+  var ctx=c.getContext('2d');ctx.clearRect(0,0,820,320);
+  var W=820,H=320;
+  var nSeqs=cowMode===1?3:4,promptBlocks=4,genBlocks=cowPhase;
+  var bw=38,bh=42,gap=5,oy=60;
+  var sharedColor='#fdcb6e',privateColors=['#51cf66','#0984e3','#e17055','#a78bfa'];
+  var seqH=bh+20,totalSeqH=nSeqs*seqH;
+  var startY=(H-totalSeqH)/2;
+  // prompt blocks (shared)
+  var px=40;
+  ctx.fillStyle='#8b949e';ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('Shared Prompt Blocks (ref_count='+nSeqs+')',px+promptBlocks*(bw+gap)/2,startY-14);
+  for(var b=0;b<promptBlocks;b++){
+    drawRR(ctx,px+b*(bw+gap),startY+(totalSeqH-bh)/2,bw,bh,6,sharedColor+'44',sharedColor,2);
+    ctx.fillStyle=sharedColor;ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText('P'+b,px+b*(bw+gap)+bw/2,startY+(totalSeqH-bh)/2+bh/2+4);
+  }
+  // per-sequence generated blocks
+  var gx=px+promptBlocks*(bw+gap)+60;
+  for(var s=0;s<nSeqs;s++){
+    var sy=startY+s*seqH;
+    // line from shared to private
+    if(genBlocks>0){
+      ctx.beginPath();ctx.moveTo(px+promptBlocks*(bw+gap)-2,startY+(totalSeqH-bh)/2+bh/2);
+      ctx.lineTo(gx-2,sy+bh/2);ctx.strokeStyle=sharedColor+'66';ctx.lineWidth=1;ctx.setLineDash([4,3]);ctx.stroke();ctx.setLineDash([]);
+    }
+    var col=privateColors[s];
+    ctx.fillStyle='#8b949e';ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='left';
+    ctx.fillText('Seq '+(s+1),gx-52,sy+bh/2+4);
+    for(var b=0;b<genBlocks;b++){
+      drawRR(ctx,gx+b*(bw+gap),sy,bw,bh,6,col+(b<genBlocks-1?'88':'44'),col,b<genBlocks-1?2:1.5);
+      ctx.fillStyle=col;ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='center';
+      ctx.fillText('G'+b,gx+b*(bw+gap)+bw/2,sy+bh/2+4);
+    }
+    if(genBlocks===0){
+      ctx.fillStyle='#30363d';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';
+      ctx.fillText('← will fork here',gx+4,sy+bh/2+4);
+    }
+  }
+  var saved=genBlocks>0?(nSeqs-1)*genBlocks*100/((nSeqs*genBlocks)+1):0;
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';
+  ctx.fillText('Phase '+cowPhase+'/4  |  Gold=shared  Green/Blue/Red/Purple=private copies',40,H-12);
+}
+
+// ─── S7: CONTINUOUS BATCHING ──────────────────────────────────────────────────
+var batchIsStatic=true,batchRunning=false,batchStep=0;
+var REQS=[{len:8,col:'#51cf66'},{len:20,col:'#0984e3'},{len:5,col:'#fdcb6e'},{len:15,col:'#e17055'},{len:10,col:'#a78bfa'},{len:18,col:'#ff6b6b'},{len:7,col:'#51cf66'},{len:22,col:'#0984e3'}];
+function toggleBatchMode(){batchIsStatic=!batchIsStatic;document.getElementById('batch-mode-btn').textContent=batchIsStatic?'Static Batching':'Continuous Batching';batchReset();}
+function batchReset(){batchRunning=false;batchStep=0;drawBatch();}
+function batchRun(){batchRunning=true;stepBatch();}
+function stepBatch(){
+  if(!batchRunning)return;batchStep++;drawBatch();
+  if(batchStep<40)setTimeout(stepBatch,80);else batchRunning=false;
+}
+function drawBatch(){
+  var c=document.getElementById('c-batching');if(!c)return;
+  var ctx=c.getContext('2d');ctx.clearRect(0,0,820,300);
+  var W=820,H=300,nSlots=4,slotH=44,gap=6,ox=80,oy=30;
+  var maxSteps=38,stepW=(W-ox-20)/maxSteps;
+  ctx.fillStyle='#8b949e';ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='left';
+  ctx.fillText(batchIsStatic?'Static Batching — GPU idles waiting for slowest request in batch':'Continuous Batching — GPU always busy, slots refilled immediately',ox,oy-8);
+  ctx.fillText('Time →',ox,oy+nSlots*(slotH+gap)+18);
+  if(batchIsStatic){
+    // batch 0: max len of first 4 reqs
+    var batch0Max=Math.max(REQS[0].len,REQS[1].len,REQS[2].len,REQS[3].len);
+    var batch1Max=Math.max(REQS[4].len,REQS[5].len,REQS[6].len,REQS[7].len);
+    for(var s=0;s<nSlots;s++){
+      var req=REQS[s],y=oy+s*(slotH+gap);
+      var usedSteps=Math.min(req.len,batchStep),idleSteps=batchStep>req.len?Math.min(batchStep-req.len,batch0Max-req.len):0;
+      drawRR(ctx,ox,y,Math.round(Math.min(batchStep,req.len)*stepW),slotH,4,req.col+'88',null);
+      if(batchStep>req.len)drawRR(ctx,ox+Math.round(req.len*stepW),y,Math.round(Math.min(batchStep-req.len,batch0Max-req.len)*stepW),slotH,4,'#30363d55',null);
+      ctx.fillStyle=req.col;ctx.font='8px Inter,sans-serif';ctx.textAlign='left';
+      ctx.fillText('Req '+(s+1)+' ('+req.len+'t)',4,y+slotH/2+3);
+    }
+  } else {
+    var slots=[0,1,2,3].map(function(i){return {req:REQS[i],start:0,done:false};});
+    var nextReq=4,t=0,events=[];
+    while(t<batchStep&&t<40){
+      slots.forEach(function(slot,si){
+        if(!slot.done&&t-slot.start>=slot.req.len){
+          slot.done=true;
+          events.push({si:si,start:slot.start,len:slot.req.len,col:slot.req.col});
+          if(nextReq<REQS.length){slot.req=REQS[nextReq++];slot.start=t;slot.done=false;}
+        }
+      });
+      t++;
+    }
+    // draw running slots
+    slots.forEach(function(slot,si){
+      var y=oy+si*(slotH+gap),active=!slot.done&&batchStep>slot.start;
+      if(active){
+        var len=Math.min(batchStep-slot.start,slot.req.len);
+        drawRR(ctx,ox+Math.round(slot.start*stepW),y,Math.round(len*stepW),slotH,4,slot.req.col+'88',null);
+        ctx.fillStyle=slot.req.col;ctx.font='8px Inter,sans-serif';ctx.textAlign='left';
+        ctx.fillText('Req?',4,y+slotH/2+3);
+      }
+    });
+    events.forEach(function(ev){
+      var y=oy+ev.si*(slotH+gap);
+      drawRR(ctx,ox+Math.round(ev.start*stepW),y,Math.round(ev.len*stepW),slotH,4,ev.col+'88',null);
+    });
+    for(var s=0;s<nSlots;s++){
+      ctx.fillStyle=slots[s].req.col;ctx.font='8px Inter,sans-serif';ctx.textAlign='left';
+      ctx.fillText('Slot '+(s+1),4,oy+s*(slotH+gap)+slotH/2+3);
+    }
+  }
+  // time axis ticks
+  for(var t=0;t<=maxSteps;t+=5){
+    var x=ox+t*stepW;
+    ctx.beginPath();ctx.moveTo(x,oy+nSlots*(slotH+gap)+2);ctx.lineTo(x,oy+nSlots*(slotH+gap)+6);
+    ctx.strokeStyle='#30363d';ctx.lineWidth=1;ctx.stroke();
+    ctx.fillStyle='#8b949e';ctx.font='8px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText(t,x,oy+nSlots*(slotH+gap)+16);
+  }
+}
+
+// ─── S8: THROUGHPUT RESULTS ───────────────────────────────────────────────────
+var RESULTS=[
+  {systems:['HuggingFace','TGI','vLLM'],values:[1,3.5,24],colors:['#30363d','#0984e3','#7c3aed'],
+   title:'vLLM vs HuggingFace Transformers',
+   body:'On LLaMA-7B (A10G GPU), vLLM achieves up to 24× higher throughput than HuggingFace Transformers and ~7× vs TGI. HuggingFace uses static batching and pre-allocated KV cache — both major inefficiencies at scale. Even at moderate request rates, vLLM’s continuous batching gives it a consistent advantage.'},
+  {systems:['HuggingFace TGI','Orca','vLLM'],values:[1,1.8,3.5],colors:['#30363d','#fdcb6e','#7c3aed'],
+   title:'vLLM vs Text Generation Inference (TGI)',
+   body:'Against HuggingFace TGI (which supports continuous batching), vLLM achieves 2–3.5× higher throughput on LLaMA-13B. The difference here comes primarily from memory efficiency — PagedAttention allows larger effective batch sizes than TGI’s memory management, especially for long sequences.'},
+  {systems:['FasterTransformer','Orca','vLLM'],values:[1,1.5,2.8],colors:['#30363d','#51cf66','#7c3aed'],
+   title:'vLLM vs FasterTransformer',
+   body:'FasterTransformer uses static KV cache allocation and requires requests to be padded to the same length within a batch. vLLM’s dynamic allocation and continuous batching delivers 2.8× higher throughput at the same latency target. Gains are especially large for variable-length workloads.'},
+  {systems:['60-80% waste (prior art)','<4% waste (vLLM)','Theoretical minimum'],values:[70,4,0],colors:['#ff6b6b','#7c3aed','#51cf66'],
+   title:'KV Cache Memory Waste Comparison',
+   body:'Prior LLM serving systems waste 60–80% of allocated KV cache memory due to internal fragmentation, over-reservation, and lack of sharing. PagedAttention achieves less than 4% waste — near the theoretical minimum. This directly enables 4–16× larger effective batch sizes on the same GPU hardware.'},
+];
+var activeResult=0;
+function setResult(i){
+  activeResult=i;
+  document.querySelectorAll('[id^=res-btn-]').forEach(function(b,j){b.classList.toggle('active',j===i);});
+  var r=RESULTS[i];
+  document.getElementById('res-title').textContent=r.title;
+  document.getElementById('res-body').textContent=r.body;
+  document.querySelector('#results-detail .card-title').style.color='#51cf66';
+  drawResults();
+}
+function drawResults(){
+  var c=document.getElementById('c-results');if(!c)return;
+  var ctx=c.getContext('2d');ctx.clearRect(0,0,820,300);
+  var W=820,H=300,r=RESULTS[activeResult];
+  var maxV=Math.max.apply(null,r.values),pad=80,bw=100,gap=60;
+  var totalW=r.systems.length*bw+(r.systems.length-1)*gap,ox=(W-totalW)/2;
+  var barMaxH=180,oy=H-60;
+  r.systems.forEach(function(sys,i){
+    var x=ox+i*(bw+gap),v=r.values[i],col=r.colors[i];
+    var h=Math.max(4,Math.round((v/maxV)*barMaxH));
+    drawRR(ctx,x,oy-h,bw,h,6,col+'88',col,1.5);
+    ctx.fillStyle=col;ctx.font='bold 18px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText(v+(activeResult===3?'%':'×'),x+bw/2,oy-h-10);
+    ctx.fillStyle='#8b949e';ctx.font='bold 10px Inter,sans-serif';
+    sys.split('\n').forEach(function(ln,li,arr){ctx.fillText(ln,x+bw/2,oy+16+li*14);});
+    if(col==='#7c3aed'){
+      ctx.strokeStyle='#7c3aed';ctx.lineWidth=2;ctx.setLineDash([4,3]);
+      ctx.beginPath();ctx.roundRect(x-4,oy-h-4,bw+8,h+8,8);ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle='#a78bfa';ctx.font='bold 9px Inter,sans-serif';ctx.fillText('vLLM',x+bw/2,oy-h-22);
+    }
+  });
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';
+  ctx.fillText(activeResult===3?'% KV cache memory waste (lower is better)':'Normalised throughput (higher is better, vLLM=baseline=1 in paper)',40,H-8);
+}
+
+// ─── S9: ARCHITECTURE ────────────────────────────────────────────────────────
+var archComps=[
+  {name:'API Server',color:'#fdcb6e',x:40,y:30,w:160,h:52,
+   title:'API Server',
+   body:'Exposes an OpenAI-compatible REST API. Receives incoming HTTP requests (completions, chat completions). Parses prompts, applies tokenisation, and enqueues requests to the LLM Engine. Returns results as streaming or batch responses.'},
+  {name:'LLM Engine',color:'#7c3aed',x:240,y:30,w:160,h:52,
+   title:'LLM Engine',
+   body:'Central orchestrator. Maintains the full request lifecycle: waiting → running → preempted → finished. Each iteration, it calls the Scheduler to determine which requests to process, dispatches to Workers, and collects outputs. Manages the Ray actor pool for multi-GPU.'},
+  {name:'Scheduler',color:'#a78bfa',x:240,y:140,w:160,h:52,
+   title:'Scheduler',
+   body:'Implements continuous batching policy. Each iteration: admits new requests from the waiting queue if free blocks are available, decides which running requests to preempt if memory is tight, and determines the decode batch for this iteration.'},
+  {name:'Block Manager',color:'#c4b5fd',x:440,y:140,w:160,h:52,
+   title:'Block Manager',
+   body:'Owns the global free-block pool. Allocates physical blocks to requests via the block table. Implements copy-on-write for shared blocks. Frees blocks when requests complete or are preempted. Tracks reference counts for shared blocks.'},
+  {name:'Worker (GPU)',color:'#51cf66',x:640,y:30,w:160,h:52,
+   title:'Worker (GPU)',
+   body:'Executes the model forward pass on one GPU. Hosts the PagedAttention CUDA kernel — a custom Flash-Attention-inspired kernel that gathers K/V from non-contiguous physical blocks using the block table. For tensor parallelism, multiple Workers shard the model across GPUs via NCCL.'},
+  {name:'KV Cache (GPU Mem)',color:'#e17055',x:640,y:140,w:160,h:52,
+   title:'KV Cache (GPU Memory)',
+   body:'Physical storage for all K and V tensors. Divided into fixed-size blocks at engine startup. Total KV cache capacity = (GPU free memory after model weights) / (block_size × 2 × num_layers × num_heads × head_dim × dtype_bytes). Typically 30–50% of total GPU memory.'},
+  {name:'Tokenizer',color:'#0984e3',x:40,y:140,w:160,h:52,
+   title:'Tokenizer',
+   body:'Converts raw text prompts to token IDs and decodes generated token IDs back to text. Runs on CPU in a separate thread pool to avoid blocking the GPU compute loop. Uses HuggingFace tokenizers library under the hood.'},
+];
+var archSelected=0;
+function drawArch(){
+  var c=document.getElementById('c-arch');if(!c)return;
+  var ctx=c.getContext('2d');ctx.clearRect(0,0,820,380);
+  // draw arrows
+  var arrows=[[0,1],[1,2],[2,3],[1,4],[3,4],[4,5],[0,6],[6,2]];
+  arrows.forEach(function(pair){
+    var a=archComps[pair[0]],b=archComps[pair[1]];
+    var x1=a.x+a.w,y1=a.y+a.h/2,x2=b.x,y2=b.y+b.h/2;
+    if(Math.abs(y1-y2)>30){x1=a.x+a.w/2;y1=a.y+a.h;x2=b.x+b.w/2;y2=b.y;}
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);
+    ctx.strokeStyle='#30363d';ctx.lineWidth=1.5;ctx.setLineDash([4,4]);ctx.stroke();ctx.setLineDash([]);
+    var ang=Math.atan2(y2-y1,x2-x1);
+    ctx.beginPath();ctx.moveTo(x2-8*Math.cos(ang-0.4),y2-8*Math.sin(ang-0.4));ctx.lineTo(x2,y2);ctx.lineTo(x2-8*Math.cos(ang+0.4),y2-8*Math.sin(ang+0.4));
+    ctx.strokeStyle='#30363d';ctx.stroke();
+  });
+  archComps.forEach(function(comp,i){
+    var active=(i===archSelected);
+    drawRR(ctx,comp.x,comp.y,comp.w,comp.h,10,active?comp.color+'33':'#161b22',active?comp.color:'#30363d',active?2.5:1.5);
+    ctx.fillStyle=active?comp.color:'#8b949e';ctx.font='bold 12px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText(comp.name,comp.x+comp.w/2,comp.y+comp.h/2+4);
+    if(active){ctx.strokeStyle=comp.color;ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.beginPath();ctx.roundRect(comp.x-4,comp.y-4,comp.w+8,comp.h+8,12);ctx.stroke();ctx.setLineDash([]);}
+  });
+}
+function initArch(){
+  var c=document.getElementById('c-arch');if(!c)return;drawArch();
+  c.addEventListener('click',function(e){
+    var rect=c.getBoundingClientRect(),mx=(e.clientX-rect.left)*(820/rect.width),my=(e.clientY-rect.top)*(380/rect.height);
+    archComps.forEach(function(comp,i){
+      if(mx>=comp.x&&mx<=comp.x+comp.w&&my>=comp.y&&my<=comp.y+comp.h){
+        archSelected=i;
+        document.getElementById('arch-title').textContent=comp.title;
+        document.getElementById('arch-body').textContent=comp.body;
+        document.querySelector('#arch-detail .card-title').style.color=comp.color;
+        drawArch();
+      }
+    });
+  });
+}
+
+// ─── S10: DEPLOY ─────────────────────────────────────────────────────────────
+function drawDeploy(){
+  var c=document.getElementById('c-deploy');if(!c)return;
+  var ctx=c.getContext('2d');ctx.clearRect(0,0,820,260);
+  var W=820,H=260;
+  var items=[
+    {label:'vLLM Server',color:'#7c3aed',x:40,y:100,w:120,h:50},
+    {label:'OpenAI API\nCompat',color:'#51cf66',x:200,y:30,w:110,h:40},
+    {label:'LangChain /\nLlamaIndex',color:'#0984e3',x:200,y:90,w:110,h:40},
+    {label:'Custom App',color:'#fdcb6e',x:200,y:150,w:110,h:40},
+    {label:'PagedAttention\nCUDA Kernel',color:'#a78bfa',x:360,y:60,w:140,h:40},
+    {label:'Tensor Parallelism\n(Ray / NCCL)',color:'#e17055',x:360,y:120,w:140,h:40},
+    {label:'Quantization\n(AWQ/GPTQ)',color:'#fdcb6e',x:360,y:180,w:140,h:40},
+    {label:'A100 / A10G\nH100 GPU',color:'#51cf66',x:540,y:60,w:110,h:40},
+    {label:'Multi-GPU\nCluster',color:'#e17055',x:540,y:120,w:110,h:40},
+    {label:'Model Weights\n(fp16/int4)',color:'#fdcb6e',x:540,y:180,w:110,h:40},
+    {label:'Client\nApplications',color:'#0984e3',x:690,y:100,w:100,h:50},
+  ];
+  var arrows=[[0,1],[0,2],[0,3],[0,4],[0,5],[0,6],[4,7],[5,8],[6,9],[1,10],[2,10],[3,10]];
+  arrows.forEach(function(p){
+    var a=items[p[0]],b=items[p[1]];
+    var x1=a.x+a.w,y1=a.y+a.h/2,x2=b.x,y2=b.y+b.h/2;
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);
+    ctx.strokeStyle='#30363d';ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.stroke();ctx.setLineDash([]);
+  });
+  items.forEach(function(item){
+    drawRR(ctx,item.x,item.y,item.w,item.h,8,item.color+'22',item.color,1.5);
+    ctx.fillStyle=item.color;ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='center';
+    item.label.split('\n').forEach(function(ln,li,arr){ctx.fillText(ln,item.x+item.w/2,item.y+item.h/2+(li-(arr.length-1)/2)*12);});
+  });
+}
+
+// ─── QUIZ ─────────────────────────────────────────────────────────────────────
+var QUIZ=[
+  {q:'What is the primary source of KV cache memory waste in systems prior to vLLM?',
+   opts:['Slow tokenisation','Pre-allocating memory for the maximum sequence length (over-reservation)','Storing weights twice','Using fp32 instead of fp16'],ans:1,
+   exp:'Prior systems reserve KV cache for max_seq_len upfront per request. If a request generates 200 tokens instead of 2048, 90% of the allocated space is wasted for the duration of that request.'},
+  {q:'What OS concept directly inspired PagedAttention?',
+   opts:['File system journalling','Process scheduling','Virtual memory and paging','TCP flow control'],ans:2,
+   exp:'PagedAttention is explicitly inspired by virtual memory and paging: logical block indices map to physical block indices via a block table, just as virtual page numbers map to physical frames via a page table.'},
+  {q:'In PagedAttention, what is the "block table"?',
+   opts:['A GPU register file','A per-request mapping from logical block indices to physical block indices','The global free-block pool','A table of attention scores'],ans:1,
+   exp:'Each request maintains a block table — a data structure mapping logical block index 0, 1, 2, … to physical block indices in GPU memory. Physical blocks can be non-contiguous, but the block table makes them appear contiguous to the attention computation.'},
+  {q:'Copy-on-write in vLLM is used for:',
+   opts:['Recovering from GPU errors','Sharing prompt KV cache blocks across beam search hypotheses and parallel samples until they diverge','Compressing model weights','Swapping KV cache to CPU RAM'],ans:1,
+   exp:'When multiple requests share the same prompt (beam search, parallel sampling, shared system prompt), their block tables point to the same physical blocks. A block is copied to a private location only when one of the sequences writes a diverging token — minimising memory duplication.'},
+  {q:'How much memory waste does PagedAttention achieve?',
+   opts:['60–80%','20–30%','Under 4%','Exactly 0%'],ans:2,
+   exp:'PagedAttention achieves less than 4% KV cache memory waste — near the theoretical minimum. The only unavoidable waste is in the last partially-filled block of each sequence (at most block_size - 1 = 15 unused slots with block_size=16).'},
+  {q:'What is "continuous batching" in the context of vLLM?',
+   opts:['Batching requests by their token count','Running all requests in one giant batch','Inserting newly completed requests\'s replacements into the batch immediately after completion, each iteration','Pre-fetching the next batch while the current one runs'],ans:2,
+   exp:'Continuous batching (also called iteration-level scheduling) means the scheduler checks for completed requests and admits new ones every single decode iteration — typically hundreds of times per second. This eliminates the GPU idle time of static batching where all requests must finish before the next batch starts.'},
+  {q:'vLLM achieves up to what throughput improvement over HuggingFace Transformers on LLaMA-7B?',
+   opts:['2×','5×','12×','24×'],ans:3,
+   exp:'On LLaMA-7B on an A10G GPU, vLLM achieves up to 24× higher throughput than HuggingFace Transformers. The combination of PagedAttention (memory efficiency) and continuous batching (GPU utilisation) produces this compounding gain.'},
+  {q:'What happens when vLLM runs out of free KV cache blocks mid-batch?',
+   opts:['It crashes with an OOM error','It waits until a request finishes','It preempts a running request — either swapping its KV cache to CPU RAM or recomputing it later','It reduces the model precision to fp8'],ans:2,
+   exp:'vLLM uses preemption: if free blocks are exhausted, the Scheduler selects a running request to preempt. Its KV cache can be swapped to CPU RAM (and restored later) or dropped entirely (and the prefill re-run when memory is available). This prevents OOM crashes and keeps the rest of the batch running.'},
+];
+var quizState=QUIZ.map(function(){return{answered:false,correct:false,chosen:-1};});
+function renderQuiz(){
+  var c=document.getElementById('quiz-container');if(!c)return;c.innerHTML='';
+  QUIZ.forEach(function(item,qi){
+    var div=document.createElement('div');div.style.cssText='margin-bottom:24px;padding:20px;background:#161b22;border:1px solid #30363d;border-radius:12px;';
+    var qEl=document.createElement('div');qEl.className='quiz-q';qEl.textContent=(qi+1)+'. '+item.q;div.appendChild(qEl);
+    item.opts.forEach(function(opt,oi){
+      var btn=document.createElement('div');btn.className='quiz-opt';btn.textContent=opt;
+      if(quizState[qi].answered){if(oi===item.ans)btn.classList.add('correct');else if(oi===quizState[qi].chosen)btn.classList.add('wrong');btn.style.cursor='default';}
+      else{btn.onclick=function(){if(quizState[qi].answered)return;quizState[qi].answered=true;quizState[qi].chosen=oi;quizState[qi].correct=(oi===item.ans);renderQuiz();};}
+      div.appendChild(btn);
+    });
+    if(quizState[qi].answered){var fb=document.createElement('div');fb.className='quiz-feedback';fb.style.color=quizState[qi].correct?'#51cf66':'#ff6b6b';fb.textContent=(quizState[qi].correct?'✓ Correct — ':'✗ Incorrect — ')+item.exp;div.appendChild(fb);}
+    c.appendChild(div);
+  });
+  var ans=quizState.filter(function(s){return s.answered;}).length,cor=quizState.filter(function(s){return s.correct;}).length;
+  var el=document.getElementById('quiz-score');if(el&&ans>0)el.textContent=cor+'/'+ans+' correct ('+ans+' of '+QUIZ.length+' answered)';
+}
+function resetQuiz(){quizState=QUIZ.map(function(){return{answered:false,correct:false,chosen:-1};});renderQuiz();}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+function initAll(){
+  initCrisis();initAnalogy();setPA(0);drawPA();setWaste(0);drawWaste();
+  initBlocks();setCOW(0);drawCOW();drawBatch();
+  setResult(0);drawResults();initArch();drawDeploy();renderQuiz();updateNav();
+}
+if(sessionStorage.getItem('pg_unlocked_14')==='1'){
+  document.getElementById('pg-main').style.display='flex';
+  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',initAll);}else{initAll();}
+}
+</script>
+</body>
+</html>
