@@ -120,6 +120,12 @@ if(sessionStorage.getItem(PG_KEY)==='1'){document.getElementById('pg-gate').styl
     <a class="nav-link" href="#s-arch" onclick="setActive(this)"><span class="dot" style="background:#7c3aed"></span>vLLM Architecture</a>
   </div>
   <div class="nav-group">
+    <div class="nav-group-title">Deep Dives</div>
+    <a class="nav-link" href="#s-flash" onclick="setActive(this)"><span class="dot" style="background:#0984e3"></span>FlashAttn vs PagedAttn</a>
+    <a class="nav-link" href="#s-calc" onclick="setActive(this)"><span class="dot" style="background:#51cf66"></span>Memory Calculator</a>
+    <a class="nav-link" href="#s-prefix" onclick="setActive(this)"><span class="dot" style="background:#fdcb6e"></span>Prefix Caching</a>
+    <a class="nav-link" href="#s-spec" onclick="setActive(this)"><span class="dot" style="background:#e17055"></span>Speculative Decoding</a>
+    <a class="nav-link" href="#s-lifecycle" onclick="setActive(this)"><span class="dot" style="background:#a78bfa"></span>Request Lifecycle</a>
     <div class="nav-group-title">Wrap-up</div>
     <a class="nav-link" href="#s-deploy" onclick="setActive(this)"><span class="dot" style="background:#fdcb6e"></span>Production & Deployment</a>
     <a class="nav-link" href="#s-quiz" onclick="setActive(this)"><span class="dot" style="background:#a78bfa"></span>Knowledge Quiz</a>
@@ -137,6 +143,11 @@ if(sessionStorage.getItem(PG_KEY)==='1'){document.getElementById('pg-gate').styl
   <a class="pipe-step" href="#s-batching"><span class="pipe-dot" style="background:#fdcb6e"></span>Batching</a><span class="pipe-arrow">›</span>
   <a class="pipe-step" href="#s-results"><span class="pipe-dot" style="background:#51cf66"></span>Results</a><span class="pipe-arrow">›</span>
   <a class="pipe-step" href="#s-arch"><span class="pipe-dot" style="background:#7c3aed"></span>Arch</a><span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-flash"><span class="pipe-dot" style="background:#0984e3"></span>Flash vs Paged</a><span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-calc"><span class="pipe-dot" style="background:#51cf66"></span>Calculator</a><span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-prefix"><span class="pipe-dot" style="background:#fdcb6e"></span>Prefix Cache</a><span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-spec"><span class="pipe-dot" style="background:#e17055"></span>Speculative</a><span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-lifecycle"><span class="pipe-dot" style="background:#a78bfa"></span>Lifecycle</a><span class="pipe-arrow">›</span>
   <a class="pipe-step" href="#s-deploy"><span class="pipe-dot" style="background:#fdcb6e"></span>Deploy</a><span class="pipe-arrow">›</span>
   <a class="pipe-step" href="#s-quiz"><span class="pipe-dot" style="background:#a78bfa"></span>Quiz</a>
 </div>
@@ -439,6 +450,184 @@ if(sessionStorage.getItem(PG_KEY)==='1'){document.getElementById('pg-gate').styl
   <div class="section-bridge"><a class="section-bridge-link" href="#s-deploy">Production & Deployment →</a></div>
 </section>
 
+
+<!-- ═══════ SECTION 11: FLASHATTENTION VS PAGEDATTENTION ═══════ -->
+<section class="section" id="s-flash">
+  <div class="section-tag" style="color:#0984e3">Common Confusion</div>
+  <h2 class="section-title">FlashAttention vs PagedAttention — Two Solutions, Two Different Problems</h2>
+  <p class="section-sub">These two are constantly confused. They solve different problems, work at different levels, and are not alternatives — vLLM uses both simultaneously. Click each dimension to compare.</p>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="fa-btn-0" onclick="setFA(0)">What Problem</button>
+    <button class="btn-tab" id="fa-btn-1" onclick="setFA(1)">Where It Acts</button>
+    <button class="btn-tab" id="fa-btn-2" onclick="setFA(2)">How It Works</button>
+    <button class="btn-tab" id="fa-btn-3" onclick="setFA(3)">Do They Combine?</button>
+  </div>
+
+  <canvas id="c-flash" width="820" height="300"></canvas>
+
+  <div id="flash-detail" class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#0984e3" id="flash-title">What Problem Does Each Solve?</div>
+    <div class="card-body" id="flash-body">FlashAttention solves the IO-efficiency problem: the standard attention computation materialises the full N×N attention matrix in GPU HBM (slow global memory), which is bandwidth-bound. FlashAttention tiles the computation to stay in SRAM (fast on-chip memory), avoiding HBM round-trips. PagedAttention solves the memory management problem: KV cache for concurrent requests is scattered and wasteful. It has nothing to do with how the attention math is computed — only where the KV tensors live.</div>
+  </div>
+
+  <div class="grid2" style="margin-top:16px;">
+    <div class="card" style="border-color:#0984e344;">
+      <div class="card-title" style="color:#0984e3">FlashAttention — IO Efficiency</div>
+      <div class="card-body">Fuses the QK^T matmul, softmax, and V matmul into one CUDA kernel using tiling. Reduces HBM memory reads/writes from O(N²) to O(N). Does not change the attention output — mathematically identical. Speeds up training and inference by 2–4× purely through better hardware utilisation.</div>
+    </div>
+    <div class="card" style="border-color:#7c3aed44;">
+      <div class="card-title" style="color:#a78bfa">PagedAttention — Memory Management</div>
+      <div class="card-body">Changes how KV cache blocks are allocated and located in GPU memory. Does not change the attention math. Allows non-contiguous physical storage of KV cache. Enables sharing (copy-on-write), dynamic allocation, and near-zero waste. Complementary to FlashAttention — vLLM uses a PagedAttention kernel built on top of FlashAttention principles.</div>
+    </div>
+  </div>
+
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-calc">Memory Calculator →</a></div>
+</section>
+
+<!-- ═══════ SECTION 12: MEMORY CALCULATOR ═══════ -->
+<section class="section" id="s-calc">
+  <div class="section-tag" style="color:#51cf66">Interactive Tool</div>
+  <h2 class="section-title">KV Cache Memory Calculator</h2>
+  <p class="section-sub">How much GPU memory does the KV cache actually consume? Adjust the sliders to see live calculations for any model, dtype, context length, and batch size — with and without PagedAttention.</p>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-bottom:24px;">
+    <div>
+      <div style="margin-bottom:16px;">
+        <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;display:block;margin-bottom:8px;">Model Size</label>
+        <div class="btn-row" style="margin-bottom:0;">
+          <button class="btn-tab active" id="calc-model-0" onclick="calcSetModel(0,'7B',32,32,4096)">7B</button>
+          <button class="btn-tab" id="calc-model-1" onclick="calcSetModel(1,'13B',40,40,5120)">13B</button>
+          <button class="btn-tab" id="calc-model-2" onclick="calcSetModel(2,'34B',48,64,8192)">34B</button>
+          <button class="btn-tab" id="calc-model-3" onclick="calcSetModel(3,'70B',80,64,8192)">70B</button>
+        </div>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;display:block;margin-bottom:8px;">Data Type</label>
+        <div class="btn-row" style="margin-bottom:0;">
+          <button class="btn-tab" id="calc-dtype-0" onclick="calcSetDtype(0,'fp32',4)">fp32 (4B)</button>
+          <button class="btn-tab active" id="calc-dtype-1" onclick="calcSetDtype(1,'fp16',2)">fp16 (2B)</button>
+          <button class="btn-tab" id="calc-dtype-2" onclick="calcSetDtype(2,'int8',1)">int8 (1B)</button>
+          <button class="btn-tab" id="calc-dtype-3" onclick="calcSetDtype(3,'int4',0.5)">int4 (0.5B)</button>
+        </div>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;display:block;margin-bottom:8px;">Context Length: <span id="calc-ctx-val" style="color:var(--accent2);">2048</span> tokens</label>
+        <input type="range" min="256" max="8192" step="256" value="2048" id="calc-ctx" oninput="calcUpdate()" style="width:100%;accent-color:#7c3aed;">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;display:block;margin-bottom:8px;">Batch Size: <span id="calc-batch-val" style="color:var(--accent2);">16</span> requests</label>
+        <input type="range" min="1" max="64" step="1" value="16" id="calc-batch" oninput="calcUpdate()" style="width:100%;accent-color:#7c3aed;">
+      </div>
+    </div>
+    <div id="calc-results" style="display:flex;flex-direction:column;gap:12px;justify-content:center;">
+    </div>
+  </div>
+
+  <canvas id="c-calc" width="820" height="220"></canvas>
+  <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:6px;">Purple = usable KV cache · Red = wasted (prior art) · Green = model weights</div>
+
+  <div class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#51cf66">How the Calculation Works</div>
+    <div class="card-body">KV cache per request = 2 (K+V) × num_layers × num_heads × head_dim × seq_len × dtype_bytes. The "2×" is for both key and value tensors. For LLaMA-7B (32 layers, 32 heads, 128 head_dim, fp16): 2 × 32 × 32 × 128 × seq_len × 2 bytes = 524,288 × seq_len bytes. At 2048 tokens: ~1.07 GB per request.</div>
+  </div>
+
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-prefix">Prefix Caching →</a></div>
+</section>
+
+<!-- ═══════ SECTION 13: PREFIX CACHING ═══════ -->
+<section class="section" id="s-prefix">
+  <div class="section-tag" style="color:#fdcb6e">Optimization</div>
+  <h2 class="section-title">Prefix Caching — Never Recompute the Same Prompt Twice</h2>
+  <p class="section-sub">Many API deployments use a long system prompt for every request. Without prefix caching, each request recomputes and stores that prompt independently. With prefix caching, the KV cache for any shared prefix is computed once and reused — even across separate API calls.</p>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="pc-btn-0" onclick="setPC(0)">Without Prefix Cache</button>
+    <button class="btn-tab" id="pc-btn-1" onclick="setPC(1)">With Prefix Cache</button>
+    <button class="btn-tab" id="pc-btn-2" onclick="setPC(2)">At Scale (10K req/day)</button>
+  </div>
+
+  <canvas id="c-prefix" width="820" height="300"></canvas>
+  <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:6px;">Gold = system prompt tokens (recomputed or shared) · Blue = user query tokens</div>
+
+  <div id="prefix-detail" class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#fdcb6e" id="prefix-title">Without Prefix Caching</div>
+    <div class="card-body" id="prefix-body">Every incoming request triggers a full prefill of the system prompt + user query. For a 2000-token system prompt with 32 concurrent requests, that is 32 separate prefill computations of the same 2000 tokens — 64,000 wasted token computations per batch. The GPU spends most of its time recomputing identical KV vectors.</div>
+  </div>
+
+  <div class="grid3" style="margin-top:16px;">
+    <div class="card" style="border-color:#fdcb6e44;">
+      <div class="card-title" style="color:#fdcb6e">How It Works</div>
+      <div class="card-body">vLLM hashes the token IDs of each block. On a new request, if a block hash matches an existing cached block, that physical block is reused (ref_count++). The prefill only processes the new (uncached) suffix of the prompt.</div>
+    </div>
+    <div class="card" style="border-color:#51cf6644;">
+      <div class="card-title" style="color:#51cf66">Cache Hit Rate</div>
+      <div class="card-body">For chatbot deployments with a fixed system prompt, cache hit rate approaches 100% for the prompt portion. Only the user-specific query portion is computed fresh. For RAG systems, frequently retrieved document chunks also get cached.</div>
+    </div>
+    <div class="card" style="border-color:#a78bfa44;">
+      <div class="card-title" style="color:#a78bfa">Eviction Policy</div>
+      <div class="card-body">Prefix cache uses LRU eviction. When memory pressure rises, least-recently-used cached blocks are freed first. Blocks referenced by active requests are never evicted. The cache is purely opportunistic — correctness is never compromised.</div>
+    </div>
+  </div>
+
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-spec">Speculative Decoding →</a></div>
+</section>
+
+<!-- ═══════ SECTION 14: SPECULATIVE DECODING ═══════ -->
+<section class="section" id="s-spec">
+  <div class="section-tag" style="color:#e17055">Latency Optimization</div>
+  <h2 class="section-title">Speculative Decoding — Generating Multiple Tokens Per Step</h2>
+  <p class="section-sub">Standard autoregressive decoding generates one token per forward pass. Speculative decoding uses a small draft model to propose several tokens at once — the large model verifies all of them in a single pass. Click "Step" to animate the accept/reject process.</p>
+
+  <canvas id="c-spec" width="820" height="300"></canvas>
+  <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:6px;">Green = accepted tokens · Red = rejected (large model resamples) · Click Step to advance</div>
+
+  <div class="btn-row" style="margin-top:14px;">
+    <button class="btn" onclick="specStep()">Step →</button>
+    <button class="btn-tab" onclick="specReset()">Reset</button>
+    <span id="spec-stats" style="font-size:12px;color:var(--muted);margin-left:12px;align-self:center;"></span>
+  </div>
+
+  <div class="grid2" style="margin-top:16px;">
+    <div class="card" style="border-color:#e1705544;">
+      <div class="card-title" style="color:#e17055">Why It Works</div>
+      <div class="card-body">LLM inference is memory-bandwidth-bound, not compute-bound. The GPU can verify K tokens in parallel almost as fast as it can generate 1. So if the draft model is accurate, you get K tokens in ~1 forward pass latency. Typical speedup: 2–3× for latency-sensitive workloads where the draft model acceptance rate is high.</div>
+    </div>
+    <div class="card" style="border-color:#fdcb6e44;">
+      <div class="card-title" style="color:#fdcb6e">When It Helps (and When It Doesn't)</div>
+      <div class="card-body">Works best: low temperature (near-deterministic) tasks like code generation, summarisation, translation. Works poorly: high temperature creative tasks where the large model disagrees with the draft model frequently. vLLM supports both ngram-based and model-based drafting.</div>
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">Does speculative decoding change output quality? <span class="accordion-chevron">▼</span></div>
+    <div class="accordion-body">No — speculative decoding is mathematically equivalent to standard sampling from the large model. The rejection sampling scheme ensures the final token distribution is identical to what the large model would have produced directly. Accepted tokens are exactly what the large model would have chosen; rejected tokens are resampled from a corrected distribution.</div>
+  </div>
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">What draft strategies does vLLM support? <span class="accordion-chevron">▼</span></div>
+    <div class="accordion-body">vLLM supports: (1) Model-based drafting — a small model (e.g. 68M params) generates proposals; (2) ngram drafting — prompt ngrams that match the generation so far are proposed as continuations (zero extra memory, works well for long-form repetitive text); (3) Medusa — multiple decoding heads on the same model propose tokens in parallel without a separate draft model.</div>
+  </div>
+
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-lifecycle">Request Lifecycle →</a></div>
+</section>
+
+<!-- ═══════ SECTION 15: REQUEST LIFECYCLE ═══════ -->
+<section class="section" id="s-lifecycle">
+  <div class="section-tag" style="color:#a78bfa">End-to-End Flow</div>
+  <h2 class="section-title">Request Lifecycle — From API Call to Response</h2>
+  <p class="section-sub">Follow a single request through every stage of vLLM processing. Click each stage to see what happens internally — which component is responsible and what data structures are touched.</p>
+
+  <canvas id="c-lifecycle" width="820" height="340"></canvas>
+  <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:6px;">Click a stage to explore · Arrows show data flow · Purple = active stage</div>
+
+  <div id="lifecycle-detail" class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#a78bfa" id="lc-title">Stage 1: API Ingestion</div>
+    <div class="card-body" id="lc-body">The client sends an HTTP POST to /v1/completions or /v1/chat/completions. The FastAPI server parses the JSON body, validates parameters (max_tokens, temperature, stop sequences), and creates an internal Request object with a unique request_id. The raw prompt text is passed to the tokenizer.</div>
+  </div>
+
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-deploy">Production &amp; Deployment →</a></div>
+</section>
+
 <!-- ═══════ SECTION 10: PRODUCTION & DEPLOYMENT ═══════ -->
 <section class="section" id="s-deploy">
   <div class="section-tag" style="color:#fdcb6e">Real-World Use</div>
@@ -514,7 +703,7 @@ function setActive(el){document.querySelectorAll('.nav-link').forEach(function(l
 function toggleAcc(hdr){var b=hdr.nextElementSibling,c=hdr.querySelector('.accordion-chevron'),o=b.style.display==='block';b.style.display=o?'none':'block';if(c)c.style.transform=o?'':'rotate(180deg)';}
 function updateNav(){
   var main=document.querySelector('.main');if(!main)return;
-  var ids=['s-crisis','s-analogy','s-paged','s-waste','s-blocks','s-cow','s-batching','s-results','s-arch','s-deploy','s-quiz'];
+  var ids=['s-crisis','s-analogy','s-paged','s-waste','s-blocks','s-cow','s-batching','s-results','s-arch','s-flash','s-calc','s-prefix','s-spec','s-lifecycle','s-deploy','s-quiz'];
   main.addEventListener('scroll',function(){
     var sy=main.scrollTop;
     ids.forEach(function(id){
@@ -1209,6 +1398,416 @@ if(sessionStorage.getItem('pg_unlocked_14')==='1'){
   document.getElementById('pg-main').style.display='flex';
   if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',initAll);}else{initAll();}
 }
+
+// ─── FLASH vs PAGED ───────────────────────────────────────────────────────
+var faTab = 0;
+var FA_TABS = [
+  { label:'FlashAttention',  color:'#06b6d4',
+    title:'FlashAttention — IO-Bound Problem',
+    lines:[
+      'Problem: GPU SRAM is tiny (20MB); HBM is large (80GB) but slow.',
+      'Naive attention: Q, K, V round-trip to HBM O(N²) times → memory bottleneck.',
+      'FlashAttention tiles QK^T into SRAM blocks, fuses softmax + matmul.',
+      'Result: 2-4× faster, same numerical output, no approximation.',
+      'Focus: COMPUTE efficiency — how fast we calculate attention.',
+    ]
+  },
+  { label:'PagedAttention', color:'#7c3aed',
+    title:'PagedAttention — Memory Fragmentation Problem',
+    lines:[
+      'Problem: KV cache must be pre-allocated contiguously → 60-80% waste.',
+      'PagedAttention stores KV cache in fixed-size non-contiguous blocks.',
+      'Block table maps logical sequence positions to physical memory blocks.',
+      'Enables sharing, copy-on-write, and dynamic allocation per request.',
+      'Focus: MEMORY efficiency — how much GPU RAM each request uses.',
+    ]
+  },
+  { label:'Together in vLLM', color:'#10b981',
+    title:'Both Used Together — Orthogonal Wins',
+    lines:[
+      'FlashAttention fixes the compute path: faster SRAM-resident attention.',
+      'PagedAttention fixes the memory path: no wasted KV cache allocation.',
+      'They are orthogonal — PagedAttention provides non-contiguous blocks,',
+      '  FlashAttention operates within each block efficiently.',
+      'vLLM uses both: PagedAttention kernel with flash-style tiling per block.',
+    ]
+  },
+  { label:'Quick Comparison', color:'#f59e0b',
+    title:'Side-by-Side: Key Differences',
+    lines:[
+      'Dimension         | FlashAttention          | PagedAttention',
+      '──────────────────|─────────────────────────|──────────────────────',
+      'What it fixes     | Slow HBM round-trips     | KV memory fragmentation',
+      'Mechanism         | SRAM tiling + kernel fusion | Non-contiguous blocks',
+      'Memory layout     | Standard (contiguous)    | Paged (non-contiguous)',
+      'Applicability     | Any transformer attn     | KV cache management',
+    ]
+  },
+];
+function setFA(i){
+  faTab=i;
+  document.querySelectorAll('.fa-tab').forEach(function(b,j){ b.classList.toggle('active',j===i); });
+  drawFlash();
+}
+function drawFlash(){
+  var cv=document.getElementById('c-flash'); if(!cv)return;
+  var ctx=cv.getContext('2d'); var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  var t=FA_TABS[faTab];
+  // background
+  ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,W,H);
+  // title bar
+  ctx.fillStyle=t.color+'33'; ctx.fillRect(0,0,W,44);
+  ctx.strokeStyle=t.color; ctx.lineWidth=2; ctx.strokeRect(0,0,W,44);
+  ctx.fillStyle=t.color; ctx.font='bold 15px Inter,sans-serif'; ctx.textAlign='center';
+  ctx.fillText(t.title,W/2,28);
+  // lines
+  ctx.font='13px "JetBrains Mono",monospace'; ctx.textAlign='left';
+  t.lines.forEach(function(line,i){
+    var y=70+i*30;
+    if(line.startsWith('──')){ ctx.strokeStyle='#334155'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(24,y-6); ctx.lineTo(W-24,y-6); ctx.stroke(); }
+    else if(line.startsWith('Dimension')){ ctx.fillStyle='#94a3b8'; }
+    else{ ctx.fillStyle='#e2e8f0'; }
+    ctx.fillText(line,24,y);
+  });
+}
+
+// ─── KV CACHE MEMORY CALCULATOR ───────────────────────────────────────────
+var calcModel = 0, calcDtype = 1, calcCtx = 2048, calcBatch = 8;
+var MODELS = [
+  {name:'7B',  layers:32, heads:32, dim:4096},
+  {name:'13B', layers:40, heads:40, dim:5120},
+  {name:'34B', layers:60, heads:52, dim:6656},
+  {name:'70B', layers:80, heads:64, dim:8192},
+];
+var DTYPES = [
+  {name:'fp32', bytes:4},
+  {name:'fp16', bytes:2},
+  {name:'int8', bytes:1},
+  {name:'int4', bytes:0.5},
+];
+function calcSetModel(i){
+  calcModel=i;
+  document.querySelectorAll('.calc-model-btn').forEach(function(b,j){ b.classList.toggle('active',j===i); });
+  calcUpdate();
+}
+function calcSetDtype(i){
+  calcDtype=i;
+  document.querySelectorAll('.calc-dtype-btn').forEach(function(b,j){ b.classList.toggle('active',j===i); });
+  calcUpdate();
+}
+function calcUpdate(){
+  var ctxEl=document.getElementById('calc-ctx-val');
+  var batchEl=document.getElementById('calc-batch-val');
+  var ctxSlider=document.getElementById('calc-ctx');
+  var batchSlider=document.getElementById('calc-batch');
+  if(ctxSlider) calcCtx=parseInt(ctxSlider.value);
+  if(batchSlider) calcBatch=parseInt(batchSlider.value);
+  if(ctxEl) ctxEl.textContent=calcCtx;
+  if(batchEl) batchEl.textContent=calcBatch;
+  var m=MODELS[calcModel], d=DTYPES[calcDtype];
+  // KV cache = 2 (K+V) * layers * seq_len * num_heads * head_dim * bytes
+  var headDim = m.dim / m.heads;
+  var perTokenPerLayer = 2 * m.heads * headDim * d.bytes; // bytes
+  var totalBytes = perTokenPerLayer * m.layers * calcCtx * calcBatch;
+  var totalGB = totalBytes / 1e9;
+  var modelGB = (m.layers * m.dim * m.dim * 4 * d.bytes) / 1e9; // rough
+  var el=document.getElementById('calc-result');
+  if(el){
+    el.innerHTML = '<span style="color:#7c3aed;font-size:1.4em;font-weight:700">' + totalGB.toFixed(2) + ' GB</span>' +
+      ' KV cache for ' + calcBatch + ' requests × ' + calcCtx + ' tokens' +
+      '<br><small style="color:#94a3b8">Model: ' + m.name + ' • Dtype: ' + DTYPES[calcDtype].name +
+      ' • Layers: ' + m.layers + ' • Heads: ' + m.heads + ' • Head dim: ' + Math.round(headDim) + '</small>';
+  }
+  drawCalc(totalGB, modelGB);
+}
+function drawCalc(kvGB, modelGB){
+  var cv=document.getElementById('c-calc'); if(!cv)return;
+  var ctx=cv.getContext('2d'); var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,W,H);
+  // bar chart: model params vs kv cache
+  var maxGB = Math.max(kvGB, modelGB, 1) * 1.2;
+  var barW=80, gap=60, startX=120;
+  var items=[
+    {label:'Model Weights', val:modelGB, color:'#06b6d4'},
+    {label:'KV Cache', val:kvGB, color:'#7c3aed'},
+  ];
+  items.forEach(function(item,i){
+    var bh = Math.max(4,(item.val/maxGB)*(H-80));
+    var x = startX + i*(barW+gap);
+    var y = H-40-bh;
+    ctx.fillStyle=item.color+'55'; ctx.fillRect(x,y,barW,bh);
+    ctx.strokeStyle=item.color; ctx.lineWidth=2; ctx.strokeRect(x,y,barW,bh);
+    ctx.fillStyle=item.color; ctx.font='bold 12px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText(item.val.toFixed(1)+'GB',x+barW/2,y-8);
+    ctx.fillStyle='#94a3b8'; ctx.font='11px Inter,sans-serif';
+    ctx.fillText(item.label,x+barW/2,H-12);
+  });
+  // guideline
+  ctx.strokeStyle='#334155'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(60,H-40); ctx.lineTo(W-20,H-40); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='#475569'; ctx.font='11px Inter,sans-serif'; ctx.textAlign='left';
+  ctx.fillText('0 GB',20,H-36);
+  ctx.fillStyle='#64748b'; ctx.font='11px Inter,sans-serif'; ctx.textAlign='left';
+  ctx.fillText('GPU Memory Breakdown',startX,20);
+}
+
+// ─── PREFIX CACHING ────────────────────────────────────────────────────────
+var pcMode = 0;
+var PC_MODES = [
+  {label:'No Caching', color:'#ef4444'},
+  {label:'Cache Hit',  color:'#10b981'},
+  {label:'Partial Hit',color:'#f59e0b'},
+];
+var pcAnim = 0;
+function setPC(i){
+  pcMode=i;
+  document.querySelectorAll('.pc-tab').forEach(function(b,j){ b.classList.toggle('active',j===i); });
+  pcAnim=0;
+  drawPrefix();
+}
+function drawPrefix(){
+  var cv=document.getElementById('c-prefix'); if(!cv)return;
+  var ctx=cv.getContext('2d'); var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,W,H);
+  var mode=PC_MODES[pcMode];
+  var blockW=48, blockH=32, gap=6;
+  var systemPromptBlocks=5, userBlocks=3, newBlocks=2;
+  var totalBlocks=systemPromptBlocks+userBlocks+newBlocks;
+  function drawBlock(x,y,label,color,cached){
+    ctx.fillStyle=cached?color+'44':'#1e293b';
+    ctx.strokeStyle=cached?color:'#334155';
+    ctx.lineWidth=cached?2:1;
+    ctx.beginPath(); ctx.roundRect(x,y,blockW,blockH,4); ctx.fill(); ctx.stroke();
+    ctx.fillStyle=cached?color:'#64748b';
+    ctx.font='9px "JetBrains Mono",monospace'; ctx.textAlign='center';
+    ctx.fillText(label,x+blockW/2,y+blockH/2+4);
+  }
+  var startX=30, row1Y=60, row2Y=130;
+  // system prompt blocks
+  for(var i=0;i<systemPromptBlocks;i++){
+    var cached=(pcMode===1||pcMode===2);
+    drawBlock(startX+i*(blockW+gap),row1Y,'sys-'+i,mode.color,cached);
+  }
+  // user blocks
+  for(var i=0;i<userBlocks;i++){
+    var cached=(pcMode===1);
+    drawBlock(startX+(systemPromptBlocks+i)*(blockW+gap),row1Y,'usr-'+i,mode.color,cached);
+  }
+  // new blocks
+  for(var i=0;i<newBlocks;i++){
+    drawBlock(startX+(systemPromptBlocks+userBlocks+i)*(blockW+gap),row1Y,'new-'+i,mode.color,false);
+  }
+  // labels
+  ctx.font='11px Inter,sans-serif'; ctx.textAlign='left'; ctx.fillStyle='#94a3b8';
+  ctx.fillText('System Prompt ('+systemPromptBlocks+' blocks)',startX,row1Y-10);
+  ctx.fillText('User Context ('+userBlocks+' blocks)',startX+systemPromptBlocks*(blockW+gap),row1Y-10);
+  ctx.fillText('New ('+newBlocks+')',startX+(systemPromptBlocks+userBlocks)*(blockW+gap),row1Y-10);
+  // legend
+  ctx.fillStyle=mode.color+'44'; ctx.strokeStyle=mode.color; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.roundRect(30,row2Y,14,14,2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle=mode.color; ctx.font='12px Inter,sans-serif'; ctx.textAlign='left';
+  ctx.fillText('Cached (reused from KV pool)',50,row2Y+11);
+  ctx.fillStyle='#1e293b'; ctx.strokeStyle='#334155'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.roundRect(30,row2Y+22,14,14,2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#64748b'; ctx.fillText('Computed fresh',50,row2Y+33);
+  // summary
+  var saved = pcMode===1?systemPromptBlocks+userBlocks : pcMode===2?systemPromptBlocks:0;
+  var total = totalBlocks;
+  ctx.fillStyle='#e2e8f0'; ctx.font='bold 13px Inter,sans-serif'; ctx.textAlign='center';
+  var pct = Math.round(saved/total*100);
+  ctx.fillText(mode.label+': '+saved+'/'+total+' blocks cached ('+pct+'% compute saved)',W/2,H-16);
+}
+
+// ─── SPECULATIVE DECODING ──────────────────────────────────────────────────
+var specStep=0, specMax=6, specAccepted=0, specRejected=0;
+var SPEC_STEPS=[
+  {title:'1. Draft Model Proposes',        desc:'Small 1B draft model auto-regressively generates K=4 candidate tokens: [" the", " cat", " sat", " on"]'},
+  {title:'2. Target Model Receives All',   desc:'Large 70B target model receives draft tokens in one forward pass—evaluates all 4 simultaneously using parallel attention.'},
+  {title:'3. Probability Check (token 1)', desc:'"the": P_target=0.72, P_draft=0.68. Ratio=1.06≥1. Accept! Token verified.'},
+  {title:'4. Probability Check (token 2)', desc:'"cat": P_target=0.45, P_draft=0.61. Ratio=0.74. Draw u∼Uniform(0,1): u=0.31<0.74. Accept!'},
+  {title:'5. Rejection (token 3)',          desc:'"sat": P_target=0.12, P_draft=0.55. Ratio=0.22. Draw u=0.81>0.22. Reject! Resample from corrected distribution.'},
+  {title:'6. Result',                       desc:'3 tokens accepted in 1 large-model call (instead of 3 sequential calls). Speedup: ~2.3× with no quality loss.'},
+];
+function runSpecStep(){
+  if(specStep>=specMax)return;
+  if(specStep===3) specAccepted++;
+  if(specStep===4) specAccepted++;
+  if(specStep===5) specRejected++;
+  specStep++;
+  var el=document.getElementById('spec-stats');
+  if(el) el.textContent='Accepted: '+specAccepted+' | Rejected: '+specRejected;
+  drawSpec();
+}
+function resetSpec(){
+  specStep=0; specAccepted=0; specRejected=0;
+  var el=document.getElementById('spec-stats');
+  if(el) el.textContent='Accepted: 0 | Rejected: 0';
+  drawSpec();
+}
+function drawSpec(){
+  var cv=document.getElementById('c-spec'); if(!cv)return;
+  var ctx=cv.getContext('2d'); var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,W,H);
+  // draft tokens row
+  var tokens=['" the"','" cat"','" sat"','" on"'];
+  var tokenW=70, tokenH=30, startX=60, row1Y=50, row2Y=120;
+  ctx.fillStyle='#94a3b8'; ctx.font='11px Inter,sans-serif'; ctx.textAlign='left';
+  ctx.fillText('Draft model output:',20,row1Y-10);
+  tokens.forEach(function(t,i){
+    var x=startX+i*(tokenW+12);
+    var color= specStep<=1?'#06b6d4': i<2&&specStep>=3?'#10b981': i===2&&specStep>=5?'#ef4444':'#06b6d4';
+    ctx.fillStyle=color+'33'; ctx.strokeStyle=color; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.roundRect(x,row1Y,tokenW,tokenH,4); ctx.fill(); ctx.stroke();
+    ctx.fillStyle=color; ctx.font='11px "JetBrains Mono",monospace'; ctx.textAlign='center';
+    ctx.fillText(t,x+tokenW/2,row1Y+tokenH/2+4);
+    if(specStep>=3&&i<2){ ctx.fillStyle='#10b981'; ctx.font='bold 14px Inter,sans-serif'; ctx.fillText('✓',x+tokenW/2,row1Y-6); }
+    if(specStep>=5&&i===2){ ctx.fillStyle='#ef4444'; ctx.font='bold 14px Inter,sans-serif'; ctx.fillText('✗',x+tokenW/2,row1Y-6); }
+  });
+  // current step info
+  if(specStep>0){
+    var s=SPEC_STEPS[specStep-1];
+    ctx.fillStyle='#1e293b'; ctx.strokeStyle='#7c3aed'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.roundRect(20,row2Y,W-40,90,6); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#a78bfa'; ctx.font='bold 12px Inter,sans-serif'; ctx.textAlign='left';
+    ctx.fillText(s.title,32,row2Y+20);
+    ctx.fillStyle='#cbd5e1'; ctx.font='12px Inter,sans-serif';
+    // wrap text
+    var words=s.desc.split(' '), line='', lineY=row2Y+40;
+    words.forEach(function(word){
+      var test=line+(line?' ':'')+word;
+      if(ctx.measureText(test).width>W-80&&line){ ctx.fillText(line,32,lineY); line=word; lineY+=18; }
+      else line=test;
+    });
+    if(line) ctx.fillText(line,32,lineY);
+  } else {
+    ctx.fillStyle='#475569'; ctx.font='13px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('Press "Step" to walk through speculative decoding',W/2,160);
+  }
+  // progress dots
+  for(var i=0;i<specMax;i++){
+    ctx.fillStyle=i<specStep?'#7c3aed':'#334155';
+    ctx.beginPath(); ctx.arc(W/2-(specMax-1)*12+i*24,H-20,6,0,Math.PI*2); ctx.fill();
+  }
+}
+
+// ─── REQUEST LIFECYCLE ─────────────────────────────────────────────────────
+var lcStage = -1;
+var LC_STAGES = [
+  { title:'1. Request Arrives',    color:'#06b6d4',
+    body:'API call arrives at vLLM server: {prompt:"Hello world", max_tokens:100, model:"llama-70b"}. Tokenizer converts text → token IDs. Added to waiting queue.' },
+  { title:'2. Scheduler Picks Up', color:'#f59e0b',
+    body:'Scheduler runs (every step). Checks free block pool. If enough blocks exist for prompt + at least 1 output token: moves request from waiting → running queue.' },
+  { title:'3. Block Allocation',   color:'#7c3aed',
+    body:'Block Manager allocates physical KV blocks for the prompt. Block table created: logical positions 0..L-1 mapped to physical block addresses. KV computed and stored.' },
+  { title:'4. Prefill Phase',      color:'#10b981',
+    body:'GPU processes all prompt tokens in one forward pass (parallel). Attention computed over full prompt. KV cache filled. First output token generated. Expensive but done once.' },
+  { title:'5. Decode Phase',       color:'#a78bfa',
+    body:'Auto-regressive loop: one token per step. Each step: read KV from blocks → compute attention with new token → sample next token → append to sequence. Allocate new block if block boundary crossed.' },
+  { title:'6. Preemption (if full)',color:'#f87171',
+    body:'If free blocks run out: scheduler preempts lowest-priority request. Its blocks freed via swap-to-CPU or recompute. High-priority request continues.' },
+  { title:'7. Completion & Return', color:'#34d399',
+    body:'EOS token generated or max_tokens reached. Blocks freed back to pool. Decoded token IDs → detokenized to text. Response streamed back to client.' },
+];
+function drawLifecycle(){
+  var cv=document.getElementById('c-lifecycle'); if(!cv)return;
+  var ctx=cv.getContext('2d'); var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,W,H);
+  var n=LC_STAGES.length, nodeR=22, centerX=W/2, centerY=H/2-10;
+  var radius=Math.min(W,H)/2-50;
+  var nodes=[];
+  for(var i=0;i<n;i++){
+    var angle=-Math.PI/2+(2*Math.PI/n)*i;
+    nodes.push({x:centerX+radius*Math.cos(angle), y:centerY+radius*Math.sin(angle)});
+  }
+  // draw arcs
+  for(var i=0;i<n;i++){
+    var next=nodes[(i+1)%n];
+    ctx.strokeStyle=lcStage>=0&&(i===lcStage||i===lcStage-1)?LC_STAGES[i].color:'#334155';
+    ctx.lineWidth=lcStage>=0&&i===lcStage?3:1.5;
+    ctx.setLineDash(lcStage>=0&&i===lcStage?[]:[4,4]);
+    ctx.beginPath(); ctx.moveTo(nodes[i].x,nodes[i].y); ctx.lineTo(next.x,next.y); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  // draw nodes
+  nodes.forEach(function(nd,i){
+    var s=LC_STAGES[i], active=i===lcStage;
+    ctx.fillStyle=active?s.color+'33':'#1e293b';
+    ctx.strokeStyle=active?s.color:'#475569';
+    ctx.lineWidth=active?3:1.5;
+    ctx.beginPath(); ctx.arc(nd.x,nd.y,nodeR,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle=active?s.color:'#94a3b8';
+    ctx.font=(active?'bold ':'')+'10px Inter,sans-serif'; ctx.textAlign='center';
+    var shortLabel=(i+1)+'';
+    ctx.fillText(shortLabel,nd.x,nd.y+4);
+    // outer label
+    var lx=nd.x+(nd.x<centerX?-10:nd.x>centerX+5?10:0);
+    var ly=nd.y+(nd.y<centerY?-nodeR-8:nd.y>centerY+5?nodeR+14:nodeR+14);
+    ctx.fillStyle=active?s.color:'#64748b';
+    ctx.font=(active?'bold ':'')+'9px Inter,sans-serif'; ctx.textAlign='center';
+    var words=s.title.split(' '); var label=words.slice(0,3).join(' ');
+    ctx.fillText(label,lx+(nd.x===centerX?0:0),ly);
+  });
+  // center label
+  ctx.fillStyle='#334155'; ctx.beginPath(); ctx.arc(centerX,centerY,30,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#94a3b8'; ctx.font='9px Inter,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('vLLM',centerX,centerY-3); ctx.fillText('Engine',centerX,centerY+9);
+}
+function initLifecycle(){
+  var cv=document.getElementById('c-lifecycle'); if(!cv)return;
+  cv.addEventListener('click',function(e){
+    var rect=cv.getBoundingClientRect(), mx=e.clientX-rect.left, my=e.clientY-rect.top;
+    var W=cv.width,H=cv.height,n=LC_STAGES.length,nodeR=22;
+    var centerX=W/2,centerY=H/2-10,radius=Math.min(W,H)/2-50;
+    for(var i=0;i<n;i++){
+      var angle=-Math.PI/2+(2*Math.PI/n)*i;
+      var nx=centerX+radius*Math.cos(angle), ny=centerY+radius*Math.sin(angle);
+      var dx=mx-nx, dy=my-ny;
+      if(dx*dx+dy*dy<=nodeR*nodeR*1.5){
+        lcStage=i;
+        var s=LC_STAGES[i];
+        var titleEl=document.getElementById('lc-title');
+        var bodyEl=document.getElementById('lc-body');
+        if(titleEl) titleEl.textContent=s.title;
+        if(bodyEl) bodyEl.textContent=s.body;
+        drawLifecycle(); return;
+      }
+    }
+  });
+  drawLifecycle();
+}
+
+// ─── SLIDER EVENT WIRING ───────────────────────────────────────────────────
+function wireCalcSliders(){
+  var ctxS=document.getElementById('calc-ctx');
+  var batchS=document.getElementById('calc-batch');
+  if(ctxS) ctxS.addEventListener('input',calcUpdate);
+  if(batchS) batchS.addEventListener('input',calcUpdate);
+}
+
+// ─── AUGMENT initAll ───────────────────────────────────────────────────────
+var _origInitAll = window.initAll || function(){};
+window.initAll = function(){
+  _origInitAll();
+  drawFlash();
+  wireCalcSliders();
+  calcUpdate();
+  drawPrefix();
+  drawSpec();
+  initLifecycle();
+};
+// also call after DOM if already loaded
+if(document.readyState==='complete'||document.readyState==='interactive'){
+  setTimeout(function(){
+    drawFlash(); wireCalcSliders(); calcUpdate(); drawPrefix(); drawSpec(); initLifecycle();
+  },100);
+}
+
 </script>
 </body>
 </html>
