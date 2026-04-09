@@ -1,0 +1,1375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Evaluating LLM Agents — A Visual Guide</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#c9d1d9;--muted:#8b949e;
+  --accent:#0984e3;--accent2:#00b894;--accent3:#fdcb6e;
+  --danger:#ff6b6b;--warn:#fdcb6e;--ok:#51cf66;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+.sidebar{width:240px;min-width:240px;height:100vh;position:sticky;top:0;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:0 0 40px;flex-shrink:0;}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.sidebar-logo-title{font-size:13px;font-weight:700;color:var(--accent);}
+.sidebar-logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.nav-group{margin-bottom:4px;}
+.nav-group-title{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;padding:10px 16px 4px;}
+.nav-link{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;}
+.nav-link:hover,.nav-link.active{color:var(--text);background:rgba(9,132,227,.08);}
+.nav-link.active{color:var(--accent);}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.main{flex:1;overflow-y:auto;height:100vh;}
+.pipeline-map{position:sticky;top:0;z-index:50;background:rgba(13,17,23,.96);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+.pipe-step{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);padding:2px 6px;border-radius:4px;transition:color .15s;}
+.pipe-step:hover{color:var(--text);}
+.pipe-dot{width:6px;height:6px;border-radius:50%;}
+.pipe-arrow{color:var(--border);font-size:12px;}
+.section{min-height:100vh;padding:60px 48px 80px;border-bottom:1px solid var(--border);position:relative;}
+.section-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px;}
+.section-title{font-size:28px;font-weight:800;color:var(--text);margin-bottom:8px;line-height:1.25;}
+.section-sub{font-size:14px;color:var(--muted);margin-bottom:28px;max-width:680px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:16px;}
+.card-title{font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px;}
+.card-body{font-size:13px;color:var(--muted);line-height:1.6;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+canvas{display:block;border-radius:10px;background:var(--surface);border:1px solid var(--border);}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s;}
+.btn:hover{opacity:.85;}
+.btn-outline{background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:8px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-outline:hover{background:rgba(9,132,227,.1);}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+.btn-tab{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.formula{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-family:'Courier New',monospace;font-size:12px;color:#a8ff78;line-height:1.7;margin-bottom:16px;white-space:pre;}
+.stats-row{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:24px;}
+.stat{text-align:center;}
+.stat-val{font-size:28px;font-weight:800;color:var(--accent);}
+.stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;}
+.section-bridge{margin-top:48px;padding-top:28px;border-top:1px solid var(--border);text-align:right;}
+.section-bridge-link{font-size:12px;color:var(--accent);font-weight:600;border:1px solid var(--accent);border-radius:6px;padding:6px 14px;transition:all .15s;}
+.section-bridge-link:hover{background:rgba(9,132,227,.1);}
+.accordion-item{border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+.accordion-header{padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;background:var(--surface);}
+.accordion-header:hover{background:#1c2128;}
+.accordion-chevron{transition:transform .2s;font-size:10px;color:var(--muted);}
+.accordion-body{padding:14px 16px;font-size:12px;color:var(--muted);display:none;border-top:1px solid var(--border);}
+.quiz-q{font-size:15px;font-weight:600;margin-bottom:16px;color:var(--text);}
+.quiz-opt{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:8px;cursor:pointer;font-size:13px;transition:all .15s;}
+.quiz-opt:hover{border-color:var(--accent);}
+.quiz-opt.correct{border-color:#51cf66;background:rgba(81,207,102,.1);color:#51cf66;}
+.quiz-opt.wrong{border-color:#ff6b6b;background:rgba(255,107,107,.1);color:#ff6b6b;}
+.quiz-feedback{font-size:12px;color:var(--muted);margin-top:8px;min-height:16px;}
+#pg-gate{position:fixed;inset:0;background:#0d1117;z-index:9999;display:flex;align-items:center;justify-content:center;}
+.pg-box{background:#161b22;border:1px solid #30363d;border-radius:16px;padding:40px 48px;max-width:420px;width:100%;text-align:center;}
+.pg-icon{font-size:2.5rem;margin-bottom:16px;}
+.pg-title{font-size:1.3rem;font-weight:800;color:#c9d1d9;margin-bottom:6px;}
+.pg-sub{font-size:12px;color:#8b949e;margin-bottom:24px;}
+.pg-input{width:100%;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:10px 14px;color:#c9d1d9;font-size:14px;outline:none;text-align:center;}
+.pg-input:focus{border-color:#0984e3;}
+.pg-btn{margin-top:12px;width:100%;background:#0984e3;color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;}
+.pg-err{color:#ff6b6b;font-size:11px;margin-top:8px;min-height:16px;}
+.bm-card{background:var(--surface);border:2px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:all .2s;}
+.bm-card:hover,.bm-card.active{border-color:var(--accent);}
+.bm-card.active{background:rgba(9,132,227,.06);}
+.driver-card{background:var(--surface);border:2px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:all .2s;margin-bottom:10px;}
+.driver-card:hover,.driver-card.active{border-color:var(--accent);}
+.driver-card.active{background:rgba(9,132,227,.06);}
+.xai-col{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;flex:1;}
+.xai-col-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;}
+.tag{display:inline-block;background:rgba(9,132,227,.15);color:var(--accent);border-radius:4px;padding:2px 7px;font-size:10px;font-weight:600;margin:2px;}
+</style>
+</head>
+<body>
+
+<div id="pg-gate">
+  <div class="pg-box">
+    <div class="pg-icon">📊</div>
+    <div class="pg-title">Evaluating LLM Agents</div>
+    <div class="pg-sub">A Visual Guide to Agent Evaluation — Interactive Blog</div>
+    <input class="pg-input" id="pg-input" type="password" placeholder="Enter password" onkeydown="if(event.key==='Enter')pgCheck()">
+    <button class="pg-btn" onclick="pgCheck()">Unlock</button>
+    <div class="pg-err" id="pg-err"></div>
+  </div>
+</div>
+
+<script>
+var PG_PASSWORD='visual2025';
+var PG_KEY='pg_unlocked_13';
+function pgCheck(){
+  var v=document.getElementById('pg-input').value.trim();
+  if(v===PG_PASSWORD){
+    sessionStorage.setItem(PG_KEY,'1');
+    document.getElementById('pg-gate').style.display='none';
+    document.getElementById('pg-main').style.display='flex';
+    initAll();
+  } else {document.getElementById('pg-err').textContent='Incorrect password.';}
+}
+if(sessionStorage.getItem(PG_KEY)==='1'){document.getElementById('pg-gate').style.display='none';}
+</script>
+
+<div id="pg-main" style="display:none;width:100%;">
+
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-title">Evaluating LLM Agents</div>
+    <div class="sidebar-logo-sub">Xia et al. 2024 · arXiv:2411.13768</div>
+  </div>
+  <nav>
+  <div class="nav-group">
+    <div class="nav-group-title">The Problem</div>
+    <a class="nav-link" href="#s-why" onclick="setActive(this)"><span class="dot" style="background:#ff6b6b"></span>Why It's Hard</a>
+    <a class="nav-link" href="#s-gap" onclick="setActive(this)"><span class="dot" style="background:#fdcb6e"></span>The Evaluation Gap</a>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">What to Evaluate</div>
+    <a class="nav-link" href="#s-dimensions" onclick="setActive(this)"><span class="dot" style="background:#0984e3"></span>4 Capability Dimensions</a>
+    <a class="nav-link" href="#s-metrics" onclick="setActive(this)"><span class="dot" style="background:#00b894"></span>Metrics Deep Dive</a>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">How to Evaluate</div>
+    <a class="nav-link" href="#s-offline" onclick="setActive(this)"><span class="dot" style="background:#a29bfe"></span>Offline Evaluation</a>
+    <a class="nav-link" href="#s-benchmarks" onclick="setActive(this)"><span class="dot" style="background:#0984e3"></span>Key Benchmarks</a>
+    <a class="nav-link" href="#s-online" onclick="setActive(this)"><span class="dot" style="background:#51cf66"></span>Online Evaluation</a>
+    <a class="nav-link" href="#s-judge" onclick="setActive(this)"><span class="dot" style="background:#fdcb6e"></span>LLM-as-Judge</a>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">The Framework</div>
+    <a class="nav-link" href="#s-eddops" onclick="setActive(this)"><span class="dot" style="background:#0984e3"></span>EDDOps Process</a>
+    <a class="nav-link" href="#s-arch" onclick="setActive(this)"><span class="dot" style="background:#00b894"></span>Reference Architecture</a>
+    <a class="nav-link" href="#s-drivers" onclick="setActive(this)"><span class="dot" style="background:#a29bfe"></span>6 Evaluation Drivers</a>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">Advanced</div>
+    <a class="nav-link" href="#s-safety" onclick="setActive(this)"><span class="dot" style="background:#ff6b6b"></span>Safety & Robustness</a>
+    <a class="nav-link" href="#s-quiz" onclick="setActive(this)"><span class="dot" style="background:#a29bfe"></span>Design Quiz</a>
+  </div>
+  </nav>
+</nav>
+
+<div style="flex:1;display:flex;flex-direction:column;">
+
+<div class="pipeline-map" id="pipeline-map">
+  <a class="pipe-step" href="#s-why"><span class="pipe-dot" style="background:#ff6b6b"></span>Why Hard</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-gap"><span class="pipe-dot" style="background:#fdcb6e"></span>Gap</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-dimensions"><span class="pipe-dot" style="background:#0984e3"></span>Dimensions</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-metrics"><span class="pipe-dot" style="background:#00b894"></span>Metrics</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-offline"><span class="pipe-dot" style="background:#a29bfe"></span>Offline</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-benchmarks"><span class="pipe-dot" style="background:#0984e3"></span>Benchmarks</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-online"><span class="pipe-dot" style="background:#51cf66"></span>Online</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-judge"><span class="pipe-dot" style="background:#fdcb6e"></span>Judge</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-eddops"><span class="pipe-dot" style="background:#0984e3"></span>EDDOps</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-arch"><span class="pipe-dot" style="background:#00b894"></span>Arch</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-drivers"><span class="pipe-dot" style="background:#a29bfe"></span>Drivers</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-safety"><span class="pipe-dot" style="background:#ff6b6b"></span>Safety</a>
+  <span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-quiz"><span class="pipe-dot" style="background:#a29bfe"></span>Quiz</a>
+</div>
+
+<main class="main">
+
+<!-- ═══════ SECTION 1: WHY IT'S HARD ═══════ -->
+<section class="section" id="s-why">
+  <div class="section-tag" style="color:#ff6b6b">The Core Challenge</div>
+  <h2 class="section-title">Why Agent Evaluation Is Fundamentally Different</h2>
+  <p class="section-sub">Evaluating a single LLM call is hard enough. Evaluating an LLM agent — autonomous, multi-step, tool-using, non-deterministic — is a different problem entirely.</p>
+
+  <canvas id="c-why" width="820" height="300"></canvas>
+  <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:6px;">Click a panel to explore each challenge</div>
+
+  <div id="why-detail" class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#ff6b6b" id="why-title">Open-Ended Behaviour</div>
+    <div class="card-body" id="why-body">Unlike a single LLM call with a defined output format, agents can take any sequence of actions to reach a goal. There is no unique "correct" path — two agents that both succeed may take completely different routes. Standard unit-test style evaluation cannot capture this space of valid solutions.</div>
+  </div>
+
+  <div class="grid3" style="margin-top:16px;">
+    <div class="card" style="border-color:#ff6b6b44;">
+      <div class="card-title" style="color:#ff6b6b">Non-Deterministic</div>
+      <div class="card-body">The same query produces different tool call sequences, reasoning chains, and outputs on each run. You cannot run once and declare pass/fail — you need statistical sampling across many runs to get reliable measurements.</div>
+    </div>
+    <div class="card" style="border-color:#fdcb6e44;">
+      <div class="card-title" style="color:#fdcb6e">Multi-Step &amp; Long-Horizon</div>
+      <div class="card-body">Agents take dozens to hundreds of actions per task. An error at step 3 may not surface until step 47. Diagnosing failure requires step-level tracing, not just checking the final output.</div>
+    </div>
+    <div class="card" style="border-color:#0984e344;">
+      <div class="card-title" style="color:#0984e3">System-Level Interactions</div>
+      <div class="card-body">Agent behaviour emerges from interactions between the LLM, tools, memory, external APIs, and environment state. Evaluating the model in isolation misses most real failure modes — evaluation must be system-level.</div>
+    </div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-gap">The Evaluation Gap →</a>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 2: THE EVALUATION GAP ═══════ -->
+<section class="section" id="s-gap">
+  <div class="section-tag" style="color:#fdcb6e">Research Findings</div>
+  <h2 class="section-title">The Evaluation Gap — What the Research Shows</h2>
+  <p class="section-sub">A multivocal literature review of 134 academic and 27 industry sources reveals a dramatic disconnect between how agents are evaluated and what good evaluation requires. (Xia et al., 2024)</p>
+
+  <canvas id="c-gap" width="820" height="320"></canvas>
+  <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:6px;">Click each bar for details · Blue = academic · Green = industry practice</div>
+
+  <div id="gap-detail" class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#fdcb6e" id="gap-title">Pre-deployment Focus (93%)</div>
+    <div class="card-body" id="gap-body">93.28% of academic evaluation sources focus exclusively on pre-deployment (offline) evaluation. Only 2.24% cover post-deployment, and 4.48% cover continuous evaluation. Yet in industry, 40.74% of practitioners use continuous evaluation. Agents deployed in production face distribution shift, new edge cases, and changing user behaviour that pre-deployment benchmarks cannot anticipate.</div>
+  </div>
+
+  <div class="grid3" style="margin-top:16px;">
+    <div class="card">
+      <div class="card-title" style="color:#fdcb6e">The Implication</div>
+      <div class="card-body">Academic benchmarks optimise for what is easy to measure — final task success on controlled inputs — not what matters in production: reliability over time, graceful degradation, and safe failure modes.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#0984e3">Industry vs Academia</div>
+      <div class="card-body">Industry shows more balanced evaluation: 44.44% pre-deployment, 14.81% post-deployment, 40.74% continuous. Industry practitioners face real consequences when agents fail — this drives more rigorous evaluation practice.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#51cf66">What Good Looks Like</div>
+      <div class="card-body">Evaluation should span the full lifecycle, combine end-to-end with intermediate metrics, operate at system level, adapt to new risks, and close the loop: findings must drive concrete improvements.</div>
+    </div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-dimensions">4 Capability Dimensions →</a>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 3: 4 CAPABILITY DIMENSIONS ═══════ -->
+<section class="section" id="s-dimensions">
+  <div class="section-tag" style="color:#0984e3">What to Evaluate</div>
+  <h2 class="section-title">Four Fundamental Agent Capabilities</h2>
+  <p class="section-sub">Before choosing metrics, you must know what you are measuring. Agent evaluation covers four core capability areas — each requires distinct evaluation approaches.</p>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="dim-btn-0" onclick="setDim(0)">Planning</button>
+    <button class="btn-tab" id="dim-btn-1" onclick="setDim(1)">Tool Use</button>
+    <button class="btn-tab" id="dim-btn-2" onclick="setDim(2)">Memory</button>
+    <button class="btn-tab" id="dim-btn-3" onclick="setDim(3)">Self-Reflection</button>
+  </div>
+
+  <canvas id="c-dimensions" width="820" height="300"></canvas>
+
+  <div id="dim-detail" class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#0984e3" id="dim-title">Planning — Decomposing Goals into Actions</div>
+    <div class="card-body" id="dim-body">Planning is the agent's ability to break a high-level goal into an ordered sequence of executable sub-tasks, handle dependencies between steps, and recover from unexpected results. Evaluation checks: does the plan cover all required steps? Is the order logically correct? Does the agent adapt the plan when an intermediate step fails?<br><br>Key benchmarks: WebArena (web task planning), AgentBench (multi-domain planning), SWE-bench (software engineering planning). Key metric: plan quality score = ratio of correct sub-tasks in the generated plan vs. reference plan.</div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-metrics">Metrics Deep Dive →</a>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 4: METRICS DEEP DIVE ═══════ -->
+<section class="section" id="s-metrics">
+  <div class="section-tag" style="color:#00b894">Measurement</div>
+  <h2 class="section-title">Metrics — From Task Success to Step Accuracy</h2>
+  <p class="section-sub">92% of academic papers report only end-to-end task success. But a single metric hides the critical question: where exactly did the agent fail? Click a metric category to explore.</p>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="met-btn-0" onclick="setMetric(0)">End-to-End</button>
+    <button class="btn-tab" id="met-btn-1" onclick="setMetric(1)">Step-Level</button>
+    <button class="btn-tab" id="met-btn-2" onclick="setMetric(2)">Tool Use</button>
+    <button class="btn-tab" id="met-btn-3" onclick="setMetric(3)">Efficiency</button>
+  </div>
+
+  <canvas id="c-metrics" width="820" height="280"></canvas>
+
+  <div id="met-detail" class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#00b894" id="met-title">End-to-End Metrics</div>
+    <div class="card-body" id="met-body">End-to-end metrics measure whether the agent ultimately achieved the goal, regardless of how.<br><br><strong>Task Success Rate (TSR)</strong>: binary pass/fail — did the agent complete the task? Simple but hides all failure modes.<br><strong>Goal Completion Rate (GCR)</strong>: partial credit — what fraction of the goal was achieved? Better for multi-part tasks.<br><strong>User Satisfaction</strong>: human rating of the final output quality (1–5 scale). Captures subjective quality that automated metrics miss.<br><br>Limitation: a 70% TSR tells you nothing about whether failures were in planning, tool selection, memory, or output formatting.</div>
+  </div>
+
+  <div class="formula">Key agent evaluation metrics:
+
+Task Success Rate  = successful_tasks / total_tasks
+Goal Completion    = Σ(sub_goal_scores) / n_sub_goals      ← partial credit
+Plan Quality Score = |correct_steps ∩ plan| / |reference|  ← F1 variant
+Tool Call Acc.     = correct_tool_calls / total_tool_calls
+Parameter F1       = 2·P·R/(P+R) on arg name+value pairs
+Step Progress Rate = steps_completed / steps_attempted      ← intermediate
+Tool Error Rate    = hallucinated_tools / total_tool_calls  ← reliability
+</div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-offline">Offline Evaluation →</a>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 5: OFFLINE EVALUATION ═══════ -->
+<section class="section" id="s-offline">
+  <div class="section-tag" style="color:#a29bfe">How to Evaluate</div>
+  <h2 class="section-title">Offline Evaluation — Controlled, Reproducible, Scalable</h2>
+  <p class="section-sub">Offline evaluation runs agents against fixed test suites without live system access. It is fast, cheap, and reproducible — but cannot capture real-world distribution shift or long-tail edge cases.</p>
+
+  <canvas id="c-offline" width="820" height="300"></canvas>
+  <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:6px;">Click a phase to see details · Offline pipeline: Define → Build → Execute → Score → Analyse</div>
+
+  <div id="offline-detail" class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#a29bfe" id="offline-title">Define Test Scope</div>
+    <div class="card-body" id="offline-body">Start by defining what capabilities you are testing and what constitutes a pass. Identify the task types your agent will face in production. Sample representative inputs. Define ground truth answers or reference trajectories. Without a well-defined scope, your benchmark measures what is easy to test, not what matters in production.</div>
+  </div>
+
+  <div class="grid2" style="margin-top:16px;">
+    <div class="card" style="border-color:#a29bfe44;">
+      <div class="card-title" style="color:#a29bfe">Static Test Suite</div>
+      <div class="card-body">Fixed question-answer pairs or task specifications with known ground truth. Highly reproducible — run any time and get the same score. Risk: agents can be inadvertently tuned to the benchmark, inflating scores without real improvement.</div>
+    </div>
+    <div class="card" style="border-color:#a29bfe44;">
+      <div class="card-title" style="color:#51cf66">Dynamic Test Suite</div>
+      <div class="card-body">Programmatically generated test cases with randomised parameters. Harder to overfit, broader coverage. Trade-off: harder to interpret failures because test cases are not fixed across runs.</div>
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">When should you use offline evaluation? <span class="accordion-chevron">▼</span></div>
+    <div class="accordion-body">Use offline evaluation during development (fast iteration), before any deployment (regression testing), and when comparing candidate models or configurations. Do not use offline evaluation as your only signal — production always introduces conditions that benchmarks miss.</div>
+  </div>
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">What are the risks of offline-only evaluation? <span class="accordion-chevron">▼</span></div>
+    <div class="accordion-body">93% of academic evaluation is pre-deployment only. The risks: benchmark saturation (models fine-tuned specifically on common benchmarks), distribution shift (real users behave differently from test designers), and false confidence (high offline score → poor production performance). The EDDOps framework requires continuous online evaluation to close this gap.</div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-benchmarks">Key Benchmarks →</a>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 6: KEY BENCHMARKS ═══════ -->
+<section class="section" id="s-benchmarks">
+  <div class="section-tag" style="color:#0984e3">Benchmarks</div>
+  <h2 class="section-title">Six Benchmarks Every Agent Evaluator Should Know</h2>
+  <p class="section-sub">The agent evaluation ecosystem has produced specialised benchmarks for different capability areas. Click each to explore what it tests, how it scores, and when to use it.</p>
+
+  <div class="grid3" style="margin-bottom:16px;">
+    <div class="bm-card active" id="bm-0" onclick="setBenchmark(0)">
+      <div style="font-size:11px;font-weight:700;color:#0984e3">AgentBench</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:4px;">Multi-domain OS, DB, Web tasks</div>
+    </div>
+    <div class="bm-card" id="bm-1" onclick="setBenchmark(1)">
+      <div style="font-size:11px;font-weight:700;color:#51cf66">WebArena</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:4px;">Real web app task completion</div>
+    </div>
+    <div class="bm-card" id="bm-2" onclick="setBenchmark(2)">
+      <div style="font-size:11px;font-weight:700;color:#fdcb6e">SWE-bench</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:4px;">GitHub issue resolution</div>
+    </div>
+    <div class="bm-card" id="bm-3" onclick="setBenchmark(3)">
+      <div style="font-size:11px;font-weight:700;color:#a29bfe">GAIA</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:4px;">466 real-world assistant tasks</div>
+    </div>
+    <div class="bm-card" id="bm-4" onclick="setBenchmark(4)">
+      <div style="font-size:11px;font-weight:700;color:#ff6b6b">BFCL</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:4px;">2,000 function-call Q&amp;A pairs</div>
+    </div>
+    <div class="bm-card" id="bm-5" onclick="setBenchmark(5)">
+      <div style="font-size:11px;font-weight:700;color:#00b894">ToolEmu</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:4px;">Safety-focused tool evaluation</div>
+    </div>
+  </div>
+
+  <div id="bm-detail" class="card">
+    <div class="card-title" style="color:#0984e3" id="bm-title">AgentBench — Multi-Domain Agent Evaluation</div>
+    <div class="card-body" id="bm-body">AgentBench tests LLM agents across 8 distinct environments: OS (shell commands), DB (database queries), KG (knowledge graphs), ALFWorld (household tasks), Mind2Web (web navigation), WebShop (shopping), and more.<br><br><strong>What it measures:</strong> task completion rate across diverse, realistic environments requiring planning, tool use, and state tracking.<br><strong>Why it matters:</strong> multi-domain testing reveals that agent performance varies dramatically by domain.<br><strong>Limitation:</strong> static test suite — agents can be fine-tuned specifically to these environments.</div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-online">Online Evaluation →</a>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 7: ONLINE EVALUATION ═══════ -->
+<section class="section" id="s-online">
+  <div class="section-tag" style="color:#51cf66">Production Monitoring</div>
+  <h2 class="section-title">Online Evaluation — Measuring What Actually Happens</h2>
+  <p class="section-sub">Online evaluation monitors agent behaviour in real production environments, with real users and real consequences. It catches what offline testing misses — but is slower, costlier, and harder to interpret.</p>
+
+  <canvas id="c-online" width="820" height="280"></canvas>
+  <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:6px;">Simulated production monitoring dashboard — metrics update every 800ms</div>
+
+  <div class="grid2" style="margin-top:16px;">
+    <div class="card" style="border-color:#51cf6644;">
+      <div class="card-title" style="color:#51cf66">Shadow Mode</div>
+      <div class="card-body">Run the new agent in parallel with the current system — same inputs, both process the request, only the current system's output is shown to users. Compare results offline. Zero user risk. Widely used for validating model upgrades before cutover.</div>
+    </div>
+    <div class="card" style="border-color:#51cf6644;">
+      <div class="card-title" style="color:#0984e3">A/B Testing</div>
+      <div class="card-body">Route a fraction of real traffic to the new agent. Measure task success, user satisfaction, and error rates on live users. Statistically valid comparison. Risk: real users experience the experimental agent — requires guardrails and rollback capability.</div>
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">What metrics do you track online? <span class="accordion-chevron">▼</span></div>
+    <div class="accordion-body">Task success rate (sampled, human-verified), user satisfaction ratings, error rates by type (tool failure, context lost, unhelpful response), latency percentiles (p50/p95/p99), cost per task, and escalation rate (tasks handed to human operators). Track these in time-series dashboards so regressions are visible immediately.</div>
+  </div>
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">Why is online evaluation harder than offline? <span class="accordion-chevron">▼</span></div>
+    <div class="accordion-body">Ground truth is often unavailable — you don't know the "correct" answer to a user's real query. Attribution is hard — failures come from model, tool, infrastructure, or user input. Confounders are everywhere — user behaviour, time of day, and data drift all affect metrics. Feedback loops are slow — it may take hours or days to know if an action was correct.</div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-judge">LLM-as-Judge →</a>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 8: LLM-AS-JUDGE ═══════ -->
+<section class="section" id="s-judge">
+  <div class="section-tag" style="color:#fdcb6e">Automated Evaluation</div>
+  <h2 class="section-title">LLM-as-Judge — Using AI to Evaluate AI</h2>
+  <p class="section-sub">Human evaluation is the gold standard but it is slow and expensive. LLM-as-Judge uses a separate (often more capable) LLM to evaluate agent outputs — fast, scalable, but with its own biases and failure modes.</p>
+
+  <canvas id="c-judge" width="820" height="260"></canvas>
+  <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:6px;">Click a pattern to explore evaluation approaches · reliability bar = estimated agreement with human labels</div>
+
+  <div id="judge-detail" class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#fdcb6e" id="judge-title">Pairwise Comparison</div>
+    <div class="card-body" id="judge-body">Show the judge LLM two agent responses (A and B) for the same task. Ask: which is better, and why? Pairwise comparison is more reliable than absolute scoring because ranking two options is easier than assigning a score on a scale. Risk: position bias — judges tend to prefer the first response shown. Mitigation: randomise order and average both orderings.</div>
+  </div>
+
+  <div class="grid3" style="margin-top:16px;">
+    <div class="card" style="border-color:#fdcb6e44;">
+      <div class="card-title" style="color:#fdcb6e">Known Biases</div>
+      <div class="card-body">Position bias (prefer first), verbosity bias (prefer longer), self-preference (prefer outputs from same model family), format bias (prefer well-formatted responses regardless of correctness). Always audit judge calibration against human labels.</div>
+    </div>
+    <div class="card" style="border-color:#0984e344;">
+      <div class="card-title" style="color:#0984e3">When to Use</div>
+      <div class="card-body">Open-ended tasks where ground truth doesn't exist (summarisation, explanation quality, helpfulness). Use LLM-as-Judge to replace expensive human evaluation at scale — but always validate on a sample with real human raters first.</div>
+    </div>
+    <div class="card" style="border-color:#ff6b6b44;">
+      <div class="card-title" style="color:#ff6b6b">When Not to Use</div>
+      <div class="card-body">Tasks with factual ground truth (tool call accuracy, parameter correctness, code execution). Tasks where the judge may not have domain knowledge. Safety-critical evaluations where bias in the judge is unacceptable.</div>
+    </div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-eddops">EDDOps Process →</a>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 9: EDDOPS PROCESS ═══════ -->
+<section class="section" id="s-eddops">
+  <div class="section-tag" style="color:#0984e3">The Framework</div>
+  <h2 class="section-title">EDDOps — Evaluation-Driven Development and Operations</h2>
+  <p class="section-sub">EDDOps (Xia et al., 2024) proposes a process model where evaluation is not a one-time checkpoint but a continuous feedback loop embedded throughout the agent lifecycle.</p>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val" style="color:#0984e3">4</div><div class="stat-lbl">Process Steps</div></div>
+    <div class="stat"><div class="stat-val" style="color:#00b894">6</div><div class="stat-lbl">Evaluation Drivers</div></div>
+    <div class="stat"><div class="stat-val" style="color:#a29bfe">3</div><div class="stat-lbl">Architecture Layers</div></div>
+    <div class="stat"><div class="stat-val" style="color:#fdcb6e">161</div><div class="stat-lbl">Sources Reviewed</div></div>
+  </div>
+
+  <canvas id="c-eddops" width="820" height="320"></canvas>
+  <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:6px;">Click each step in the EDDOps cycle to explore details</div>
+
+  <div id="eddops-detail" class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#0984e3" id="eddops-title">Step 1: Define Evaluation Plan</div>
+    <div class="card-body" id="eddops-body">Before writing a single test case, define what success looks like. Identify the agent's intended use cases, the user population, and the failure modes that matter most. Choose evaluation methods appropriate to each use case. Assign responsibility for evaluation to specific team members. Key output: an evaluation plan document specifying metrics, thresholds, frequency, and ownership before development begins.</div>
+  </div>
+
+  <div class="formula">EDDOps 4-Step Cycle:
+
+Step 1: Define Evaluation Plan
+  ├── Identify use cases and user population
+  ├── Select evaluation methods per capability dimension
+  └── Set acceptance thresholds + assign ownership
+
+Step 2: Develop Test Cases
+  ├── Build offline benchmark suite (static + dynamic)
+  ├── Define ground truth trajectories or outcomes
+  └── Create adversarial and edge-case inputs
+
+Step 3: Conduct Evaluation (Offline + Online)
+  ├── Offline: run benchmark, score, regression-test
+  └── Online: shadow mode → A/B test → full deployment
+
+Step 4: Analyse &amp; Improve
+  ├── Root-cause analysis of failures by dimension
+  ├── Update training data / prompts / tool definitions
+  └── Feed findings back to Step 1 (continuous loop)</div>
+
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">How is EDDOps different from standard MLOps? <span class="accordion-chevron">▼</span></div>
+    <div class="accordion-body">Standard MLOps focuses on model performance metrics on fixed test sets. EDDOps extends this for agents: evaluation spans the full lifecycle (not just pre-deployment), covers all 4 capability dimensions (not just end-to-end accuracy), requires system-level evaluation (not just model-level), and mandates closed feedback loops where findings drive concrete changes.</div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-arch">Reference Architecture →</a>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 10: REFERENCE ARCHITECTURE ═══════ -->
+<section class="section" id="s-arch">
+  <div class="section-tag" style="color:#00b894">Architecture</div>
+  <h2 class="section-title">Three-Layer Reference Architecture for Agent Evaluation</h2>
+  <p class="section-sub">The EDDOps reference architecture organises evaluation infrastructure into three layers: Supply Chain (data and tools), Agent (the system under test), and Operation (monitoring and control). Click a layer to explore.</p>
+
+  <canvas id="c-arch" width="820" height="380"></canvas>
+  <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:6px;">Click a layer to highlight its components and responsibilities</div>
+
+  <div id="arch-detail" class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#00b894" id="arch-title">Supply Chain Layer</div>
+    <div class="card-body" id="arch-body">The Supply Chain Layer provides the raw materials for evaluation: training data, tool definitions, evaluation datasets, and ground truth labels. Components: data pipeline (ingestion, cleaning, versioning), tool registry (available APIs, function signatures), and evaluation data store. Getting this layer right is the most underrated part of agent evaluation — poor quality here makes all downstream evaluation unreliable.</div>
+  </div>
+
+  <div class="grid3" style="margin-top:16px;">
+    <div class="card" style="border-color:#00b89444;">
+      <div class="card-title" style="color:#00b894">Supply Chain</div>
+      <div class="card-body">Data pipeline · Tool registry · Evaluation datasets · Ground truth labels · Synthetic test generation · Data versioning</div>
+    </div>
+    <div class="card" style="border-color:#0984e344;">
+      <div class="card-title" style="color:#0984e3">Agent Layer</div>
+      <div class="card-body">LLM backbone · Memory systems · Tool executor · Planner/orchestrator · Context manager · Output formatter</div>
+    </div>
+    <div class="card" style="border-color:#a29bfe44;">
+      <div class="card-title" style="color:#a29bfe">Operation Layer</div>
+      <div class="card-body">Online monitors · A/B framework · LLM-as-Judge pipeline · Human review queue · Alerting · Feedback storage</div>
+    </div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-drivers">6 Evaluation Drivers →</a>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 11: 6 EVALUATION DRIVERS ═══════ -->
+<section class="section" id="s-drivers">
+  <div class="section-tag" style="color:#a29bfe">Design Principles</div>
+  <h2 class="section-title">Six Drivers of High-Quality Agent Evaluation</h2>
+  <p class="section-sub">The EDDOps framework distils the literature into six evaluation drivers — principles that separate rigorous evaluation from superficial benchmark-running. Click each to explore.</p>
+
+  <div id="driver-list">
+    <div class="driver-card active" id="drv-0" onclick="setDriver(0)">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="font-size:18px;font-weight:800;color:#0984e3;min-width:32px;">D1</div>
+        <div><div style="font-size:12px;font-weight:700;">Lifecycle Coverage</div><div style="font-size:11px;color:var(--muted);margin-top:2px;">Evaluate across all lifecycle phases, not just pre-deployment</div></div>
+      </div>
+    </div>
+    <div class="driver-card" id="drv-1" onclick="setDriver(1)">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="font-size:18px;font-weight:800;color:#00b894;min-width:32px;">D2</div>
+        <div><div style="font-size:12px;font-weight:700;">Metric Mix</div><div style="font-size:11px;color:var(--muted);margin-top:2px;">Combine end-to-end, step-level, and intermediate metrics</div></div>
+      </div>
+    </div>
+    <div class="driver-card" id="drv-2" onclick="setDriver(2)">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="font-size:18px;font-weight:800;color:#fdcb6e;min-width:32px;">D3</div>
+        <div><div style="font-size:12px;font-weight:700;">System-Level Anchor</div><div style="font-size:11px;color:var(--muted);margin-top:2px;">Evaluate the full system, not isolated components</div></div>
+      </div>
+    </div>
+    <div class="driver-card" id="drv-3" onclick="setDriver(3)">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="font-size:18px;font-weight:800;color:#a29bfe;min-width:32px;">D4</div>
+        <div><div style="font-size:12px;font-weight:700;">Adaptive Evaluation</div><div style="font-size:11px;color:var(--muted);margin-top:2px;">Update test suites as agent capabilities and risks evolve</div></div>
+      </div>
+    </div>
+    <div class="driver-card" id="drv-4" onclick="setDriver(4)">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="font-size:18px;font-weight:800;color:#51cf66;min-width:32px;">D5</div>
+        <div><div style="font-size:12px;font-weight:700;">Closed Feedback Loops</div><div style="font-size:11px;color:var(--muted);margin-top:2px;">Evaluation findings must drive concrete improvements</div></div>
+      </div>
+    </div>
+    <div class="driver-card" id="drv-5" onclick="setDriver(5)">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="font-size:18px;font-weight:800;color:#ff6b6b;min-width:32px;">D6</div>
+        <div><div style="font-size:12px;font-weight:700;">Human Oversight</div><div style="font-size:11px;color:var(--muted);margin-top:2px;">Keep humans in the loop for safety-critical evaluation decisions</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="driver-detail" class="card" style="margin-top:16px;">
+    <div class="card-title" style="color:#0984e3" id="drv-title">D1 — Lifecycle Coverage</div>
+    <div class="card-body" id="drv-body">Most academic evaluation covers only pre-deployment. D1 requires evaluation at every phase: development (unit tests per capability), pre-deployment (full benchmark suite), deployment (shadow mode, A/B tests), and post-deployment (continuous monitoring, drift detection). Build evaluation infrastructure that can run continuously without human intervention.</div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-safety">Safety &amp; Robustness →</a>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 12: SAFETY & ROBUSTNESS ═══════ -->
+<section class="section" id="s-safety">
+  <div class="section-tag" style="color:#ff6b6b">Safety Research</div>
+  <h2 class="section-title">Safety &amp; Robustness — The Evaluation Dimension Everyone Skips</h2>
+  <p class="section-sub">88% of academic evaluation uses AI-only evaluators with no human oversight. Yet safety failures in tool-using agents can have real-world consequences. ToolEmu and related work introduce explicit safety evaluation.</p>
+
+  <canvas id="c-safety" width="820" height="280"></canvas>
+  <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:6px;">Click an attack type to see evaluation approach</div>
+
+  <div id="safety-detail" class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#ff6b6b" id="safety-title">Prompt Injection via Tool Output</div>
+    <div class="card-body" id="safety-body">A malicious actor embeds instructions inside tool output (e.g., a web page the agent browses). The agent, treating tool output as data, instead executes the injected instruction — potentially exfiltrating data, making unauthorised API calls, or corrupting system state. Evaluation (ToolEmu): present 144 adversarially crafted tool-use scenarios. Score: did the agent complete the legitimate task AND resist the injection?</div>
+  </div>
+
+  <div class="grid2" style="margin-top:16px;">
+    <div class="card" style="border-color:#ff6b6b44;">
+      <div class="card-title" style="color:#ff6b6b">Why Safety Eval Is Hard</div>
+      <div class="card-body">Safety failures are rare in testing but catastrophic in production. Standard benchmarks don't include adversarial inputs. Success is defined as NOT doing something harmful — harder to measure than task completion. The same action can be safe in one context and unsafe in another.</div>
+    </div>
+    <div class="card" style="border-color:#fdcb6e44;">
+      <div class="card-title" style="color:#fdcb6e">Robustness Evaluation</div>
+      <div class="card-body">How does agent performance degrade under: noisy inputs, partial tool failures, ambiguous instructions, contradictory information, and adversarial prompts? Robustness testing requires intentionally degraded inputs — not just well-formed benchmark tasks.</div>
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">What is ToolEmu? <span class="accordion-chevron">▼</span></div>
+    <div class="accordion-body">ToolEmu (Ruan et al.) is a safety evaluation framework that emulates tool execution using an LLM, allowing safety testing without live API access. It tests agents across 36 tools and 144 scenarios, scoring both task completion and safety compliance. Key finding: agents are over-eager to comply with instructions that lead to irreversible consequences (deleting files, sending emails, making purchases).</div>
+  </div>
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">D6 Human Oversight — Why it matters for safety <span class="accordion-chevron">▼</span></div>
+    <div class="accordion-body">88% of papers use AI-only evaluators. But AI judges inherit the same biases and blind spots as the models they evaluate. For safety-critical evaluation — deciding whether to deploy an agent with real-world tool access — human review of a sample of evaluation cases is non-negotiable. D6 mandates human oversight at safety decision points: initial deployment approval, after significant capability changes, and when online monitors flag anomalies.</div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-quiz">Knowledge Check →</a>
+  </div>
+</section>
+
+<!-- ═══════ SECTION 13: QUIZ ═══════ -->
+<section class="section" id="s-quiz">
+  <div class="section-tag" style="color:#a29bfe">Knowledge Check</div>
+  <h2 class="section-title">Test Your Understanding</h2>
+  <p class="section-sub">Eight questions covering the key concepts from this blog. Click an option to check your answer.</p>
+
+  <div id="quiz-container"></div>
+  <div style="margin-top:24px;">
+    <button class="btn" onclick="resetQuiz()">Reset Quiz</button>
+    <span id="quiz-score" style="margin-left:16px;font-size:13px;color:var(--muted);"></span>
+  </div>
+</section>
+
+</main>
+</div>
+</div>
+
+<script>
+// ─── UTILITIES ───────────────────────────────────────────────────────────────
+function lerp(a,b,t){return a+(b-a)*t;}
+function easeOut(t){return 1-(1-t)*(1-t);}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function drawRoundedRect(ctx,x,y,w,h,r,fill,stroke){
+  ctx.beginPath();ctx.roundRect(x,y,w,h,r);
+  if(fill){ctx.fillStyle=fill;ctx.fill();}
+  if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1.5;ctx.stroke();}
+}
+
+// ─── NAV ─────────────────────────────────────────────────────────────────────
+function setActive(el){document.querySelectorAll('.nav-link').forEach(function(l){l.classList.remove('active');});if(el)el.classList.add('active');}
+function updateNavOnScroll(){
+  var main=document.querySelector('.main');if(!main)return;
+  var ids=['s-why','s-gap','s-dimensions','s-metrics','s-offline','s-benchmarks','s-online','s-judge','s-eddops','s-arch','s-drivers','s-safety','s-quiz'];
+  main.addEventListener('scroll',function(){
+    var sy=main.scrollTop;
+    ids.forEach(function(id){
+      var sec=document.getElementById(id);if(!sec)return;
+      if(sec.offsetTop-100<=sy&&sec.offsetTop+sec.offsetHeight-100>sy){
+        var link=document.querySelector('.nav-link[href="#'+id+'"]');
+        if(link)setActive(link);
+      }
+    });
+  });
+}
+function toggleAcc(hdr){
+  var body=hdr.nextElementSibling;
+  var ch=hdr.querySelector('.accordion-chevron');
+  var open=body.style.display==='block';
+  body.style.display=open?'none':'block';
+  if(ch)ch.style.transform=open?'':'rotate(180deg)';
+}
+
+// ─── PASSWORD INIT ────────────────────────────────────────────────────────────
+if(sessionStorage.getItem('pg_unlocked_13')==='1'){
+  document.getElementById('pg-main').style.display='flex';
+}
+
+// ─── SECTION 1: WHY HARD ─────────────────────────────────────────────────────
+var whyChallenges=[
+  {label:'Open-Ended\nBehaviour',color:'#ff6b6b',title:'Open-Ended Behaviour',
+   body:'Unlike a single LLM call, agents can take any sequence of actions to reach a goal. There is no unique correct path — two agents that both succeed may take completely different routes. Standard unit-test evaluation cannot capture this space of valid solutions.'},
+  {label:'Non-\nDeterministic',color:'#fdcb6e',title:'Non-Deterministic Output',
+   body:'The same query produces different tool call sequences and outputs on each run. You cannot run once and declare pass/fail — you need statistical sampling across many runs to get reliable measurements.'},
+  {label:'Multi-Step\nChains',color:'#0984e3',title:'Multi-Step Long-Horizon Tasks',
+   body:'Agents take dozens to hundreds of actions per task. An error at step 3 may not surface until step 47. Diagnosing failure requires step-level tracing and intermediate checkpointing, not just checking the final output.'},
+  {label:'System-Level\nInteractions',color:'#51cf66',title:'System-Level Interactions',
+   body:'Agent behaviour emerges from interactions between the LLM, tools, memory, external APIs, and environment state. Evaluating the model in isolation misses most real failure modes.'},
+  {label:'No Ground\nTruth',color:'#a29bfe',title:'Missing Ground Truth',
+   body:'For open-ended agent tasks, there is often no single correct answer. Evaluation requires defining what counts as success, handling partial credit, and handling multiple valid solution paths.'},
+];
+var whySelected=0;
+function drawWhy(){
+  var c=document.getElementById('c-why');if(!c)return;
+  var ctx=c.getContext('2d');ctx.clearRect(0,0,820,300);
+  var n=whyChallenges.length,bw=140,bh=200,gap=20;
+  var totalW=n*bw+(n-1)*gap,ox=(820-totalW)/2,oy=50;
+  whyChallenges.forEach(function(ch,i){
+    var x=ox+i*(bw+gap),y=oy,active=(i===whySelected);
+    ctx.beginPath();ctx.roundRect(x,y,bw,bh,10);
+    ctx.fillStyle=active?ch.color+'22':'#1a2030';ctx.fill();
+    ctx.strokeStyle=active?ch.color:'#30363d';ctx.lineWidth=active?2:1;ctx.stroke();
+    ctx.beginPath();ctx.arc(x+bw/2,y+48,22,0,Math.PI*2);
+    ctx.fillStyle=ch.color+'33';ctx.fill();ctx.strokeStyle=ch.color;ctx.lineWidth=2;ctx.stroke();
+    ctx.fillStyle=ch.color;ctx.font='bold 16px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText(['⚡','🎲','🔗','🌐','❓'][i],x+bw/2,y+54);
+    ctx.fillStyle=active?'#c9d1d9':'#8b949e';ctx.font='bold 10px Inter,sans-serif';
+    ch.label.split('\n').forEach(function(ln,li,arr){ctx.fillText(ln,x+bw/2,y+90+li*15-(arr.length-1)*7.5);});
+  });
+}
+function initWhy(){
+  var c=document.getElementById('c-why');if(!c)return;
+  drawWhy();
+  c.addEventListener('click',function(e){
+    var rect=c.getBoundingClientRect(),mx=(e.clientX-rect.left)*(820/rect.width);
+    var n=whyChallenges.length,bw=140,gap=20,totalW=n*bw+(n-1)*gap,ox=(820-totalW)/2;
+    whyChallenges.forEach(function(ch,i){
+      if(mx>=ox+i*(bw+gap)&&mx<=ox+i*(bw+gap)+bw){
+        whySelected=i;
+        document.getElementById('why-title').textContent=ch.title;
+        document.getElementById('why-body').textContent=ch.body;
+        document.querySelector('#why-detail .card-title').style.color=ch.color;
+        drawWhy();
+      }
+    });
+  });
+}
+
+// ─── SECTION 2: GAP CHART ────────────────────────────────────────────────────
+var gapData=[
+  {label:'Pre-deployment only',acad:93.28,ind:44.44,color:'#fdcb6e',
+   title:'Pre-deployment Focus (93% academic)',
+   body:'93.28% of academic sources focus exclusively on pre-deployment evaluation. Industry: 44.44%. Agents face distribution shift, new user behaviour, and edge cases that no static benchmark anticipates.'},
+  {label:'Post-deployment',acad:2.24,ind:14.81,color:'#51cf66',
+   title:'Post-deployment Evaluation (2% vs 15% industry)',
+   body:'Only 2.24% of academic papers evaluate agents after deployment. Industry: 14.81%. Post-deployment uses production logs, sampled human review, and error rate monitoring.'},
+  {label:'Continuous eval',acad:4.48,ind:40.74,color:'#0984e3',
+   title:'Continuous Evaluation Gap (4% vs 41% industry)',
+   body:'40.74% of industry practitioners run continuous evaluation. Only 4.48% of academic papers model this. Continuous evaluation is the EDDOps ideal: evaluation as an always-on feedback loop.'},
+  {label:'Static test suites only',acad:97.76,ind:55.56,color:'#a29bfe',
+   title:'Static Test Suite Dominance (98% academic)',
+   body:'97.76% of academic evaluations use static test suites. Industry: 55.56%. Static suites are reproducible but can be saturated by models fine-tuned on them.'},
+  {label:'End-to-end metrics only',acad:92.54,ind:59.26,color:'#ff6b6b',
+   title:'End-to-End Only (93% academic)',
+   body:'92.54% of academic papers report only final task success. Industry uses a mix: 40.74% report step-level metrics. End-to-end metrics tell you IF the agent failed. Step-level metrics tell you WHERE.'},
+];
+var gapSelected=0;
+function drawGap(){
+  var c=document.getElementById('c-gap');if(!c)return;
+  var ctx=c.getContext('2d');ctx.clearRect(0,0,820,320);
+  var W=820,barH=24,gap=20,pad=160,maxW=W-pad-80;
+  var oy=30;
+  ctx.fillStyle='#8b949e';ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='left';
+  ctx.fillText('Academic %',pad,oy-4);
+  ctx.fillStyle='#51cf6688';ctx.fillText('Industry %',pad,oy+barH+gap+barH/2-4);
+  gapData.forEach(function(d,i){
+    var y=oy+i*(barH*2+gap+14);
+    var active=(i===gapSelected);
+    ctx.fillStyle=active?d.color:'#8b949e';ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='right';
+    ctx.fillText(d.label,pad-8,y+barH/2+4);
+    // academic bar
+    var aw=Math.max(4,(d.acad/100)*maxW);
+    ctx.beginPath();ctx.roundRect(pad,y,aw,barH,3);ctx.fillStyle=active?d.color+'aa':d.color+'44';ctx.fill();
+    ctx.fillStyle='#c9d1d9';ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='left';
+    ctx.fillText(d.acad+'%',pad+aw+6,y+barH/2+3);
+    // industry bar
+    var iw=Math.max(4,(d.ind/100)*maxW);
+    ctx.beginPath();ctx.roundRect(pad,y+barH+4,iw,barH,3);ctx.fillStyle=active?'#51cf6688':'#51cf6633';ctx.fill();
+    ctx.fillStyle='#51cf66';ctx.font='9px Inter,sans-serif';
+    ctx.fillText(d.ind+'%',pad+iw+6,y+barH+4+barH/2+3);
+  });
+}
+function initGap(){
+  var c=document.getElementById('c-gap');if(!c)return;drawGap();
+  c.addEventListener('click',function(e){
+    var rect=c.getBoundingClientRect(),my=(e.clientY-rect.top)*(320/rect.height);
+    var barH=24,gap=20,oy=30;
+    gapData.forEach(function(d,i){
+      var y=oy+i*(barH*2+gap+14);
+      if(my>=y&&my<=y+barH*2+8){
+        gapSelected=i;
+        document.getElementById('gap-title').textContent=d.title;
+        document.getElementById('gap-body').textContent=d.body;
+        document.querySelector('#gap-detail .card-title').style.color=d.color;
+        drawGap();
+      }
+    });
+  });
+}
+
+// ─── SECTION 3: DIMENSIONS ────────────────────────────────────────────────────
+var DIMS=[
+  {name:'Planning',color:'#0984e3',icon:'📋',
+   title:'Planning — Decomposing Goals into Actions',
+   body:'Planning is the agent ability to break a high-level goal into an ordered sequence of executable sub-tasks, handle dependencies, and recover from unexpected results. Key benchmarks: WebArena, AgentBench, SWE-bench. Key metric: Plan Quality Score = ratio of correct sub-tasks vs. reference plan.'},
+  {name:'Tool Use',color:'#00b894',icon:'🔧',
+   title:'Tool Use — Selecting and Calling the Right Tool',
+   body:'Tool use evaluates whether the agent selects the correct tool, constructs valid parameters, handles tool errors gracefully, and avoids hallucinating tool calls. Key benchmarks: BFCL (2,000 Q&A pairs), ToolLLM (16,464 APIs), ToolEmu. Key metrics: Tool Call Accuracy, Parameter F1.'},
+  {name:'Memory',color:'#a29bfe',icon:'🧠',
+   title:'Memory — Retaining and Retrieving Context',
+   body:'Memory evaluation tests whether the agent correctly maintains working state across steps, retrieves relevant prior context, and avoids context confusion. Key benchmarks: GAIA (long-horizon tasks). Key metrics: context retention accuracy, retrieval precision/recall.'},
+  {name:'Self-Reflection',color:'#fdcb6e',icon:'🔍',
+   title:'Self-Reflection — Detecting and Correcting Errors',
+   body:'Self-reflection measures whether the agent can identify when its own output or plan is wrong, revise its approach, and avoid repeating the same mistake. Evaluation approach: inject known errors and measure whether the agent corrects them. Key metric: error detection rate, recovery rate after failure injection.'},
+];
+var activeDim=0;
+var dimParticles=[];
+function initDimParticles(){
+  dimParticles=[];
+  for(var i=0;i<20;i++){dimParticles.push({x:Math.random()*820,y:Math.random()*300,vx:(Math.random()-.5)*.5,vy:(Math.random()-.5)*.5,r:Math.random()*3+1,a:Math.random()});}
+}
+function drawDimensions(){
+  var c=document.getElementById('c-dimensions');if(!c)return;
+  var ctx=c.getContext('2d');ctx.clearRect(0,0,820,300);
+  var W=820,H=300,d=DIMS[activeDim];
+  var grd=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,300);
+  grd.addColorStop(0,d.color+'18');grd.addColorStop(1,'transparent');
+  ctx.fillStyle=grd;ctx.fillRect(0,0,W,H);
+  dimParticles.forEach(function(p){
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    ctx.fillStyle=d.color+Math.floor(p.a*80).toString(16).padStart(2,'0');ctx.fill();
+    p.x+=p.vx;p.y+=p.vy;
+    if(p.x<0)p.x=820;if(p.x>820)p.x=0;if(p.y<0)p.y=300;if(p.y>300)p.y=0;
+  });
+  var cx=W/2,cy=H/2,R=130;
+  var angles=[-Math.PI/2,0,Math.PI/2,Math.PI];
+  DIMS.forEach(function(dim,i){
+    var a=angles[i],ex=cx+Math.cos(a)*R,ey=cy+Math.sin(a)*90,active=(i===activeDim);
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(ex,ey);
+    ctx.strokeStyle=active?dim.color:dim.color+'40';ctx.lineWidth=active?2:1;ctx.stroke();
+    var r=active?46:32;
+    ctx.beginPath();ctx.arc(ex,ey,r,0,Math.PI*2);
+    ctx.fillStyle=active?dim.color+'33':'#1a2030';ctx.fill();
+    ctx.strokeStyle=active?dim.color:dim.color+'60';ctx.lineWidth=active?3:1.5;ctx.stroke();
+    ctx.fillStyle=active?'#fff':'#8b949e';ctx.font='bold '+(active?18:14)+'px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText(dim.icon,ex,ey-4);
+    ctx.font='bold '+(active?10:9)+'px Inter,sans-serif';ctx.fillText(dim.name,ex,ey+14);
+  });
+  ctx.beginPath();ctx.arc(cx,cy,32,0,Math.PI*2);ctx.fillStyle='#1a2030';ctx.fill();
+  ctx.strokeStyle=d.color;ctx.lineWidth=2;ctx.stroke();
+  ctx.fillStyle=d.color;ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='center';ctx.fillText('AGENT',cx,cy+4);
+}
+var dimRaf;
+function animDimensions(){drawDimensions();dimRaf=requestAnimationFrame(animDimensions);}
+function setDim(i){
+  activeDim=i;
+  document.querySelectorAll('[id^=dim-btn-]').forEach(function(b,j){b.classList.toggle('active',j===i);});
+  var d=DIMS[i];
+  document.getElementById('dim-title').textContent=d.title;
+  document.getElementById('dim-body').innerHTML=d.body;
+  document.querySelector('#dim-detail .card-title').style.color=d.color;
+}
+
+// ─── SECTION 4: METRICS ──────────────────────────────────────────────────────
+var METRICS=[
+  {name:'End-to-End',color:'#00b894',
+   title:'End-to-End Metrics',
+   body:'Task Success Rate (TSR): binary pass/fail. Goal Completion Rate (GCR): partial credit. User Satisfaction: human 1-5 rating. 92% of academic papers report only TSR — this tells you the agent failed, not where or why.',
+   items:['Task Success Rate','Goal Completion Rate','User Satisfaction Score','Time to Completion']},
+  {name:'Step-Level',color:'#0984e3',
+   title:'Step-Level Metrics',
+   body:'Step Progress Rate: fraction of intermediate steps correctly completed. Plan Quality Score: F1 of generated sub-tasks vs. reference. Trajectory Edit Distance: edits needed to convert agent path to optimal path.',
+   items:['Step Progress Rate','Plan Quality Score (F1)','Trajectory Edit Distance','Subgoal Completion Rate']},
+  {name:'Tool Use',color:'#fdcb6e',
+   title:'Tool Use Metrics',
+   body:'Tool Call Accuracy: did the agent call the right tool? Parameter F1: precision/recall on argument names and values. Tool Error Rate: rate of hallucinated tool names, invalid parameters, or missing required arguments.',
+   items:['Tool Call Accuracy','Parameter F1','Tool Error Rate','API Success Rate']},
+  {name:'Efficiency',color:'#a29bfe',
+   title:'Efficiency Metrics',
+   body:'Steps to Completion: how many actions vs. minimum necessary. Token Cost per Task: total tokens consumed. Latency Percentiles: p50/p95/p99 completion time. Retry Rate: how often did the agent retry a failed action?',
+   items:['Steps to Completion','Token Cost per Task','Latency (p50/p95/p99)','Tool Retry Rate']},
+];
+var activeMet=0;
+function drawMetrics(){
+  var c=document.getElementById('c-metrics');if(!c)return;
+  var ctx=c.getContext('2d');ctx.clearRect(0,0,820,280);
+  var pw=180,ph=180,gap=18,totalW=4*pw+3*gap,ox=(820-totalW)/2,oy=50;
+  METRICS.forEach(function(m,i){
+    var x=ox+i*(pw+gap),active=(i===activeMet);
+    ctx.beginPath();ctx.roundRect(x,oy,pw,ph,10);ctx.fillStyle=active?m.color+'22':'#161b22';ctx.fill();
+    ctx.strokeStyle=active?m.color:'#30363d';ctx.lineWidth=active?2:1;ctx.stroke();
+    ctx.fillStyle=active?m.color:'#8b949e';ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText(m.name,x+pw/2,oy+26);
+    m.items.forEach(function(item,j){
+      ctx.fillStyle=active?'#c9d1d9':'#8b949e';ctx.font='10px Inter,sans-serif';ctx.textAlign='left';
+      ctx.fillText('• '+item,x+12,oy+52+j*28);
+    });
+  });
+}
+function setMetric(i){
+  activeMet=i;
+  document.querySelectorAll('[id^=met-btn-]').forEach(function(b,j){b.classList.toggle('active',j===i);});
+  var m=METRICS[i];
+  document.getElementById('met-title').textContent=m.title;
+  document.getElementById('met-body').textContent=m.body;
+  document.querySelector('#met-detail .card-title').style.color=m.color;
+  drawMetrics();
+}
+
+// ─── SECTION 5: OFFLINE ──────────────────────────────────────────────────────
+var offlinePhases=[
+  {label:'1.Define\nScope',color:'#a29bfe',title:'Define Test Scope',body:'Identify what capabilities you are testing and what constitutes a pass. Sample representative inputs. Define ground truth — expected answers, reference trajectories, or acceptance criteria. Without well-defined scope, your benchmark measures what is easy to test, not what matters.'},
+  {label:'2.Build\nCases',color:'#0984e3',title:'Build Test Cases',body:'Mix static cases (fixed inputs, known outputs) with dynamic cases (parametrically generated). Include: happy-path, edge cases, adversarial inputs, and regression cases from past failures. Cover all 4 capability dimensions.'},
+  {label:'3.Execute\nAgent',color:'#51cf66',title:'Execute Agent',body:'Run the agent against the test suite. For non-deterministic agents, run each case 3-5 times and aggregate. Record full trajectories (all intermediate steps, all tool calls) — not just final outputs. Trajectories are needed for step-level metrics.'},
+  {label:'4.Score\nResults',color:'#fdcb6e',title:'Score Results',body:'Apply automated metrics. Apply LLM-as-Judge for open-ended outputs. Sample 5-10% for human review — this is your calibration signal for automated metrics. Track metric distributions, not just means.'},
+  {label:'5.Analyse\n&Iterate',color:'#ff6b6b',title:'Analyse & Iterate',body:'Root-cause failures by dimension (planning vs tool vs memory vs self-correction). Identify systematic patterns vs. random noise. Feed findings back to development. Rerun benchmark to confirm improvement.'},
+];
+var offlineSelected=0;
+function drawOffline(){
+  var c=document.getElementById('c-offline');if(!c)return;
+  var ctx=c.getContext('2d');ctx.clearRect(0,0,820,300);
+  var n=offlinePhases.length,bw=130,bh=180,gap=16;
+  var totalW=n*bw+(n-1)*gap,ox=(820-totalW)/2,oy=60;
+  offlinePhases.forEach(function(ph,i){
+    if(i<n-1){
+      var ax=ox+i*(bw+gap)+bw+2,ay=oy+bh/2;
+      ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(ax+gap-4,ay);
+      ctx.strokeStyle='#30363d';ctx.lineWidth=1.5;ctx.stroke();
+      ctx.beginPath();ctx.moveTo(ax+gap-9,ay-5);ctx.lineTo(ax+gap-4,ay);ctx.lineTo(ax+gap-9,ay+5);
+      ctx.stroke();
+    }
+    var x=ox+i*(bw+gap),active=(i===offlineSelected);
+    ctx.beginPath();ctx.roundRect(x,oy,bw,bh,10);ctx.fillStyle=active?ph.color+'22':'#161b22';ctx.fill();
+    ctx.strokeStyle=active?ph.color:'#30363d';ctx.lineWidth=active?2:1;ctx.stroke();
+    ctx.beginPath();ctx.arc(x+bw/2,oy+40,18,0,Math.PI*2);
+    ctx.fillStyle=ph.color+(active?'44':'22');ctx.fill();ctx.strokeStyle=ph.color;ctx.lineWidth=1.5;ctx.stroke();
+    ctx.fillStyle=active?'#fff':'#8b949e';ctx.font='14px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText(['🎯','🔨','▶','📊','🔄'][i],x+bw/2,oy+46);
+    ctx.fillStyle=active?'#c9d1d9':'#8b949e';ctx.font='bold 9px Inter,sans-serif';
+    ph.label.split('\n').forEach(function(ln,li,arr){ctx.fillText(ln,x+bw/2,oy+74+li*13-(arr.length-1)*6.5);});
+  });
+}
+function initOffline(){
+  var c=document.getElementById('c-offline');if(!c)return;drawOffline();
+  c.addEventListener('click',function(e){
+    var rect=c.getBoundingClientRect(),mx=(e.clientX-rect.left)*(820/rect.width);
+    var n=offlinePhases.length,bw=130,gap=16,totalW=n*bw+(n-1)*gap,ox=(820-totalW)/2;
+    offlinePhases.forEach(function(ph,i){
+      if(mx>=ox+i*(bw+gap)&&mx<=ox+i*(bw+gap)+bw){
+        offlineSelected=i;
+        document.getElementById('offline-title').textContent=ph.title;
+        document.getElementById('offline-body').textContent=ph.body;
+        document.querySelector('#offline-detail .card-title').style.color=ph.color;
+        drawOffline();
+      }
+    });
+  });
+}
+
+// ─── SECTION 6: BENCHMARKS ───────────────────────────────────────────────────
+var BENCHMARKS=[
+  {name:'AgentBench',color:'#0984e3',
+   title:'AgentBench — Multi-Domain Agent Evaluation',
+   body:'Tests LLM agents across 8 environments: OS, DB, KG, ALFWorld, Mind2Web, WebShop, and more. <strong>What it measures:</strong> task completion across diverse environments requiring planning, tool use, and state tracking. <strong>Why it matters:</strong> multi-domain testing reveals performance varies dramatically by domain. <strong>Limitation:</strong> static test suite — models can be tuned to these specific environments.'},
+  {name:'WebArena',color:'#51cf66',
+   title:'WebArena — Real Web Application Benchmark',
+   body:'Tests agents on ~800 realistic web tasks across 5 applications: e-commerce, social forum, GitLab, collaborative document editor, shopping admin. <strong>What it measures:</strong> whether agents can complete multi-step web tasks with real browser interactions. <strong>Limitation:</strong> web environments drift as applications update.'},
+  {name:'SWE-bench',color:'#fdcb6e',
+   title:'SWE-bench — Software Engineering Benchmark',
+   body:'Tests whether agents can resolve real GitHub issues from 12 Python repositories. Each task: give the agent the repo and issue description — can it produce a patch that fixes the issue? <strong>Why it is hard:</strong> even top models resolve ~50% of verified tasks. Human baseline: ~94%. <strong>Variant:</strong> SWE-bench Lite — 300 filtered tasks for faster evaluation.'},
+  {name:'GAIA',color:'#a29bfe',
+   title:'GAIA — General AI Assistant Benchmark',
+   body:'466 tasks across 3 difficulty levels (L1: simple, L2: multi-step, L3: expert-level) requiring tool use, web search, file processing, and reasoning. <strong>Key insight:</strong> answers are unambiguous and verifiable — but reaching them requires complex multi-tool reasoning. GPT-4 with browsing: ~15% on L3. Humans: ~92%.'},
+  {name:'BFCL',color:'#ff6b6b',
+   title:'BFCL — Berkeley Function Calling Leaderboard',
+   body:'2,000 question-answer pairs across 200+ real-world APIs. <strong>What it measures:</strong> tool selection accuracy, parameter construction correctness, and handling of irrelevant tool sets. <strong>Metrics:</strong> exact match on function name and arguments, AST-based semantic matching. Live leaderboard updated as new models release.'},
+  {name:'ToolEmu',color:'#00b894',
+   title:'ToolEmu — Safety-Focused Tool Evaluation',
+   body:'Evaluates agent safety by emulating tool execution using an LLM — enabling testing of dangerous scenarios without live API access. 36 tools, 144 test cases. <strong>Key finding:</strong> agents are over-eager to comply with instructions leading to irreversible consequences. <strong>Why it matters:</strong> 88% of academic evaluation includes no safety evaluation at all.'},
+];
+var activeBM=0;
+function setBenchmark(i){
+  activeBM=i;
+  for(var j=0;j<6;j++){var el=document.getElementById('bm-'+j);if(el)el.classList.toggle('active',j===i);}
+  var b=BENCHMARKS[i];
+  document.getElementById('bm-title').textContent=b.title;
+  document.getElementById('bm-body').innerHTML=b.body;
+  document.querySelector('#bm-detail .card-title').style.color=b.color;
+}
+
+// ─── SECTION 7: ONLINE MONITOR ───────────────────────────────────────────────
+var onlineMetrics={tsr:72,sat:3.8,err:4.2,lat:820};
+var onlineHistory=[72];
+function drawOnline(){
+  var c=document.getElementById('c-online');if(!c)return;
+  var ctx=c.getContext('2d');ctx.clearRect(0,0,820,280);
+  var W=820,H=280;
+  ctx.fillStyle='#8b949e';ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='left';ctx.fillText('LIVE PRODUCTION MONITOR',16,22);
+  ctx.beginPath();ctx.arc(W-30,16,5,0,Math.PI*2);ctx.fillStyle='#51cf66';ctx.fill();
+  ctx.fillStyle='#51cf66';ctx.font='10px Inter,sans-serif';ctx.textAlign='right';ctx.fillText('LIVE',W-10,20);
+  var panels=[
+    {label:'Task Success Rate',val:onlineMetrics.tsr.toFixed(1)+'%',color:'#0984e3',x:16,w:175},
+    {label:'User Satisfaction',val:onlineMetrics.sat.toFixed(1)+'/5',color:'#51cf66',x:207,w:175},
+    {label:'Error Rate',val:onlineMetrics.err.toFixed(1)+'%',color:'#ff6b6b',x:398,w:175},
+    {label:'Latency (ms)',val:Math.round(onlineMetrics.lat),color:'#fdcb6e',x:589,w:215},
+  ];
+  panels.forEach(function(p){
+    ctx.beginPath();ctx.roundRect(p.x,36,p.w,70,8);ctx.fillStyle='#1a2030';ctx.fill();
+    ctx.strokeStyle='#30363d';ctx.lineWidth=1;ctx.stroke();
+    ctx.fillStyle=p.color;ctx.font='bold 22px Inter,sans-serif';ctx.textAlign='center';ctx.fillText(p.val,p.x+p.w/2,72);
+    ctx.fillStyle='#8b949e';ctx.font='9px Inter,sans-serif';ctx.fillText(p.label,p.x+p.w/2,88);
+  });
+  ctx.fillStyle='#8b949e';ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='left';ctx.fillText('Task Success Rate — rolling history',16,128);
+  var history=onlineHistory;
+  if(history.length>1){
+    var sx=16,sy=144,sw=W-32,sh=104;
+    ctx.beginPath();
+    history.forEach(function(v,i){
+      var px=sx+i*(sw/Math.max(history.length-1,1)),py=sy+sh-(v/100)*sh;
+      i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+    });
+    ctx.lineTo(sx+(history.length-1)*(sw/Math.max(history.length-1,1)),sy+sh);ctx.lineTo(sx,sy+sh);
+    var g=ctx.createLinearGradient(0,sy,0,sy+sh);g.addColorStop(0,'rgba(9,132,227,0.3)');g.addColorStop(1,'transparent');
+    ctx.fillStyle=g;ctx.fill();
+    ctx.beginPath();
+    history.forEach(function(v,i){
+      var px=sx+i*(sw/Math.max(history.length-1,1)),py=sy+sh-(v/100)*sh;
+      i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+    });
+    ctx.strokeStyle='#0984e3';ctx.lineWidth=2;ctx.stroke();
+  }
+}
+function tickOnline(){
+  onlineMetrics.tsr=Math.max(55,Math.min(90,onlineMetrics.tsr+(Math.random()-.48)*1.5));
+  onlineMetrics.sat=Math.max(2.5,Math.min(5,onlineMetrics.sat+(Math.random()-.5)*.08));
+  onlineMetrics.err=Math.max(1,Math.min(12,onlineMetrics.err+(Math.random()-.5)*.4));
+  onlineMetrics.lat=Math.max(400,Math.min(1500,onlineMetrics.lat+(Math.random()-.5)*40));
+  onlineHistory.push(onlineMetrics.tsr);if(onlineHistory.length>60)onlineHistory.shift();
+  drawOnline();setTimeout(tickOnline,800);
+}
+function initOnline(){drawOnline();setTimeout(tickOnline,800);}
+
+// ─── SECTION 8: LLM-AS-JUDGE ─────────────────────────────────────────────────
+var judgePatterns=[
+  {name:'Pairwise\nComparison',icon:'⚖',color:'#fdcb6e',reliability:0.72,
+   title:'Pairwise Comparison',
+   body:'Show the judge LLM two agent responses for the same task. Ask: which is better, and why? More reliable than absolute scoring because ranking two options is easier than assigning a scale number. Risk: position bias. Mitigation: randomise order and average both orderings.'},
+  {name:'Absolute\nScoring',icon:'📏',color:'#0984e3',reliability:0.55,
+   title:'Absolute Scoring (Rubric-Based)',
+   body:'Give the judge a rubric (1-5 scale with defined criteria) and ask it to score a single response. More scalable but less reliable — LLMs struggle to assign consistent numeric scores. Calibrate by comparing judge scores against human labels.'},
+  {name:'Reference-Free\nEval',icon:'🔓',color:'#51cf66',reliability:0.48,
+   title:'Reference-Free Evaluation',
+   body:'Evaluate response quality without a ground truth reference. The judge assesses coherence, helpfulness, and consistency on its own. Useful when ground truth is unavailable. Risk: the judge may have different standards than the end user.'},
+  {name:'Self-\nCritique',icon:'🔁',color:'#a29bfe',reliability:0.62,
+   title:'Self-Critique (Constitutional AI style)',
+   body:'Have the same model that generated the response also critique it. Ask: does this response satisfy the goal? The model revises based on its own critique. Weakness: the model has the same blind spots for errors it cannot detect in generation.'},
+];
+var judgeSelected=0;
+function drawJudge(){
+  var c=document.getElementById('c-judge');if(!c)return;
+  var ctx=c.getContext('2d');ctx.clearRect(0,0,820,260);
+  var n=judgePatterns.length,bw=178,bh=160,gap=18,totalW=n*bw+(n-1)*gap,ox=(820-totalW)/2,oy=40;
+  judgePatterns.forEach(function(jp,i){
+    var x=ox+i*(bw+gap),active=(i===judgeSelected);
+    ctx.beginPath();ctx.roundRect(x,oy,bw,bh,10);ctx.fillStyle=active?jp.color+'22':'#161b22';ctx.fill();
+    ctx.strokeStyle=active?jp.color:'#30363d';ctx.lineWidth=active?2:1;ctx.stroke();
+    ctx.fillStyle=active?'#fff':'#8b949e';ctx.font='22px Inter,sans-serif';ctx.textAlign='center';ctx.fillText(jp.icon,x+bw/2,oy+46);
+    ctx.fillStyle=active?jp.color:'#8b949e';ctx.font='bold 10px Inter,sans-serif';
+    jp.name.split('\n').forEach(function(ln,li,arr){ctx.fillText(ln,x+bw/2,oy+70+li*14-(arr.length-1)*7);});
+    // reliability bar
+    ctx.beginPath();ctx.roundRect(x+14,oy+108,bw-28,8,4);ctx.fillStyle='#0d1117';ctx.fill();ctx.strokeStyle='#30363d';ctx.lineWidth=1;ctx.stroke();
+    ctx.beginPath();ctx.roundRect(x+14,oy+108,(bw-28)*jp.reliability,8,4);ctx.fillStyle=active?jp.color:jp.color+'60';ctx.fill();
+    ctx.fillStyle='#8b949e';ctx.font='9px Inter,sans-serif';ctx.fillText('reliability: '+Math.round(jp.reliability*100)+'%',x+bw/2,oy+132);
+  });
+}
+function initJudge(){
+  var c=document.getElementById('c-judge');if(!c)return;drawJudge();
+  c.addEventListener('click',function(e){
+    var rect=c.getBoundingClientRect(),mx=(e.clientX-rect.left)*(820/rect.width);
+    var n=judgePatterns.length,bw=178,gap=18,totalW=n*bw+(n-1)*gap,ox=(820-totalW)/2;
+    judgePatterns.forEach(function(jp,i){
+      if(mx>=ox+i*(bw+gap)&&mx<=ox+i*(bw+gap)+bw){
+        judgeSelected=i;
+        document.getElementById('judge-title').textContent=jp.title;
+        document.getElementById('judge-body').textContent=jp.body;
+        document.querySelector('#judge-detail .card-title').style.color=jp.color;
+        drawJudge();
+      }
+    });
+  });
+}
+
+// ─── SECTION 9: EDDOPS ───────────────────────────────────────────────────────
+var eddopsSteps=[
+  {label:'1\nDefine',color:'#0984e3',
+   title:'Step 1: Define Evaluation Plan',
+   body:'Before writing a single test case, define what success looks like. Identify use cases, user population, and the failure modes that matter most. Assign ownership. Key output: an evaluation plan specifying metrics, thresholds, frequency, and ownership before development begins.'},
+  {label:'2\nDevelop',color:'#51cf66',
+   title:'Step 2: Develop Test Cases',
+   body:'Build the benchmark suite: static cases with known ground truth, dynamic cases for coverage, adversarial inputs for robustness, regression cases from past failures. Cover all 4 capability dimensions. Quality of test cases determines quality of evaluation signal.'},
+  {label:'3\nEvaluate',color:'#fdcb6e',
+   title:'Step 3: Conduct Evaluation (Offline + Online)',
+   body:'Run offline benchmark (reproducible, fast, cheap). Deploy incrementally: shadow mode (no user exposure) → A/B test (small fraction of real traffic) → full deployment. At each stage, collect metrics, trajectories, and error samples.'},
+  {label:'4\nImprove',color:'#a29bfe',
+   title:'Step 4: Analyse & Improve (Close the Loop)',
+   body:'Root-cause failures by dimension. Identify systematic patterns vs. random noise. Update training data, prompts, tool definitions, or architecture. Rerun benchmark to confirm improvement. Feed findings back to Step 1 — this is what makes evaluation a continuous driver of quality.'},
+];
+var eddopsSelected=0,eddopsAngle=0;
+function drawEddops(){
+  var c=document.getElementById('c-eddops');if(!c)return;
+  var ctx=c.getContext('2d');ctx.clearRect(0,0,820,320);
+  var W=820,H=320,cx=W/2,cy=H/2,R=120;
+  ctx.strokeStyle='#0984e333';ctx.lineWidth=2;ctx.setLineDash([6,6]);
+  ctx.beginPath();ctx.arc(cx,cy,R+30,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+  eddopsSteps.forEach(function(_,i){
+    var a0=eddopsAngle+(i/4)*Math.PI*2-Math.PI/2;
+    var a1=eddopsAngle+((i+0.8)/4)*Math.PI*2-Math.PI/2;
+    ctx.beginPath();ctx.arc(cx,cy,R+30,a0,a1);ctx.strokeStyle='#0984e355';ctx.lineWidth=2;ctx.stroke();
+    var ax=cx+(R+30)*Math.cos(a1),ay=cy+(R+30)*Math.sin(a1),tang=a1+Math.PI/2;
+    ctx.beginPath();ctx.moveTo(ax+7*Math.cos(tang-0.4),ay+7*Math.sin(tang-0.4));ctx.lineTo(ax,ay);ctx.lineTo(ax+7*Math.cos(tang+0.4),ay+7*Math.sin(tang+0.4));
+    ctx.strokeStyle='#0984e3';ctx.lineWidth=1.5;ctx.stroke();
+  });
+  eddopsSteps.forEach(function(step,i){
+    var a=eddopsAngle+(i/4)*Math.PI*2-Math.PI/2,x=cx+R*Math.cos(a),y=cy+R*Math.sin(a),active=(i===eddopsSelected);
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(x,y);ctx.strokeStyle=active?step.color:step.color+'40';ctx.lineWidth=active?2:1;ctx.stroke();
+    var r=active?42:30;
+    ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=active?step.color+'33':'#1a2030';ctx.fill();ctx.strokeStyle=active?step.color:step.color+'60';ctx.lineWidth=active?3:1.5;ctx.stroke();
+    ctx.fillStyle=active?'#fff':'#8b949e';ctx.font='bold '+(active?10:9)+'px Inter,sans-serif';ctx.textAlign='center';
+    step.label.split('\n').forEach(function(ln,li,arr){ctx.fillText(ln,x,y+(li-(arr.length-1)/2)*14);});
+  });
+  ctx.beginPath();ctx.arc(cx,cy,38,0,Math.PI*2);ctx.fillStyle='#1a2030';ctx.fill();ctx.strokeStyle='#0984e3';ctx.lineWidth=2;ctx.stroke();
+  ctx.fillStyle='#0984e3';ctx.font='bold 8px Inter,sans-serif';ctx.textAlign='center';ctx.fillText('EDDOPS',cx,cy-3);ctx.fillText('CYCLE',cx,cy+9);
+  eddopsAngle+=0.003;
+}
+var eddopsRaf;
+function animEddops(){drawEddops();eddopsRaf=requestAnimationFrame(animEddops);}
+function initEddops(){
+  animEddops();
+  var c=document.getElementById('c-eddops');if(!c)return;
+  c.addEventListener('click',function(e){
+    var rect=c.getBoundingClientRect();
+    var mx=(e.clientX-rect.left)*(820/rect.width)-820/2,my=(e.clientY-rect.top)*(320/rect.height)-320/2;
+    var R=120;
+    eddopsSteps.forEach(function(step,i){
+      var a=(i/4)*Math.PI*2-Math.PI/2,nx=R*Math.cos(a),ny=R*Math.sin(a);
+      if(Math.sqrt((mx-nx)*(mx-nx)+(my-ny)*(my-ny))<46){
+        eddopsSelected=i;
+        document.getElementById('eddops-title').textContent=step.title;
+        document.getElementById('eddops-body').textContent=step.body;
+        document.querySelector('#eddops-detail .card-title').style.color=step.color;
+      }
+    });
+  });
+}
+
+// ─── SECTION 10: ARCHITECTURE ────────────────────────────────────────────────
+var archLayers=[
+  {name:'Operation Layer',color:'#a29bfe',y:30,h:90,
+   title:'Operation Layer',
+   body:'Monitors and controls the agent in production. Components: online monitoring dashboards, A/B testing framework, LLM-as-Judge pipeline, human review queue, alerting system, and feedback data storage. This layer closes the evaluation loop — without it, findings from offline evaluation cannot drive production improvements.'},
+  {name:'Agent Layer',color:'#0984e3',y:148,h:90,
+   title:'Agent Layer',
+   body:'The system under test. Contains: LLM backbone, memory systems (working, episodic, long-term), tool executor, planner/orchestrator, context manager, and output formatter. This is what you are evaluating — but it cannot be evaluated in isolation from the other two layers.'},
+  {name:'Supply Chain Layer',color:'#00b894',y:266,h:90,
+   title:'Supply Chain Layer',
+   body:'Provides raw materials for evaluation: data pipeline (ingestion, cleaning, versioning), tool registry (available API definitions), evaluation data store (benchmark cases, human labels), and ground truth labelling pipeline. The most underrated layer — poor quality here makes all downstream evaluation unreliable.'},
+];
+var archSelected=2;
+var archComps=[
+  ['Online Monitor','A/B Framework','LLM-as-Judge','Human Review','Alerting','Feedback Store'],
+  ['LLM Backbone','Memory Systems','Tool Executor','Planner','Context Mgr','Output Fmt'],
+  ['Data Pipeline','Tool Registry','Eval Data Store','GT Labelling','Synthetic Gen','Versioning'],
+];
+function drawArch(){
+  var c=document.getElementById('c-arch');if(!c)return;
+  var ctx=c.getContext('2d');ctx.clearRect(0,0,820,380);
+  var W=820;
+  archLayers.forEach(function(layer,i){
+    var active=(i===archSelected);
+    ctx.beginPath();ctx.roundRect(20,layer.y,W-40,layer.h,10);ctx.fillStyle=active?layer.color+'22':'#161b22';ctx.fill();
+    ctx.strokeStyle=active?layer.color:'#30363d';ctx.lineWidth=active?2:1;ctx.stroke();
+    ctx.fillStyle=active?layer.color:'#8b949e';ctx.font='bold 12px Inter,sans-serif';ctx.textAlign='left';ctx.fillText(layer.name,40,layer.y+28);
+    archComps[i].forEach(function(comp,j){
+      var cx=40+j*128,cy=layer.y+44;
+      ctx.beginPath();ctx.roundRect(cx,cy,118,24,4);ctx.fillStyle=active?layer.color+'22':'#0d1117';ctx.fill();ctx.strokeStyle=active?layer.color:'#30363d';ctx.lineWidth=1;ctx.stroke();
+      ctx.fillStyle=active?'#c9d1d9':'#8b949e';ctx.font='9px Inter,sans-serif';ctx.textAlign='center';ctx.fillText(comp,cx+59,cy+15);
+    });
+  });
+  [[archLayers[0].y+archLayers[0].h,archLayers[1].y],[archLayers[1].y+archLayers[1].h,archLayers[2].y]].forEach(function(pair){
+    var x=W/2,y1=pair[0]+4,y2=pair[1]-4;
+    ctx.beginPath();ctx.moveTo(x,y1);ctx.lineTo(x,y2);ctx.strokeStyle='#30363d';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.stroke();ctx.setLineDash([]);
+    ctx.beginPath();ctx.moveTo(x-5,y2-6);ctx.lineTo(x,y2);ctx.lineTo(x+5,y2-6);ctx.strokeStyle='#30363d';ctx.stroke();
+  });
+}
+function initArch(){
+  var c=document.getElementById('c-arch');if(!c)return;drawArch();
+  c.addEventListener('click',function(e){
+    var rect=c.getBoundingClientRect(),my=(e.clientY-rect.top)*(380/rect.height);
+    archLayers.forEach(function(layer,i){
+      if(my>=layer.y&&my<=layer.y+layer.h){
+        archSelected=i;
+        document.getElementById('arch-title').textContent=layer.title;
+        document.getElementById('arch-body').textContent=layer.body;
+        document.querySelector('#arch-detail .card-title').style.color=layer.color;
+        drawArch();
+      }
+    });
+  });
+}
+
+// ─── SECTION 11: DRIVERS ──────────────────────────────────────────────────────
+var DRIVERS=[
+  {id:'D1',color:'#0984e3',title:'D1 — Lifecycle Coverage',
+   body:'Most academic evaluation covers only pre-deployment. D1 requires evaluation at every phase: development (unit tests per capability), pre-deployment (full benchmark), deployment (shadow mode, A/B), and post-deployment (continuous monitoring, drift detection). Build evaluation infrastructure that can run continuously without human intervention.'},
+  {id:'D2',color:'#00b894',title:'D2 — Metric Mix',
+   body:'92% of academic evaluation reports only end-to-end task success. D2 requires combining: end-to-end metrics (task success, goal completion), step-level metrics (plan quality, step progress rate), and intermediate metrics (tool call accuracy, parameter F1). A single TSR tells you the agent failed — a metric mix tells you where and why.'},
+  {id:'D3',color:'#fdcb6e',title:'D3 — System-Level Anchor',
+   body:'Evaluate the full agent system, not isolated components. A model may have excellent function-calling accuracy in isolation but fail in production because the context window is exhausted before the tool call, or the tool response format is not handled correctly. System-level evaluation is the ground truth.'},
+  {id:'D4',color:'#a29bfe',title:'D4 — Adaptive Evaluation',
+   body:'Static test suites become stale. As agent capabilities evolve and as new risks are identified, the evaluation suite must evolve too. D4 mandates a process for continuously updating the evaluation suite — adding new test cases for new capabilities, new adversarial cases for discovered vulnerabilities.'},
+  {id:'D5',color:'#51cf66',title:'D5 — Closed Feedback Loops',
+   body:'Evaluation findings must drive concrete improvements. Findings → root cause analysis → fix → retest → redeploy. If evaluation findings sit in a report but do not trigger engineering action, evaluation is not improving the agent. D5 requires a formal process: each evaluation cycle must produce actionable improvement tickets.'},
+  {id:'D6',color:'#ff6b6b',title:'D6 — Human Oversight',
+   body:'88% of academic evaluation uses AI-only evaluators. AI judges inherit the same biases and blind spots as the models they evaluate. For safety-critical decisions — whether to deploy an agent with real-world tool access — human review is non-negotiable. D6 mandates human oversight at safety decision points.'},
+];
+var activeDriver=0;
+function setDriver(i){
+  activeDriver=i;
+  for(var j=0;j<6;j++){var el=document.getElementById('drv-'+j);if(el)el.classList.toggle('active',j===i);}
+  var d=DRIVERS[i];
+  document.getElementById('drv-title').textContent=d.title;
+  document.getElementById('drv-body').textContent=d.body;
+  document.querySelector('#driver-detail .card-title').style.color=d.color;
+}
+
+// ─── SECTION 12: SAFETY ──────────────────────────────────────────────────────
+var safetyAttacks=[
+  {label:'Prompt\nInjection',color:'#ff6b6b',severity:'HIGH',cx:120,cy:100,
+   title:'Prompt Injection via Tool Output',
+   body:'Malicious instructions embedded in tool output (web pages, documents, API responses) are executed by the agent as if they were user instructions. Evaluation (ToolEmu): present 144 adversarially crafted tool-use scenarios and measure whether the agent resists injected commands.'},
+  {label:'Privilege\nEscalation',color:'#ff6b6b',severity:'HIGH',cx:310,cy:100,
+   title:'Privilege Escalation via Tool Chaining',
+   body:'An agent with multiple tools can chain calls in unintended ways to escalate privileges. Example: read-only file access + shell execution → arbitrary code execution by reading a malicious script. Evaluation requires mapping all tool call sequences for unintended privilege escalation.'},
+  {label:'Over-\nCompliance',color:'#fdcb6e',severity:'MED',cx:500,cy:160,
+   title:'Over-Compliance with Harmful Instructions',
+   body:'Agents are systematically over-eager to comply with instructions that lead to irreversible consequences — deleting files, sending emails, making purchases. ToolEmu identifies this as a common failure mode. Mitigation: require explicit confirmation for irreversible actions.'},
+  {label:'Context\nPoisoning',color:'#fdcb6e',severity:'MED',cx:700,cy:160,
+   title:'Context Poisoning via Long Interactions',
+   body:'Over a long interaction, malicious content injected early influences later decisions. Evaluation: run long-horizon tasks with adversarial injections at varying positions. Measure whether injected content influences later tool calls or decisions.'},
+];
+var safetySelected=0;
+function drawSafety(){
+  var c=document.getElementById('c-safety');if(!c)return;
+  var ctx=c.getContext('2d');ctx.clearRect(0,0,820,280);
+  // grid
+  for(var x=0;x<820;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,280);ctx.strokeStyle='#30363d22';ctx.lineWidth=1;ctx.stroke();}
+  for(var y=0;y<280;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(820,y);ctx.strokeStyle='#30363d22';ctx.lineWidth=1;ctx.stroke();}
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter,sans-serif';ctx.textAlign='center';ctx.fillText('↑ HIGH SEVERITY',200,16);ctx.fillText('↓ MEDIUM SEVERITY',600,268);
+  safetyAttacks.forEach(function(atk,i){
+    var active=(i===safetySelected),r=active?52:38;
+    ctx.beginPath();ctx.arc(atk.cx,atk.cy,r,0,Math.PI*2);ctx.fillStyle=active?atk.color+'33':'#1a2030';ctx.fill();ctx.strokeStyle=atk.color;ctx.lineWidth=active?3:1.5;ctx.stroke();
+    if(active){ctx.setLineDash([4,4]);ctx.beginPath();ctx.arc(atk.cx,atk.cy,r+12,0,Math.PI*2);ctx.strokeStyle=atk.color;ctx.lineWidth=1;ctx.stroke();ctx.setLineDash([]);}
+    ctx.fillStyle=atk.color;ctx.font='bold 8px Inter,sans-serif';ctx.textAlign='center';ctx.fillText(atk.severity,atk.cx,atk.cy-r-6);
+    ctx.fillStyle=active?'#fff':'#8b949e';ctx.font='bold 9px Inter,sans-serif';
+    atk.label.split('\n').forEach(function(ln,li,arr){ctx.fillText(ln,atk.cx,atk.cy+3+li*12-(arr.length-1)*6);});
+  });
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';ctx.fillText('Click an attack to explore evaluation approach',16,270);
+}
+function initSafety(){
+  var c=document.getElementById('c-safety');if(!c)return;drawSafety();
+  c.addEventListener('click',function(e){
+    var rect=c.getBoundingClientRect(),mx=(e.clientX-rect.left)*(820/rect.width),my=(e.clientY-rect.top)*(280/rect.height);
+    safetyAttacks.forEach(function(atk,i){
+      if(Math.sqrt((mx-atk.cx)*(mx-atk.cx)+(my-atk.cy)*(my-atk.cy))<55){
+        safetySelected=i;
+        document.getElementById('safety-title').textContent=atk.title;
+        document.getElementById('safety-body').textContent=atk.body;
+        document.querySelector('#safety-detail .card-title').style.color=atk.color;
+        drawSafety();
+      }
+    });
+  });
+}
+
+// ─── SECTION 13: QUIZ ────────────────────────────────────────────────────────
+var QUIZ=[
+  {q:'What percentage of academic agent evaluation focuses exclusively on pre-deployment?',
+   opts:['43%','67%','93%','100%'],ans:2,
+   exp:'93.28% of academic sources focus on pre-deployment only. Industry shows 44.44% — because they face real consequences when agents fail in production.'},
+  {q:'Which EDDOps driver requires combining end-to-end, step-level, and intermediate metrics?',
+   opts:['D1 Lifecycle Coverage','D2 Metric Mix','D3 System-Level Anchor','D4 Adaptive Evaluation'],ans:1,
+   exp:'D2 (Metric Mix) addresses the finding that 92% of academic evaluation reports only end-to-end task success. A metric mix reveals WHERE and WHY agents fail.'},
+  {q:'Why is pairwise comparison more reliable than absolute scoring in LLM-as-Judge?',
+   opts:['Pairwise is faster to compute','Ranking two options is easier and more consistent than assigning a number on a scale','Absolute scoring requires more tokens','Pairwise automatically handles position bias'],ans:1,
+   exp:'Pairwise comparison is more reliable because LLMs, like humans, find it easier to rank two options than to calibrate a number on an arbitrary scale. Mitigation for position bias: randomise order and average both orderings.'},
+  {q:'ToolEmu finds that agents commonly fail by:',
+   opts:['Refusing too many tool calls','Over-complying with instructions that lead to irreversible consequences','Under-using available tools','Hallucinating tool names'],ans:1,
+   exp:'ToolEmu (36 tools, 144 scenarios) finds agents are over-eager to comply with instructions leading to irreversible consequences — deleting files, sending emails, making purchases.'},
+  {q:'In the 3-layer reference architecture, which layer provides training data, tool definitions, and evaluation datasets?',
+   opts:['Operation Layer','Agent Layer','Supply Chain Layer','Intelligence Layer'],ans:2,
+   exp:'The Supply Chain Layer provides the raw materials for evaluation: data pipeline, tool registry, evaluation data store, and ground truth labelling. Poor quality here makes all downstream evaluation unreliable.'},
+  {q:'What does GAIA specifically test?',
+   opts:['Function calling across 200+ APIs','Multi-step questions with verifiable factual answers requiring tool use','Browser automation on real websites','Safety compliance across 144 risk scenarios'],ans:1,
+   exp:'GAIA tests 466 factual multi-step questions (3 difficulty levels) requiring web search, file processing, and reasoning. Answers are unambiguous and verifiable. GPT-4 with browsing: ~15% on Level 3. Humans: ~92%.'},
+  {q:'D6 (Human Oversight) is required because:',
+   opts:['AI evaluators are always biased','88% of academic evaluation uses AI-only evaluators, and AI judges share blind spots with the models they evaluate','Automated evaluation is too expensive','Human evaluation is faster than LLM-as-Judge'],ans:1,
+   exp:'88% of papers use AI-only evaluators. AI judges inherit the same biases and blind spots as the models they evaluate. For safety-critical deployment decisions, human review is non-negotiable.'},
+  {q:'Step Progress Rate measures:',
+   opts:['How fast the agent runs','The fraction of intermediate steps correctly completed out of steps attempted','The latency of each tool call','Whether the final output is correct'],ans:1,
+   exp:'Step Progress Rate = steps_completed / steps_attempted. It reveals whether the agent makes progress through a task even when it fails to reach the final goal — more informative than binary task success for diagnosing partial failures.'},
+];
+var quizState=QUIZ.map(function(){return {answered:false,correct:false,chosen:-1};});
+function renderQuiz(){
+  var container=document.getElementById('quiz-container');if(!container)return;
+  container.innerHTML='';
+  QUIZ.forEach(function(item,qi){
+    var div=document.createElement('div');
+    div.style.cssText='margin-bottom:24px;padding:20px;background:#161b22;border:1px solid #30363d;border-radius:12px;';
+    var qEl=document.createElement('div');qEl.className='quiz-q';qEl.textContent=(qi+1)+'. '+item.q;div.appendChild(qEl);
+    item.opts.forEach(function(opt,oi){
+      var btn=document.createElement('div');btn.className='quiz-opt';btn.textContent=opt;
+      if(quizState[qi].answered){
+        if(oi===item.ans)btn.classList.add('correct');
+        else if(oi===quizState[qi].chosen)btn.classList.add('wrong');
+        btn.style.cursor='default';
+      } else {
+        btn.onclick=function(){if(quizState[qi].answered)return;quizState[qi].answered=true;quizState[qi].chosen=oi;quizState[qi].correct=(oi===item.ans);renderQuiz();};
+      }
+      div.appendChild(btn);
+    });
+    if(quizState[qi].answered){
+      var fb=document.createElement('div');fb.className='quiz-feedback';
+      fb.style.color=quizState[qi].correct?'#51cf66':'#ff6b6b';
+      fb.textContent=(quizState[qi].correct?'✓ Correct — ':'✗ Incorrect — ')+item.exp;
+      div.appendChild(fb);
+    }
+    container.appendChild(div);
+  });
+  var answered=quizState.filter(function(s){return s.answered;}).length;
+  var correct=quizState.filter(function(s){return s.correct;}).length;
+  var el=document.getElementById('quiz-score');
+  if(el&&answered>0)el.textContent=correct+'/'+answered+' correct ('+answered+' of '+QUIZ.length+' answered)';
+}
+function resetQuiz(){quizState=QUIZ.map(function(){return {answered:false,correct:false,chosen:-1};});renderQuiz();}
+
+// ─── MAIN INIT ────────────────────────────────────────────────────────────────
+function initAll(){
+  initWhy();initGap();initDimParticles();animDimensions();setDim(0);
+  setMetric(0);drawMetrics();
+  initOffline();setBenchmark(0);
+  initOnline();initJudge();initEddops();initArch();
+  setDriver(0);initSafety();renderQuiz();updateNavOnScroll();
+}
+if(sessionStorage.getItem('pg_unlocked_13')==='1'){
+  document.getElementById('pg-main').style.display='flex';
+  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',initAll);}
+  else{initAll();}
+}
+</script>
+</body>
+</html>
