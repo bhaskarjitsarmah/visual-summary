@@ -375,6 +375,103 @@ if(sessionStorage.getItem(PG_KEY)==='1'){document.getElementById('pg-gate').styl
     <div class="card-body" id="opt-d-body">Loading...</div>
   </div>
 
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-weights">Weight Tuning →</a></div>
+</section>
+
+<!-- ═══════ SECTION: WEIGHT TUNING ═══════ -->
+<section class="section" id="s-weights">
+  <div class="section-tag" style="color:#7c3aed">Beyond Prompt Optimization</div>
+  <h2 class="section-title">Weight Tuning — When Prompts Aren't Enough</h2>
+  <p class="section-sub">Every optimizer you've seen so far (BootstrapFewShot, MIPROv2, GEPA) only changes <em style="color:#f97316">what is written in the prompt</em> — the model weights stay frozen. DSPy also ships <strong style="color:#7c3aed">BootstrapFinetune</strong>: an optimizer that takes the same bootstrapped traces and uses them as supervised fine-tuning data, actually updating the model's weights.</p>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val" style="color:#7c3aed">2</div><div class="stat-lbl">Optimization levels: Prompt &amp; Weights</div></div>
+    <div class="stat"><div class="stat-val" style="color:#10b981">10×</div><div class="stat-lbl">Cheaper inference after fine-tuning</div></div>
+    <div class="stat"><div class="stat-val" style="color:#f97316">0</div><div class="stat-lbl">Prompt tokens needed at runtime (fine-tuned model)</div></div>
+    <div class="stat"><div class="stat-val" style="color:#06b6d4">1</div><div class="stat-lbl">Unified DSPy program: same code, both paths</div></div>
+  </div>
+
+  <div class="highlight-box" style="border-color:#7c3aed;background:rgba(124,58,237,.06);">
+    <strong style="color:#7c3aed">The key insight:</strong> Both prompt optimization and weight optimization start identically — bootstrapping successful traces. The difference is what you do with those traces: stuff them into the prompt context (few-shot), or use them as fine-tuning examples to update the model's weights. Same traces, different destinations.
+  </div>
+
+  <!-- Tab 1: Two Pathways -->
+  <div class="btn-row" style="margin-top:20px;">
+    <button class="btn-tab active" id="wt-btn-0" onclick="setWT(0)">Two Optimization Paths</button>
+    <button class="btn-tab" id="wt-btn-1" onclick="setWT(1)">BootstrapFinetune Pipeline</button>
+    <button class="btn-tab" id="wt-btn-2" onclick="setWT(2)">Cost vs Quality Tradeoff</button>
+    <button class="btn-tab" id="wt-btn-3" onclick="setWT(3)">When to Use Each</button>
+  </div>
+  <canvas id="c-weights" width="820" height="380"></canvas>
+
+  <div id="wt-detail" class="card" style="margin-top:14px;">
+    <div class="card-title" style="color:#7c3aed" id="wt-d-title">Two Paths, One Program</div>
+    <div class="card-body" id="wt-d-body">Both paths start from the same DSPy program and the same bootstrapped traces. Select a tab to explore each approach.</div>
+  </div>
+
+  <!-- Step-through for pipeline tab -->
+  <div id="wt-pipeline-ctrl" style="display:none;margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+    <button class="btn" id="wt-step-btn" onclick="wtStep()">Step Through Pipeline</button>
+    <button class="btn-tab" onclick="wtReset()">Reset</button>
+    <span id="wt-step-lbl" style="font-size:12px;color:var(--muted);margin-left:8px;">Step 0 / 6</span>
+  </div>
+
+  <div class="grid3" style="margin-top:20px;">
+    <div class="card" style="border-color:#7c3aed44;">
+      <div class="card-title" style="color:#7c3aed">What Actually Changes</div>
+      <div class="card-body">In prompt optimization, the weights (billions of float32 parameters inside the transformer) stay completely frozen. Only the text prepended to your query changes. In weight optimization, gradient descent runs on those float32 values — the model literally learns new behaviour at the matrix multiplication level.</div>
+    </div>
+    <div class="card" style="border-color:#10b98144;">
+      <div class="card-title" style="color:#10b981">The Distillation Angle</div>
+      <div class="card-body">BootstrapFinetune is essentially LLM distillation. A large teacher model (e.g., GPT-4) generates high-quality traces via bootstrapping. Those traces are used to fine-tune a small student model (e.g., Llama-3-8b). The student internalizes the teacher's behaviour — without needing the teacher at inference time.</div>
+    </div>
+    <div class="card" style="border-color:#f9731644;">
+      <div class="card-title" style="color:#f97316">DSPy Unifies Both</div>
+      <div class="card-body">The same DSPy program code runs both paths. Switching from prompt optimization to weight optimization is one line: replace <code style="color:#fb923c">BootstrapFewShot(...)</code> with <code style="color:#7c3aed">BootstrapFinetune(...)</code>. The compiled program structure, signatures, and modules are identical — only the optimizer changes.</div>
+    </div>
+  </div>
+
+  <div class="grid2" style="margin-top:14px;">
+    <div class="card" style="border-color:#7c3aed44;">
+      <div class="card-title" style="color:#7c3aed">BootstrapFinetune in code</div>
+      <div class="code-block">
+<span class="cm"># Same program as always</span>
+<span class="kw">class</span> <span class="cls">RAGProgram</span>(dspy.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(self):
+        self.retrieve = dspy.Retrieve(k=3)
+        self.generate = dspy.ChainOfThought(
+            <span class="str">"context, question -> answer"</span>
+        )
+
+<span class="cm"># Switch optimizer to weight-level</span>
+optimizer = dspy.BootstrapFinetune(
+    metric=exact_match,
+    num_threads=<span class="str">4</span>,
+    teacher_settings=dict(lm=gpt4),   <span class="cm"># teacher</span>
+    student_settings=dict(lm=llama8b) <span class="cm"># student</span>
+)
+
+compiled = optimizer.compile(
+    RAGProgram(), trainset=trainset
+)
+<span class="cm"># compiled now uses fine-tuned llama8b weights</span>
+<span class="cm"># no few-shot context needed at inference</span>
+      </div>
+    </div>
+    <div class="card" style="border-color:#06b6d444;">
+      <div class="card-title" style="color:#06b6d4">What the fine-tuning data looks like</div>
+      <div class="card-body" style="font-size:12px;">After bootstrapping, each successful trace becomes one SFT training example:<br><br>
+        <span style="color:#64748b;font-family:'JetBrains Mono',monospace;font-size:10px;">
+        {"messages": [<br>
+        &nbsp;&nbsp;{"role":"user","content":"[question]"},<br>
+        &nbsp;&nbsp;{"role":"assistant","content":"Reasoning: [CoT trace]
+Answer: [answer]"}<br>
+        ]}<br><br></span>
+        The model learns to produce the same reasoning+answer pattern without needing examples in the prompt. The behaviour is <em style="color:#06b6d4">internalized into weights</em>.
+      </div>
+    </div>
+  </div>
+
   <div class="section-bridge"><a class="section-bridge-link" href="#s-assert">Assertions &amp; Constraints →</a></div>
 </section>
 
@@ -737,7 +834,7 @@ function setActive(el){document.querySelectorAll('.nav-link').forEach(function(l
 function toggleAcc(hdr){var b=hdr.nextElementSibling,c=hdr.querySelector('.accordion-chevron'),o=b.style.display==='block';b.style.display=o?'none':'block';if(c)c.style.transform=o?'':'rotate(180deg)';}
 function updateNav(){
   var main=document.querySelector('.main');if(!main)return;
-  var ids=['s-intro','s-problem','s-sigs','s-mods','s-graphs','s-compile','s-opts','s-assert','s-rag','s-results','s-compare','s-sigbuilder','s-trace','s-fragility','s-benchexplorer','s-tokbudget','s-assertsim','s-quiz'];
+  var ids=['s-intro','s-problem','s-sigs','s-mods','s-graphs','s-compile','s-opts','s-weights','s-assert','s-rag','s-results','s-compare','s-sigbuilder','s-trace','s-fragility','s-benchexplorer','s-tokbudget','s-assertsim','s-quiz'];
   main.addEventListener('scroll',function(){
     var sy=main.scrollTop;
     ids.forEach(function(id){
@@ -2929,6 +3026,447 @@ window.initAll = function() {
   initBenchExplorer();
   initTokBudget();
   drawAsimCanvas();
+};
+
+
+// ═══════════════════════════════════════════════════════════
+// WEIGHT TUNING SECTION
+// ═══════════════════════════════════════════════════════════
+var wtTab = 0;
+var wtPipeStep = 0;
+var wtPipeMax = 6;
+
+var WT_DETAILS = [
+  {
+    title:'Two Paths, One Program',
+    body:'Both optimization paths begin identically: bootstrap successful traces from the trainset. The fork happens after filtering. Prompt path: traces become in-context few-shot examples injected at query time. Weight path: traces become fine-tuning data that updates model parameters. At inference, prompt-optimized models still need those examples in every prompt; weight-optimized models have internalized them into weights — zero extra tokens needed.'
+  },
+  {
+    title:'BootstrapFinetune: 6-Step Pipeline',
+    body:'Step through the pipeline. Phase 1-2 are identical to BootstrapFewShot. The fork happens at step 3: instead of inserting traces as prompt examples, they are formatted as supervised fine-tuning (SFT) data and used to update the student model weights via gradient descent.'
+  },
+  {
+    title:'Cost vs Quality Tradeoff',
+    body:'Prompt optimization is cheap upfront (no GPU needed) but pays a recurring token cost at every inference call. Weight optimization pays a one-time fine-tuning cost (GPU hours) but then runs on a smaller, cheaper model with zero extra tokens. Break-even is typically a few thousand inference calls. After that, the fine-tuned model is significantly cheaper.'
+  },
+  {
+    title:'Decision Guide: Prompt vs Weights',
+    body:'Use prompt optimization when: you need fast iteration, your task changes frequently, you want to stay model-agnostic, or you have limited compute. Use weight optimization when: you have a stable, well-defined task, high inference volume (millions of calls), you want to use a smaller/cheaper model at serving time, or you need lower latency (shorter prompts = faster generation).'
+  }
+];
+
+var WT_PIPE_STEPS = [
+  {title:'Uncompiled Program', desc:'The DSPy program has no learned parameters yet. Modules contain only the signature definition — no instructions, no demos.', highlight:'prog'},
+  {title:'Bootstrap Traces', desc:'Run the program on trainset examples using the teacher model (e.g., GPT-4). Each successful run produces a trace: {input, intermediate_outputs, final_answer}.', highlight:'bootstrap'},
+  {title:'Filter by Metric', desc:'Score each trace against the evaluation metric. Only traces that pass (metric=True) are kept. These are the "gold standard" input-output pairs.', highlight:'filter'},
+  {title:'Format as SFT Data', desc:'Unlike prompt optimization, traces are not inserted into the prompt. Instead they are formatted as {"messages":[{"role":"user",...},{"role":"assistant",...}]} — standard supervised fine-tuning format.', highlight:'format'},
+  {title:'Fine-tune Student Model', desc:"The SFT data is used to run gradient descent on the student model weights (e.g., Llama-3-8b). The model learns to produce the teacher's reasoning patterns directly from its weights.", highlight:'finetune'},
+  {title:'Compiled: Fine-tuned Model', desc:'The compiled program now points to the fine-tuned student model. At inference: no few-shot examples needed, shorter prompts, faster generation, cheaper per-call cost. Same DSPy program interface.', highlight:'done'}
+];
+
+function setWT(i) {
+  wtTab = i;
+  document.querySelectorAll('[id^="wt-btn-"]').forEach(function(b,j){ b.classList.toggle('active',j===i); });
+  var ctrl = document.getElementById('wt-pipeline-ctrl');
+  if(ctrl) ctrl.style.display = (i===1) ? 'flex' : 'none';
+  var det = document.getElementById('wt-d-title');
+  var deb = document.getElementById('wt-d-body');
+  if(det) det.textContent = WT_DETAILS[i].title;
+  if(deb) deb.textContent = WT_DETAILS[i].body;
+  drawWT();
+}
+
+function wtStep() {
+  if(wtPipeStep < wtPipeMax) {
+    wtPipeStep++;
+    var lbl = document.getElementById('wt-step-lbl');
+    if(lbl) lbl.textContent = 'Step ' + wtPipeStep + ' / ' + wtPipeMax;
+    var s = WT_PIPE_STEPS[wtPipeStep-1];
+    var det = document.getElementById('wt-d-title');
+    var deb = document.getElementById('wt-d-body');
+    if(det) det.textContent = s.title;
+    if(deb) deb.textContent = s.desc;
+    drawWT();
+  }
+}
+
+function wtReset() {
+  wtPipeStep = 0;
+  var lbl = document.getElementById('wt-step-lbl');
+  if(lbl) lbl.textContent = 'Step 0 / ' + wtPipeMax;
+  var det = document.getElementById('wt-d-title');
+  var deb = document.getElementById('wt-d-body');
+  if(det) det.textContent = WT_DETAILS[1].title;
+  if(deb) deb.textContent = WT_DETAILS[1].body;
+  drawWT();
+}
+
+function drawWT() {
+  var cv = document.getElementById('c-weights'); if(!cv) return;
+  var ctx = cv.getContext('2d'); var W=cv.width, H=cv.height;
+  ctx.clearRect(0,0,W,H); ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,W,H);
+
+  if(wtTab === 0) drawWTPaths(ctx, W, H);
+  else if(wtTab === 1) drawWTPipeline(ctx, W, H);
+  else if(wtTab === 2) drawWTCost(ctx, W, H);
+  else drawWTDecision(ctx, W, H);
+}
+
+// ── Tab 0: Two Paths diagram ─────────────────────────────────────────────────
+function drawWTPaths(ctx, W, H) {
+  var midX = W/2;
+  // ---- shared top: Program + Bootstrap ----
+  // Program box
+  var progX = midX-80, progY = 20, progW = 160, progH = 44;
+  ctx.fillStyle='#1e293b'; ctx.strokeStyle='#7c3aed'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.roundRect(progX,progY,progW,progH,8); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#7c3aed'; ctx.font='bold 12px Inter,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('DSPy Program', midX, progY+18);
+  ctx.fillStyle='#64748b'; ctx.font='9px Inter,sans-serif';
+  ctx.fillText('(Signatures + Modules)', midX, progY+34);
+
+  // Arrow down
+  drawDownArrow(ctx, midX, progY+progH, 28, '#7c3aed');
+
+  // Bootstrap box
+  var bsX = midX-100, bsY = progY+progH+28, bsW = 200, bsH = 44;
+  ctx.fillStyle='#1e293b'; ctx.strokeStyle='#f97316'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.roundRect(bsX,bsY,bsW,bsH,8); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#f97316'; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('Bootstrap Traces', midX, bsY+17);
+  ctx.fillStyle='#64748b'; ctx.font='9px Inter,sans-serif';
+  ctx.fillText('Run on trainset, filter by metric', midX, bsY+32);
+
+  // Fork arrow down
+  drawDownArrow(ctx, midX, bsY+bsH, 28, '#f97316');
+
+  // Filter/Traces box
+  var trX = midX-90, trY = bsY+bsH+28, trW = 180, trH = 36;
+  ctx.fillStyle='#1e2a1e'; ctx.strokeStyle='#51cf66'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.roundRect(trX,trY,trW,trH,8); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#51cf66'; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('Successful Traces', midX, trY+14);
+  ctx.fillStyle='#64748b'; ctx.font='9px Inter,sans-serif';
+  ctx.fillText('{input, reasoning, answer}', midX, trY+28);
+
+  // Fork label
+  var forkY = trY + trH + 16;
+  ctx.fillStyle='#475569'; ctx.font='bold 10px Inter,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('FORK: same traces, two destinations', midX, forkY);
+
+  // Left arrow (prompt path)
+  var leftEndX = 140, rightEndX = W - 140;
+  var arrowY1 = forkY + 10;
+  var boxY2 = arrowY1 + 32;
+
+  ctx.strokeStyle='#f97316'; ctx.lineWidth=1.5;
+  ctx.beginPath();
+  ctx.moveTo(midX, arrowY1); ctx.lineTo(leftEndX, arrowY1); ctx.lineTo(leftEndX, boxY2);
+  ctx.stroke();
+  drawArrowHead(ctx, leftEndX, boxY2, '#f97316');
+
+  // Right arrow (weight path)
+  ctx.strokeStyle='#7c3aed'; ctx.lineWidth=1.5;
+  ctx.beginPath();
+  ctx.moveTo(midX, arrowY1); ctx.lineTo(rightEndX, arrowY1); ctx.lineTo(rightEndX, boxY2);
+  ctx.stroke();
+  drawArrowHead(ctx, rightEndX, boxY2, '#7c3aed');
+
+  // Left column label
+  ctx.fillStyle='#f97316'; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('PROMPT PATH', leftEndX, arrowY1-4);
+  ctx.fillStyle='#94a3b8'; ctx.font='9px Inter,sans-serif';
+  ctx.fillText('BootstrapFewShot', leftEndX, arrowY1-18);
+
+  // Right column label
+  ctx.fillStyle='#7c3aed'; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('WEIGHT PATH', rightEndX, arrowY1-4);
+  ctx.fillStyle='#94a3b8'; ctx.font='9px Inter,sans-serif';
+  ctx.fillText('BootstrapFinetune', rightEndX, arrowY1-18);
+
+  // Left box: "Inject into Prompt"
+  var lbW = 220, lbH = 52;
+  var lbX = leftEndX - lbW/2;
+  ctx.fillStyle='#1e1a0f'; ctx.strokeStyle='#f9731688'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.roundRect(lbX, boxY2, lbW, lbH, 8); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#fb923c'; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('Inject as Few-Shot Context', leftEndX, boxY2+18);
+  ctx.fillStyle='#64748b'; ctx.font='9px Inter,sans-serif';
+  ctx.fillText('Traces appended to every prompt', leftEndX, boxY2+32);
+  ctx.fillStyle='#475569'; ctx.fillText('+N hundred tokens per call', leftEndX, boxY2+44);
+
+  // Right box: "Fine-tune Weights"
+  var rbW = 220, rbH = 52;
+  var rbX = rightEndX - rbW/2;
+  ctx.fillStyle='#150f2a'; ctx.strokeStyle='#7c3aed88'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.roundRect(rbX, boxY2, rbW, rbH, 8); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#a78bfa'; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('Update Model Weights (SFT)', rightEndX, boxY2+18);
+  ctx.fillStyle='#64748b'; ctx.font='9px Inter,sans-serif';
+  ctx.fillText('Gradient descent on float32 params', rightEndX, boxY2+32);
+  ctx.fillStyle='#475569'; ctx.fillText('One-time GPU cost; 0 extra tokens', rightEndX, boxY2+44);
+
+  // Bottom arrows
+  var bottomY = boxY2 + lbH + 14;
+  drawDownArrow(ctx, leftEndX, boxY2+lbH, 14, '#f97316');
+  drawDownArrow(ctx, rightEndX, boxY2+rbH, 14, '#7c3aed');
+
+  // Outcome boxes
+  var obH = 52;
+  var lobX = leftEndX - lbW/2;
+  ctx.fillStyle='#1a1400'; ctx.strokeStyle='#f9731666'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.roundRect(lobX, bottomY, lbW, obH, 8); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#f97316'; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('Prompt-Optimized Program', leftEndX, bottomY+18);
+  ctx.fillStyle='#64748b'; ctx.font='9px Inter,sans-serif';
+  ctx.fillText('Original model + learned instructions', leftEndX, bottomY+32);
+  ctx.fillStyle='#475569'; ctx.fillText('+ few-shot examples in every call', leftEndX, bottomY+44);
+
+  var robX = rightEndX - rbW/2;
+  ctx.fillStyle='#0f0b1a'; ctx.strokeStyle='#7c3aed66'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.roundRect(robX, bottomY, rbW, obH, 8); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#7c3aed'; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('Weight-Tuned Program', rightEndX, bottomY+18);
+  ctx.fillStyle='#64748b'; ctx.font='9px Inter,sans-serif';
+  ctx.fillText('Fine-tuned student model', rightEndX, bottomY+32);
+  ctx.fillStyle='#475569'; ctx.fillText('Behaviour baked into weights', rightEndX, bottomY+44);
+}
+
+function drawDownArrow(ctx, x, fromY, len, color) {
+  ctx.strokeStyle=color; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(x, fromY); ctx.lineTo(x, fromY+len-6); ctx.stroke();
+  drawArrowHead(ctx, x, fromY+len, color);
+}
+
+function drawArrowHead(ctx, x, y, color) {
+  ctx.fillStyle=color;
+  ctx.beginPath(); ctx.moveTo(x-5,y-7); ctx.lineTo(x+5,y-7); ctx.lineTo(x,y); ctx.closePath(); ctx.fill();
+}
+
+// ── Tab 1: Pipeline step-through ─────────────────────────────────────────────
+var WT_PIPE_NODES = [
+  {x:80,  y:60,  w:120, h:44, label:'DSPy Program',    color:'#7c3aed', sub:'Signatures + Modules', id:'prog'},
+  {x:80,  y:160, w:120, h:44, label:'Teacher Model',   color:'#f97316', sub:'GPT-4 / Claude', id:'bootstrap'},
+  {x:280, y:160, w:120, h:44, label:'Bootstrap Traces', color:'#f97316', sub:'Run + collect traces', id:'bootstrap'},
+  {x:480, y:160, w:120, h:44, label:'Filter (metric)', color:'#51cf66', sub:'Keep passing traces', id:'filter'},
+  {x:640, y:160, w:120, h:44, label:'SFT Formatter',   color:'#06b6d4', sub:'messages[] format', id:'format'},
+  {x:560, y:280, w:140, h:44, label:'Fine-tune Student', color:'#a78bfa', sub:'Gradient descent', id:'finetune'},
+  {x:360, y:280, w:140, h:44, label:'Compiled Program', color:'#10b981', sub:'Fine-tuned weights', id:'done'}
+];
+
+var WT_PIPE_EDGES = [
+  [0,1],[1,2],[2,3],[3,4],[4,5],[5,6]
+];
+
+function drawWTPipeline(ctx, W, H) {
+  var step = wtPipeStep;
+  var activeIds = [];
+  if(step >= 1) activeIds.push('prog');
+  if(step >= 2) activeIds.push('bootstrap');
+  if(step >= 3) activeIds.push('filter');
+  if(step >= 4) activeIds.push('format');
+  if(step >= 5) activeIds.push('finetune');
+  if(step >= 6) activeIds.push('done');
+
+  // Draw edges first
+  WT_PIPE_EDGES.forEach(function(edge, i){
+    var a = WT_PIPE_NODES[edge[0]], b = WT_PIPE_NODES[edge[1]];
+    var ax = a.x + a.w/2, ay = a.y + a.h;
+    var bx = b.x + b.w/2, by = b.y;
+    // Adjust for node geometry (some edges go sideways)
+    if(Math.abs(ax-bx) > 40) {
+      ax = (ax < bx) ? a.x+a.w : a.x;
+      ay = a.y + a.h/2;
+      by = b.y + b.h/2;
+    }
+    var active = (i < step);
+    ctx.strokeStyle = active ? '#f97316' : '#1e293b';
+    ctx.lineWidth = active ? 2 : 1;
+    ctx.setLineDash(active ? [] : [4,4]);
+    ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke();
+    ctx.setLineDash([]);
+    if(active) {
+      // arrowhead
+      var dx = bx-ax, dy = by-ay, dist = Math.sqrt(dx*dx+dy*dy);
+      if(dist > 0) {
+        var nx = dx/dist, ny = dy/dist;
+        ctx.fillStyle='#f97316';
+        ctx.beginPath();
+        ctx.moveTo(bx-nx*8-ny*5, by-ny*8+nx*5);
+        ctx.lineTo(bx-nx*8+ny*5, by-ny*8-nx*5);
+        ctx.lineTo(bx, by);
+        ctx.closePath(); ctx.fill();
+      }
+    }
+  });
+
+  // Draw nodes
+  WT_PIPE_NODES.forEach(function(n){
+    var active = activeIds.indexOf(n.id) >= 0;
+    ctx.fillStyle = active ? (n.color+'22') : '#1e293b';
+    ctx.strokeStyle = active ? n.color : '#334155';
+    ctx.lineWidth = active ? 2 : 1;
+    ctx.beginPath(); ctx.roundRect(n.x, n.y, n.w, n.h, 8); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = active ? n.color : '#475569';
+    ctx.font = (active ? 'bold ' : '') + '11px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText(n.label, n.x+n.w/2, n.y+16);
+    ctx.fillStyle = active ? '#94a3b8' : '#334155';
+    ctx.font = '9px Inter,sans-serif';
+    ctx.fillText(n.sub, n.x+n.w/2, n.y+30);
+  });
+
+  // Step annotation
+  if(step > 0 && step <= WT_PIPE_STEPS.length) {
+    var s = WT_PIPE_STEPS[step-1];
+    ctx.fillStyle='#1e293b'; ctx.strokeStyle='#7c3aed'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.roundRect(20, H-90, W-40, 76, 8); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#7c3aed'; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='left';
+    ctx.fillText('Step ' + step + ': ' + s.title, 32, H-70);
+    ctx.fillStyle='#94a3b8'; ctx.font='10px Inter,sans-serif';
+    // Word-wrap
+    var words = s.desc.split(' '), line='', lineY=H-54;
+    words.forEach(function(w){
+      var test = line ? line+' '+w : w;
+      if(ctx.measureText(test).width > W-80 && line) {
+        ctx.fillText(line, 32, lineY); lineY+=15; line=w;
+      } else { line=test; }
+    });
+    if(line) ctx.fillText(line, 32, lineY);
+  } else if(step === 0) {
+    ctx.fillStyle='#334155'; ctx.font='12px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('Press "Step Through Pipeline" to walk through BootstrapFinetune step by step', W/2, H/2+20);
+  }
+}
+
+// ── Tab 2: Cost vs Quality ────────────────────────────────────────────────────
+function drawWTCost(ctx, W, H) {
+  ctx.fillStyle='#7c3aed'; ctx.font='bold 13px Inter,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('Cost-Quality-Flexibility Tradeoff: Prompt Optimization vs Weight Tuning', W/2, 22);
+
+  var approaches = [
+    {name:'Manual Prompting',     upfront:0,   perCall:300, quality:0.72, flex:0.95, color:'#ef4444'},
+    {name:'BootstrapFewShot',     upfront:5,   perCall:220, quality:0.82, flex:0.90, color:'#f97316'},
+    {name:'MIPROv2',              upfront:40,  perCall:210, quality:0.91, flex:0.88, color:'#fb923c'},
+    {name:'BootstrapFinetune',    upfront:600, perCall:40,  quality:0.94, flex:0.55, color:'#7c3aed'},
+    {name:'Finetune + MIPROv2',   upfront:900, perCall:30,  quality:0.97, flex:0.45, color:'#10b981'}
+  ];
+
+  // Three mini-charts side by side
+  var charts = [
+    {label:'Upfront Cost ($)', key:'upfront', max:1000, color:'#f97316'},
+    {label:'Tokens per Call',  key:'perCall', max:350,  color:'#06b6d4'},
+    {label:'Quality (acc %)',  key:'quality', max:1,    color:'#51cf66', isAcc:true}
+  ];
+
+  charts.forEach(function(ch, ci){
+    var cx = 60 + ci*260;
+    var cy = 50, cw = 220, ch2 = 240;
+
+    ctx.fillStyle='#94a3b8'; ctx.font='bold 10px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText(ch.label, cx+cw/2, cy-6);
+
+    approaches.forEach(function(ap, ai){
+      var val = ap[ch.key];
+      var bw = 34, gap = 8;
+      var bx = cx + ai*(bw+gap);
+      var maxH = 200;
+      var bh = Math.round((ch.isAcc ? val : val/ch.max) * maxH);
+      bh = Math.max(bh, 4);
+
+      ctx.fillStyle=ap.color+'44'; ctx.strokeStyle=ap.color; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.roundRect(bx, cy+maxH-bh, bw, bh, 3); ctx.fill(); ctx.stroke();
+
+      ctx.fillStyle=ap.color; ctx.font='bold 9px Inter,sans-serif'; ctx.textAlign='center';
+      var valStr = ch.isAcc ? (val*100).toFixed(0)+'%' : (ch.key==='upfront'?'$'+val:val+'');
+      ctx.fillText(valStr, bx+bw/2, cy+maxH-bh-5);
+
+      // short name below
+      ctx.fillStyle='#475569'; ctx.font='8px Inter,sans-serif';
+      var short = ap.name.replace('BootstrapF','BsF').replace('Bootstrap','Bs').replace('Finetune','FT').replace(' + MIPROv2','+M');
+      ctx.fillText(short, bx+bw/2, cy+maxH+14);
+    });
+
+    // axis line
+    ctx.strokeStyle='#334155'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(cx, cy+240); ctx.lineTo(cx+approaches.length*(bw+gap), cy+240); ctx.stroke();
+    var bw=34, gap=8;
+  });
+
+  // Break-even annotation
+  var beY = H - 36;
+  ctx.fillStyle='#1e293b'; ctx.strokeStyle='#7c3aed'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.roundRect(20, beY-22, W-40, 34, 6); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#a78bfa'; ctx.font='bold 10px Inter,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('Break-even: BootstrapFinetune becomes cheaper than MIPROv2 after ~3,000 inference calls (at GPT-4o pricing)', W/2, beY-4);
+}
+
+// ── Tab 3: Decision Guide ─────────────────────────────────────────────────────
+function drawWTDecision(ctx, W, H) {
+  ctx.fillStyle='#7c3aed'; ctx.font='bold 13px Inter,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('Decision Guide: Which Optimization Level to Use', W/2, 22);
+
+  var dims = [
+    {label:'Iteration speed needed?',  prompt:'Fast — recompile in minutes',          weight:'Slow — GPU hours for fine-tuning'},
+    {label:'Task changes frequently?', prompt:'Yes — recompile easily',               weight:'No — fine-tuned model specializes'},
+    {label:'Inference volume?',        prompt:'Low/Medium (<100k calls/day)',          weight:'High (>1M calls/day) — cost savings'},
+    {label:'Compute available?',       prompt:'CPU only is fine',                     weight:'Requires GPU for training'},
+    {label:'Model portability?',       prompt:'Any model, recompile per model',       weight:'Tied to specific fine-tuned checkpoint'},
+    {label:'Latency sensitive?',       prompt:'Longer prompts = slower generation',   weight:'Shorter prompts = faster generation'},
+    {label:'Quality ceiling?',         prompt:'Limited by in-context learning',       weight:'Higher — weights adapt to task distribution'}
+  ];
+
+  var rowH = 44, startY = 40;
+  var col1W = 240, col2W = 230, col3W = 230;
+  var col1X = 10, col2X = col1X+col1W+6, col3X = col2X+col2W+6;
+
+  // Headers
+  ctx.fillStyle='#334155'; ctx.beginPath(); ctx.roundRect(col1X,startY-2,col1W,30,4); ctx.fill();
+  ctx.fillStyle='#1e1a0f'; ctx.beginPath(); ctx.roundRect(col2X,startY-2,col2W,30,4); ctx.fill();
+  ctx.fillStyle='#150f2a'; ctx.beginPath(); ctx.roundRect(col3X,startY-2,col3W,30,4); ctx.fill();
+
+  ctx.fillStyle='#94a3b8'; ctx.font='bold 10px Inter,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('Factor', col1X+col1W/2, startY+16);
+  ctx.fillStyle='#f97316'; ctx.fillText('Prompt Optimization', col2X+col2W/2, startY+16);
+  ctx.fillStyle='#7c3aed'; ctx.fillText('Weight Optimization', col3X+col3W/2, startY+16);
+
+  dims.forEach(function(d, i){
+    var ry = startY + 32 + i*rowH;
+    var even = i%2===0;
+
+    ctx.fillStyle=even?'#161b22':'#0f1117';
+    ctx.beginPath(); ctx.rect(col1X,ry,col1W+col2W+col3W+12,rowH-2); ctx.fill();
+
+    ctx.strokeStyle='#21262d'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(col1X,ry+rowH-2); ctx.lineTo(col3X+col3W,ry+rowH-2); ctx.stroke();
+
+    ctx.fillStyle='#94a3b8'; ctx.font='bold 10px Inter,sans-serif'; ctx.textAlign='left';
+    var lbl = d.label;
+    ctx.fillText(lbl, col1X+8, ry+rowH/2+4);
+
+    ctx.fillStyle='#f97316'; ctx.font='10px Inter,sans-serif'; ctx.textAlign='left';
+    wrapText(ctx, d.prompt, col2X+8, ry+12, col2W-16, 14);
+
+    ctx.fillStyle='#a78bfa'; ctx.font='10px Inter,sans-serif'; ctx.textAlign='left';
+    wrapText(ctx, d.weight, col3X+8, ry+12, col3W-16, 14);
+  });
+}
+
+function wrapText(ctx, text, x, y, maxW, lineH) {
+  var words = text.split(' '), line='';
+  words.forEach(function(w){
+    var test = line ? line+' '+w : w;
+    if(ctx.measureText(test).width > maxW && line) {
+      ctx.fillText(line, x, y); y+=lineH; line=w;
+    } else { line=test; }
+  });
+  if(line) ctx.fillText(line, x, y);
+}
+
+// Wire into initAll
+var _wtOrigInit = window.initAll;
+window.initAll = function() {
+  if(_wtOrigInit) _wtOrigInit();
+  setWT(0);
 };
 
 </script>
