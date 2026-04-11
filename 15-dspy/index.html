@@ -1,0 +1,1773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>DSPy — Programming Language Models, Not Prompting Them</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#c9d1d9;--muted:#8b949e;
+  --accent:#f97316;--accent2:#fb923c;--accent3:#fed7aa;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+.sidebar{width:240px;min-width:240px;height:100vh;position:sticky;top:0;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:0 0 40px;flex-shrink:0;}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.sidebar-logo-title{font-size:13px;font-weight:700;color:var(--accent2);}
+.sidebar-logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.nav-group-title{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;padding:10px 16px 4px;}
+.nav-link{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;}
+.nav-link:hover,.nav-link.active{color:var(--text);background:rgba(249,115,22,.08);}
+.nav-link.active{color:var(--accent2);}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.main{flex:1;overflow-y:auto;height:100vh;}
+.pipeline-map{position:sticky;top:0;z-index:50;background:rgba(13,17,23,.96);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+.pipe-step{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);padding:2px 6px;border-radius:4px;transition:color .15s;}
+.pipe-step:hover{color:var(--text);}
+.pipe-dot{width:6px;height:6px;border-radius:50%;}
+.pipe-arrow{color:var(--border);font-size:12px;}
+.section{min-height:100vh;padding:60px 48px 80px;border-bottom:1px solid var(--border);}
+.section-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px;}
+.section-title{font-size:28px;font-weight:800;color:var(--text);margin-bottom:8px;line-height:1.25;}
+.section-sub{font-size:14px;color:var(--muted);margin-bottom:28px;max-width:680px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:16px;}
+.card-title{font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px;}
+.card-body{font-size:13px;color:var(--muted);line-height:1.6;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+canvas{display:block;border-radius:10px;background:var(--surface);border:1px solid var(--border);}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s;}
+.btn:hover{opacity:.85;}
+.btn-tab{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-tab.active,.btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+.formula{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-family:'JetBrains Mono','Courier New',monospace;font-size:12px;color:#fb923c;line-height:1.8;margin-bottom:16px;white-space:pre;}
+.stats-row{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:24px;}
+.stat{text-align:center;}
+.stat-val{font-size:28px;font-weight:800;color:var(--accent2);}
+.stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;}
+.section-bridge{margin-top:48px;padding-top:28px;border-top:1px solid var(--border);text-align:right;}
+.section-bridge-link{font-size:12px;color:var(--accent2);font-weight:600;border:1px solid var(--accent2);border-radius:6px;padding:6px 14px;transition:all .15s;}
+.section-bridge-link:hover{background:rgba(249,115,22,.1);}
+.accordion-item{border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+.accordion-header{padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;background:var(--surface);}
+.accordion-header:hover{background:#1c2128;}
+.accordion-chevron{transition:transform .2s;font-size:10px;color:var(--muted);}
+.accordion-body{padding:14px 16px;font-size:12px;color:var(--muted);display:none;border-top:1px solid var(--border);}
+.quiz-q{font-size:15px;font-weight:600;margin-bottom:16px;color:var(--text);}
+.quiz-opt{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:8px;cursor:pointer;font-size:13px;transition:all .15s;}
+.quiz-opt:hover{border-color:var(--accent2);}
+.quiz-opt.correct{border-color:#51cf66;background:rgba(81,207,102,.1);color:#51cf66;}
+.quiz-opt.wrong{border-color:#ff6b6b;background:rgba(255,107,107,.1);color:#ff6b6b;}
+.quiz-feedback{font-size:12px;color:var(--muted);margin-top:8px;min-height:16px;}
+#pg-gate{position:fixed;inset:0;background:#0d1117;z-index:9999;display:flex;align-items:center;justify-content:center;}
+.pg-box{background:#161b22;border:1px solid #30363d;border-radius:16px;padding:40px 48px;max-width:420px;width:100%;text-align:center;}
+.pg-icon{font-size:2.5rem;margin-bottom:16px;}
+.pg-title{font-size:1.3rem;font-weight:800;color:#c9d1d9;margin-bottom:6px;}
+.pg-sub{font-size:12px;color:#8b949e;margin-bottom:24px;}
+.pg-input{width:100%;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:10px 14px;color:#c9d1d9;font-size:14px;outline:none;text-align:center;}
+.pg-input:focus{border-color:#f97316;}
+.pg-btn{margin-top:12px;width:100%;background:#f97316;color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;}
+.pg-err{color:#ff6b6b;font-size:11px;margin-top:8px;min-height:16px;}
+.code-block{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-family:'JetBrains Mono','Courier New',monospace;font-size:11px;color:#e2e8f0;line-height:1.7;margin-bottom:16px;overflow-x:auto;}
+.code-block .kw{color:#f97316;}
+.code-block .str{color:#51cf66;}
+.code-block .cm{color:#64748b;}
+.code-block .fn{color:#fb923c;}
+.code-block .cls{color:#fed7aa;}
+.highlight-box{border-left:3px solid var(--accent);padding:12px 16px;background:rgba(249,115,22,.06);border-radius:0 8px 8px 0;margin-bottom:16px;font-size:13px;color:var(--muted);}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;background:var(--border);border-radius:4px;outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;}
+</style>
+</head>
+<body>
+
+<div id="pg-gate">
+  <div class="pg-box">
+    <div class="pg-icon">⚡</div>
+    <div class="pg-title">DSPy</div>
+    <div class="pg-sub">Programming Language Models, Not Prompting Them — Interactive Visual Guide</div>
+    <input class="pg-input" id="pg-input" type="password" placeholder="Enter password" onkeydown="if(event.key==='Enter')pgCheck()">
+    <button class="pg-btn" onclick="pgCheck()">Unlock</button>
+    <div class="pg-err" id="pg-err"></div>
+  </div>
+</div>
+
+<script>
+var PG_PASSWORD='visual2025';var PG_KEY='pg_unlocked_15';
+function pgCheck(){var v=document.getElementById('pg-input').value.trim();if(v===PG_PASSWORD){sessionStorage.setItem(PG_KEY,'1');document.getElementById('pg-gate').style.display='none';document.getElementById('pg-main').style.display='flex';initAll();}else{document.getElementById('pg-err').textContent='Incorrect password.';}}
+if(sessionStorage.getItem(PG_KEY)==='1'){document.getElementById('pg-gate').style.display='none';}
+</script>
+
+<div id="pg-main" style="display:none;width:100%;">
+
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-title">DSPy Visual Guide</div>
+    <div class="sidebar-logo-sub">Khattab et al., 2023 • dspy.ai</div>
+  </div>
+  <div class="nav-group-title">The Big Idea</div>
+    <a class="nav-link" href="#s-intro" onclick="setActive(this)"><span class="dot" style="background:#f97316"></span>Programming vs Prompting</a>
+    <a class="nav-link" href="#s-problem" onclick="setActive(this)"><span class="dot" style="background:#ef4444"></span>The Prompting Problem</a>
+  <div class="nav-group-title">Core Abstractions</div>
+    <a class="nav-link" href="#s-sigs" onclick="setActive(this)"><span class="dot" style="background:#fb923c"></span>Signatures</a>
+    <a class="nav-link" href="#s-mods" onclick="setActive(this)"><span class="dot" style="background:#06b6d4"></span>Modules</a>
+    <a class="nav-link" href="#s-graphs" onclick="setActive(this)"><span class="dot" style="background:#a78bfa"></span>Computation Graphs</a>
+  <div class="nav-group-title">Optimization</div>
+    <a class="nav-link" href="#s-compile" onclick="setActive(this)"><span class="dot" style="background:#f97316"></span>Compilation Pipeline</a>
+    <a class="nav-link" href="#s-opts" onclick="setActive(this)"><span class="dot" style="background:#10b981"></span>Optimizer Zoo</a>
+    <a class="nav-link" href="#s-assert" onclick="setActive(this)"><span class="dot" style="background:#fdcb6e"></span>Assertions &amp; Constraints</a>
+  <div class="nav-group-title">Applications</div>
+    <a class="nav-link" href="#s-rag" onclick="setActive(this)"><span class="dot" style="background:#e879f9"></span>RAG with DSPy</a>
+  <div class="nav-group-title">Evaluation</div>
+    <a class="nav-link" href="#s-results" onclick="setActive(this)"><span class="dot" style="background:#51cf66"></span>Benchmark Results</a>
+    <a class="nav-link" href="#s-compare" onclick="setActive(this)"><span class="dot" style="background:#34d399"></span>DSPy vs Alternatives</a>
+    <a class="nav-link" href="#s-quiz" onclick="setActive(this)"><span class="dot" style="background:#a78bfa"></span>Knowledge Quiz</a>
+</nav>
+
+<div style="flex:1;display:flex;flex-direction:column;">
+<div class="pipeline-map">
+  <a class="pipe-step" href="#s-intro"><span class="pipe-dot" style="background:#f97316"></span>Intro</a><span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-problem"><span class="pipe-dot" style="background:#ef4444"></span>Problem</a><span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-sigs"><span class="pipe-dot" style="background:#fb923c"></span>Signatures</a><span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-mods"><span class="pipe-dot" style="background:#06b6d4"></span>Modules</a><span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-graphs"><span class="pipe-dot" style="background:#a78bfa"></span>Graphs</a><span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-compile"><span class="pipe-dot" style="background:#f97316"></span>Compile</a><span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-opts"><span class="pipe-dot" style="background:#10b981"></span>Optimizers</a><span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-assert"><span class="pipe-dot" style="background:#fdcb6e"></span>Assertions</a><span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-rag"><span class="pipe-dot" style="background:#e879f9"></span>RAG</a><span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-results"><span class="pipe-dot" style="background:#51cf66"></span>Results</a><span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-compare"><span class="pipe-dot" style="background:#34d399"></span>Compare</a><span class="pipe-arrow">›</span>
+  <a class="pipe-step" href="#s-quiz"><span class="pipe-dot" style="background:#a78bfa"></span>Quiz</a>
+</div>
+<main class="main">
+
+<!-- ═══════ SECTION 1: INTRO ═══════ -->
+<section class="section" id="s-intro">
+  <div class="section-tag" style="color:#f97316">The Paradigm Shift</div>
+  <h2 class="section-title">Programming Language Models, Not Prompting Them</h2>
+  <p class="section-sub">DSPy (Declarative Self-improving Python) treats LLM pipeline development as a machine learning problem. Instead of writing brittle prompt strings by hand, you declare what you want — and a compiler figures out how to achieve it.</p>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val" style="color:#f97316">+65%</div><div class="stat-lbl">Improvement over standard few-shot (Llama2-13b)</div></div>
+    <div class="stat"><div class="stat-val" style="color:#10b981">+46%</div><div class="stat-lbl">Over expert-written demos (GPT-3.5-turbo)</div></div>
+    <div class="stat"><div class="stat-val" style="color:#a78bfa">40%</div><div class="stat-lbl">Token reduction while maintaining accuracy</div></div>
+    <div class="stat"><div class="stat-val" style="color:#fb923c">35×</div><div class="stat-lbl">Fewer rollouts than GRPO for same performance</div></div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="intro-btn-0" onclick="setIntro(0)">Traditional Prompting</button>
+    <button class="btn-tab" id="intro-btn-1" onclick="setIntro(1)">DSPy Program</button>
+    <button class="btn-tab" id="intro-btn-2" onclick="setIntro(2)">The Compiler Analogy</button>
+  </div>
+  <canvas id="c-intro" width="820" height="300"></canvas>
+
+  <div class="grid3" style="margin-top:20px;">
+    <div class="card" style="border-color:#ef444444;">
+      <div class="card-title" style="color:#ef4444">The Old Way: Prompting</div>
+      <div class="card-body">Hand-craft prompt strings, iterate manually, break when you switch models, spend days tuning wording. A single word change can drop accuracy by 10%. There’s no principled way to improve.</div>
+    </div>
+    <div class="card" style="border-color:#f9731644;">
+      <div class="card-title" style="color:#f97316">The DSPy Way: Programming</div>
+      <div class="card-body">Declare your pipeline in Python. Specify inputs, outputs, and metrics. Run the compiler. It automatically discovers the best prompts, instructions, and few-shot examples for your specific model and task.</div>
+    </div>
+    <div class="card" style="border-color:#10b98144;">
+      <div class="card-title" style="color:#10b981">Why It Works</div>
+      <div class="card-body">Optimization is a solved problem in ML. DSPy applies that discipline to prompt engineering — turning an art form into a science. Programs become portable, versioned, and reproducible across model changes.</div>
+    </div>
+  </div>
+
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-problem">The Prompting Problem →</a></div>
+</section>
+
+<!-- ═══════ SECTION 2: PROBLEM ═══════ -->
+<section class="section" id="s-problem">
+  <div class="section-tag" style="color:#ef4444">Why This Matters</div>
+  <h2 class="section-title">The Prompting Problem — Fragile, Expensive, and Unscalable</h2>
+  <p class="section-sub">Traditional prompt engineering is riddled with fundamental flaws: high sensitivity to wording, model-specific brittleness, and an inability to scale. Click each failure mode to explore it.</p>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="prob-btn-0" onclick="setProb(0)">Sensitivity</button>
+    <button class="btn-tab" id="prob-btn-1" onclick="setProb(1)">Model Lock-in</button>
+    <button class="btn-tab" id="prob-btn-2" onclick="setProb(2)">Scalability</button>
+    <button class="btn-tab" id="prob-btn-3" onclick="setProb(3)">Cost Comparison</button>
+  </div>
+  <canvas id="c-problem" width="820" height="300"></canvas>
+
+  <div class="grid2" style="margin-top:16px;">
+    <div class="card" style="border-color:#ef444444;">
+      <div class="card-title" style="color:#ef4444">What Goes Wrong</div>
+      <div class="card-body">A single changed word in "Answer the following question:" vs "Please answer this question:" can change accuracy by 10-15%. Systems break silently. Teams spend weeks tuning prompts, only to have model updates reset their work.</div>
+    </div>
+    <div class="card" style="border-color:#f9731644;">
+      <div class="card-title" style="color:#f97316">What DSPy Does Instead</div>
+      <div class="card-body">Compiled DSPy programs show minimal variation when prompts are paraphrased because the semantics are learned, not hand-coded. Switching from GPT-3.5 to Llama only requires recompiling — the program structure stays identical.</div>
+    </div>
+  </div>
+
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-sigs">Signatures →</a></div>
+</section>
+
+<!-- ═══════ SECTION 3: SIGNATURES ═══════ -->
+<section class="section" id="s-sigs">
+  <div class="section-tag" style="color:#fb923c">Core Abstraction</div>
+  <h2 class="section-title">Signatures — Declaring What, Not How</h2>
+  <p class="section-sub">A Signature is a natural-language typed function declaration. It says what a text transformation should accomplish without specifying how the LM should be prompted. Field names carry semantic meaning that guides compilation.</p>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="sig-btn-0" onclick="setSig(0)">Inline (String)</button>
+    <button class="btn-tab" id="sig-btn-1" onclick="setSig(1)">Class-based</button>
+    <button class="btn-tab" id="sig-btn-2" onclick="setSig(2)">Generated Prompt</button>
+    <button class="btn-tab" id="sig-btn-3" onclick="setSig(3)">Real Examples</button>
+  </div>
+  <canvas id="c-sigs" width="820" height="320"></canvas>
+
+  <div class="highlight-box">
+    <strong style="color:#f97316">Key insight:</strong> The field names "question" and "answer" tell DSPy this is a QA task. It generates different prompts than "query" and "response" — because the compiler understands semantic intent.
+  </div>
+
+  <div class="grid3" style="margin-top:8px;">
+    <div class="card" style="border-color:#fb923c44;">
+      <div class="card-title" style="color:#fb923c">Portability</div>
+      <div class="card-body">The same signature works with GPT-4, Llama-3, and Claude. When you compile for a different model, DSPy generates model-appropriate prompts from the same signature specification.</div>
+    </div>
+    <div class="card" style="border-color:#06b6d444;">
+      <div class="card-title" style="color:#06b6d4">Type Safety</div>
+      <div class="card-body">Signatures support typed outputs: <code style="color:#fb923c">bool</code>, <code style="color:#fb923c">int</code>, <code style="color:#fb923c">float</code>, <code style="color:#fb923c">list[str]</code>. DSPy automatically parses and validates LM outputs into the declared types.</div>
+    </div>
+    <div class="card" style="border-color:#a78bfa44;">
+      <div class="card-title" style="color:#a78bfa">Reusability</div>
+      <div class="card-body">One signature can serve multiple modules. A <code style="color:#fb923c">Predict</code> and a <code style="color:#fb923c">ChainOfThought</code> can share the same signature but produce different prompting strategies.</div>
+    </div>
+  </div>
+
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-mods">Modules →</a></div>
+</section>
+
+<!-- ═══════ SECTION 4: MODULES ═══════ -->
+<section class="section" id="s-mods">
+  <div class="section-tag" style="color:#06b6d4">Building Blocks</div>
+  <h2 class="section-title">Modules — Composable Prompting Techniques</h2>
+  <p class="section-sub">DSPy modules are composable building blocks that abstract prompting techniques. Like PyTorch layers, you stack them into programs. Each has learnable parameters: instructions, demonstrations, and optionally LM weights.</p>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="mod-btn-0" onclick="setMod(0)">Predict</button>
+    <button class="btn-tab" id="mod-btn-1" onclick="setMod(1)">ChainOfThought</button>
+    <button class="btn-tab" id="mod-btn-2" onclick="setMod(2)">ProgramOfThought</button>
+    <button class="btn-tab" id="mod-btn-3" onclick="setMod(3)">ReAct</button>
+    <button class="btn-tab" id="mod-btn-4" onclick="setMod(4)">MultiChainComparison</button>
+  </div>
+  <canvas id="c-mods" width="820" height="320"></canvas>
+
+  <div class="grid3" style="margin-top:16px;">
+    <div class="card" style="border-color:#06b6d444;">
+      <div class="card-title" style="color:#06b6d4">Learnable Parameters</div>
+      <div class="card-body">Every module stores three types of learnable parameters: (1) LM instructions — the task description prepended to prompts, (2) Demonstrations — few-shot examples automatically selected, (3) Optionally LM weights for fine-tuning.</div>
+    </div>
+    <div class="card" style="border-color:#f9731644;">
+      <div class="card-title" style="color:#f97316">Composition</div>
+      <div class="card-body">Modules compose with standard Python. Loops, conditionals, and function calls all work naturally. A program with 20 LM calls is just a Python class with 20 module instances — no special framework syntax.</div>
+    </div>
+    <div class="card" style="border-color:#a78bfa44;">
+      <div class="card-title" style="color:#a78bfa">Optimization-aware</div>
+      <div class="card-body">When you compile a program, each module’s parameters are optimized independently. The optimizer traces execution, identifies failures, and updates instructions + demonstrations for each module separately.</div>
+    </div>
+  </div>
+
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-graphs">Computation Graphs →</a></div>
+</section>
+
+<!-- ═══════ SECTION 5: GRAPHS ═══════ -->
+<section class="section" id="s-graphs">
+  <div class="section-tag" style="color:#a78bfa">Program Structure</div>
+  <h2 class="section-title">Computation Graphs — LLM Pipelines as Code</h2>
+  <p class="section-sub">A DSPy program is a differentiable computation graph where nodes are modules and edges are data flow. Programs are expressed in ordinary Python — control flow, loops, and branches all define the graph structure at runtime.</p>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="graph-btn-0" onclick="setGraph(0)">Simple QA</button>
+    <button class="btn-tab" id="graph-btn-1" onclick="setGraph(1)">RAG Pipeline</button>
+    <button class="btn-tab" id="graph-btn-2" onclick="setGraph(2)">Multi-hop Reasoning</button>
+    <button class="btn-tab" id="graph-btn-3" onclick="setGraph(3)">Agent (ReAct)</button>
+  </div>
+  <canvas id="c-graphs" width="820" height="340"></canvas>
+  <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:6px;">Click any node to inspect inputs/outputs</div>
+
+  <div id="graph-detail" class="card" style="margin-top:12px;">
+    <div class="card-title" style="color:#a78bfa" id="graph-d-title">Select a node</div>
+    <div class="card-body" id="graph-d-body">Click any node in the diagram to see what that module does in the pipeline.</div>
+  </div>
+
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-compile">Compilation Pipeline →</a></div>
+</section>
+
+<!-- ═══════ SECTION 6: COMPILATION ═══════ -->
+<section class="section" id="s-compile">
+  <div class="section-tag" style="color:#f97316">The Engine</div>
+  <h2 class="section-title">Compilation Pipeline — From Declaration to Optimized Program</h2>
+  <p class="section-sub">Compilation is a one-time process that transforms a high-level DSPy program into an optimized version with learned instructions and few-shot demonstrations. The compiled program is just a Python object — no special runtime needed.</p>
+
+  <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;">
+    <button class="btn" id="compile-step-btn" onclick="compileStep()">Step Through</button>
+    <button class="btn-tab" onclick="compileReset()">Reset</button>
+    <span id="compile-step-label" style="font-size:12px;color:var(--muted);margin-left:8px;">Step 0 / 5</span>
+  </div>
+  <canvas id="c-compile" width="820" height="320"></canvas>
+
+  <div id="compile-detail" class="card" style="margin-top:12px;">
+    <div class="card-title" style="color:#f97316" id="compile-d-title">Ready to compile</div>
+    <div class="card-body" id="compile-d-body">Press "Step Through" to walk through the DSPy compilation process step by step.</div>
+  </div>
+
+  <div class="grid3" style="margin-top:16px;">
+    <div class="card" style="border-color:#f9731644;">
+      <div class="card-title" style="color:#f97316">What Gets Optimized</div>
+      <div class="card-body">Instructions (the task description in the prompt), Demonstrations (the few-shot examples), and optionally LM weights (for BootstrapFinetune). The program structure and Python logic remain unchanged.</div>
+    </div>
+    <div class="card" style="border-color:#10b98144;">
+      <div class="card-title" style="color:#10b981">Compile Once, Run Forever</div>
+      <div class="card-body">Compilation happens during development, not at inference time. The compiled program runs as a regular Python object. No optimization overhead at serving time — just the learned prompts embedded in the modules.</div>
+    </div>
+    <div class="card" style="border-color:#a78bfa44;">
+      <div class="card-title" style="color:#a78bfa">Version Control</div>
+      <div class="card-body">Compiled programs are serializable Python objects. You can save them as JSON, version them in Git, and redeploy without recompilation. Rollback is just loading a previous version.</div>
+    </div>
+  </div>
+
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-opts">Optimizer Zoo →</a></div>
+</section>
+
+<!-- ═══════ SECTION 7: OPTIMIZERS ═══════ -->
+<section class="section" id="s-opts">
+  <div class="section-tag" style="color:#10b981">Teleprompters</div>
+  <h2 class="section-title">Optimizer Zoo — Choosing the Right Compiler</h2>
+  <p class="section-sub">DSPy provides a suite of optimizers (also called teleprompters) with different cost-performance tradeoffs. The right optimizer depends on your dataset size, budget, and quality requirements.</p>
+
+  <div style="display:flex;gap:10px;margin-bottom:8px;flex-wrap:wrap;align-items:center;">
+    <span style="font-size:12px;color:var(--muted);">Training examples:</span>
+    <input type="range" id="opt-slider" min="0" max="4" value="0" style="width:200px;" oninput="setOptSlider(parseInt(this.value))">
+    <span id="opt-slider-label" style="font-size:12px;color:#f97316;font-weight:700;min-width:60px;">~10 ex</span>
+  </div>
+  <div class="btn-row">
+    <button class="btn-tab active" id="opt-btn-0" onclick="setOpt(0)">BootstrapFewShot</button>
+    <button class="btn-tab" id="opt-btn-1" onclick="setOpt(1)">COPRO</button>
+    <button class="btn-tab" id="opt-btn-2" onclick="setOpt(2)">MIPROv2</button>
+    <button class="btn-tab" id="opt-btn-3" onclick="setOpt(3)">GEPA</button>
+    <button class="btn-tab" id="opt-btn-4" onclick="setOpt(4)">BootstrapFinetune</button>
+  </div>
+  <canvas id="c-opts" width="820" height="300"></canvas>
+
+  <div id="opt-detail" class="card" style="margin-top:12px;">
+    <div class="card-title" style="color:#10b981" id="opt-d-title">BootstrapFewShot</div>
+    <div class="card-body" id="opt-d-body">Loading...</div>
+  </div>
+
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-assert">Assertions &amp; Constraints →</a></div>
+</section>
+
+<!-- ═══════ SECTION 8: ASSERTIONS ═══════ -->
+<section class="section" id="s-assert">
+  <div class="section-tag" style="color:#fdcb6e">Self-Refinement</div>
+  <h2 class="section-title">Assertions &amp; Constraints — Teaching LMs to Self-Correct</h2>
+  <p class="section-sub">DSPy Assertions are computational constraints that LMs must satisfy. When a constraint fails, DSPy backtracks — injecting the failure reason into the prompt so the model can self-correct. This enables principled self-refinement without manual retry logic.</p>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val" style="color:#fdcb6e">164%</div><div class="stat-lbl">More constraints passed with Assertions</div></div>
+    <div class="stat"><div class="stat-val" style="color:#f97316">37%</div><div class="stat-lbl">Higher quality responses</div></div>
+    <div class="stat"><div class="stat-val" style="color:#10b981">16.7%</div><div class="stat-lbl">Citation faithfulness improvement</div></div>
+  </div>
+
+  <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;">
+    <button class="btn" id="assert-step-btn" onclick="assertStep()">Step Through</button>
+    <button class="btn-tab" onclick="assertReset()">Reset</button>
+    <span id="assert-step-label" style="font-size:12px;color:var(--muted);margin-left:8px;">Step 0 / 5</span>
+  </div>
+  <canvas id="c-assert" width="820" height="280"></canvas>
+
+  <div class="grid2" style="margin-top:16px;">
+    <div class="card" style="border-color:#fdcb6e44;">
+      <div class="card-title" style="color:#fdcb6e">dspy.Assert (Hard)</div>
+      <div class="card-body">Halts execution if the constraint is still violated after max_backtracking_attempts retries. Raises <code style="color:#fb923c">AssertionError</code>. Use during development to catch logical failures early. Triggers backtracking on each failure.</div>
+    </div>
+    <div class="card" style="border-color:#f9731644;">
+      <div class="card-title" style="color:#f97316">dspy.Suggest (Soft)</div>
+      <div class="card-body">Same backtracking mechanism, but continues execution if finally violated. Logs the failure. Use in production for graceful degradation — best-effort constraint satisfaction with monitoring.</div>
+    </div>
+  </div>
+
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-rag">RAG with DSPy →</a></div>
+</section>
+
+<!-- ═══════ SECTION 9: RAG ═══════ -->
+<section class="section" id="s-rag">
+  <div class="section-tag" style="color:#e879f9">Retrieval-Augmented Generation</div>
+  <h2 class="section-title">RAG with DSPy — Retrieval as a First-Class Module</h2>
+  <p class="section-sub">DSPy treats retrieval as just another module in the computation graph. dspy.Retrieve() is a learnable component whose query formulation gets optimized alongside the generation prompts. Result: retrieval + generation quality improve together.</p>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="rag-btn-0" onclick="setRAG(0)">Basic RAG</button>
+    <button class="btn-tab" id="rag-btn-1" onclick="setRAG(1)">Multi-hop RAG</button>
+    <button class="btn-tab" id="rag-btn-2" onclick="setRAG(2)">Optimized RAG</button>
+  </div>
+  <canvas id="c-rag" width="820" height="320"></canvas>
+
+  <div class="grid3" style="margin-top:16px;">
+    <div class="card" style="border-color:#e879f944;">
+      <div class="card-title" style="color:#e879f9">Retrieve Module</div>
+      <div class="card-body">dspy.Retrieve(k=3) queries any connected vector database (Qdrant, Weaviate, Chroma, Pinecone). The query itself is a learnable parameter — compilation optimizes how to phrase retrieval queries for your specific corpus.</div>
+    </div>
+    <div class="card" style="border-color:#f9731644;">
+      <div class="card-title" style="color:#f97316">Joint Optimization</div>
+      <div class="card-body">Unlike LangChain RAG where you tune prompts manually, DSPy optimizes both retrieval queries and generation prompts together. SemanticF1 improved from 42% → 61% in real benchmarks through MIPROv2 optimization.</div>
+    </div>
+    <div class="card" style="border-color:#10b98144;">
+      <div class="card-title" style="color:#10b981">Multi-hop Retrieval</div>
+      <div class="card-body">Complex questions require chained retrieval. The answer to step 1 informs the query for step 2. DSPy’s module composition makes this natural Python — a loop with Retrieve + Predict creates a multi-hop reasoning chain.</div>
+    </div>
+  </div>
+
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-results">Benchmark Results →</a></div>
+</section>
+
+<!-- ═══════ SECTION 10: RESULTS ═══════ -->
+<section class="section" id="s-results">
+  <div class="section-tag" style="color:#51cf66">Evidence</div>
+  <h2 class="section-title">Benchmark Results — Numbers from the Paper</h2>
+  <p class="section-sub">The original DSPy paper (Khattab et al., 2023) benchmarked on HotPotQA, FEVER, GSM8K, and more. More recent work shows even larger gains with advanced optimizers like GEPA and MIPROv2.</p>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="res-btn-0" onclick="setResults(0)">Original Paper</button>
+    <button class="btn-tab" id="res-btn-1" onclick="setResults(1)">vs Expert Demos</button>
+    <button class="btn-tab" id="res-btn-2" onclick="setResults(2)">GEPA (2025)</button>
+    <button class="btn-tab" id="res-btn-3" onclick="setResults(3)">Token Efficiency</button>
+  </div>
+  <canvas id="c-results" width="820" height="300"></canvas>
+
+  <div class="grid3" style="margin-top:16px;">
+    <div class="card" style="border-color:#51cf6644;">
+      <div class="card-title" style="color:#51cf66">HotPotQA</div>
+      <div class="card-body">Multi-hop question answering over Wikipedia. DSPy BootstrapFewShot: 71% vs 68% baseline (+3 points). The gain comes entirely from learned demonstrations — no architecture changes.</div>
+    </div>
+    <div class="card" style="border-color:#f9731644;">
+      <div class="card-title" style="color:#f97316">FEVER</div>
+      <div class="card-body">Fact verification (3-way: supports/refutes/not enough info). DSPy: 91% vs 85% baseline (+6 points). Largest absolute gains on tasks with complex multi-step reasoning requirements.</div>
+    </div>
+    <div class="card" style="border-color:#a78bfa44;">
+      <div class="card-title" style="color:#a78bfa">MATH (GEPA 2025)</div>
+      <div class="card-body">67% (unoptimized CoT) → 93% (GEPA-optimized) — a 26-point improvement. GEPA also outperforms GRPO by 20% with 35× fewer rollouts, showing optimization efficiency matters as much as capability.</div>
+    </div>
+  </div>
+
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-compare">DSPy vs Alternatives →</a></div>
+</section>
+
+<!-- ═══════ SECTION 11: COMPARE ═══════ -->
+<section class="section" id="s-compare">
+  <div class="section-tag" style="color:#34d399">Ecosystem Context</div>
+  <h2 class="section-title">DSPy vs Alternatives — When to Use What</h2>
+  <p class="section-sub">DSPy is not the right tool for every job. Understanding its tradeoffs vs traditional prompting and LangChain helps you choose the right approach for your use case.</p>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="cmp-btn-0" onclick="setCmpD(0)">Radar Chart</button>
+    <button class="btn-tab" id="cmp-btn-1" onclick="setCmpD(1)">Feature Table</button>
+    <button class="btn-tab" id="cmp-btn-2" onclick="setCmpD(2)">Decision Guide</button>
+    <button class="btn-tab" id="cmp-btn-3" onclick="setCmpD(3)">Cost Comparison</button>
+  </div>
+  <canvas id="c-compare" width="820" height="340"></canvas>
+
+  <div class="grid3" style="margin-top:16px;">
+    <div class="card" style="border-color:#34d39944;">
+      <div class="card-title" style="color:#34d399">Choose DSPy When</div>
+      <div class="card-body">Complex multi-step reasoning (3+ LM calls), you have evaluation metrics, prompt optimization consumes development time, model migrations happen, and you need reproducible production systems.</div>
+    </div>
+    <div class="card" style="border-color:#06b6d444;">
+      <div class="card-title" style="color:#06b6d4">Choose LangChain When</div>
+      <div class="card-body">Multiple data source integrations needed, rapid prototype-to-demo, team familiar with the framework, diverse agent workflows, and established community support matters for your project.</div>
+    </div>
+    <div class="card" style="border-color:#94a3b844;">
+      <div class="card-title" style="color:#94a3b8">Choose Manual Prompting When</div>
+      <div class="card-body">One-off POC or demo, minimal LM calls (1-2 per request), fastest possible iteration, or evaluation data doesn’t exist yet. DSPy’s value increases with system complexity and production longevity.</div>
+    </div>
+  </div>
+
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-quiz">Knowledge Quiz →</a></div>
+</section>
+
+<!-- ═══════ SECTION 12: QUIZ ═══════ -->
+<section class="section" id="s-quiz">
+  <div class="section-tag" style="color:#a78bfa">Knowledge Check</div>
+  <h2 class="section-title">DSPy Knowledge Quiz</h2>
+  <p class="section-sub">Test your understanding of DSPy’s core concepts. 8 questions covering signatures, modules, optimizers, and compilation.</p>
+
+  <div id="quiz-container"></div>
+  <div style="margin-top:16px;display:flex;gap:10px;">
+    <button class="btn" onclick="submitQuiz()">Submit Answers</button>
+    <button class="btn-tab" onclick="resetQuiz()">Reset</button>
+    <span id="quiz-score" style="font-size:13px;color:var(--muted);margin-left:8px;"></span>
+  </div>
+</section>
+
+</main>
+</div>
+</div>
+
+<script>
+function setActive(el){document.querySelectorAll('.nav-link').forEach(function(l){l.classList.remove('active');});if(el)el.classList.add('active');}
+function toggleAcc(hdr){var b=hdr.nextElementSibling,c=hdr.querySelector('.accordion-chevron'),o=b.style.display==='block';b.style.display=o?'none':'block';if(c)c.style.transform=o?'':'rotate(180deg)';}
+function updateNav(){
+  var main=document.querySelector('.main');if(!main)return;
+  var ids=['s-intro','s-problem','s-sigs','s-mods','s-graphs','s-compile','s-opts','s-assert','s-rag','s-results','s-compare','s-quiz'];
+  main.addEventListener('scroll',function(){
+    var sy=main.scrollTop;
+    ids.forEach(function(id){
+      var sec=document.getElementById(id);if(!sec)return;
+      if(sec.offsetTop-100<=sy&&sec.offsetTop+sec.offsetHeight-100>sy){
+        var l=document.querySelector('.nav-link[href="#'+id+'"]');if(l)setActive(l);
+      }
+    });
+  });
+}
+if(sessionStorage.getItem('pg_unlocked_15')==='1'){
+  document.getElementById('pg-main').style.display='flex';
+}
+function drawRR(ctx,x,y,w,h,r,fill,stroke,lw){ctx.beginPath();ctx.roundRect(x,y,w,h,r);if(fill){ctx.fillStyle=fill;ctx.fill();}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=lw||1.5;ctx.stroke();}}
+function initAll(){updateNav();}
+
+// ─── SECTION 1: INTRO ─────────────────────────────────────────────────────
+var introTab = 0;
+function setIntro(i) {
+  introTab = i;
+  document.querySelectorAll('[id^="intro-btn-"]').forEach(function(b,j){ b.classList.toggle('active',j===i); });
+  drawIntro();
+}
+function drawIntro() {
+  var cv = document.getElementById('c-intro'); if(!cv)return;
+  var ctx = cv.getContext('2d'); var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H); ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,W,H);
+  if(introTab===0) {
+    // Traditional prompting - fragile string soup
+    var title='Traditional Prompting: String Soup';
+    ctx.fillStyle='#ef4444'; ctx.font='bold 14px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText(title,W/2,28);
+    var codeLines=[
+      'prompt = f"You are a helpful assistant. Given the following context:",',
+      '         f"Context: {context}",',
+      '         f"Question: {question}",',
+      '         f"Please provide a detailed answer. Think step by step.",',
+      '         f"Note: answer must be concise and factual.",',
+      '         f"Answer:"',
+    ];
+    ctx.font='11px "JetBrains Mono",monospace'; ctx.textAlign='left';
+    codeLines.forEach(function(line,i){
+      var y=56+i*28;
+      ctx.fillStyle='#1e293b'; ctx.fillRect(30,y-14,W-60,22);
+      ctx.fillStyle=(i===0)?'#94a3b8':'#64748b'; ctx.fillText(line,40,y);
+    });
+    // problem arrows
+    var problems=[
+      {x:240,y:220,label:'Brittle: word order matters'},
+      {x:460,y:220,label:'Breaks on model switch'},
+      {x:680,y:220,label:'No optimization path'},
+    ];
+    problems.forEach(function(p){
+      ctx.fillStyle='#ef444444'; ctx.strokeStyle='#ef4444'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.roundRect(p.x-80,p.y-14,160,26,4); ctx.fill(); ctx.stroke();
+      ctx.fillStyle='#ef4444'; ctx.font='bold 10px Inter,sans-serif'; ctx.textAlign='center';
+      ctx.fillText(p.label,p.x,p.y);
+      ctx.strokeStyle='#ef444488'; ctx.setLineDash([3,3]);
+      ctx.beginPath(); ctx.moveTo(p.x,p.y-14); ctx.lineTo(p.x,200); ctx.stroke();
+      ctx.setLineDash([]);
+    });
+  } else if(introTab===1) {
+    // DSPy program
+    ctx.fillStyle='#f97316'; ctx.font='bold 14px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('DSPy Program: Declarative & Composable',W/2,28);
+    var lines=[
+      {t:'class', c:'#06b6d4',         rest:' RAG(dspy.Module):',             rc:'#e2e8f0'},
+      {t:'    def', c:'#fb923c',        rest:' __init__(self):',               rc:'#e2e8f0'},
+      {t:'        self.retrieve', c:'#e2e8f0', rest:' = dspy.Retrieve(k=3)',   rc:'#51cf66'},
+      {t:'        self.answer', c:'#e2e8f0',   rest:' = dspy.ChainOfThought(', rc:'#e2e8f0'},
+      {t:'            "context, question -> answer"', c:'#51cf66', rest:')',   rc:'#e2e8f0'},
+      {t:'',c:'',rest:'',rc:''},
+      {t:'    def', c:'#fb923c',        rest:' forward(self, question):',      rc:'#e2e8f0'},
+      {t:'        context', c:'#e2e8f0',rest:' = self.retrieve(question)',     rc:'#a78bfa'},
+      {t:'        return', c:'#06b6d4', rest:' self.answer(context, question)',rc:'#e2e8f0'},
+    ];
+    ctx.font='12px "JetBrains Mono",monospace'; ctx.textAlign='left';
+    lines.forEach(function(l,i){
+      var y=54+i*26;
+      ctx.fillStyle='#1e293b'; ctx.fillRect(30,y-16,W-60,22);
+      ctx.fillStyle=l.c; ctx.fillText(l.t,40,y);
+      ctx.fillStyle=l.rc; ctx.fillText(l.rest,40+ctx.measureText(l.t).width+2,y);
+    });
+    // benefit labels
+    var benefits=[
+      {x:200,y:265,label:'Same code, any model',color:'#10b981'},
+      {x:450,y:265,label:'Compiler optimizes prompts',color:'#f97316'},
+      {x:680,y:265,label:'Version controlled',color:'#a78bfa'},
+    ];
+    benefits.forEach(function(b){
+      ctx.fillStyle=b.color+'33'; ctx.strokeStyle=b.color; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.roundRect(b.x-80,b.y-14,160,24,4); ctx.fill(); ctx.stroke();
+      ctx.fillStyle=b.color; ctx.font='bold 10px Inter,sans-serif'; ctx.textAlign='center';
+      ctx.fillText(b.label,b.x,b.y);
+    });
+  } else {
+    // Compiler analogy
+    ctx.fillStyle='#f97316'; ctx.font='bold 14px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('The Compiler Analogy',W/2,28);
+    var boxes=[
+      {x:40,y:60,w:180,h:90,color:'#06b6d4',title:'High-level Code',lines:['RAG(dspy.Module)','ChainOfThought(...)','Retrieve(k=3)']},
+      {x:320,y:60,w:180,h:90,color:'#f97316',title:'DSPy Compiler',lines:['Traces execution','Evaluates metric','Searches prompt space']},
+      {x:600,y:60,w:180,h:90,color:'#10b981',title:'Optimized Program',lines:['Learned instructions','Few-shot demos','Robust prompts']},
+    ];
+    boxes.forEach(function(b){
+      ctx.fillStyle=b.color+'22'; ctx.strokeStyle=b.color; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.roundRect(b.x,b.y,b.w,b.h,6); ctx.fill(); ctx.stroke();
+      ctx.fillStyle=b.color; ctx.font='bold 12px Inter,sans-serif'; ctx.textAlign='center';
+      ctx.fillText(b.title,b.x+b.w/2,b.y+20);
+      ctx.fillStyle='#94a3b8'; ctx.font='10px Inter,sans-serif';
+      b.lines.forEach(function(line,i){ ctx.fillText(line,b.x+b.w/2,b.y+38+i*16); });
+    });
+    // arrows
+    [[220,105,320,105],[500,105,600,105]].forEach(function(a){
+      ctx.strokeStyle='#f97316'; ctx.lineWidth=2; ctx.fillStyle='#f97316';
+      ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(a[2],a[3]); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(a[2],a[3]); ctx.lineTo(a[2]-10,a[3]-5); ctx.lineTo(a[2]-10,a[3]+5); ctx.fill();
+    });
+    // analogies row
+    var analogies=[
+      ['Traditional Lang.','DSPy',''],
+      ['Source code (.c)','DSPy program','User writes this'],
+      ['Compiler flags','Metric function','Drives optimization'],
+      ['Assembly output','Optimized prompts','Compiler produces this'],
+      ['Runtime binary','Compiled program','Deployed artifact'],
+    ];
+    var tY=180;
+    ctx.fillStyle='#1e293b'; ctx.fillRect(30,tY-16,W-60,20);
+    analogies.forEach(function(row,i){
+      var ry=tY+i*22;
+      ctx.fillStyle=i===0?'#334155':'transparent'; ctx.fillRect(30,ry-16,W-60,20);
+      ctx.fillStyle=i===0?'#94a3b8':'#64748b'; ctx.font=(i===0?'bold ':'')+'10px Inter,sans-serif'; ctx.textAlign='center';
+      ctx.fillText(row[0],30+(W-60)*0.25,ry);
+      ctx.fillStyle=i===0?'#f97316':'#fb923c'; ctx.fillText(row[1],30+(W-60)*0.58,ry);
+      ctx.fillStyle='#475569'; ctx.fillText(row[2],30+(W-60)*0.87,ry);
+    });
+  }
+}
+
+// ─── SECTION 2: PROBLEM ───────────────────────────────────────────────────
+var probTab = 0;
+function setProb(i) {
+  probTab = i;
+  document.querySelectorAll('[id^="prob-btn-"]').forEach(function(b,j){ b.classList.toggle('active',j===i); });
+  drawProblem();
+}
+function drawProblem() {
+  var cv = document.getElementById('c-problem'); if(!cv)return;
+  var ctx = cv.getContext('2d'); var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H); ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,W,H);
+  if(probTab===0) {
+    // Sensitivity: same question, different prompts, wildly different accuracy
+    ctx.fillStyle='#94a3b8'; ctx.font='bold 12px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('Prompt Wording Sensitivity (same task, same model)',W/2,22);
+    var prompts=[
+      {label:'Answer the question:',           acc:0.72,color:'#10b981'},
+      {label:'Please answer this question:',   acc:0.63,color:'#f59e0b'},
+      {label:'Given the question below, respond:', acc:0.55,color:'#f97316'},
+      {label:'Respond to the following query:', acc:0.48,color:'#ef4444'},
+      {label:'Question (provide answer):',     acc:0.41,color:'#ef4444'},
+    ];
+    var bw=120,bh=180,gap=20,startX=40;
+    prompts.forEach(function(p,i){
+      var x=startX+i*(bw+gap);
+      var fillH=Math.round(p.acc*bh);
+      // background
+      ctx.fillStyle='#1e293b'; ctx.fillRect(x,H-50-bh,bw,bh);
+      // fill
+      ctx.fillStyle=p.color+'88'; ctx.fillRect(x,H-50-fillH,bw,fillH);
+      ctx.strokeStyle=p.color; ctx.lineWidth=1.5; ctx.strokeRect(x,H-50-bh,bw,bh);
+      ctx.fillStyle=p.color; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='center';
+      ctx.fillText((p.acc*100).toFixed(0)+'%',x+bw/2,H-50-fillH-6);
+      ctx.fillStyle='#64748b'; ctx.font='9px Inter,sans-serif';
+      // wrap label
+      var words=p.label.split(' '); var lines=['']; var li=0;
+      words.forEach(function(w){ if(lines[li].length+w.length>16){li++;lines[li]='';} lines[li]+=(lines[li]?'  ':'')+w; });
+      lines.forEach(function(line,j){ ctx.fillText(line,x+bw/2,H-32+j*12); });
+    });
+    ctx.strokeStyle='#334155'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(30,H-50); ctx.lineTo(W-20,H-50); ctx.stroke();
+    ctx.fillStyle='#ef444488'; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='right';
+    ctx.fillText('31% accuracy gap from wording alone →',W-30,40);
+  } else if(probTab===1) {
+    // Model lock-in
+    ctx.fillStyle='#94a3b8'; ctx.font='bold 12px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('Prompt Break When Switching Models',W/2,22);
+    var models=['GPT-3.5','GPT-4','Llama-2','Llama-3','Claude 3'];
+    var baseline=0.72;
+    var accs=[0.72, 0.51, 0.33, 0.45, 0.28]; // same prompt, different models
+    var dspyAccs=[0.84, 0.87, 0.79, 0.83, 0.81]; // after recompile
+    var bw=80,gap=30,startX=50;
+    models.forEach(function(m,i){
+      var x=startX+i*(bw+gap);
+      // baseline bar
+      var bh1=Math.round(accs[i]*160);
+      ctx.fillStyle='#ef444433'; ctx.strokeStyle='#ef4444'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.roundRect(x,H-50-bh1,34,bh1,2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle='#ef4444'; ctx.font='9px Inter,sans-serif'; ctx.textAlign='center';
+      ctx.fillText((accs[i]*100).toFixed(0)+'%',x+17,H-50-bh1-6);
+      // dspy bar
+      var bh2=Math.round(dspyAccs[i]*160);
+      ctx.fillStyle='#f9731633'; ctx.strokeStyle='#f97316'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.roundRect(x+38,H-50-bh2,34,bh2,2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle='#f97316'; ctx.fillText((dspyAccs[i]*100).toFixed(0)+'%',x+55,H-50-bh2-6);
+      // model label
+      ctx.fillStyle='#94a3b8'; ctx.font='9px Inter,sans-serif'; ctx.textAlign='center';
+      ctx.fillText(m,x+bw/2,H-34);
+    });
+    ctx.strokeStyle='#334155'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(30,H-50); ctx.lineTo(W-20,H-50); ctx.stroke();
+    ctx.fillStyle='#ef4444'; ctx.font='9px Inter,sans-serif'; ctx.textAlign='left';
+    ctx.fillRect(30,H-18,12,8); ctx.fillText('Same prompt (drops)',48,H-11);
+    ctx.fillStyle='#f97316'; ctx.fillRect(180,H-18,12,8); ctx.fillText('DSPy recompiled',198,H-11);
+  } else if(probTab===2) {
+    // Scalability
+    ctx.fillStyle='#94a3b8'; ctx.font='bold 12px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('Engineering Hours to Prompt-Tune a Multi-Step Pipeline',W/2,22);
+    var pipeline_sizes=[1,2,5,10,20];
+    var manual_hours=[2,8,40,120,400];
+    var dspy_hours=[0.5,0.7,1.5,3,8];
+    var maxH=400, scaleH=240, startX=80;
+    var pts1=[],pts2=[];
+    pipeline_sizes.forEach(function(n,i){
+      var x=startX+i*(W-startX-40)/4;
+      pts1.push([x, H-40-Math.round(manual_hours[i]/maxH*scaleH)]);
+      pts2.push([x, H-40-Math.round(dspy_hours[i]/maxH*scaleH)]);
+    });
+    ctx.strokeStyle='#ef4444'; ctx.lineWidth=2.5;
+    ctx.beginPath(); pts1.forEach(function(p,i){ i===0?ctx.moveTo(p[0],p[1]):ctx.lineTo(p[0],p[1]); }); ctx.stroke();
+    ctx.strokeStyle='#f97316'; ctx.lineWidth=2.5;
+    ctx.beginPath(); pts2.forEach(function(p,i){ i===0?ctx.moveTo(p[0],p[1]):ctx.lineTo(p[0],p[1]); }); ctx.stroke();
+    pts1.forEach(function(p,i){ ctx.fillStyle='#ef4444'; ctx.beginPath(); ctx.arc(p[0],p[1],4,0,6.28); ctx.fill();
+      ctx.fillStyle='#ef4444'; ctx.font='9px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText(manual_hours[i]+'h',p[0],p[1]-10);
+    });
+    pts2.forEach(function(p,i){ ctx.fillStyle='#f97316'; ctx.beginPath(); ctx.arc(p[0],p[1],4,0,6.28); ctx.fill();
+      ctx.fillStyle='#f97316'; ctx.font='9px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText(dspy_hours[i]+'h',p[0],p[1]-10);
+    });
+    pipeline_sizes.forEach(function(n,i){
+      var x=startX+i*(W-startX-40)/4;
+      ctx.fillStyle='#475569'; ctx.font='10px Inter,sans-serif'; ctx.textAlign='center';
+      ctx.fillText(n+' step'+(n>1?'s':''),x,H-22);
+    });
+    ctx.fillStyle='#ef4444'; ctx.fillRect(startX,H-14,12,8); ctx.fillText('Manual engineering',startX+16,H-8); ctx.font='9px Inter,sans-serif'; ctx.textAlign='left';
+    ctx.fillStyle='#f97316'; ctx.fillRect(startX+180,H-14,12,8); ctx.fillText('DSPy compilation',startX+196,H-8);
+  } else {
+    // Cost comparison
+    ctx.fillStyle='#94a3b8'; ctx.font='bold 12px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('Cost & Quality Comparison (M&A Information Extraction Task)',W/2,22);
+    var approaches=[
+      {label:'Manual|prompt eng.',    cost:500,  quality:0.78, color:'#ef4444'},
+      {label:'LangChain|RAG',         cost:50,   quality:0.75, color:'#06b6d4'},
+      {label:'DSPy Bootstrap|FewShot', cost:1,   quality:0.907,color:'#f97316'},
+      {label:'DSPy|MIPROv2',          cost:8,    quality:0.94, color:'#fb923c'},
+      {label:'DSPy|GEPA',             cost:15,   quality:0.978,color:'#10b981'},
+    ];
+    var startX=60, bw=110, gap=22;
+    approaches.forEach(function(a,i){
+      var x=startX+i*(bw+gap);
+      var qH=Math.round(a.quality*200);
+      ctx.fillStyle=a.color+'33'; ctx.strokeStyle=a.color; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.roundRect(x,H-55-qH,bw,qH,4); ctx.fill(); ctx.stroke();
+      ctx.fillStyle=a.color; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='center';
+      ctx.fillText((a.quality*100).toFixed(1)+'%',x+bw/2,H-55-qH-8);
+      ctx.fillStyle='#64748b'; ctx.font='9px Inter,sans-serif';
+      a.label.split('|').forEach(function(l,j){ ctx.fillText(l,x+bw/2,H-38+j*13); });
+      ctx.fillStyle='#475569'; ctx.fillText('$'+a.cost,x+bw/2,H-14);
+    });
+    ctx.strokeStyle='#334155'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(40,H-55); ctx.lineTo(W-20,H-55); ctx.stroke();
+  }
+}
+
+// ─── SECTION 3: SIGNATURES ────────────────────────────────────────────────
+var sigTab = 0;
+function setSig(i) {
+  sigTab = i;
+  document.querySelectorAll('[id^="sig-btn-"]').forEach(function(b,j){ b.classList.toggle('active',j===i); });
+  drawSig();
+}
+function drawSig() {
+  var cv = document.getElementById('c-sigs'); if(!cv)return;
+  var ctx = cv.getContext('2d'); var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H); ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,W,H);
+  function codeBox(lines,x,y,w,h,title,titleColor){
+    ctx.fillStyle='#161b22'; ctx.strokeStyle=titleColor; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.roundRect(x,y,w,h,6); ctx.fill(); ctx.stroke();
+    ctx.fillStyle=titleColor+'44'; ctx.fillRect(x,y,w,18);
+    ctx.fillStyle=titleColor; ctx.font='bold 10px Inter,sans-serif'; ctx.textAlign='left'; ctx.fillText(title,x+8,y+13);
+    ctx.font='11px "JetBrains Mono",monospace';
+    lines.forEach(function(l,i){
+      ctx.fillStyle=l.c||'#e2e8f0'; ctx.textAlign='left'; ctx.fillText(l.t,x+8,y+32+i*17);
+    });
+  }
+  if(sigTab===0) {
+    // Inline signatures
+    ctx.fillStyle='#fb923c'; ctx.font='bold 13px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText('Inline Signatures (String-based)',W/2,22);
+    var sigs=[
+      {sig:'"question -> answer"',                            desc:'Basic QA: string in, string out'},
+      {sig:'"sentence -> sentiment: bool"',                   desc:'Classification with typed output'},
+      {sig:'"context: list[str], question -> answer: str"',   desc:'RAG: typed list input'},
+      {sig:'"doc, claim -> supported: bool, confidence: float"', desc:'Fact-check with multiple outputs'},
+      {sig:'"question, choices: list[str] -> reasoning, selection: int"', desc:'Multi-choice with CoT'},
+    ];
+    sigs.forEach(function(s,i){
+      var y=40+i*48;
+      ctx.fillStyle='#1e293b'; ctx.strokeStyle='#334155'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.roundRect(30,y,W-60,40,4); ctx.fill(); ctx.stroke();
+      ctx.fillStyle='#51cf66'; ctx.font='12px "JetBrains Mono",monospace'; ctx.textAlign='left';
+      ctx.fillText(s.sig,42,y+16);
+      ctx.fillStyle='#64748b'; ctx.font='10px Inter,sans-serif';
+      ctx.fillText('→ '+s.desc,42,y+32);
+    });
+  } else if(sigTab===1) {
+    // Class-based
+    ctx.fillStyle='#fb923c'; ctx.font='bold 13px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText('Class-based Signatures (with field descriptions)',W/2,22);
+    var lines=[
+      {t:'class CitationVerifier(dspy.Signature):',c:'#06b6d4'},
+      {t:'    """Verify if the document supports the claim."""',c:'#64748b'},
+      {t:'    document  = dspy.InputField()',c:'#e2e8f0'},
+      {t:'    claim     = dspy.InputField()',c:'#e2e8f0'},
+      {t:'    is_supported = dspy.OutputField(', c:'#e2e8f0'},
+      {t:'        desc="bool: true if doc supports claim"', c:'#51cf66'},
+      {t:'    )',c:'#e2e8f0'},
+      {t:'',c:''},
+      {t:'# Use it:',c:'#64748b'},
+      {t:'verifier = dspy.Predict(CitationVerifier)', c:'#e2e8f0'},
+      {t:'result   = verifier(document=doc, claim=claim)', c:'#a78bfa'},
+    ];
+    ctx.font='11px "JetBrains Mono",monospace'; ctx.textAlign='left';
+    lines.forEach(function(l,i){
+      var y=48+i*23;
+      if(l.t) { ctx.fillStyle='#1e293b'; ctx.fillRect(30,y-14,W-60,18); }
+      ctx.fillStyle=l.c; ctx.fillText(l.t,42,y);
+    });
+  } else if(sigTab===2) {
+    // Generated prompt preview
+    ctx.fillStyle='#fb923c'; ctx.font='bold 13px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText('What DSPy Generates from a Signature',W/2,22);
+    var half=(W-60)/2-8;
+    codeBox([
+      {t:'# Your signature',c:'#64748b'},
+      {t:'class QA(dspy.Signature):',c:'#06b6d4'},
+      {t:'    question = dspy.InputField()',c:'#e2e8f0'},
+      {t:'    answer   = dspy.OutputField()',c:'#e2e8f0'},
+      {t:'',c:''},
+      {t:'cot = dspy.ChainOfThought(QA)',c:'#fb923c'},
+    ],30,36,half,200,'DSPy Program','#fb923c');
+    codeBox([
+      {t:'Given the fields `question`, produce', c:'#94a3b8'},
+      {t:'the fields `answer`.',c:'#94a3b8'},
+      {t:'',c:''},
+      {t:'Follow the following format.',c:'#64748b'},
+      {t:'Question: ${question}',c:'#51cf66'},
+      {t:'Reasoning: Lets think step by step',c:'#f97316'},
+      {t:'  to answer "${question}"',c:'#f97316'},
+      {t:'Answer: ${answer}',c:'#51cf66'},
+      {t:'',c:''},
+      {t:'--- (few-shot examples inserted here) ---',c:'#475569'},
+    ],30+half+16,36,half,200,'Generated Prompt (automatically)','#10b981');
+  } else {
+    // Real examples
+    ctx.fillStyle='#fb923c'; ctx.font='bold 13px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText('Real-world Signature Examples',W/2,22);
+    var examples=[
+      {title:'Sentiment Analysis',color:'#10b981',sig:'"sentence -> sentiment: bool"',note:'Binary typed output'},
+      {title:'Multi-hop QA',     color:'#06b6d4',sig:'"context: list[str], question -> answer, sources: list[str]"',note:'Complex typed IO'},
+      {title:'Code Review',      color:'#a78bfa',sig:'"code, spec -> issues: list[str], fixed_code"',note:'Multi-output'},
+      {title:'Summarization',    color:'#f97316',sig:'"article, max_words: int -> summary, title"',note:'Constrained output'},
+      {title:'Entity Extraction', color:'#e879f9',sig:'"document -> entities: list[str], relations: list[str]"',note:'Structured extraction'},
+    ];
+    examples.forEach(function(e,i){
+      var y=42+i*52;
+      ctx.fillStyle='#1e293b'; ctx.strokeStyle=e.color+'44'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.roundRect(30,y,W-60,44,6); ctx.fill(); ctx.stroke();
+      ctx.fillStyle=e.color; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='left'; ctx.fillText(e.title,44,y+16);
+      ctx.fillStyle='#51cf66'; ctx.font='11px "JetBrains Mono",monospace'; ctx.fillText(e.sig,44,y+32);
+      ctx.fillStyle='#64748b'; ctx.font='10px Inter,sans-serif'; ctx.textAlign='right'; ctx.fillText(e.note,W-44,y+32);
+    });
+  }
+}
+
+// ─── SECTION 4: MODULES ───────────────────────────────────────────────────
+var modTab = 0;
+var MOD_DATA = [
+  { name:'dspy.Predict',      color:'#06b6d4',
+    title:'Predict — Direct Input to Output',
+    desc:'The fundamental module. Takes a signature and directly generates the output. No special reasoning mechanism. Learnable: instructions + demonstrations. Use for simple single-step tasks.',
+    flow:['Input (question)','Predict Module','Instructions + Demos','Output (answer)'],
+    code:'pred = dspy.Predict("question -> answer")|result = pred(question="What is photosynthesis?")|print(result.answer)' },
+  { name:'dspy.ChainOfThought',color:'#f97316',
+    title:'ChainOfThought — Reason Before Answering',
+    desc:'Injects a "reasoning" field that the LM fills before generating the answer. Teaches the model to think step-by-step. Typically +5-15% accuracy. Learnable reasoning format.',
+    flow:['Input','CoT Module','Reasoning (internal)','Answer'],
+    code:'cot = dspy.ChainOfThought("question -> answer")|result = cot(question="If 5x+2=12, what is x?")|print(result.reasoning)  # step-by-step|print(result.answer)     # 2' },
+  { name:'dspy.ProgramOfThought',color:'#a78bfa',
+    title:'ProgramOfThought — Generate & Execute Code',
+    desc:'Directs the LM to write executable Python code. The code is run, and its output informs the final answer. Ideal for math, logic, and data manipulation tasks.',
+    flow:['Input','Generate Code','Execute Python','Answer from result'],
+    code:'pot = dspy.ProgramOfThought("question -> answer")|result = pot(question="What is 15! / 13!")|# LM writes: print(15*14)|# Executes: 210|print(result.answer)  # 210' },
+  { name:'dspy.ReAct',        color:'#10b981',
+    title:'ReAct — Reason and Act with Tools',
+    desc:'Implements the ReAct framework: alternating Thought → Action → Observation steps. Enables tool use (search, calculators, APIs). Continues until task complete.',
+    flow:['Input','Thought','Action (tool call)','Observation','...','Answer'],
+    code:'tools = [dspy.Retrieve(), Calculator()]|react = dspy.ReAct("question -> answer", tools=tools)|result = react(question="What is the GDP of France times 2?")|print(result.answer)' },
+  { name:'dspy.MultiChainComparison',color:'#e879f9',
+    title:'MultiChainComparison — Consensus Reasoning',
+    desc:'Samples M reasoning chains, then compares them to produce a refined prediction. Higher M = better consensus but more LM calls. Typical M=3-5 gives 10-20% accuracy gain.',
+    flow:['Input','Chain 1','Chain 2','Chain M','Compare','Final Answer'],
+    code:'mcc = dspy.MultiChainComparison(|    "question -> answer", M=3)|result = mcc(question="Complex reasoning...")|# Internally: 3 chains + 1 comparison call|print(result.answer)' },
+];
+function setMod(i) {
+  modTab = i;
+  document.querySelectorAll('[id^="mod-btn-"]').forEach(function(b,j){ b.classList.toggle('active',j===i); });
+  drawMod();
+}
+function drawMod() {
+  var cv = document.getElementById('c-mods'); if(!cv)return;
+  var ctx = cv.getContext('2d'); var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H); ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,W,H);
+  var md = MOD_DATA[modTab];
+  // title
+  ctx.fillStyle=md.color; ctx.font='bold 14px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText(md.title,W/2,24);
+  // flow diagram
+  var nodes=md.flow, nW=120,nH=36,gap=(W-60-nodes.length*nW)/(nodes.length-1);
+  var startX=30,nodeY=52;
+  nodes.forEach(function(n,i){
+    var x=startX+i*(nW+gap);
+    ctx.fillStyle=md.color+(i===0||i===nodes.length-1?'44':'22');
+    ctx.strokeStyle=md.color+(i===0||i===nodes.length-1?'':88);
+    ctx.lineWidth=i===0||i===nodes.length-1?2:1;
+    ctx.beginPath(); ctx.roundRect(x,nodeY,nW,nH,6); ctx.fill(); ctx.stroke();
+    ctx.fillStyle=md.color; ctx.font='bold 10px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText(n,x+nW/2,nodeY+nH/2+4);
+    if(i<nodes.length-1){
+      ctx.strokeStyle=md.color+'88'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(x+nW,nodeY+nH/2); ctx.lineTo(x+nW+gap,nodeY+nH/2); ctx.stroke();
+      ctx.fillStyle=md.color+'88'; ctx.beginPath(); ctx.moveTo(x+nW+gap,nodeY+nH/2); ctx.lineTo(x+nW+gap-8,nodeY+nH/2-4); ctx.lineTo(x+nW+gap-8,nodeY+nH/2+4); ctx.fill();
+    }
+  });
+  // description
+  ctx.fillStyle='#94a3b8'; ctx.font='12px Inter,sans-serif'; ctx.textAlign='left';
+  var words=md.desc.split(' '), line='', lineY=120;
+  words.forEach(function(w){
+    var test=line+(line?' ':'')+w;
+    if(ctx.measureText(test).width>W-60&&line){ ctx.fillText(line,30,lineY); line=w; lineY+=18; }
+    else line=test;
+  });
+  if(line) ctx.fillText(line,30,lineY);
+  lineY+=28;
+  // code
+  ctx.fillStyle='#1e293b'; ctx.strokeStyle='#334155'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.roundRect(30,lineY,W-60,H-lineY-16,6); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#64748b'; ctx.font='9px Inter,sans-serif'; ctx.textAlign='left'; ctx.fillText('Code Example',42,lineY+14);
+  ctx.font='11px "JetBrains Mono",monospace';
+  md.code.split('|').forEach(function(codeLine,i){
+    var y=lineY+28+i*16;
+    var c='#e2e8f0';
+    if(codeLine.startsWith('#')) c='#64748b';
+    else if(codeLine.includes('dspy.')) c='#fb923c';
+    ctx.fillStyle=c; ctx.fillText(codeLine,42,y);
+  });
+}
+
+// ─── SECTION 5: GRAPHS ────────────────────────────────────────────────────
+var graphTab = 0;
+var graphSelected = -1;
+var GRAPH_CONFIGS = [
+  { title:'Simple QA', color:'#a78bfa',
+    nodes:[
+      {id:0,x:80,y:160,label:'Input',type:'io',detail:'question: str — Raw user question string passed to the program.'},
+      {id:1,x:280,y:160,label:'ChainOfThought',type:'module',detail:'Signature: "question -> answer" — Adds reasoning field. Learns instructions + demos during compilation.'},
+      {id:2,x:520,y:160,label:'Output',type:'io',detail:'answer: str — Final predicted answer string.'},
+    ],
+    edges:[[0,1],[1,2]]
+  },
+  { title:'RAG Pipeline', color:'#e879f9',
+    nodes:[
+      {id:0,x:50,y:160,label:'Question',type:'io',detail:'question: str — User question input.'},
+      {id:1,x:230,y:100,label:'Retrieve(k=3)',type:'module',detail:'dspy.Retrieve(k=3) — Queries vector DB. Returns top-3 passages. Query phrasing is a learnable parameter.'},
+      {id:2,x:230,y:220,label:'question',type:'data',detail:'Passed directly to generation step alongside retrieved context.'},
+      {id:3,x:490,y:160,label:'ChainOfThought',type:'module',detail:'Signature: "context, question -> answer" — Generates answer from retrieved passages. Context + question both fed as input.'},
+      {id:4,x:700,y:160,label:'Answer',type:'io',detail:'answer: str — Final answer grounded in retrieved documents.'},
+    ],
+    edges:[[0,1],[0,2],[1,3],[2,3],[3,4]]
+  },
+  { title:'Multi-hop Reasoning', color:'#06b6d4',
+    nodes:[
+      {id:0,x:50,y:160,label:'Question',type:'io',detail:'Complex multi-part question requiring multiple retrieval steps.'},
+      {id:1,x:200,y:100,label:'Retrieve #1',type:'module',detail:'First retrieval based on original question. Finds initial context.'},
+      {id:2,x:370,y:100,label:'GenerateQuery',type:'module',detail:'Signature: "question, context -> search_query" — Deduces what to search next based on partial context.'},
+      {id:3,x:550,y:100,label:'Retrieve #2',type:'module',detail:'Second retrieval using refined query. Finds deeper context.'},
+      {id:4,x:550,y:220,label:'ChainOfThought',type:'module',detail:'Signature: "context1, context2, question -> answer" — Synthesizes both retrieval results to answer complex question.'},
+      {id:5,x:720,y:160,label:'Answer',type:'io',detail:'Final answer synthesized from multi-hop retrieval.'},
+    ],
+    edges:[[0,1],[1,2],[2,3],[3,4],[0,4],[4,5]]
+  },
+  { title:'Agent (ReAct)', color:'#10b981',
+    nodes:[
+      {id:0,x:50,y:160,label:'Question',type:'io',detail:'User query requiring tool use.'},
+      {id:1,x:230,y:160,label:'ReAct',type:'module',detail:'dspy.ReAct("question -> answer", tools=[search, calc]) — Alternates Thought/Action/Observation until task complete.'},
+      {id:2,x:430,y:80,label:'Search Tool',type:'tool',detail:'External search API. Called when ReAct generates Action: search[query].'},
+      {id:3,x:430,y:160,label:'Calculator',type:'tool',detail:'Python eval or sympy. Called for Action: calculate[expr].'},
+      {id:4,x:430,y:240,label:'[Any Tool]',type:'tool',detail:'Any Python callable can be registered as a tool. Returns string observation.'},
+      {id:5,x:640,y:160,label:'Answer',type:'io',detail:'Final answer after all tool calls complete.'},
+    ],
+    edges:[[0,1],[1,2],[1,3],[1,4],[2,1],[3,1],[4,1],[1,5]]
+  },
+];
+var graphNodes = [];
+function setGraph(i) {
+  graphTab = i;
+  graphSelected = -1;
+  document.querySelectorAll('[id^="graph-btn-"]').forEach(function(b,j){ b.classList.toggle('active',j===i); });
+  document.getElementById('graph-d-title').textContent='Select a node';
+  document.getElementById('graph-d-body').textContent='Click any node in the diagram to see what that module does.';
+  drawGraph();
+}
+function drawGraph() {
+  var cv = document.getElementById('c-graphs'); if(!cv)return;
+  var ctx = cv.getContext('2d'); var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H); ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,W,H);
+  var cfg = GRAPH_CONFIGS[graphTab];
+  graphNodes = cfg.nodes;
+  var typeColors={io:'#94a3b8',module:cfg.color,data:'#64748b',tool:'#fdcb6e'};
+  // edges
+  cfg.edges.forEach(function(e){
+    var n1=cfg.nodes[e[0]],n2=cfg.nodes[e[1]];
+    ctx.strokeStyle='#334155'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(n1.x+60,n1.y+18); ctx.lineTo(n2.x,n2.y+18); ctx.stroke();
+    // arrowhead
+    var dx=n2.x-(n1.x+60),dy=n2.y+18-(n1.y+18),len=Math.sqrt(dx*dx+dy*dy);
+    var ux=dx/len,uy=dy/len;
+    ctx.fillStyle='#475569';
+    ctx.beginPath(); ctx.moveTo(n2.x,n2.y+18); ctx.lineTo(n2.x-ux*10-uy*5,n2.y+18-uy*10+ux*5); ctx.lineTo(n2.x-ux*10+uy*5,n2.y+18-uy*10-ux*5); ctx.fill();
+  });
+  // nodes
+  cfg.nodes.forEach(function(n){
+    var c=typeColors[n.type]||cfg.color;
+    var active=n.id===graphSelected;
+    ctx.fillStyle=active?c+'44':'#1e293b';
+    ctx.strokeStyle=active?c:'#334155';
+    ctx.lineWidth=active?2.5:1.5;
+    ctx.beginPath(); ctx.roundRect(n.x,n.y,120,36,6); ctx.fill(); ctx.stroke();
+    ctx.fillStyle=active?c:'#94a3b8';
+    ctx.font=(active?'bold ':'')+'11px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText(n.label,n.x+60,n.y+22);
+    if(n.type==='module'){ ctx.fillStyle=c+'88'; ctx.font='8px Inter,sans-serif'; ctx.fillText('module',n.x+60,n.y+34); }
+    if(n.type==='tool'){ ctx.fillStyle='#fdcb6e88'; ctx.font='8px Inter,sans-serif'; ctx.fillText('tool',n.x+60,n.y+34); }
+  });
+  // title
+  ctx.fillStyle=cfg.color; ctx.font='bold 12px Inter,sans-serif'; ctx.textAlign='right';
+  ctx.fillText(cfg.title,W-20,H-12);
+}
+function initGraphs() {
+  var cv=document.getElementById('c-graphs'); if(!cv)return;
+  cv.addEventListener('click',function(e){
+    var r=cv.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;
+    var cfg=GRAPH_CONFIGS[graphTab];
+    cfg.nodes.forEach(function(n){
+      if(mx>=n.x&&mx<=n.x+120&&my>=n.y&&my<=n.y+36){
+        graphSelected=n.id;
+        document.getElementById('graph-d-title').textContent=n.label;
+        document.getElementById('graph-d-body').textContent=n.detail;
+        drawGraph();
+      }
+    });
+  });
+}
+
+// ─── SECTION 6: COMPILATION ───────────────────────────────────────────────
+var compileStepN = 0;
+var COMPILE_STEPS = [
+  { title:'Step 1: Define Program + Metric',
+    body:'Write your DSPy program (modules + signatures) and define an evaluation metric. The metric is a Python function that scores any prediction against a gold label.',
+    highlight:0 },
+  { title:'Step 2: Run on Training Examples',
+    body:'The optimizer executes your program on each training example, recording all LM inputs and outputs. This creates an execution trace — a directed graph of all module activations.',
+    highlight:1 },
+  { title:'Step 3: Evaluate with Metric',
+    body:'Each trace is scored by your metric. Passing traces (metric > threshold) are kept as candidate demonstrations. This is the "bootstrap" in BootstrapFewShot.',
+    highlight:2 },
+  { title:'Step 4: Propose Better Instructions',
+    body:'For MIPROv2 and GEPA: the optimizer reflects on what worked and generates new instruction candidates using another LM call. Bayesian optimization explores the instruction-demo space.',
+    highlight:3 },
+  { title:'Step 5: Return Optimized Program',
+    body:'The best instructions and demonstrations are embedded into each module. The result is the same Python program — but its prompts now encode learned knowledge from your training data.',
+    highlight:4 },
+];
+function compileStep() {
+  if(compileStepN >= COMPILE_STEPS.length) return;
+  var s = COMPILE_STEPS[compileStepN];
+  document.getElementById('compile-d-title').textContent = s.title;
+  document.getElementById('compile-d-body').textContent = s.body;
+  document.getElementById('compile-step-label').textContent = 'Step '+(compileStepN+1)+' / '+COMPILE_STEPS.length;
+  compileStepN++;
+  drawCompile();
+}
+function compileReset() {
+  compileStepN = 0;
+  document.getElementById('compile-d-title').textContent = 'Ready to compile';
+  document.getElementById('compile-d-body').textContent = 'Press "Step Through" to walk through the DSPy compilation process step by step.';
+  document.getElementById('compile-step-label').textContent = 'Step 0 / 5';
+  drawCompile();
+}
+function drawCompile() {
+  var cv = document.getElementById('c-compile'); if(!cv)return;
+  var ctx = cv.getContext('2d'); var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H); ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,W,H);
+  var steps=[
+    {label:'Program + Metric',  icon:'✏️',  color:'#06b6d4'},
+    {label:'Run on Train Data', icon:'▶️',  color:'#f97316'},
+    {label:'Evaluate Metric',   icon:'✔️',  color:'#10b981'},
+    {label:'Propose Instructions',icon:'💡', color:'#a78bfa'},
+    {label:'Optimized Program', icon:'★',        color:'#fb923c'},
+  ];
+  var nW=130, nH=70, totalW=steps.length*nW+(steps.length-1)*20;
+  var startX=(W-totalW)/2, nodeY=H/2-nH/2;
+  steps.forEach(function(s,i){
+    var x=startX+i*(nW+20);
+    var active=i<compileStepN;
+    ctx.fillStyle=active?s.color+'33':'#1e293b';
+    ctx.strokeStyle=active?s.color:'#334155';
+    ctx.lineWidth=active?2.5:1;
+    ctx.beginPath(); ctx.roundRect(x,nodeY,nW,nH,8); ctx.fill(); ctx.stroke();
+    ctx.fillStyle=active?s.color:'#475569';
+    ctx.font='20px sans-serif'; ctx.textAlign='center';
+    // ctx.fillText(s.icon,x+nW/2,nodeY+28);
+    ctx.font=(active?'bold ':'')+'10px Inter,sans-serif';
+    s.label.split(' ').forEach(function(word,wi,arr){
+      var lineCount=Math.ceil(arr.length/2);
+      var lineIdx=Math.floor(wi/2);
+      if(wi%2===0){
+        var twoWords=arr[wi]+(arr[wi+1]?' '+arr[wi+1]:'');
+        ctx.fillText(twoWords,x+nW/2,nodeY+24+lineIdx*16);
+      }
+    });
+    if(i<compileStepN-1){
+      ctx.fillStyle=s.color+'66'; ctx.font='10px Inter,sans-serif'; ctx.fillText('✓',x+nW/2,nodeY+nH-10);
+    } else if(i===compileStepN-1){
+      ctx.fillStyle=s.color; ctx.font='bold 10px Inter,sans-serif'; ctx.fillText('▶',x+nW/2,nodeY+nH-10);
+    }
+    if(i<steps.length-1){
+      var arrowX=x+nW+10;
+      ctx.strokeStyle=active?s.color:'#334155'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(x+nW,nodeY+nH/2); ctx.lineTo(arrowX,nodeY+nH/2); ctx.stroke();
+      ctx.fillStyle=active?s.color:'#334155';
+      ctx.beginPath(); ctx.moveTo(arrowX,nodeY+nH/2); ctx.lineTo(arrowX-6,nodeY+nH/2-4); ctx.lineTo(arrowX-6,nodeY+nH/2+4); ctx.fill();
+    }
+  });
+  // progress bar
+  var progress=compileStepN/steps.length;
+  ctx.fillStyle='#1e293b'; ctx.fillRect(startX,H-24,totalW,8);
+  ctx.fillStyle='#f97316'; ctx.fillRect(startX,H-24,Math.round(totalW*progress),8);
+}
+
+// ─── SECTION 7: OPTIMIZERS ────────────────────────────────────────────────
+var optTab = 0;
+var SLIDER_LABELS=['~10 ex','~50 ex','~100 ex','~200 ex','200+ ex'];
+var OPT_DATA = [
+  { name:'BootstrapFewShot', color:'#10b981',
+    cost:'<$1', time:'<1 min', quality:0.78, examples:'~10',
+    rec:'10-50 examples',
+    desc:'Runs the program on training inputs, keeps successful outputs as demonstrations. Simple, fast, surprisingly effective. Best starting point for any DSPy project. HotPotQA: 36% → 53% accuracy.' },
+  { name:'COPRO',            color:'#06b6d4',
+    cost:'~$2',time:'10-20 min',quality:0.82, examples:'~50',
+    rec:'50+ examples, instruction-heavy tasks',
+    desc:'Coordinate ascent Prompt Optimizer. Hill-climbing search over instruction candidates. Generates and evaluates multiple instruction versions, keeps the best. Focuses on task description optimization over demo selection.' },
+  { name:'MIPROv2',          color:'#a78bfa',
+    cost:'~$5-10',time:'30-90 min',quality:0.91, examples:'~200',
+    rec:'200+ examples, complex pipelines',
+    desc:'Multiprompt Instruction PRoposal Optimizer v2. Three phases: (1) Generate demo sets, (2) Propose instructions via reflection, (3) Bayesian optimization (Optuna TPE) over instruction-demo combinations. Best balance of cost and quality.' },
+  { name:'GEPA',             color:'#f97316',
+    cost:'~$15-50',time:'1-4 hours',quality:0.97, examples:'200+',
+    rec:'Maximum quality, budget available',
+    desc:'Genetic-Pareto Algorithm. Samples execution trajectories, reflects in natural language to diagnose failures, maintains a Pareto frontier of candidates. MATH benchmark: 67% → 93%. Outperforms MIPROv2 by 13%, GRPO by 20% with 35× fewer rollouts.' },
+  { name:'BootstrapFinetune',color:'#e879f9',
+    cost:'~$20-100',time:'2-8 hours',quality:0.94, examples:'200+',
+    rec:'Deploying smaller/faster models',
+    desc:'Distills learned prompts into actual model weight updates. Finetunes a smaller model (e.g., Llama-7B) to match a larger model’s compiled performance. Best for production where inference speed/cost matters more than flexibility.' },
+];
+function setOpt(i) {
+  optTab = i;
+  document.querySelectorAll('[id^="opt-btn-"]').forEach(function(b,j){ b.classList.toggle('active',j===i); });
+  var d=OPT_DATA[i];
+  document.getElementById('opt-d-title').textContent=d.name;
+  document.getElementById('opt-d-body').textContent=d.desc+' | Recommended for: '+d.rec;
+  drawOpts();
+}
+function setOptSlider(v){
+  var labels=SLIDER_LABELS;
+  document.getElementById('opt-slider-label').textContent=labels[v];
+  // Auto-recommend optimizer
+  if(v<=1) setOpt(0);
+  else if(v===2) setOpt(1);
+  else if(v===3) setOpt(2);
+  else setOpt(3);
+  drawOpts();
+}
+function drawOpts() {
+  var cv = document.getElementById('c-opts'); if(!cv)return;
+  var ctx = cv.getContext('2d'); var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H); ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,W,H);
+  var metrics=[
+    {label:'Quality',getValue:function(d){return d.quality;}},
+    {label:'Speed',  getValue:function(d){return 1-[0,0.2,0.5,0.8,0.9][OPT_DATA.indexOf(d)];}},
+    {label:'Cost',   getValue:function(d){return 1-[0,0.2,0.5,0.8,0.9][OPT_DATA.indexOf(d)];}},
+  ];
+  // Radar chart
+  var cx=200,cy=H/2,r=100,n=3;
+  [0.25,0.5,0.75,1.0].forEach(function(frac){
+    ctx.strokeStyle='#1e293b'; ctx.lineWidth=1;
+    ctx.beginPath();
+    for(var i=0;i<n;i++){
+      var a=-Math.PI/2+(2*Math.PI/n)*i;
+      var px=cx+r*frac*Math.cos(a),py=cy+r*frac*Math.sin(a);
+      i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+    }
+    ctx.closePath(); ctx.stroke();
+  });
+  for(var i=0;i<n;i++){
+    var a=-Math.PI/2+(2*Math.PI/n)*i;
+    ctx.strokeStyle='#334155'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+r*Math.cos(a),cy+r*Math.sin(a)); ctx.stroke();
+    ctx.fillStyle='#94a3b8'; ctx.font='10px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText(metrics[i].label,cx+(r+18)*Math.cos(a),cy+(r+18)*Math.sin(a)+4);
+  }
+  OPT_DATA.forEach(function(d,di){
+    var scores=[d.quality,1-di*0.2,1-di*0.22];
+    ctx.strokeStyle=d.color; ctx.fillStyle=d.color+(di===optTab?'44':'11'); ctx.lineWidth=di===optTab?2.5:1;
+    ctx.beginPath();
+    scores.forEach(function(s,si){
+      var a=-Math.PI/2+(2*Math.PI/n)*si;
+      var px=cx+r*s*Math.cos(a),py=cy+r*s*Math.sin(a);
+      si===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+    });
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  });
+  // Bar chart: quality comparison
+  var barStartX=360,barArea=W-barStartX-20,barH=32,barGap=10;
+  OPT_DATA.forEach(function(d,i){
+    var y=30+i*(barH+barGap);
+    var active=i===optTab;
+    ctx.fillStyle='#1e293b'; ctx.fillRect(barStartX,y,barArea,barH);
+    var bw=Math.round(d.quality*barArea);
+    ctx.fillStyle=d.color+(active?'88':'44');
+    ctx.fillRect(barStartX,y,bw,barH);
+    ctx.strokeStyle=active?d.color:'#334155'; ctx.lineWidth=active?2:1;
+    ctx.strokeRect(barStartX,y,barArea,barH);
+    ctx.fillStyle=d.color; ctx.font=(active?'bold ':'')+'11px Inter,sans-serif'; ctx.textAlign='left';
+    ctx.fillText(d.name,barStartX+8,y+barH/2+4);
+    ctx.textAlign='right'; ctx.fillText((d.quality*100).toFixed(0)+'%  '+d.cost+'  '+d.time,barStartX+barArea-6,y+barH/2+4);
+  });
+  ctx.fillStyle='#475569'; ctx.font='9px Inter,sans-serif'; ctx.textAlign='right';
+  ctx.fillText('Quality %   Est. Cost   Est. Time',barStartX+barArea-6,28);
+  // Legend
+  OPT_DATA.forEach(function(d,i){
+    ctx.fillStyle=d.color; ctx.fillRect(cx-90,cy+r+20+i*14,10,8);
+    ctx.fillStyle='#94a3b8'; ctx.font='9px Inter,sans-serif'; ctx.textAlign='left'; ctx.fillText(d.name,cx-76,cy+r+27+i*14);
+  });
+}
+
+// ─── SECTION 8: ASSERTIONS ────────────────────────────────────────────────
+var assertStepN = 0;
+var ASSERT_STEPS = [
+  { title:'1. Module Runs',        color:'#06b6d4',
+    body:'dspy.Predict runs with the current signature. Produces output: search_query = "Who invented relativity Einstein Albert famous physicist"' },
+  { title:'2. Constraint Checked', color:'#fdcb6e',
+    body:'dspy.Assert(len(pred.search_query) < 60, "Query too long.") → FAILS. Length is 65 chars > 60 limit. Backtracking triggered.' },
+  { title:'3. Error Injected',     color:'#f97316',
+    body:'DSPy modifies the signature: adds failed_output + error_message fields. The prompt now includes: "Previous query was too long (65 chars). Keep under 60."' },
+  { title:'4. Module Reruns',      color:'#a78bfa',
+    body:'The same module reruns with the augmented prompt. Model self-corrects: search_query = "Who invented relativity?" (26 chars). Constraint passes.' },
+  { title:'5. Execution Continues',color:'#10b981',
+    body:'Constraint satisfied. Execution proceeds normally. If constraint had failed again after max_backtracking_attempts, dspy.Assert would raise AssertionError.' },
+];
+function assertStep() {
+  if(assertStepN >= ASSERT_STEPS.length) return;
+  document.getElementById('assert-step-label').textContent='Step '+(assertStepN+1)+' / '+ASSERT_STEPS.length;
+  assertStepN++;
+  drawAssert();
+}
+function assertReset() {
+  assertStepN = 0;
+  document.getElementById('assert-step-label').textContent='Step 0 / 5';
+  drawAssert();
+}
+function drawAssert() {
+  var cv = document.getElementById('c-assert'); if(!cv)return;
+  var ctx = cv.getContext('2d'); var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H); ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,W,H);
+  var flow=[
+    {x:30,y:H/2-20,label:'Signature',color:'#94a3b8'},
+    {x:200,y:H/2-20,label:'Predict',color:'#06b6d4'},
+    {x:380,y:H/2-20,label:'Assert',color:'#fdcb6e'},
+    {x:560,y:H/2-20,label:'Continue',color:'#10b981'},
+  ];
+  flow.forEach(function(n,i){
+    var active=i<assertStepN;
+    ctx.fillStyle=active?n.color+'33':'#1e293b';
+    ctx.strokeStyle=active?n.color:'#334155';
+    ctx.lineWidth=active?2:1;
+    ctx.beginPath(); ctx.roundRect(n.x,n.y,130,40,6); ctx.fill(); ctx.stroke();
+    ctx.fillStyle=active?n.color:'#64748b';
+    ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText(n.label,n.x+65,n.y+24);
+    if(i<flow.length-1){
+      ctx.strokeStyle=active?n.color+'88':'#334155'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(n.x+130,n.y+20); ctx.lineTo(flow[i+1].x,flow[i+1].y+20); ctx.stroke();
+    }
+  });
+  // Backtrack arrow
+  if(assertStepN>=2){
+    ctx.strokeStyle='#ef444488'; ctx.lineWidth=2; ctx.setLineDash([5,5]);
+    ctx.beginPath(); ctx.moveTo(445,H/2-20); ctx.lineTo(445,H/2+50); ctx.lineTo(265,H/2+50); ctx.lineTo(265,H/2+20); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#ef4444'; ctx.beginPath(); ctx.moveTo(265,H/2+20); ctx.lineTo(259,H/2+30); ctx.lineTo(271,H/2+30); ctx.fill();
+    ctx.fillStyle='#ef4444'; ctx.font='10px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('Backtrack: inject error + retry',355,H/2+66);
+  }
+  if(assertStepN>0){
+    var s=ASSERT_STEPS[assertStepN-1];
+    ctx.fillStyle='#1e293b'; ctx.strokeStyle=s.color; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.roundRect(30,H-86,W-60,70,6); ctx.fill(); ctx.stroke();
+    ctx.fillStyle=s.color; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='left';
+    ctx.fillText(s.title,44,H-68);
+    ctx.fillStyle='#94a3b8'; ctx.font='11px Inter,sans-serif';
+    var words=s.body.split(' '),line='',lineY=H-52;
+    words.forEach(function(w){ var test=line+(line?' ':'')+w; if(ctx.measureText(test).width>W-80&&line){ctx.fillText(line,44,lineY);line=w;lineY+=16;}else line=test;});
+    if(line) ctx.fillText(line,44,lineY);
+  }
+  for(var i=0;i<ASSERT_STEPS.length;i++){
+    ctx.fillStyle=i<assertStepN?'#f97316':'#334155';
+    ctx.beginPath(); ctx.arc(W/2-(ASSERT_STEPS.length-1)*12+i*24,28,6,0,6.28); ctx.fill();
+  }
+}
+
+// ─── SECTION 9: RAG ───────────────────────────────────────────────────────
+var ragTab = 0;
+function setRAG(i) {
+  ragTab = i;
+  document.querySelectorAll('[id^="rag-btn-"]').forEach(function(b,j){ b.classList.toggle('active',j===i); });
+  drawRAG();
+}
+function drawRAG() {
+  var cv = document.getElementById('c-rag'); if(!cv)return;
+  var ctx = cv.getContext('2d'); var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H); ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,W,H);
+  function node(x,y,w,h,label,color,sub){
+    ctx.fillStyle=color+'33'; ctx.strokeStyle=color; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.roundRect(x,y,w,h,6); ctx.fill(); ctx.stroke();
+    ctx.fillStyle=color; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText(label,x+w/2,y+h/2-(sub?4:0));
+    if(sub){ ctx.fillStyle='#64748b'; ctx.font='9px Inter,sans-serif'; ctx.fillText(sub,x+w/2,y+h/2+10); }
+  }
+  function arrow(x1,y1,x2,y2,color,label){
+    ctx.strokeStyle=color||'#475569'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    var dx=x2-x1,dy=y2-y1,len=Math.sqrt(dx*dx+dy*dy),ux=dx/len,uy=dy/len;
+    ctx.fillStyle=color||'#475569';
+    ctx.beginPath(); ctx.moveTo(x2,y2); ctx.lineTo(x2-ux*8-uy*4,y2-uy*8+ux*4); ctx.lineTo(x2-ux*8+uy*4,y2-uy*8-ux*4); ctx.fill();
+    if(label){ ctx.fillStyle='#64748b'; ctx.font='9px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText(label,(x1+x2)/2,(y1+y2)/2-8); }
+  }
+  if(ragTab===0){
+    // Basic RAG
+    ctx.fillStyle='#e879f9'; ctx.font='bold 13px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText('Basic RAG Pipeline',W/2,22);
+    node(20,50,120,50,'Question','#94a3b8','str input');
+    node(200,50,160,50,'dspy.Retrieve(k=3)','#e879f9','vector DB query');
+    node(200,150,160,50,'Vector Database','#06b6d4','Chroma/Pinecone');
+    node(440,50,180,50,'ChainOfThought','#f97316','context+question→answer');
+    node(700,50,100,50,'Answer','#10b981','str output');
+    arrow(140,75,200,75,'#94a3b8','');
+    arrow(360,75,440,75,'#e879f9','passages');
+    arrow(640,75,700,75,'#10b981','');
+    arrow(280,100,280,150,'#06b6d4','query');
+    arrow(280,150,280,100,'#06b6d4','results');
+    // code snippet
+    var codeY=230;
+    ctx.fillStyle='#1e293b'; ctx.strokeStyle='#334155'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.roundRect(20,codeY,W-40,75,6); ctx.fill(); ctx.stroke();
+    var lines=['class RAG(dspy.Module):','    def __init__(self): self.retrieve=dspy.Retrieve(k=3); self.answer=dspy.ChainOfThought("context,question->answer")','    def forward(self,q): ctx=self.retrieve(q); return self.answer(context=ctx,question=q)'];
+    ctx.font='10px "JetBrains Mono",monospace'; ctx.textAlign='left';
+    lines.forEach(function(l,i){
+      ctx.fillStyle=i===0?'#06b6d4':'#94a3b8'; ctx.fillText(l,32,codeY+18+i*20);
+    });
+  } else if(ragTab===1){
+    // Multi-hop RAG
+    ctx.fillStyle='#e879f9'; ctx.font='bold 13px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText('Multi-hop RAG (2 Retrieval Steps)',W/2,22);
+    node(20,80,120,44,'Question','#94a3b8','');
+    node(200,40,150,44,'Retrieve #1','#e879f9','initial query');
+    node(200,120,150,44,'GenerateQuery','#f97316','refine query');
+    node(430,40,150,44,'Retrieve #2','#e879f9','refined query');
+    node(640,80,160,44,'ChainOfThought','#10b981','context1+2→answer');
+    node(560,220,100,36,'Vector DB','#06b6d4','');
+    arrow(140,102,200,62,'#94a3b8','');
+    arrow(140,102,200,142,'#94a3b8','');
+    arrow(350,62,430,62,'#e879f9','passages1');
+    arrow(350,142,430,62,'#e879f9','');
+    arrow(580,62,640,102,'#f97316','');
+    arrow(350,62,640,102,'#e879f9','');
+    arrow(610,40,610,220,'#06b6d4',''); arrow(560,238,430,238,'',' '); arrow(430,238,430,62,'#06b6d4','');
+  } else {
+    // Optimized RAG stats
+    ctx.fillStyle='#e879f9'; ctx.font='bold 13px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText('RAG Performance: Before vs After DSPy Optimization',W/2,22);
+    var tasks=[
+      {label:'SemanticF1|RAG',       before:0.42,after:0.61,gain:'+19pt'},
+      {label:'HotPotQA|multi-hop',   before:0.68,after:0.71,gain:'+3pt'},
+      {label:'FEVER|fact check',     before:0.85,after:0.91,gain:'+6pt'},
+      {label:'M&A Extraction|NER',   before:0.78,after:0.907,gain:'+12.7pt'},
+    ];
+    var bw=140,gap=20,startX=60;
+    tasks.forEach(function(t,i){
+      var x=startX+i*(bw+gap);
+      var bh1=Math.round(t.before*220), bh2=Math.round(t.after*220);
+      var y1=H-45-bh1, y2=H-45-bh2;
+      ctx.fillStyle='#334155'; ctx.strokeStyle='#475569'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.roundRect(x,y1,60,bh1,3); ctx.fill(); ctx.stroke();
+      ctx.fillStyle='#e879f933'; ctx.strokeStyle='#e879f9'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.roundRect(x+70,y2,60,bh2,3); ctx.fill(); ctx.stroke();
+      ctx.fillStyle='#94a3b8'; ctx.font='10px Inter,sans-serif'; ctx.textAlign='center';
+      ctx.fillText((t.before*100).toFixed(0)+'%',x+30,y1-6);
+      ctx.fillStyle='#e879f9'; ctx.font='bold 10px Inter,sans-serif';
+      ctx.fillText((t.after*100).toFixed(0)+'%',x+100,y2-6);
+      ctx.fillStyle='#10b981'; ctx.fillText(t.gain,x+bw/2,y2-18);
+      ctx.fillStyle='#64748b'; ctx.font='9px Inter,sans-serif';
+      t.label.split('|').forEach(function(l,li){ ctx.fillText(l,x+bw/2,H-30+li*12); });
+    });
+    ctx.fillStyle='#334155'; ctx.fillRect(startX,H-16,14,8);
+    ctx.fillStyle='#64748b'; ctx.font='9px Inter,sans-serif'; ctx.textAlign='left'; ctx.fillText('Baseline',startX+18,H-9);
+    ctx.fillStyle='#e879f933'; ctx.strokeStyle='#e879f9'; ctx.lineWidth=1; ctx.fillRect(startX+100,H-16,14,8); ctx.strokeRect(startX+100,H-16,14,8);
+    ctx.fillStyle='#e879f9'; ctx.fillText('DSPy Optimized',startX+118,H-9);
+  }
+}
+
+// ─── SECTION 10: RESULTS ──────────────────────────────────────────────────
+var resTab = 0;
+function setResults(i) {
+  resTab = i;
+  document.querySelectorAll('[id^="res-btn-"]').forEach(function(b,j){ b.classList.toggle('active',j===i); });
+  drawResults();
+}
+function drawResults() {
+  var cv = document.getElementById('c-results'); if(!cv)return;
+  var ctx = cv.getContext('2d'); var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H); ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,W,H);
+  if(resTab===0) {
+    // Original paper benchmarks
+    ctx.fillStyle='#51cf66'; ctx.font='bold 13px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText('DSPy Paper (Khattab et al., 2023) — Key Benchmarks',W/2,22);
+    var benchmarks=[
+      {task:'HotPotQA',      baseline:0.68,dspy:0.71,model:'GPT-3.5',metric:'Exact Match'},
+      {task:'FEVER',         baseline:0.85,dspy:0.91,model:'GPT-3.5',metric:'Accuracy'},
+      {task:'GSM8K',         baseline:0.69,dspy:0.80,model:'GPT-3.5',metric:'Exact Match'},
+      {task:'HotPotQA',      baseline:0.52,dspy:0.71,model:'Llama2-13b',metric:'Exact Match'},
+    ];
+    var bw=140,gap=20,startX=50;
+    benchmarks.forEach(function(b,i){
+      var x=startX+i*(bw+gap);
+      var baseH=Math.round(b.baseline*200),dspyH=Math.round(b.dspy*200);
+      ctx.fillStyle='#33415566'; ctx.strokeStyle='#475569'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.roundRect(x,H-45-baseH,56,baseH,3); ctx.fill(); ctx.stroke();
+      ctx.fillStyle='#51cf6633'; ctx.strokeStyle='#51cf66'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.roundRect(x+64,H-45-dspyH,56,dspyH,3); ctx.fill(); ctx.stroke();
+      ctx.fillStyle='#94a3b8'; ctx.font='10px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText((b.baseline*100).toFixed(0)+'%',x+28,H-45-baseH-8);
+      ctx.fillStyle='#51cf66'; ctx.font='bold 10px Inter,sans-serif'; ctx.fillText((b.dspy*100).toFixed(0)+'%',x+92,H-45-dspyH-8);
+      var gain='+'+(((b.dspy-b.baseline)*100).toFixed(0))+'pt';
+      ctx.fillStyle='#10b981'; ctx.fillText(gain,x+bw/2,H-45-Math.max(baseH,dspyH)-22);
+      ctx.fillStyle='#64748b'; ctx.font='9px Inter,sans-serif';
+      ctx.fillText(b.task,x+bw/2,H-32); ctx.fillText(b.model,x+bw/2,H-20); ctx.fillText(b.metric,x+bw/2,H-8);
+    });
+    ctx.fillStyle='#334155'; ctx.fillRect(startX,H-16,12,8);
+    ctx.fillStyle='#64748b'; ctx.font='9px Inter,sans-serif'; ctx.textAlign='left'; ctx.fillText('Baseline',startX+16,H-9);
+    ctx.fillStyle='#51cf6633'; ctx.strokeStyle='#51cf66'; ctx.lineWidth=1.5; ctx.fillRect(startX+100,H-16,12,8); ctx.strokeRect(startX+100,H-16,12,8);
+    ctx.fillStyle='#51cf66'; ctx.fillText('DSPy',startX+116,H-9);
+  } else if(resTab===1) {
+    // vs expert demos
+    ctx.fillStyle='#51cf66'; ctx.font='bold 13px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText('DSPy-optimized Demos vs Human Expert Demos',W/2,22);
+    var comparisons=[
+      {label:'GPT-3.5|BootstrapFS',  humanDemo:0.71,dspyDemo:0.87,improvement:'+23%'},
+      {label:'GPT-3.5|MIPROv2',      humanDemo:0.71,dspyDemo:0.92,improvement:'+30%'},
+      {label:'Llama2-13b|BootstrapFS',humanDemo:0.55,dspyDemo:0.72,improvement:'+31%'},
+      {label:'Llama2-13b|MIPROv2',   humanDemo:0.55,dspyDemo:0.84,improvement:'+53%'},
+    ];
+    var bw=150,gap=20,startX=50;
+    comparisons.forEach(function(c,i){
+      var x=startX+i*(bw+gap);
+      var h1=Math.round(c.humanDemo*210),h2=Math.round(c.dspyDemo*210);
+      ctx.fillStyle='#06b6d433'; ctx.strokeStyle='#06b6d4'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.roundRect(x,H-50-h1,60,h1,3); ctx.fill(); ctx.stroke();
+      ctx.fillStyle='#f9731633'; ctx.strokeStyle='#f97316'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.roundRect(x+78,H-50-h2,60,h2,3); ctx.fill(); ctx.stroke();
+      ctx.fillStyle='#06b6d4'; ctx.font='10px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText((c.humanDemo*100).toFixed(0)+'%',x+30,H-50-h1-8);
+      ctx.fillStyle='#f97316'; ctx.font='bold 10px Inter,sans-serif'; ctx.fillText((c.dspyDemo*100).toFixed(0)+'%',x+108,H-50-h2-8);
+      ctx.fillStyle='#10b981'; ctx.fillText(c.improvement,x+bw/2,H-50-Math.max(h1,h2)-22);
+      ctx.fillStyle='#64748b'; ctx.font='9px Inter,sans-serif';
+      c.label.split('|').forEach(function(l,li){ ctx.fillText(l,x+bw/2,H-34+li*13); });
+    });
+  } else if(resTab===2) {
+    // GEPA 2025 results
+    ctx.fillStyle='#51cf66'; ctx.font='bold 13px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText('GEPA (2025) — State-of-the-Art Results',W/2,22);
+    var tasks=[
+      {label:'MATH|Benchmark',  cot:0.67,mipro:0.80,gepa:0.93,gepaLabel:'93%'},
+      {label:'Event|Categorization',cot:0.52,mipro:0.63,gepa:0.72,gepaLabel:'72%'},
+      {label:'M&A|Extraction',  cot:0.78,mipro:0.94,gepa:0.978,gepaLabel:'97.8%'},
+      {label:'RAG|SemanticF1',  cot:0.42,mipro:0.61,gepa:0.67,gepaLabel:'67%'},
+    ];
+    var bw=160,gap=18,startX=30;
+    tasks.forEach(function(t,i){
+      var x=startX+i*(bw+gap);
+      var hcot=Math.round(t.cot*210),hmip=Math.round(t.mipro*210),hgepa=Math.round(t.gepa*210);
+      [[x,hcot,'#334155','#475569',t.cot],[x+44,hmip,'#a78bfa33','#a78bfa',t.mipro],[x+88,hgepa,'#f9731633','#f97316',t.gepa]].forEach(function(b){
+        ctx.fillStyle=b[2]; ctx.strokeStyle=b[3]; ctx.lineWidth=1.5;
+        ctx.beginPath(); ctx.roundRect(b[0],H-50-b[1],40,b[1],3); ctx.fill(); ctx.stroke();
+        ctx.fillStyle=b[3]; ctx.font='9px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText((b[4]*100).toFixed(0)+'%',b[0]+20,H-50-b[1]-6);
+      });
+      ctx.fillStyle='#10b981'; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='center';
+      ctx.fillText('+'+((t.gepa-t.cot)*100).toFixed(0)+'pt',x+bw/2,H-50-hgepa-20);
+      ctx.fillStyle='#64748b'; ctx.font='9px Inter,sans-serif';
+      t.label.split('|').forEach(function(l,li){ ctx.fillText(l,x+bw/2,H-34+li*12); });
+    });
+  } else {
+    // Token efficiency
+    ctx.fillStyle='#51cf66'; ctx.font='bold 13px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText('Token Efficiency: DSPy Reduces Tokens While Improving Quality',W/2,22);
+    var data=[
+      {label:'Baseline|prompt',    tokens:1200,accuracy:0.68,color:'#ef4444'},
+      {label:'Manual expert|prompt',tokens:1800,accuracy:0.71,color:'#f59e0b'},
+      {label:'DSPy Bootstrap|optimized',tokens:920,accuracy:0.78,color:'#f97316'},
+      {label:'DSPy MIPROv2|optimized',tokens:750,accuracy:0.91,color:'#10b981'},
+    ];
+    var maxTok=2000,scaleX=300;
+    data.forEach(function(d,i){
+      var y=55+i*54;
+      // token bar
+      var tw=Math.round(d.tokens/maxTok*scaleX);
+      ctx.fillStyle=d.color+'33'; ctx.strokeStyle=d.color; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.roundRect(180,y,tw,28,3); ctx.fill(); ctx.stroke();
+      ctx.fillStyle=d.color; ctx.font='10px Inter,sans-serif'; ctx.textAlign='left';
+      ctx.fillText(d.tokens+' tokens',184+tw,y+18);
+      // accuracy dot
+      var ax=550+Math.round(d.accuracy*200);
+      ctx.fillStyle=d.color; ctx.beginPath(); ctx.arc(ax,y+14,10,0,6.28); ctx.fill();
+      ctx.fillStyle='#0f172a'; ctx.font='bold 9px Inter,sans-serif'; ctx.textAlign='center';
+      ctx.fillText((d.accuracy*100).toFixed(0),ax,y+18);
+      // label
+      ctx.fillStyle='#94a3b8'; ctx.font='9px Inter,sans-serif'; ctx.textAlign='right';
+      d.label.split('|').forEach(function(l,li){ ctx.fillText(l,172,y+li*14+12); });
+    });
+    ctx.fillStyle='#475569'; ctx.font='10px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('Prompt Tokens',330,H-16);
+    ctx.fillText('Accuracy %',660,H-16);
+  }
+}
+
+// ─── SECTION 11: COMPARE ──────────────────────────────────────────────────
+var cmpDTab = 0;
+var CMP_D_FWS = [
+  { name:'Manual Prompting', color:'#ef4444', scores:[5,10,10,4,8,3,2] },
+  { name:'LangChain',        color:'#06b6d4', scores:[6,7,8,6,7,8,6]  },
+  { name:'DSPy',             color:'#f97316', scores:[9,3,5,10,5,9,9]  },
+];
+var CMP_D_AXES = ['Quality','Setup Speed','Community','Auto-Optimize','Integrations','Portability','Complex Pipelines'];
+function setCmpD(i) {
+  cmpDTab = i;
+  document.querySelectorAll('[id^="cmp-btn-"]').forEach(function(b,j){ b.classList.toggle('active',j===i); });
+  drawCmpD();
+}
+function drawCmpD() {
+  var cv = document.getElementById('c-compare'); if(!cv)return;
+  var ctx = cv.getContext('2d'); var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H); ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,W,H);
+  if(cmpDTab===0) {
+    var cx=W/2-40,cy=H/2+10,r=Math.min(W,H)/2-80,n=CMP_D_AXES.length;
+    [0.25,0.5,0.75,1.0].forEach(function(f){
+      ctx.strokeStyle='#1e293b'; ctx.lineWidth=1;
+      ctx.beginPath();
+      for(var i=0;i<n;i++){ var a=-Math.PI/2+(2*Math.PI/n)*i,px=cx+r*f*Math.cos(a),py=cy+r*f*Math.sin(a); i===0?ctx.moveTo(px,py):ctx.lineTo(px,py); }
+      ctx.closePath(); ctx.stroke();
+    });
+    for(var i=0;i<n;i++){
+      var a=-Math.PI/2+(2*Math.PI/n)*i;
+      ctx.strokeStyle='#334155'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+r*Math.cos(a),cy+r*Math.sin(a)); ctx.stroke();
+      ctx.fillStyle='#94a3b8'; ctx.font='10px Inter,sans-serif'; ctx.textAlign='center';
+      ctx.fillText(CMP_D_AXES[i],cx+(r+20)*Math.cos(a),cy+(r+20)*Math.sin(a)+4);
+    }
+    CMP_D_FWS.forEach(function(fw){
+      ctx.strokeStyle=fw.color; ctx.fillStyle=fw.color+'33'; ctx.lineWidth=2;
+      ctx.beginPath();
+      fw.scores.forEach(function(s,i){ var a=-Math.PI/2+(2*Math.PI/n)*i,f=s/10,px=cx+r*f*Math.cos(a),py=cy+r*f*Math.sin(a); i===0?ctx.moveTo(px,py):ctx.lineTo(px,py); });
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+    });
+    CMP_D_FWS.forEach(function(fw,i){ ctx.fillStyle=fw.color; ctx.fillRect(W-140,H-80+i*22,10,10); ctx.fillStyle='#94a3b8'; ctx.font='10px Inter,sans-serif'; ctx.textAlign='left'; ctx.fillText(fw.name,W-126,H-71+i*22); });
+  } else if(cmpDTab===1) {
+    var cols=['Feature','Manual','LangChain','DSPy'];
+    var rows=[
+      ['Auto-optimize prompts',   '✗','Partial','✓ Full'],
+      ['Model portability',       'Low',   'Medium',  'High'],
+      ['Complex pipelines',       'Hard',  'Medium',  'Easy'],
+      ['Labeled data needed?',    'No',    'No',      'Yes (10-200)'],
+      ['Community/ecosystem',     'N/A',   '★★★★★','Growing'],
+      ['Learning curve',          'Low',   'Medium',  'High'],
+      ['Reproducibility',         'Poor',  'Medium',  'Excellent'],
+    ];
+    var colW=[250,110,110,110],rowH=30,startX=20,hY=34;
+    ctx.fillStyle='#1e293b'; ctx.fillRect(startX,hY-20,W-40,26);
+    var cx2=startX;
+    cols.forEach(function(c,i){ ctx.fillStyle='#94a3b8'; ctx.font='bold 10px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText(c,cx2+colW[i]/2,hY); cx2+=colW[i]; });
+    rows.forEach(function(row,ri){
+      var ry=hY+ri*rowH+10;
+      ctx.fillStyle=ri%2===0?'#0f172a':'#161b22'; ctx.fillRect(startX,ry-16,W-40,rowH);
+      var cx2=startX;
+      row.forEach(function(cell,ci){
+        var c=ci===0?'#94a3b8':ci===1?'#ef4444':ci===2?'#06b6d4':'#f97316';
+        ctx.fillStyle=c; ctx.font='10px Inter,sans-serif'; ctx.textAlign='center';
+        ctx.fillText(cell,cx2+colW[ci]/2,ry); cx2+=colW[ci];
+      });
+    });
+  } else if(cmpDTab===2) {
+    ctx.fillStyle='#34d399'; ctx.font='bold 13px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText('Decision Guide',W/2,24);
+    var cases=[
+      {q:'Quick one-off demo?',                                       ans:'Manual prompting',color:'#ef4444'},
+      {q:'1-2 LM calls, fast iteration needed?',                      ans:'Manual prompting',color:'#ef4444'},
+      {q:'Multiple data source integrations?',                        ans:'LangChain',color:'#06b6d4'},
+      {q:'Complex multi-step reasoning (3+ LM calls)?',               ans:'DSPy',color:'#f97316'},
+      {q:'You have 10+ labeled examples + a metric?',                 ans:'DSPy (BootstrapFewShot)',color:'#f97316'},
+      {q:'Model migrations happen frequently?',                       ans:'DSPy',color:'#f97316'},
+      {q:'Need maximum quality, budget available?',                   ans:'DSPy + GEPA',color:'#fb923c'},
+      {q:'Deploy to fast/cheap small model?',                         ans:'DSPy BootstrapFinetune',color:'#e879f9'},
+    ];
+    cases.forEach(function(c,i){
+      var y=44+i*34;
+      ctx.fillStyle='#1e293b'; ctx.strokeStyle='#334155'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.roundRect(20,y,W-40,26,3); ctx.fill(); ctx.stroke();
+      ctx.fillStyle='#94a3b8'; ctx.font='11px Inter,sans-serif'; ctx.textAlign='left'; ctx.fillText(c.q,34,y+17);
+      ctx.fillStyle=c.color; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='right'; ctx.fillText('→ '+c.ans,W-34,y+17);
+    });
+  } else {
+    // Cost comparison
+    ctx.fillStyle='#34d399'; ctx.font='bold 13px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText('Real-world Development Cost vs Accuracy',W/2,22);
+    var pts=[
+      {label:'Manual|prompt',         cost:500, acc:0.72, color:'#ef4444'},
+      {label:'Expert|prompt',         cost:200, acc:0.78, color:'#f59e0b'},
+      {label:'LangChain|standard',    cost:80,  acc:0.75, color:'#06b6d4'},
+      {label:'DSPy|Bootstrap',        cost:2,   acc:0.85, color:'#f97316'},
+      {label:'DSPy|MIPROv2',          cost:10,  acc:0.93, color:'#fb923c'},
+      {label:'DSPy|GEPA',             cost:30,  acc:0.978,color:'#10b981'},
+    ];
+    var maxCost=600,startX=80;
+    var axes_width=W-startX-40,axes_height=H-80;
+    // axes
+    ctx.strokeStyle='#334155'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(startX,30); ctx.lineTo(startX,H-40); ctx.lineTo(W-20,H-40); ctx.stroke();
+    ctx.fillStyle='#475569'; ctx.font='10px Inter,sans-serif'; ctx.textAlign='center'; ctx.fillText('Development Cost ($)',W/2,H-10);
+    ctx.save(); ctx.translate(20,H/2); ctx.rotate(-Math.PI/2); ctx.fillText('Accuracy',0,0); ctx.restore();
+    // grid
+    [0.6,0.7,0.8,0.9,1.0].forEach(function(v){ var y=H-40-Math.round(((v-0.5)/0.5)*axes_height); ctx.strokeStyle='#1e293b'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(startX-4,y); ctx.lineTo(W-20,y); ctx.stroke(); ctx.fillStyle='#475569'; ctx.font='9px Inter,sans-serif'; ctx.textAlign='right'; ctx.fillText((v*100).toFixed(0)+'%',startX-8,y+4); });
+    pts.forEach(function(p){
+      var x=startX+Math.round((p.cost/maxCost)*axes_width);
+      var y=H-40-Math.round(((p.acc-0.5)/0.5)*axes_height);
+      ctx.fillStyle=p.color; ctx.strokeStyle=p.color+'88'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.arc(x,y,8,0,6.28); ctx.fill(); ctx.stroke();
+      ctx.fillStyle=p.color; ctx.font='9px Inter,sans-serif'; ctx.textAlign='center';
+      p.label.split('|').forEach(function(l,li){ ctx.fillText(l,x,y-14+li*12); });
+    });
+    // Pareto frontier line
+    ctx.strokeStyle='#10b98188'; ctx.lineWidth=1.5; ctx.setLineDash([4,4]);
+    ctx.beginPath();
+    var sorted=pts.slice().sort(function(a,b){return a.cost-b.cost;});
+    sorted.forEach(function(p,i){
+      var x=startX+Math.round((p.cost/maxCost)*axes_width);
+      var y=H-40-Math.round(((p.acc-0.5)/0.5)*axes_height);
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    });
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+}
+
+// ─── SECTION 12: QUIZ ─────────────────────────────────────────────────────
+var QUIZ_DATA = [
+  { q:'What does DSPy stand for?',
+    opts:['Dynamic Symbolic Python','Declarative Self-improving Python','Deep Semantic Python','Distributed System Python'],
+    ans:1, exp:'DSPy stands for Declarative Self-improving Python. It emphasizes declarative specifications and automatic self-optimization.' },
+  { q:'What is a DSPy Signature?',
+    opts:['A cryptographic key for securing LM outputs','A natural-language typed function declaration (inputs → outputs)','A runtime interpreter for LLM calls','A database schema for prompt storage'],
+    ans:1, exp:'Signatures declare what a transformation should accomplish (interface), not how the LM should be prompted (implementation).' },
+  { q:'Which DSPy module automatically adds a "reasoning" field?',
+    opts:['dspy.Predict','dspy.ChainOfThought','dspy.ReAct','dspy.MultiChainComparison'],
+    ans:1, exp:'ChainOfThought injects a reasoning field that the LM fills before the final answer, implementing chain-of-thought prompting.' },
+  { q:'What happens when a dspy.Assert constraint fails?',
+    opts:['The program crashes immediately','DSPy retries with a new random prompt','DSPy injects the failure reason into the prompt and reruns the module','The output is silently dropped'],
+    ans:2, exp:'DSPy backtracks: it modifies the signature to include the failed output and error message, giving the model a chance to self-correct.' },
+  { q:'Which optimizer is best for a task with ~10 labeled examples?',
+    opts:['MIPROv2','GEPA','BootstrapFewShot','BootstrapFinetune'],
+    ans:2, exp:'BootstrapFewShot is designed for small datasets (~10 examples), costs <$1, and runs in under a minute. MIPROv2 and GEPA need 200+ examples.' },
+  { q:'MIPROv2 uses which algorithm for the optimization search?',
+    opts:['Grid search','Random search','Bayesian optimization (Optuna TPE)','Genetic algorithm'],
+    ans:2, exp:"MIPROv2 uses Optuna's Tree-structured Parzen Estimator (TPE) for Bayesian optimization over instruction-demo combinations." },
+  { q:'What improvement did GEPA achieve on the MATH benchmark?',
+    opts:['52% → 68%','67% → 93%','71% → 80%','85% → 91%'],
+    ans:1, exp:'GEPA achieved 67% → 93% on MATH (a 26-point improvement). It also outperforms MIPROv2 by 13% and GRPO by 20% with 35× fewer rollouts.' },
+  { q:'When should you choose DSPy over LangChain?',
+    opts:['When you need one-off demos or POCs','When you need 50+ data source integrations','When you have complex multi-step reasoning and evaluation metrics','When you want the fastest setup time'],
+    ans:2, exp:'DSPy shines for complex multi-step reasoning with evaluation metrics. LangChain is better for diverse integrations and rapid prototyping.' },
+];
+var quizAnswers = {};
+function renderQuiz() {
+  var c=document.getElementById('quiz-container'); if(!c)return;
+  c.innerHTML='';
+  QUIZ_DATA.forEach(function(q,qi){
+    var d=document.createElement('div'); d.style.marginBottom='20px';
+    d.innerHTML='<div class="quiz-q">'+(qi+1)+'. '+q.q+'</div>';
+    q.opts.forEach(function(opt,oi){
+      var btn=document.createElement('div');
+      btn.className='quiz-opt';
+      btn.textContent=opt;
+      btn.onclick=function(){ quizAnswers[qi]=oi; document.querySelectorAll('#quiz-container .quiz-opt').forEach(function(b){ if(b.parentNode===d) b.classList.remove('selected'); }); btn.classList.add('selected'); btn.style.borderColor='#f97316'; };
+      d.appendChild(btn);
+    });
+    d.innerHTML+='<div class="quiz-feedback" id="quiz-fb-'+qi+'"></div>';
+    c.appendChild(d);
+  });
+}
+function submitQuiz() {
+  var score=0;
+  QUIZ_DATA.forEach(function(q,qi){
+    var fb=document.getElementById('quiz-fb-'+qi); if(!fb)return;
+    var userAns=quizAnswers[qi];
+    var opts=document.querySelectorAll('#quiz-container > div:nth-child('+(qi+1)+') .quiz-opt');
+    opts.forEach(function(o,oi){ o.className='quiz-opt'+(oi===q.ans?' correct':(oi===userAns&&oi!==q.ans?' wrong':'')); });
+    if(userAns===q.ans) score++;
+    fb.textContent=q.exp;
+  });
+  document.getElementById('quiz-score').textContent='Score: '+score+' / '+QUIZ_DATA.length;
+}
+function resetQuiz() { quizAnswers={}; renderQuiz(); document.getElementById('quiz-score').textContent=''; }
+
+// ─── WIRE UP initAll ──────────────────────────────────────────────────────
+window.initAll = function() {
+  updateNav();
+  drawIntro();
+  drawProblem();
+  drawSig();
+  drawMod();
+  setGraph(0); initGraphs();
+  compileReset();
+  setOpt(0); document.getElementById('opt-d-body').textContent=OPT_DATA[0].desc+' | Recommended for: '+OPT_DATA[0].rec;
+  assertReset();
+  drawRAG();
+  drawResults();
+  drawCmpD();
+  renderQuiz();
+};
+if(document.readyState==='complete'||document.readyState==='interactive'){
+  setTimeout(function(){ if(sessionStorage.getItem('pg_unlocked_15')==='1') window.initAll(); },100);
+}
+
+</script>
+</body>
+</html>
