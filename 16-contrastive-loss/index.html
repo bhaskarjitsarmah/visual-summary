@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Contrastive Loss &#8212; Learning to Compare</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#c9d1d9;--muted:#8b949e;
+  --accent:#06b6d4;--accent2:#22d3ee;--accent3:#cffafe;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+.sidebar{width:240px;min-width:240px;height:100vh;position:sticky;top:0;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:0 0 40px;flex-shrink:0;}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.sidebar-logo-title{font-size:13px;font-weight:700;color:var(--accent2);}
+.sidebar-logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.nav-group-title{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;padding:10px 16px 4px;}
+.nav-link{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;}
+.nav-link:hover,.nav-link.active{color:var(--text);background:rgba(6,182,212,.08);}
+.nav-link.active{color:var(--accent2);}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.main{flex:1;overflow-y:auto;height:100vh;}
+.pipeline-map{position:sticky;top:0;z-index:50;background:rgba(13,17,23,.96);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+.pipe-step{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);padding:2px 6px;border-radius:4px;transition:color .15s;}
+.pipe-step:hover{color:var(--text);}
+.pipe-dot{width:6px;height:6px;border-radius:50%;}
+.pipe-arrow{color:var(--border);font-size:12px;}
+.section{min-height:100vh;padding:60px 48px 80px;border-bottom:1px solid var(--border);}
+.section-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px;}
+.section-title{font-size:28px;font-weight:800;color:var(--text);margin-bottom:8px;line-height:1.25;}
+.section-sub{font-size:14px;color:var(--muted);margin-bottom:28px;max-width:680px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:16px;}
+.card-title{font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px;}
+.card-body{font-size:13px;color:var(--muted);line-height:1.6;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+canvas{display:block;border-radius:10px;background:var(--surface);border:1px solid var(--border);}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s;}
+.btn:hover{opacity:.85;}
+.btn-tab{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-tab.active,.btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+.formula{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-family:'JetBrains Mono','Courier New',monospace;font-size:12px;color:#22d3ee;line-height:1.8;margin-bottom:16px;white-space:pre;}
+.stats-row{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:24px;}
+.stat{text-align:center;}
+.stat-val{font-size:28px;font-weight:800;color:var(--accent2);}
+.stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;}
+.section-bridge{margin-top:48px;padding-top:28px;border-top:1px solid var(--border);text-align:right;}
+.section-bridge-link{font-size:12px;color:var(--accent2);font-weight:600;border:1px solid var(--accent2);border-radius:6px;padding:6px 14px;transition:all .15s;}
+.section-bridge-link:hover{background:rgba(6,182,212,.1);}
+.accordion-item{border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+.accordion-header{padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;background:var(--surface);}
+.accordion-header:hover{background:#1c2128;}
+.accordion-chevron{transition:transform .2s;font-size:10px;color:var(--muted);}
+.accordion-body{padding:14px 16px;font-size:12px;color:var(--muted);display:none;border-top:1px solid var(--border);}
+.quiz-q{font-size:15px;font-weight:600;margin-bottom:16px;color:var(--text);}
+.quiz-opt{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:8px;cursor:pointer;font-size:13px;transition:all .15s;}
+.quiz-opt:hover{border-color:var(--accent2);}
+.quiz-opt.correct{border-color:#51cf66;background:rgba(81,207,102,.1);color:#51cf66;}
+.quiz-opt.wrong{border-color:#ff6b6b;background:rgba(255,107,107,.1);color:#ff6b6b;}
+.quiz-feedback{font-size:12px;color:var(--muted);margin-top:8px;min-height:16px;}
+#pg-gate{position:fixed;inset:0;background:#0d1117;z-index:9999;display:flex;align-items:center;justify-content:center;}
+.pg-box{background:#161b22;border:1px solid #30363d;border-radius:16px;padding:40px 48px;max-width:420px;width:100%;text-align:center;}
+.pg-icon{font-size:2.5rem;margin-bottom:16px;}
+.pg-title{font-size:1.3rem;font-weight:800;color:#c9d1d9;margin-bottom:6px;}
+.pg-sub{font-size:12px;color:#8b949e;margin-bottom:24px;}
+.pg-input{width:100%;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:10px 14px;color:#c9d1d9;font-size:14px;outline:none;text-align:center;}
+.pg-input:focus{border-color:#06b6d4;}
+.pg-btn{margin-top:12px;width:100%;background:#06b6d4;color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;}
+.pg-err{color:#ff6b6b;font-size:11px;margin-top:8px;min-height:16px;}
+.code-block{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-family:'JetBrains Mono','Courier New',monospace;font-size:11px;color:#e2e8f0;line-height:1.7;margin-bottom:16px;overflow-x:auto;}
+.code-block .kw{color:#06b6d4;}.code-block .str{color:#51cf66;}.code-block .cm{color:#64748b;}.code-block .fn{color:#22d3ee;}.code-block .cls{color:#cffafe;}
+.highlight-box{border-left:3px solid var(--accent);padding:12px 16px;background:rgba(6,182,212,.06);border-radius:0 8px 8px 0;margin-bottom:16px;font-size:13px;color:var(--muted);}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;background:var(--border);border-radius:4px;outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;}
+.slider-row{display:flex;gap:12px;align-items:center;margin-bottom:16px;}
+.slider-lbl{font-size:11px;color:var(--muted);min-width:120px;}
+.slider-val{font-size:12px;font-weight:700;color:var(--accent2);min-width:40px;}
+</style>
+</head>
+<body>
+
+<div id="pg-gate">
+  <div class="pg-box">
+    <div class="pg-icon">&#128737;</div>
+    <div class="pg-title">Contrastive Loss</div>
+    <div class="pg-sub">Learning a Similarity Metric Discriminatively &#8212; Chopra, Hadsell &amp; LeCun, CVPR 2005</div>
+    <input class="pg-input" id="pg-input" type="password" placeholder="Enter password" onkeydown="if(event.key==='Enter')pgCheck()">
+    <button class="pg-btn" onclick="pgCheck()">Unlock</button>
+    <div class="pg-err" id="pg-err"></div>
+  </div>
+</div>
+
+<script>
+var PG_PASSWORD='visual2025';var PG_KEY='pg_unlocked_16';
+function pgCheck(){var v=document.getElementById('pg-input').value.trim();if(v===PG_PASSWORD){sessionStorage.setItem(PG_KEY,'1');document.getElementById('pg-gate').style.display='none';document.getElementById('pg-main').style.display='flex';initAll();}else{document.getElementById('pg-err').textContent='Incorrect password.';}}
+if(sessionStorage.getItem(PG_KEY)==='1'){document.getElementById('pg-gate').style.display='none';}
+</script>
+
+<div id="pg-main" style="display:none;width:100%;">
+
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-title">Contrastive Loss</div>
+    <div class="sidebar-logo-sub">Chopra, Hadsell &amp; LeCun &#8226; CVPR 2005</div>
+  </div>
+  <div class="nav-group-title">The Foundation</div>
+    <a class="nav-link" href="#s-intro" onclick="setActive(this)"><span class="dot" style="background:#06b6d4"></span>Metric Learning Problem</a>
+    <a class="nav-link" href="#s-siamese" onclick="setActive(this)"><span class="dot" style="background:#a78bfa"></span>Siamese Networks</a>
+  <div class="nav-group-title">The Loss Function</div>
+    <a class="nav-link" href="#s-loss" onclick="setActive(this)"><span class="dot" style="background:#f97316"></span>Contrastive Loss</a>
+    <a class="nav-link" href="#s-margin" onclick="setActive(this)"><span class="dot" style="background:#ef4444"></span>The Margin</a>
+  <div class="nav-group-title">Learning Process</div>
+    <a class="nav-link" href="#s-training" onclick="setActive(this)"><span class="dot" style="background:#10b981"></span>Training Dynamics</a>
+    <a class="nav-link" href="#s-embeddings" onclick="setActive(this)"><span class="dot" style="background:#e879f9"></span>Embedding Space</a>
+  <div class="nav-group-title">Application &amp; Results</div>
+    <a class="nav-link" href="#s-face" onclick="setActive(this)"><span class="dot" style="background:#06b6d4"></span>Face Verification</a>
+    <a class="nav-link" href="#s-results" onclick="setActive(this)"><span class="dot" style="background:#51cf66"></span>Results</a>
+  <div class="nav-group-title">Legacy</div>
+    <a class="nav-link" href="#s-modern" onclick="setActive(this)"><span class="dot" style="background:#7c3aed"></span>Modern Descendants</a>
+    <a class="nav-link" href="#s-quiz" onclick="setActive(this)"><span class="dot" style="background:#a78bfa"></span>Knowledge Quiz</a>
+</nav>
+
+<div style="flex:1;display:flex;flex-direction:column;">
+<div class="pipeline-map">
+  <a class="pipe-step" href="#s-intro"><span class="pipe-dot" style="background:#06b6d4"></span>Metric Learning</a><span class="pipe-arrow">&#8250;</span>
+  <a class="pipe-step" href="#s-siamese"><span class="pipe-dot" style="background:#a78bfa"></span>Siamese Net</a><span class="pipe-arrow">&#8250;</span>
+  <a class="pipe-step" href="#s-loss"><span class="pipe-dot" style="background:#f97316"></span>Loss Function</a><span class="pipe-arrow">&#8250;</span>
+  <a class="pipe-step" href="#s-margin"><span class="pipe-dot" style="background:#ef4444"></span>Margin</a><span class="pipe-arrow">&#8250;</span>
+  <a class="pipe-step" href="#s-training"><span class="pipe-dot" style="background:#10b981"></span>Training</a><span class="pipe-arrow">&#8250;</span>
+  <a class="pipe-step" href="#s-embeddings"><span class="pipe-dot" style="background:#e879f9"></span>Embeddings</a><span class="pipe-arrow">&#8250;</span>
+  <a class="pipe-step" href="#s-face"><span class="pipe-dot" style="background:#06b6d4"></span>Face Verify</a><span class="pipe-arrow">&#8250;</span>
+  <a class="pipe-step" href="#s-results"><span class="pipe-dot" style="background:#51cf66"></span>Results</a><span class="pipe-arrow">&#8250;</span>
+  <a class="pipe-step" href="#s-modern"><span class="pipe-dot" style="background:#7c3aed"></span>Descendants</a><span class="pipe-arrow">&#8250;</span>
+  <a class="pipe-step" href="#s-quiz"><span class="pipe-dot" style="background:#a78bfa"></span>Quiz</a>
+</div>
+<main class="main">
+
+<!-- ═══ S1: INTRO ═══ -->
+<section class="section" id="s-intro">
+  <div class="section-tag" style="color:#06b6d4">The Core Problem &#8226; Chopra et al. 2005</div>
+  <h2 class="section-title">Why Classifying Isn&#8217;t Comparing</h2>
+  <p class="section-sub">Face verification asks: are these two images of the same person? A softmax classifier cannot answer this &#8212; it only labels known classes. Metric learning solves a fundamentally different problem: learn a distance function where same-class inputs are close and different-class inputs are far.</p>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val" style="color:#06b6d4">Open</div><div class="stat-lbl">Set (unknown identities at test time)</div></div>
+    <div class="stat"><div class="stat-val" style="color:#f97316">1-shot</div><div class="stat-lbl">Works with 1 example per identity</div></div>
+    <div class="stat"><div class="stat-val" style="color:#10b981">&#8734;</div><div class="stat-lbl">Identities supported at inference</div></div>
+    <div class="stat"><div class="stat-val" style="color:#a78bfa">2005</div><div class="stat-lbl">CVPR publication year</div></div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="intro-btn-0" onclick="setIntro(0)">Classification Approach</button>
+    <button class="btn-tab" id="intro-btn-1" onclick="setIntro(1)">Metric Learning Approach</button>
+    <button class="btn-tab" id="intro-btn-2" onclick="setIntro(2)">The Open-Set Problem</button>
+  </div>
+  <canvas id="c-intro" width="820" height="300"></canvas>
+
+  <div class="grid3" style="margin-top:20px;">
+    <div class="card" style="border-color:#ef444444;">
+      <div class="card-title" style="color:#ef4444">Classification (Closed-Set)</div>
+      <div class="card-body">A softmax classifier maps inputs to a fixed set of N class labels. At test time you can only recognise those N classes. Adding a new person requires retraining the entire model.</div>
+    </div>
+    <div class="card" style="border-color:#06b6d444;">
+      <div class="card-title" style="color:#06b6d4">Metric Learning (Open-Set)</div>
+      <div class="card-body">A metric learning model maps inputs to a continuous embedding space. Two images are compared by their Euclidean distance. New identities are supported instantly &#8212; no retraining needed.</div>
+    </div>
+    <div class="card" style="border-color:#a78bfa44;">
+      <div class="card-title" style="color:#a78bfa">Why This Matters</div>
+      <div class="card-body">Real-world verification systems must handle identities never seen during training. A border control system sees millions of new passports. Metric learning is the only approach that scales to this naturally.</div>
+    </div>
+  </div>
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-siamese">Siamese Networks &#8594;</a></div>
+</section>
+
+<!-- ═══ S2: SIAMESE ═══ -->
+<section class="section" id="s-siamese">
+  <div class="section-tag" style="color:#a78bfa">Architecture</div>
+  <h2 class="section-title">Siamese Networks &#8212; Twin Encoders, Shared Weights</h2>
+  <p class="section-sub">A Siamese network consists of two identical subnetworks G<sub>W</sub> processing two inputs simultaneously. The critical constraint: both subnetworks share the exact same weights W. This ensures both inputs are mapped into the same embedding space with the same transformation.</p>
+
+  <div class="formula">G&#x1D414; : &#8477;&#7496; &#8594; &#8477;&#8319;    (shared weight matrix W)
+
+D&#x1D414;(X&#x2081;, X&#x2082;) = &#8214;G&#x1D414;(X&#x2081;) &#8722; G&#x1D414;(X&#x2082;)&#8214;&#x2082;    (Euclidean distance in embedding space)</div>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val" style="color:#a78bfa">2</div><div class="stat-lbl">Networks (identical twins)</div></div>
+    <div class="stat"><div class="stat-val" style="color:#06b6d4">1</div><div class="stat-lbl">Shared weight set W</div></div>
+    <div class="stat"><div class="stat-val" style="color:#10b981">&#8734;</div><div class="stat-lbl">Identities at inference</div></div>
+    <div class="stat"><div class="stat-val" style="color:#f97316">n</div><div class="stat-lbl">Embedding dimensions</div></div>
+  </div>
+
+  <div style="display:flex;gap:12px;margin-bottom:16px;align-items:center;">
+    <button class="btn" id="siamese-btn" onclick="siameseAnimate()">&#9654; Animate Forward Pass</button>
+    <button class="btn-tab" onclick="siameseReset()">Reset</button>
+    <span id="siamese-status" style="font-size:12px;color:var(--muted);margin-left:8px;">Press Animate to run a forward pass through both networks</span>
+  </div>
+  <canvas id="c-siamese" width="820" height="340"></canvas>
+
+  <div class="grid3" style="margin-top:20px;">
+    <div class="card" style="border-color:#a78bfa44;">
+      <div class="card-title" style="color:#a78bfa">Weight Sharing</div>
+      <div class="card-body">Shared weights guarantee both inputs are processed by the exact same function. Without this, G&#x1D414;(X&#x2081;) and G&#x1D414;(X&#x2082;) would live in incomparable spaces &#8212; the distance would be meaningless.</div>
+    </div>
+    <div class="card" style="border-color:#06b6d444;">
+      <div class="card-title" style="color:#06b6d4">Energy-Based Model</div>
+      <div class="card-body">The distance D&#x1D414; is an energy function. Genuine pairs are low-energy (close), impostor pairs are high-energy (far). Training minimises energy for genuine pairs and maximises it for impostors.</div>
+    </div>
+    <div class="card" style="border-color:#10b98144;">
+      <div class="card-title" style="color:#10b981">Gradient Flow</div>
+      <div class="card-body">Gradients flow from the contrastive loss through D&#x1D414;, into both branches simultaneously. Both networks update their shared weights in lockstep &#8212; each training step uses both inputs of the pair.</div>
+    </div>
+  </div>
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-loss">The Contrastive Loss &#8594;</a></div>
+</section>
+
+<!-- ═══ S3: LOSS ═══ -->
+<section class="section" id="s-loss">
+  <div class="section-tag" style="color:#f97316">The Core Contribution</div>
+  <h2 class="section-title">The Contrastive Loss Function</h2>
+  <p class="section-sub">The loss has two terms that oppose each other. The genuine term pulls same-class pairs together. The impostor term pushes different-class pairs apart &#8212; but only until they reach the margin m. Beyond the margin, no gradient flows: the pair is considered &#8220;good enough.&#8221;</p>
+
+  <div class="formula">L(W, Y, X&#x2081;, X&#x2082;) = (1&#8722;Y) &#xB7; &#xBD; &#xB7; D&#x1D414;&#xB2;  +  Y &#xB7; &#xBD; &#xB7; max(0, m &#8722; D&#x1D414;)&#xB2;
+
+  Y = 0  (genuine pair,  same class):    L = &#xBD; &#xB7; D&#x1D414;&#xB2;
+  Y = 1  (impostor pair, diff. class):   L = &#xBD; &#xB7; max(0, m &#8722; D&#x1D414;)&#xB2;
+
+  D&#x1D414; = &#8214;G&#x1D414;(X&#x2081;) &#8722; G&#x1D414;(X&#x2082;)&#8214;&#x2082;    m = margin hyperparameter</div>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="loss-btn-0" onclick="setLossTab(0)">Genuine Pair (Y=0)</button>
+    <button class="btn-tab" id="loss-btn-1" onclick="setLossTab(1)">Impostor Pair (Y=1)</button>
+    <button class="btn-tab" id="loss-btn-2" onclick="setLossTab(2)">Interactive Explorer</button>
+  </div>
+
+  <div id="loss-slider-row" class="slider-row" style="display:none;">
+    <span class="slider-lbl">Distance D&#x1D414;</span>
+    <input type="range" id="loss-dw-slider" min="0" max="200" value="50" style="width:300px;" oninput="setLossDW(parseInt(this.value)/100)">
+    <span class="slider-val" id="loss-dw-val">0.50</span>
+    <span style="font-size:11px;color:var(--muted);margin-left:12px;">Y:</span>
+    <button class="btn-tab active" id="loss-y0-btn" onclick="setLossY(0)" style="font-size:10px;padding:4px 10px;">Genuine (0)</button>
+    <button class="btn-tab" id="loss-y1-btn" onclick="setLossY(1)" style="font-size:10px;padding:4px 10px;">Impostor (1)</button>
+  </div>
+
+  <canvas id="c-loss" width="820" height="340"></canvas>
+
+  <div id="loss-detail" class="card" style="margin-top:12px;">
+    <div class="card-title" style="color:#f97316" id="loss-d-title">Genuine Pair Loss</div>
+    <div class="card-body" id="loss-d-body">For Y=0 (same class), the loss is simply &#xBD;&#xB7;D&#x1D414;&#xB2; &#8212; a quadratic bowl with minimum at D&#x1D414;=0. Every genuine pair always contributes to the gradient, pulling the embeddings closer together.</div>
+  </div>
+
+  <div class="grid2" style="margin-top:16px;">
+    <div class="card" style="border-color:#51cf6644;">
+      <div class="card-title" style="color:#51cf66">Genuine Gradient: &#8706;L/&#8706;D&#x1D414; = D&#x1D414;</div>
+      <div class="card-body">The gradient is proportional to the current distance. When the pair is far apart, the gradient is large and pulls aggressively. When nearly converged (D&#x1D414;&#8776;0), the gradient vanishes naturally &#8212; no gradient clipping needed.</div>
+    </div>
+    <div class="card" style="border-color:#ef444444;">
+      <div class="card-title" style="color:#ef4444">Impostor Gradient: &#8706;L/&#8706;D&#x1D414; = &#8722;(m&#8722;D&#x1D414;) if D&#x1D414;&lt;m, else 0</div>
+      <div class="card-body">The gradient is negative (pushing apart) when D&#x1D414;&lt;m. When D&#x1D414;&#8805;m the pair already satisfies the constraint &#8212; zero gradient, zero cost. This is the &#8220;hinge&#8221; that makes the loss efficient.</div>
+    </div>
+  </div>
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-margin">The Margin &#8594;</a></div>
+</section>
+
+<!-- ═══ S4: MARGIN ═══ -->
+<section class="section" id="s-margin">
+  <div class="section-tag" style="color:#ef4444">Hyperparameter Design</div>
+  <h2 class="section-title">The Margin &#8212; Defining &#8220;Far Enough Apart&#8221;</h2>
+  <p class="section-sub">The margin m defines the boundary between &#8220;close enough to be impostor-safe&#8221; and &#8220;still needs pushing.&#8221; Too small and impostors cluster at the boundary. Too large and training is slow with many wasted gradient steps on already-separated pairs.</p>
+
+  <div class="highlight-box">
+    <strong style="color:#06b6d4">Key insight:</strong> The margin creates a &#8220;dead zone&#8221; for impostor pairs with D&#x1D414; &gt; m &#8212; they contribute zero gradient. This is computationally efficient and prevents over-separation which can distort the embedding geometry.
+  </div>
+
+  <div class="slider-row">
+    <span class="slider-lbl">Margin m</span>
+    <input type="range" id="margin-slider" min="30" max="200" value="100" style="width:300px;" oninput="setMargin(parseInt(this.value)/100)">
+    <span class="slider-val" id="margin-val">1.00</span>
+    <span style="font-size:10px;color:var(--muted);margin-left:16px;">Drag to see how m shapes the impostor loss curve</span>
+  </div>
+  <canvas id="c-margin" width="820" height="300"></canvas>
+
+  <div class="grid3" style="margin-top:20px;">
+    <div class="card" style="border-color:#ef444444;">
+      <div class="card-title" style="color:#ef4444">Too Small m</div>
+      <div class="card-body">Impostors only need to be slightly separated. The model may learn embeddings where different classes cluster near each other just beyond m. Verification accuracy suffers because the decision boundary is too tight.</div>
+    </div>
+    <div class="card" style="border-color:#06b6d444;">
+      <div class="card-title" style="color:#06b6d4">Well-Calibrated m</div>
+      <div class="card-body">Impostors are pushed far enough apart that a verification threshold can cleanly separate them from genuine pairs. Typical values: m=1.0 to m=2.0 for unit-normalised embeddings. Set by validation.</div>
+    </div>
+    <div class="card" style="border-color:#fdcb6e44;">
+      <div class="card-title" style="color:#fdcb6e">Too Large m</div>
+      <div class="card-body">The dead zone shrinks &#8212; almost all impostor pairs contribute gradient even when well-separated. Training slows and the loss landscape becomes harder to optimise. Risk of over-pushing geometrically close classes.</div>
+    </div>
+  </div>
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-training">Training Dynamics &#8594;</a></div>
+</section>
+
+<!-- ═══ S5: TRAINING ═══ -->
+<section class="section" id="s-training">
+  <div class="section-tag" style="color:#10b981">Optimisation</div>
+  <h2 class="section-title">Training Dynamics &#8212; Pairs, Gradients, Convergence</h2>
+  <p class="section-sub">Training iterates over pairs (X&#x2081;, X&#x2082;, Y). For each pair, both inputs pass through G&#x1D414;, producing embeddings. D&#x1D414; is computed. Loss and gradient are computed. Weights are updated via SGD. Watch the loss curve and pair processing animate below.</p>
+
+  <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;flex-wrap:wrap;">
+    <button class="btn" id="train-btn" onclick="trainToggle()">&#9654; Start Training</button>
+    <button class="btn-tab" onclick="trainReset()">Reset</button>
+    <span style="font-size:11px;color:var(--muted);">Speed:</span>
+    <input type="range" id="train-speed" min="1" max="8" value="4" style="width:120px;">
+    <span id="train-status" style="font-size:12px;color:var(--muted);margin-left:8px;">Ready &#8212; press Start Training</span>
+  </div>
+  <canvas id="c-training" width="820" height="360"></canvas>
+
+  <div class="grid3" style="margin-top:20px;">
+    <div class="card" style="border-color:#10b98144;">
+      <div class="card-title" style="color:#10b981">Pair Construction</div>
+      <div class="card-body">For each batch: sample genuine pairs (different images, same identity) and impostor pairs (images from different identities). Balanced sampling is critical &#8212; too many easy impostors (D&#x1D414;&gt;m) slows training significantly.</div>
+    </div>
+    <div class="card" style="border-color:#f9731644;">
+      <div class="card-title" style="color:#f97316">Gradient Update</div>
+      <div class="card-body">&#8706;L/&#8706;W = &#8706;L/&#8706;D&#x1D414; &#xB7; &#8706;D&#x1D414;/&#8706;G&#x1D414; &#xB7; &#8706;G&#x1D414;/&#8706;W. The loss gradient flows back through the distance function and into both branches. Both branches update the same weight matrix W simultaneously.</div>
+    </div>
+    <div class="card" style="border-color:#a78bfa44;">
+      <div class="card-title" style="color:#a78bfa">Convergence</div>
+      <div class="card-body">Training typically converges in 10&#8211;50 epochs. The loss decreases as genuine pairs cluster and impostors spread. The &#8220;dead zone&#8221; effect means that once a pair is correctly placed, it stops consuming gradient budget.</div>
+    </div>
+  </div>
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-embeddings">Embedding Space &#8594;</a></div>
+</section>
+
+<!-- ═══ S6: EMBEDDINGS ═══ -->
+<section class="section" id="s-embeddings">
+  <div class="section-tag" style="color:#e879f9">Representation Learning</div>
+  <h2 class="section-title">Embedding Space &#8212; Before and After Training</h2>
+  <p class="section-sub">The entire goal of contrastive training is to reshape the embedding space. Before training: points are scattered randomly. After training: same-class points cluster tightly, different-class clusters are well-separated. Animate the transformation to see this unfold.</p>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="emb-btn-0" onclick="setEmb(0)">Before Training</button>
+    <button class="btn-tab" id="emb-btn-1" onclick="setEmb(1)">After Training</button>
+    <button class="btn" onclick="embAnimate()">&#9654; Animate Transition</button>
+    <button class="btn-tab" onclick="embReset()">Reset</button>
+  </div>
+  <canvas id="c-embeddings" width="820" height="360"></canvas>
+  <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:4px;">5 classes &#xB7; 5 points per class &#xB7; 2D projection of embedding space</div>
+
+  <div class="grid3" style="margin-top:20px;">
+    <div class="card" style="border-color:#e879f944;">
+      <div class="card-title" style="color:#e879f9">Intraclass Distance</div>
+      <div class="card-body">After training, all points from the same identity cluster near their class centroid. The intraclass distance approaches 0 as training progresses. The genuine loss term directly minimises this.</div>
+    </div>
+    <div class="card" style="border-color:#06b6d444;">
+      <div class="card-title" style="color:#06b6d4">Interclass Separation</div>
+      <div class="card-body">Different-class clusters are separated by at least the margin m. The hinge structure means once D&#x1D414;&#8805;m the gradient stops &#8212; clusters don&#8217;t drift unnecessarily further. The geometry is tight and interpretable.</div>
+    </div>
+    <div class="card" style="border-color:#10b98144;">
+      <div class="card-title" style="color:#10b981">Generalisation</div>
+      <div class="card-body">Critically, the embedding function G&#x1D414; generalises: new identities never seen during training are automatically placed correctly relative to existing clusters. The learned metric is genuinely universal.</div>
+    </div>
+  </div>
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-face">Face Verification &#8594;</a></div>
+</section>
+
+<!-- ═══ S7: FACE ═══ -->
+<section class="section" id="s-face">
+  <div class="section-tag" style="color:#06b6d4">Application</div>
+  <h2 class="section-title">Face Verification &#8212; The Full Pipeline</h2>
+  <p class="section-sub">Given two face images, the system decides: same person or different? Two images pass through G&#x1D414; (shared CNN), producing embedding vectors. Their Euclidean distance D&#x1D414; is compared to a threshold &#964;. Below the threshold: same person. Above: different person.</p>
+
+  <div class="grid2" style="margin-bottom:20px;">
+    <div>
+      <div class="slider-row">
+        <span class="slider-lbl">Distance D&#x1D414;</span>
+        <input type="range" id="face-dw" min="0" max="200" value="40" style="width:200px;" oninput="setFaceDW(parseInt(this.value)/100)">
+        <span class="slider-val" id="face-dw-val">0.40</span>
+      </div>
+      <div class="slider-row">
+        <span class="slider-lbl">Threshold &#964;</span>
+        <input type="range" id="face-thresh" min="10" max="180" value="80" style="width:200px;" oninput="setFaceThresh(parseInt(this.value)/100)">
+        <span class="slider-val" id="face-thresh-val">0.80</span>
+      </div>
+      <div id="face-verdict" class="card" style="margin-top:8px;text-align:center;">
+        <div class="card-title" id="face-verdict-title" style="color:#51cf66;font-size:16px;">&#10003; SAME PERSON</div>
+        <div class="card-body" id="face-verdict-body">D&#x1D414; = 0.40 &lt; &#964; = 0.80 &#8594; accept</div>
+      </div>
+    </div>
+    <div>
+      <canvas id="c-face" width="400" height="260" style="width:100%;"></canvas>
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">How is the threshold &#964; set? <span class="accordion-chevron">&#9660;</span></div>
+    <div class="accordion-body">The threshold is selected on a held-out validation set to minimise the Equal Error Rate (EER) &#8212; the point where the False Accept Rate equals the False Reject Rate. In production, you adjust the threshold to trade off FAR vs FRR depending on security requirements.</div>
+  </div>
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">What is FAR vs FRR? <span class="accordion-chevron">&#9660;</span></div>
+    <div class="accordion-body">False Accept Rate (FAR): an impostor pair is accepted (D&#x1D414; &lt; &#964; when it shouldn&#8217;t be). False Reject Rate (FRR): a genuine pair is rejected (D&#x1D414; &#8805; &#964; when it shouldn&#8217;t be). Lower threshold &#8594; lower FAR, higher FRR. Higher threshold &#8594; higher FAR, lower FRR.</div>
+  </div>
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">What architecture does G&#x1D414; use? <span class="accordion-chevron">&#9660;</span></div>
+    <div class="accordion-body">In the original 2005 paper, G&#x1D414; is a convolutional network applied to 96&#xD7;96 greyscale face images. The output is an n-dimensional embedding. Modern implementations use deep ResNets or Vision Transformers, with n=128 or 512 dimensions, and L2-normalised outputs.</div>
+  </div>
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-results">Results &#8594;</a></div>
+</section>
+
+<!-- ═══ S8: RESULTS ═══ -->
+<section class="section" id="s-results">
+  <div class="section-tag" style="color:#51cf66">Empirical Evidence</div>
+  <h2 class="section-title">Results on AT&amp;T and FERET Datasets</h2>
+  <p class="section-sub">The paper benchmarks on two standard face databases of the era. On AT&amp;T (40 subjects, 10 images each), the contrastive approach achieves near-perfect separation. On FERET (1,196 subjects, larger variation), it outperforms all PCA and kernel-based baselines.</p>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val" style="color:#51cf66">40</div><div class="stat-lbl">AT&amp;T subjects</div></div>
+    <div class="stat"><div class="stat-val" style="color:#06b6d4">1,196</div><div class="stat-lbl">FERET subjects</div></div>
+    <div class="stat"><div class="stat-val" style="color:#f97316">98.7%</div><div class="stat-lbl">AT&amp;T verification accuracy</div></div>
+    <div class="stat"><div class="stat-val" style="color:#a78bfa">&#8595;6%</div><div class="stat-lbl">Error reduction vs PCA baseline</div></div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="res-btn-0" onclick="setResults(0)">AT&amp;T Database</button>
+    <button class="btn-tab" id="res-btn-1" onclick="setResults(1)">FERET Database</button>
+    <button class="btn-tab" id="res-btn-2" onclick="setResults(2)">ROC Curve Concept</button>
+  </div>
+  <canvas id="c-results" width="820" height="300"></canvas>
+
+  <div class="grid3" style="margin-top:20px;">
+    <div class="card" style="border-color:#51cf6644;">
+      <div class="card-title" style="color:#51cf66">AT&amp;T Face Database</div>
+      <div class="card-body">400 images of 40 subjects (10 per person). Variation in lighting, expression, and accessories. Standard 5-fold cross-validation. Contrastive loss achieves 98.7% &#8212; significantly better than eigenface baselines.</div>
+    </div>
+    <div class="card" style="border-color:#06b6d444;">
+      <div class="card-title" style="color:#06b6d4">FERET Database</div>
+      <div class="card-body">1,196 subjects with multiple captures (different dates, cameras, conditions). More realistic than AT&amp;T. The contrastive method shows particularly large gains on this harder dataset where generalisation matters most.</div>
+    </div>
+    <div class="card" style="border-color:#a78bfa44;">
+      <div class="card-title" style="color:#a78bfa">vs Baselines</div>
+      <div class="card-body">Compared against PCA (eigenfaces), kernel-PCA, and Fisher&#8217;s LDA. The Siamese contrastive approach outperforms all on both datasets. The gap widens for identities with larger intra-class variation.</div>
+    </div>
+  </div>
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-modern">Modern Descendants &#8594;</a></div>
+</section>
+
+<!-- ═══ S9: MODERN ═══ -->
+<section class="section" id="s-modern">
+  <div class="section-tag" style="color:#7c3aed">Legacy &amp; Impact</div>
+  <h2 class="section-title">Modern Descendants &#8212; 20 Years of Influence</h2>
+  <p class="section-sub">Contrastive loss is the foundation of modern metric learning, self-supervised learning, and multimodal AI. Every major similarity-learning system from FaceNet to CLIP traces its core idea back to this 2005 paper.</p>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="mod-btn-0" onclick="setModern(0)">Family Tree</button>
+    <button class="btn-tab" id="mod-btn-1" onclick="setModern(1)">Triplet Loss</button>
+    <button class="btn-tab" id="mod-btn-2" onclick="setModern(2)">NT-Xent / SimCLR</button>
+    <button class="btn-tab" id="mod-btn-3" onclick="setModern(3)">CLIP</button>
+  </div>
+  <canvas id="c-modern" width="820" height="360"></canvas>
+
+  <div class="grid3" style="margin-top:20px;">
+    <div class="card" style="border-color:#7c3aed44;">
+      <div class="card-title" style="color:#7c3aed">Triplet Loss (FaceNet, 2015)</div>
+      <div class="card-body">Uses three examples: anchor A, positive P (same class), negative N (different class). Minimises d(A,P) &#8722; d(A,N) + margin. More efficient than pairs &#8212; each training example contributes to two distances.</div>
+    </div>
+    <div class="card" style="border-color:#06b6d444;">
+      <div class="card-title" style="color:#06b6d4">NT-Xent / SimCLR (2020)</div>
+      <div class="card-body">Extends to N&#8722;1 negatives per anchor (all other samples in the batch). No explicit margin &#8212; uses temperature-scaled softmax. Powers all modern self-supervised vision models (MoCo, BYOL, MAE).</div>
+    </div>
+    <div class="card" style="border-color:#e879f944;">
+      <div class="card-title" style="color:#e879f9">CLIP (OpenAI, 2021)</div>
+      <div class="card-body">Cross-modal contrastive learning: image&#8211;text pairs. 400M pairs from the internet. The same fundamental idea &#8212; pull matching pairs together, push non-matching pairs apart &#8212; but across modalities at massive scale.</div>
+    </div>
+  </div>
+  <div class="section-bridge"><a class="section-bridge-link" href="#s-quiz">Knowledge Quiz &#8594;</a></div>
+</section>
+
+<!-- ═══ S10: QUIZ ═══ -->
+<section class="section" id="s-quiz">
+  <div class="section-tag" style="color:#a78bfa">Knowledge Check</div>
+  <h2 class="section-title">Contrastive Loss Quiz</h2>
+  <p class="section-sub">8 questions covering the loss function, architecture, margin, and modern applications.</p>
+  <div id="quiz-container"></div>
+  <div style="margin-top:16px;display:flex;gap:10px;">
+    <button class="btn" onclick="submitQuiz()">Submit Answers</button>
+    <button class="btn-tab" onclick="resetQuiz()">Reset</button>
+    <span id="quiz-score" style="font-size:13px;color:var(--muted);margin-left:8px;"></span>
+  </div>
+</section>
+
+</main>
+</div>
+</div>
+
+<script>
+function setActive(el){document.querySelectorAll('.nav-link').forEach(function(l){l.classList.remove('active');});if(el)el.classList.add('active');}
+function toggleAcc(hdr){var b=hdr.nextElementSibling,c=hdr.querySelector('.accordion-chevron'),o=b.style.display==='block';b.style.display=o?'none':'block';if(c)c.style.transform=o?'':'rotate(180deg)';}
+function updateNav(){
+  var main=document.querySelector('.main');if(!main)return;
+  var ids=['s-intro','s-siamese','s-loss','s-margin','s-training','s-embeddings','s-face','s-results','s-modern','s-quiz'];
+  main.addEventListener('scroll',function(){
+    var sy=main.scrollTop;
+    ids.forEach(function(id){
+      var sec=document.getElementById(id);if(!sec)return;
+      if(sec.offsetTop-100<=sy&&sec.offsetTop+sec.offsetHeight-100>sy){
+        var l=document.querySelector('.nav-link[href="#'+id+'"]');if(l)setActive(l);
+      }
+    });
+  });
+}
+if(sessionStorage.getItem('pg_unlocked_16')==='1'){document.getElementById('pg-main').style.display='flex';}
+function initAll(){updateNav();}
+
+// === UTILITIES ===
+function lerp(a,b,t){return a+(b-a)*t;}
+function easeInOut(t){return t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;}
+function drawRoundedRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);ctx.closePath();}
+function seededRand(seed){var x=Math.sin(seed+1)*10000;return x-Math.floor(x);}
+
+// === SECTION 1: INTRO ===
+var introTab=0;
+function setIntro(t){
+  introTab=t;
+  [0,1,2].forEach(function(i){document.getElementById('intro-btn-'+i).classList.toggle('active',i===t);});
+  drawIntro();
+}
+function drawIntro(){
+  var canvas=document.getElementById('c-intro');if(!canvas)return;
+  var ctx=canvas.getContext('2d'),W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+  if(introTab===0)drawIntroClassification(ctx,W,H);
+  else if(introTab===1)drawIntroMetric(ctx,W,H);
+  else drawIntroOpenSet(ctx,W,H);
+}
+function drawIntroClassification(ctx,W,H){
+  var clsNames=['Alice','Bob','Carol','Dave','Eve'];
+  var clsColors=['#06b6d4','#f97316','#a78bfa','#10b981','#e879f9'];
+  // Input
+  ctx.fillStyle='#8b949e';ctx.font='11px Inter';ctx.textAlign='center';ctx.fillText('Input Image',90,26);
+  drawRoundedRect(ctx,40,40,100,80,8);ctx.fillStyle='#0d1117';ctx.fill();ctx.strokeStyle='#30363d';ctx.lineWidth=1;ctx.stroke();
+  ctx.fillStyle='#22d3ee';ctx.font='32px serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('\uD83D\uDDBC',90,82);ctx.textBaseline='alphabetic';
+  // Arrow
+  ctx.strokeStyle='#30363d';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(140,80);ctx.lineTo(200,80);ctx.stroke();
+  ctx.fillStyle='#30363d';ctx.beginPath();ctx.moveTo(200,80);ctx.lineTo(194,76);ctx.lineTo(194,84);ctx.closePath();ctx.fill();
+  // Classifier box
+  drawRoundedRect(ctx,200,46,140,68,8);ctx.fillStyle='#1c2128';ctx.fill();ctx.strokeStyle='#f97316';ctx.lineWidth=1.5;ctx.stroke();
+  ctx.fillStyle='#f97316';ctx.font='bold 11px Inter';ctx.textAlign='center';ctx.fillText('Classifier G(X)',270,78);
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter';ctx.fillText('Softmax — N outputs',270,94);
+  // Arrow
+  ctx.strokeStyle='#30363d';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(340,80);ctx.lineTo(380,80);ctx.stroke();
+  ctx.fillStyle='#30363d';ctx.beginPath();ctx.moveTo(380,80);ctx.lineTo(374,76);ctx.lineTo(374,84);ctx.closePath();ctx.fill();
+  // Output bars
+  clsNames.forEach(function(name,i){
+    var y=22+i*50;
+    var barWidths=[180,45,22,10,5];
+    drawRoundedRect(ctx,385,y,220,38,6);ctx.fillStyle='#161b22';ctx.fill();ctx.strokeStyle=clsColors[i];ctx.lineWidth=1;ctx.stroke();
+    drawRoundedRect(ctx,392,y+8,barWidths[i],22,4);ctx.fillStyle=clsColors[i]+'44';ctx.fill();ctx.strokeStyle=clsColors[i];ctx.lineWidth=1;ctx.stroke();
+    ctx.fillStyle=clsColors[i];ctx.font='bold 10px Inter';ctx.textAlign='left';ctx.fillText(name,397,y+23);
+    ctx.fillStyle='#8b949e';ctx.font='9px Inter';ctx.fillText((i===0?'73.2':i===1?'16.5':i===2?'6.1':i===3?'2.9':'1.3')+'%',397+barWidths[i]+6,y+23);
+  });
+  // Problem callout
+  drawRoundedRect(ctx,616,24,185,60,8);ctx.fillStyle='#1c2128';ctx.fill();ctx.strokeStyle='#ef444466';ctx.lineWidth=1;ctx.stroke();
+  ctx.fillStyle='#ef4444';ctx.font='bold 11px Inter';ctx.textAlign='center';ctx.fillText('Problem',708,44);
+  ctx.fillStyle='#8b949e';ctx.font='10px Inter';ctx.fillText('New identity? Must',708,60);ctx.fillText('retrain everything',708,75);
+}
+function drawIntroMetric(ctx,W,H){
+  var cx=W/2,cy=H/2+10;
+  ctx.strokeStyle='#30363d';ctx.lineWidth=1.5;ctx.setLineDash([4,4]);
+  ctx.beginPath();ctx.arc(cx,cy,140,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#8b949e';ctx.font='10px Inter';ctx.textAlign='center';ctx.fillText('Embedding Space \u211D\u207F',cx,H-8);
+  var ptA=[[-55,-45],[-35,-60],[-50,-25],[-65,-38],[-40,-32]];
+  var colA='#06b6d4';
+  ptA.forEach(function(p){
+    ctx.beginPath();ctx.arc(cx+p[0],cy+p[1],7,0,Math.PI*2);
+    ctx.fillStyle=colA+'66';ctx.fill();ctx.strokeStyle=colA;ctx.lineWidth=1.5;ctx.stroke();
+  });
+  ctx.fillStyle=colA;ctx.font='bold 12px Inter';ctx.textAlign='center';ctx.fillText('Class A (same ID)',cx-44,cy-70);
+  var ptB=[[55,45],[75,60],[50,25],[65,38],[40,32]];
+  var colB='#f97316';
+  ptB.forEach(function(p){
+    ctx.beginPath();ctx.arc(cx+p[0],cy+p[1],7,0,Math.PI*2);
+    ctx.fillStyle=colB+'66';ctx.fill();ctx.strokeStyle=colB;ctx.lineWidth=1.5;ctx.stroke();
+  });
+  ctx.fillStyle=colB;ctx.font='bold 12px Inter';ctx.textAlign='center';ctx.fillText('Class B (diff ID)',cx+55,cy+72);
+  ctx.strokeStyle='#ef4444';ctx.lineWidth=2;ctx.setLineDash([6,4]);
+  ctx.beginPath();ctx.moveTo(cx-47,cy-35);ctx.lineTo(cx+47,cy+32);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#ef4444';ctx.font='bold 11px Inter';ctx.textAlign='center';ctx.fillText('D\u1D414 > m',cx+8,cy-8);
+  ctx.strokeStyle=colA+'66';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+  ptA.forEach(function(p,i){if(i>0){ctx.beginPath();ctx.moveTo(cx+ptA[0][0],cy+ptA[0][1]);ctx.lineTo(cx+p[0],cy+p[1]);ctx.stroke();}});
+  ctx.setLineDash([]);
+  ctx.fillStyle=colA+'99';ctx.font='10px Inter';ctx.textAlign='left';ctx.fillText('D\u1D414 \u2248 0',cx-110,cy-22);
+  ctx.fillStyle='#8b949e';ctx.font='10px Inter';ctx.textAlign='center';
+  ctx.fillText('Same class: cluster together',cx-80,cy+110);ctx.fillText('Diff class: pushed apart',cx+80,cy+110);
+}
+function drawIntroOpenSet(ctx,W,H){
+  var trainNames=['Alice','Bob','Carol','Dave','Eve'];
+  var testNames=['Frank','Grace','Heidi'];
+  var trainCols=['#06b6d4','#f97316','#a78bfa','#10b981','#e879f9'];
+  var testCols=['#ef4444','#fdcb6e','#00b894'];
+  ctx.fillStyle='#c9d1d9';ctx.font='bold 12px Inter';ctx.textAlign='center';
+  ctx.fillText('Training Set',200,24);ctx.fillText('Test Set',630,24);
+  ctx.strokeStyle='#30363d';ctx.lineWidth=1.5;ctx.setLineDash([5,5]);
+  ctx.beginPath();ctx.moveTo(410,15);ctx.lineTo(410,H-15);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter';ctx.textAlign='center';
+  ctx.fillText('Known at train time',200,H-10);ctx.fillText('Never seen at train time',630,H-10);
+  trainNames.forEach(function(name,i){
+    var x=50+i*70,y=H/2;
+    ctx.beginPath();ctx.arc(x,y,22,0,Math.PI*2);ctx.fillStyle=trainCols[i]+'33';ctx.fill();ctx.strokeStyle=trainCols[i];ctx.lineWidth=2;ctx.stroke();
+    ctx.fillStyle=trainCols[i];ctx.font='bold 10px Inter';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(name.slice(0,2),x,y);ctx.textBaseline='alphabetic';
+    ctx.fillStyle='#8b949e';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText(name,x,y+34);
+  });
+  testNames.forEach(function(name,i){
+    var x=470+i*80,y=H/2;
+    ctx.beginPath();ctx.arc(x,y,22,0,Math.PI*2);ctx.fillStyle=testCols[i]+'33';ctx.fill();ctx.strokeStyle=testCols[i];ctx.lineWidth=2;ctx.stroke();
+    ctx.fillStyle=testCols[i];ctx.font='bold 10px Inter';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(name.slice(0,2),x,y);ctx.textBaseline='alphabetic';
+    ctx.fillStyle='#8b949e';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText(name,x,y+34);
+    ctx.fillStyle='#ef4444';ctx.font='14px serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('\u2717',x-14,y-40);
+    ctx.fillStyle='#51cf66';ctx.fillText('\u2713',x+14,y-40);ctx.textBaseline='alphabetic';
+  });
+  ctx.fillStyle='#ef4444';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText('Classifier',470+0,H/2-56);
+  ctx.fillStyle='#51cf66';ctx.fillText('Metric',470+0+28,H/2-56);
+}
+
+// === SECTION 2: SIAMESE ===
+var siameseAnimId=null;
+function siameseReset(){
+  if(siameseAnimId){cancelAnimationFrame(siameseAnimId);siameseAnimId=null;}
+  document.getElementById('siamese-btn').textContent='\u25B6 Animate Forward Pass';
+  document.getElementById('siamese-status').textContent='Press Animate to run a forward pass through both networks';
+  drawSiamese(0);
+}
+function siameseAnimate(){
+  if(siameseAnimId){cancelAnimationFrame(siameseAnimId);siameseAnimId=null;}
+  var start=null;
+  function step(ts){
+    if(!start)start=ts;
+    var t=Math.min((ts-start)/2800,1);
+    drawSiamese(easeInOut(t));
+    var idx=Math.min(3,Math.floor(t*4));
+    var msgs=['Feeding X\u2081 and X\u2082 into shared encoder G\u1D414...','Processing through convolutional layers...','Computing embedding vectors e\u2081 and e\u2082...','Forward pass complete — D\u1D414 = \u2016e\u2081 \u2212 e\u2082\u2016\u2082'];
+    document.getElementById('siamese-status').textContent=msgs[idx];
+    if(t<1){siameseAnimId=requestAnimationFrame(step);}
+    else{document.getElementById('siamese-btn').textContent='\u25B6 Animate Again';}
+  }
+  siameseAnimId=requestAnimationFrame(step);
+}
+function drawSiamese(t){
+  var canvas=document.getElementById('c-siamese');if(!canvas)return;
+  var ctx=canvas.getContext('2d'),W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+  var layerNames=['Conv1','Conv2','Pool','FC','Embed'];
+  var layerCols=['#06b6d4','#22d3ee','#a78bfa','#f97316','#51cf66'];
+  var nL=5;
+  function drawBranch(bx,by,label){
+    // Input label
+    ctx.fillStyle='#8b949e';ctx.font='11px Inter';ctx.textAlign='center';ctx.fillText(label,bx+nL*44/2,by-10);
+    layerNames.forEach(function(name,i){
+      var lx=bx+i*50,lw=44,lh=80;
+      var active=t*(nL+1)>i;
+      drawRoundedRect(ctx,lx,by,lw,lh,6);
+      ctx.fillStyle=active?(layerCols[i]+'22'):'#1c212833';ctx.fill();
+      ctx.strokeStyle=active?layerCols[i]:'#30363d';ctx.lineWidth=active?2:1;ctx.stroke();
+      ctx.fillStyle=active?layerCols[i]:'#30363d';ctx.font='9px Inter';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(name,lx+lw/2,by+lh/2);ctx.textBaseline='alphabetic';
+      if(i<nL-1){
+        ctx.strokeStyle=active?layerCols[i]:'#30363d';ctx.lineWidth=1;
+        ctx.beginPath();ctx.moveTo(lx+lw,by+lh/2);ctx.lineTo(lx+lw+6,by+lh/2);ctx.stroke();
+      }
+    });
+  }
+  var netW=nL*50-6;
+  drawBranch(60,50,'X\u2081 (Image 1)');
+  drawBranch(60,200,'X\u2082 (Image 2)');
+  // Input arrows
+  [50+40,200+40].forEach(function(y,ni){
+    ctx.strokeStyle=t>0.1?'#06b6d4':'#30363d';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(30,y);ctx.lineTo(60,y);ctx.stroke();
+    ctx.fillStyle='#8b949e';ctx.font='11px Inter';ctx.textAlign='right';ctx.textBaseline='middle';
+    ctx.fillText(ni===0?'X\u2081':'X\u2082',28,y);ctx.textBaseline='alphabetic';
+  });
+  // Shared weight box
+  var swx=W-180,swy=H/2-22;
+  drawRoundedRect(ctx,swx,swy,160,44,8);
+  ctx.fillStyle='#0d1117';ctx.fill();
+  ctx.strokeStyle=t>0.75?'#51cf66':'#30363d';ctx.lineWidth=2;ctx.stroke();
+  ctx.fillStyle=t>0.75?'#51cf66':'#8b949e';ctx.font='bold 11px Inter';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('Shared Weights W',swx+80,swy+22);ctx.textBaseline='alphabetic';
+  // Lines from embed output to shared weight box
+  var e1x=60+4*50+44,e1y=50+40;
+  var e2x=60+4*50+44,e2y=200+40;
+  if(t>0.75){
+    var ta=(t-0.75)/0.25;
+    ctx.globalAlpha=ta;ctx.strokeStyle='#51cf66';ctx.lineWidth=1.5;ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(e1x,e1y);ctx.lineTo(swx,swy+22);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(e2x,e2y);ctx.lineTo(swx,swy+22);ctx.stroke();
+    ctx.setLineDash([]);ctx.globalAlpha=1;
+  }
+  // Distance output
+  if(t>0.88){
+    var ta2=(t-0.88)/0.12;
+    ctx.globalAlpha=ta2;
+    drawRoundedRect(ctx,swx,swy+60,160,36,8);
+    ctx.fillStyle='#1c2128';ctx.fill();ctx.strokeStyle='#f97316';ctx.lineWidth=2;ctx.stroke();
+    ctx.fillStyle='#f97316';ctx.font='bold 10px Inter';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('D\u1D414 = \u2016e\u2081\u2212e\u2082\u2016\u2082',swx+80,swy+78);ctx.textBaseline='alphabetic';
+    ctx.globalAlpha=1;
+  }
+  // Label
+  ctx.fillStyle='#8b949e';ctx.font='10px Inter';ctx.textAlign='center';
+  ctx.fillText('Both branches share identical weights W \u2014 ensuring comparable embedding spaces',W/2,H-8);
+}
+
+// === SECTION 3: LOSS ===
+var lossTab=0,lossDW=0.5,lossY=0;
+function setLossTab(t){
+  lossTab=t;
+  [0,1,2].forEach(function(i){document.getElementById('loss-btn-'+i).classList.toggle('active',i===t);});
+  document.getElementById('loss-slider-row').style.display=(t===2?'flex':'none');
+  if(t===0){lossY=0;lossDW=0.5;}
+  if(t===1){lossY=1;lossDW=1.5;}
+  document.getElementById('loss-dw-val').textContent=lossDW.toFixed(2);
+  document.getElementById('loss-dw-slider').value=Math.round(lossDW*100);
+  drawLoss();updateLossDetail();
+}
+function setLossY(y){
+  lossY=y;
+  document.getElementById('loss-y0-btn').classList.toggle('active',y===0);
+  document.getElementById('loss-y1-btn').classList.toggle('active',y===1);
+  drawLoss();updateLossDetail();
+}
+function setLossDW(v){
+  lossDW=v;
+  document.getElementById('loss-dw-val').textContent=v.toFixed(2);
+  drawLoss();updateLossDetail();
+}
+function updateLossDetail(){
+  var m=1.0,L=lossY===0?0.5*lossDW*lossDW:0.5*Math.pow(Math.max(0,m-lossDW),2);
+  var titles=['Genuine Pair (Y=0)','Impostor Pair (Y=1)','Interactive Explorer'];
+  var bodies=[
+    'For Y=0 (same class), the loss is \u00BD\u00B7D\u1D414\u00B2 \u2014 a quadratic bowl. Every genuine pair always contributes to the gradient, continuously pulling the embeddings closer. No dead zone.',
+    'For Y=1 (different class), the loss is \u00BD\u00B7max(0,m\u2212D\u1D414)\u00B2. When D\u1D414\u2265m the pair is already separated \u2014 zero loss, zero gradient. Only pairs closer than m contribute.',
+    'Y='+lossY+', D\u1D414='+lossDW.toFixed(2)+', L='+L.toFixed(4)+'. '+(lossY===0?'Genuine pair: gradient = D\u1D414 (always active).':lossDW>=m?'Impostor beyond margin \u2014 zero gradient (dead zone).':'Impostor inside margin \u2014 gradient = \u2212(m\u2212D\u1D414) pushes apart.')
+  ];
+  document.getElementById('loss-d-title').textContent=titles[lossTab];
+  document.getElementById('loss-d-body').textContent=bodies[lossTab];
+}
+function drawLoss(){
+  var canvas=document.getElementById('c-loss');if(!canvas)return;
+  var ctx=canvas.getContext('2d'),W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+  var m=1.0,pad=60,plotW=W-pad*2,plotH=H-90,maxD=2.5,maxL=2.5;
+  function toX(d){return pad+d/maxD*plotW;}
+  function toY(l){return H-50-Math.min(l,maxL)/maxL*plotH;}
+  // Grid
+  ctx.strokeStyle='#21262d';ctx.lineWidth=1;
+  for(var i=0;i<=5;i++){
+    var gy=H-50-i*plotH/5;
+    ctx.beginPath();ctx.moveTo(pad,gy);ctx.lineTo(W-pad,gy);ctx.stroke();
+    ctx.fillStyle='#30363d';ctx.font='9px Inter';ctx.textAlign='right';ctx.fillText((i*maxL/5).toFixed(1),pad-6,gy+3);
+  }
+  for(var j=0;j<=5;j++){
+    var gx=pad+j*plotW/5;
+    ctx.beginPath();ctx.moveTo(gx,H-50);ctx.lineTo(gx,35);ctx.stroke();
+    ctx.fillStyle='#30363d';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText((j*maxD/5).toFixed(1),gx,H-35);
+  }
+  // Axes
+  ctx.strokeStyle='#30363d';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(pad,35);ctx.lineTo(pad,H-50);ctx.lineTo(W-pad,H-50);ctx.stroke();
+  ctx.fillStyle='#8b949e';ctx.font='11px Inter';ctx.textAlign='center';ctx.fillText('Distance D\u1D414',W/2,H-14);
+  ctx.save();ctx.translate(14,H/2);ctx.rotate(-Math.PI/2);ctx.fillText('Loss L',0,0);ctx.restore();
+  // Margin line
+  ctx.strokeStyle='#fdcb6e55';ctx.lineWidth=1;ctx.setLineDash([6,4]);
+  ctx.beginPath();ctx.moveTo(toX(m),35);ctx.lineTo(toX(m),H-50);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#fdcb6e';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText('m=1.0',toX(m),30);
+  // Dead zone shade
+  ctx.fillStyle='#ef444410';
+  ctx.fillRect(toX(m),35,W-pad-toX(m),H-85);
+  ctx.fillStyle='#ef4444';ctx.font='9px Inter';ctx.textAlign='center';
+  ctx.fillText('Dead Zone',toX(m)+(W-pad-toX(m))/2,H-55);
+  // Genuine curve Y=0
+  var gAlpha=(lossTab===2&&lossY===1)?0.3:1;
+  ctx.globalAlpha=gAlpha;ctx.strokeStyle='#06b6d4';ctx.lineWidth=(lossTab===0||(lossTab===2&&lossY===0))?3:1.5;
+  ctx.beginPath();
+  for(var d=0;d<=maxD;d+=0.02){var l=0.5*d*d;if(d===0)ctx.moveTo(toX(d),toY(l));else ctx.lineTo(toX(d),toY(l));}
+  ctx.stroke();ctx.globalAlpha=1;
+  // Impostor curve Y=1
+  var iAlpha=(lossTab===2&&lossY===0)?0.3:1;
+  ctx.globalAlpha=iAlpha;ctx.strokeStyle='#ef4444';ctx.lineWidth=(lossTab===1||(lossTab===2&&lossY===1))?3:1.5;
+  ctx.beginPath();var iStart=false;
+  for(var d=0;d<=maxD;d+=0.02){var l=0.5*Math.pow(Math.max(0,m-d),2);if(!iStart){ctx.moveTo(toX(d),toY(l));iStart=true;}else ctx.lineTo(toX(d),toY(l));}
+  ctx.stroke();ctx.globalAlpha=1;
+  // Interactive cursor
+  if(lossTab===2){
+    var curL=lossY===0?0.5*lossDW*lossDW:0.5*Math.pow(Math.max(0,m-lossDW),2);
+    var col=lossY===0?'#06b6d4':'#ef4444';
+    var px=toX(lossDW),py=toY(curL);
+    ctx.strokeStyle=col;ctx.lineWidth=1;ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(px,H-50);ctx.lineTo(px,py);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(pad,py);ctx.lineTo(px,py);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();ctx.arc(px,py,7,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();
+    ctx.fillStyle=col;ctx.font='bold 11px Inter';ctx.textAlign='left';ctx.fillText('L='+curL.toFixed(3),px+10,py-5);
+  }
+  // Legend
+  ctx.fillStyle='#06b6d4';ctx.beginPath();ctx.arc(pad+18,48,5,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#8b949e';ctx.font='11px Inter';ctx.textAlign='left';ctx.fillText('Genuine (Y=0) : \u00BD\u00B7D\u1D414\u00B2',pad+28,52);
+  ctx.fillStyle='#ef4444';ctx.beginPath();ctx.arc(pad+220,48,5,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#8b949e';ctx.font='11px Inter';ctx.textAlign='left';ctx.fillText('Impostor (Y=1) : \u00BD\u00B7max(0,m\u2212D\u1D414)\u00B2',pad+230,52);
+}
+
+// === SECTION 4: MARGIN ===
+var marginM=1.0;
+function setMargin(v){
+  marginM=v;document.getElementById('margin-val').textContent=v.toFixed(2);drawMargin();
+}
+function drawMargin(){
+  var canvas=document.getElementById('c-margin');if(!canvas)return;
+  var ctx=canvas.getContext('2d'),W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+  var pad=60,plotW=W-pad*2,plotH=H-80,maxD=3.0,maxL=2.5;
+  function toX(d){return pad+d/maxD*plotW;}
+  function toY(l){return H-50-Math.min(l,maxL)/maxL*plotH;}
+  // Grid
+  ctx.strokeStyle='#21262d';ctx.lineWidth=1;
+  for(var i=0;i<=5;i++){
+    var gy=H-50-i*plotH/5;ctx.beginPath();ctx.moveTo(pad,gy);ctx.lineTo(W-pad,gy);ctx.stroke();
+    ctx.fillStyle='#30363d';ctx.font='9px Inter';ctx.textAlign='right';ctx.fillText((i*maxL/5).toFixed(1),pad-6,gy+3);
+  }
+  for(var j=0;j<=6;j++){
+    var gx=pad+j*plotW/6;ctx.beginPath();ctx.moveTo(gx,H-50);ctx.lineTo(gx,28);ctx.stroke();
+    ctx.fillStyle='#30363d';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText((j*maxD/6).toFixed(1),gx,H-35);
+  }
+  ctx.strokeStyle='#30363d';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(pad,28);ctx.lineTo(pad,H-50);ctx.lineTo(W-pad,H-50);ctx.stroke();
+  ctx.fillStyle='#8b949e';ctx.font='11px Inter';ctx.textAlign='center';ctx.fillText('Distance D\u1D414',W/2,H-14);
+  // Genuine curve
+  ctx.strokeStyle='#06b6d4';ctx.lineWidth=2;ctx.beginPath();
+  for(var d=0;d<=maxD;d+=0.02){var l=0.5*d*d;if(d===0)ctx.moveTo(toX(d),toY(l));else ctx.lineTo(toX(d),toY(l));}
+  ctx.stroke();
+  // Impostor curve with current margin
+  ctx.strokeStyle='#ef4444';ctx.lineWidth=2.5;ctx.beginPath();var iSt=false;
+  for(var d=0;d<=maxD;d+=0.02){var l=0.5*Math.pow(Math.max(0,marginM-d),2);if(!iSt){ctx.moveTo(toX(d),toY(l));iSt=true;}else ctx.lineTo(toX(d),toY(l));}
+  ctx.stroke();
+  // Dead zone
+  var mx=toX(marginM);
+  ctx.fillStyle='#ef444412';ctx.fillRect(mx,28,W-pad-mx,H-78);
+  ctx.strokeStyle='#fdcb6e';ctx.lineWidth=2;ctx.setLineDash([6,4]);
+  ctx.beginPath();ctx.moveTo(mx,28);ctx.lineTo(mx,H-50);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#fdcb6e';ctx.font='bold 10px Inter';ctx.textAlign='center';ctx.fillText('m='+marginM.toFixed(2),mx,23);
+  // Annotations
+  ctx.strokeStyle='#ef4444';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(mx+5,H-62);ctx.lineTo(W-pad-5,H-62);ctx.stroke();
+  ctx.fillStyle='#ef4444';ctx.font='9px Inter';ctx.textAlign='center';
+  ctx.fillText('Zero gradient (dead zone)',mx+(W-pad-mx)/2,H-50);
+  if(mx>pad+20){
+    ctx.strokeStyle='#51cf66';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(pad+5,H-62);ctx.lineTo(mx-5,H-62);ctx.stroke();
+    ctx.fillStyle='#51cf66';ctx.font='9px Inter';ctx.textAlign='center';
+    ctx.fillText('Active gradient',pad+(mx-pad)/2,H-50);
+  }
+  // Legend
+  ctx.fillStyle='#06b6d4';ctx.beginPath();ctx.arc(pad+18,40,5,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#8b949e';ctx.font='10px Inter';ctx.textAlign='left';ctx.fillText('Genuine (Y=0)',pad+28,44);
+  ctx.fillStyle='#ef4444';ctx.beginPath();ctx.arc(pad+155,40,5,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#8b949e';ctx.font='10px Inter';ctx.textAlign='left';ctx.fillText('Impostor (Y=1)',pad+165,44);
+}
+
+// === SECTION 5: TRAINING ===
+var trainRunning=false,trainAnimId=null,trainEpoch=0,trainStep=0,trainLossHist=[],trainPairs=[];
+var TRAIN_EPOCHS=30;
+function initTrainPairs(){
+  trainPairs=[];
+  for(var i=0;i<10;i++){
+    trainPairs.push({y:i%2,dw:i%2===0?(1.4+seededRand(i)*0.8):(0.2+seededRand(i+100)*0.3)});
+  }
+}
+function trainReset(){
+  trainRunning=false;
+  if(trainAnimId){cancelAnimationFrame(trainAnimId);trainAnimId=null;}
+  trainEpoch=0;trainStep=0;trainLossHist=[];
+  document.getElementById('train-btn').textContent='\u25B6 Start Training';
+  document.getElementById('train-status').textContent='Ready \u2014 press Start Training';
+  initTrainPairs();drawTraining();
+}
+function trainToggle(){
+  if(trainRunning){
+    trainRunning=false;if(trainAnimId){cancelAnimationFrame(trainAnimId);trainAnimId=null;}
+    document.getElementById('train-btn').textContent='\u25B6 Resume Training';return;
+  }
+  trainRunning=true;document.getElementById('train-btn').textContent='\u23F8 Pause';
+  var lastTs=null;
+  function step(ts){
+    if(!trainRunning)return;
+    var spd=parseInt(document.getElementById('train-speed').value)||4;
+    var dt=lastTs?Math.min(ts-lastTs,100):16;lastTs=ts;
+    for(var s=0;s<Math.max(1,Math.floor(spd/2));s++){
+      trainStep++;
+      if(trainStep%10===0){
+        trainEpoch++;
+        var lv=Math.max(0.04,0.78*Math.exp(-trainEpoch*0.11)+0.04+seededRand(trainEpoch)*0.04);
+        trainLossHist.push(lv);
+        trainPairs.forEach(function(p,i){
+          if(p.y===0){p.dw=Math.max(0.04,p.dw*0.86+seededRand(trainEpoch*10+i)*0.015);}
+          else{p.dw=Math.min(2.4,p.dw*1.05+seededRand(trainEpoch*10+i+50)*0.02);}
+        });
+        document.getElementById('train-status').textContent='Epoch '+trainEpoch+'/'+TRAIN_EPOCHS+' \u2014 Loss: '+lv.toFixed(4);
+        if(trainEpoch>=TRAIN_EPOCHS){
+          trainRunning=false;document.getElementById('train-btn').textContent='\u25B6 Train Again';
+          document.getElementById('train-status').textContent='Training complete \u2014 30 epochs';
+          drawTraining();return;
+        }
+      }
+    }
+    drawTraining();trainAnimId=requestAnimationFrame(step);
+  }
+  trainAnimId=requestAnimationFrame(step);
+}
+function drawTraining(){
+  var canvas=document.getElementById('c-training');if(!canvas)return;
+  var ctx=canvas.getContext('2d'),W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+  var topH=155;
+  ctx.fillStyle='#8b949e';ctx.font='11px Inter';ctx.textAlign='left';ctx.fillText('Training Pairs (Epoch '+trainEpoch+')',16,18);
+  var pW=72,gap=8;
+  trainPairs.forEach(function(p,i){
+    var px=16+i*(pW+gap),py=28;
+    var col=p.y===0?'#06b6d4':'#ef4444';
+    var m=1.0,safe=(p.y===1&&p.dw>=m)||(p.y===0&&p.dw<0.25);
+    // Two circles representing the pair
+    ctx.beginPath();ctx.arc(px+16,py+20,10,0,Math.PI*2);ctx.fillStyle=col+'44';ctx.fill();ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.stroke();
+    ctx.beginPath();ctx.arc(px+54,py+20,10,0,Math.PI*2);ctx.fillStyle=col+'44';ctx.fill();ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.stroke();
+    // Distance bar (vertical, below)
+    var maxBar=50,barH=Math.min(maxBar,p.dw/2.5*maxBar);
+    ctx.fillStyle=safe?'#51cf6644':'#f9731644';ctx.fillRect(px+30,py+38,12,barH);
+    ctx.strokeStyle=safe?'#51cf66':'#f97316';ctx.lineWidth=1;ctx.strokeRect(px+30,py+38,12,barH);
+    ctx.fillStyle='#8b949e';ctx.font='8px Inter';ctx.textAlign='center';
+    ctx.fillText(p.y===0?'G':'I',px+36,py+100);
+    if(safe){ctx.fillStyle='#51cf66';ctx.font='10px Inter';ctx.fillText('\u2713',px+36,py+112);}
+  });
+  // Loss curve panel
+  var lp=60,lw=W-lp-30,lh=H-topH-35,ly=topH+15;
+  ctx.fillStyle='#8b949e';ctx.font='11px Inter';ctx.textAlign='left';ctx.fillText('Contrastive Loss',lp,ly+12);
+  ctx.strokeStyle='#30363d';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(lp,ly+20);ctx.lineTo(lp,H-20);ctx.lineTo(lp+lw,H-20);ctx.stroke();
+  for(var i=0;i<=4;i++){
+    var gy=H-20-i*lh/4;
+    ctx.strokeStyle='#21262d';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(lp,gy);ctx.lineTo(lp+lw,gy);ctx.stroke();
+    ctx.fillStyle='#30363d';ctx.font='8px Inter';ctx.textAlign='right';ctx.fillText((i*0.2).toFixed(1),lp-4,gy+3);
+  }
+  if(trainLossHist.length>1){
+    ctx.strokeStyle='#51cf66';ctx.lineWidth=2;ctx.beginPath();
+    trainLossHist.forEach(function(l,i){
+      var x=lp+i/(TRAIN_EPOCHS-1)*lw,y=H-20-Math.min(l/0.82,1)*lh;
+      if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+    ctx.beginPath();
+    trainLossHist.forEach(function(l,i){
+      var x=lp+i/(TRAIN_EPOCHS-1)*lw,y=H-20-Math.min(l/0.82,1)*lh;
+      if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    });
+    ctx.lineTo(lp+(trainLossHist.length-1)/(TRAIN_EPOCHS-1)*lw,H-20);
+    ctx.lineTo(lp,H-20);ctx.closePath();ctx.fillStyle='#51cf6618';ctx.fill();
+  }
+  ctx.fillStyle='#30363d';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText('Epoch (0\u2013'+TRAIN_EPOCHS+')',lp+lw/2,H-5);
+}
+
+// === SECTION 6: EMBEDDINGS ===
+var embState=0,embT=0,embAnimId=null,embBefore=[],embAfter=[];
+var EMB_CLASSES=['A','B','C','D','E'];
+var EMB_COLORS=['#06b6d4','#f97316','#a78bfa','#10b981','#e879f9'];
+var EMB_CENTERS=[[140,100],[400,80],[660,150],[200,270],[590,280]];
+function initEmbPoints(){
+  embBefore=[];embAfter=[];
+  EMB_CLASSES.forEach(function(cls,ci){
+    for(var j=0;j<5;j++){
+      embBefore.push({cls:ci,x:60+seededRand(ci*5+j)*700,y:40+seededRand(ci*5+j+30)*280});
+      var angle=seededRand(ci*10+j+200)*Math.PI*2,r=5+seededRand(ci*10+j+300)*14;
+      embAfter.push({cls:ci,x:EMB_CENTERS[ci][0]+Math.cos(angle)*r,y:EMB_CENTERS[ci][1]+Math.sin(angle)*r});
+    }
+  });
+}
+function setEmb(s){
+  embState=s;embT=s;
+  if(embAnimId){cancelAnimationFrame(embAnimId);embAnimId=null;}
+  [0,1].forEach(function(i){document.getElementById('emb-btn-'+i).classList.toggle('active',i===s);});
+  drawEmb(embT);
+}
+function embReset(){setEmb(0);}
+function embAnimate(){
+  if(embAnimId){cancelAnimationFrame(embAnimId);embAnimId=null;}
+  var start=null,from=embT,to=embT<0.5?1:0;
+  function step(ts){
+    if(!start)start=ts;
+    var t=Math.min((ts-start)/2000,1);
+    embT=lerp(from,to,easeInOut(t));
+    drawEmb(embT);
+    if(t<1){embAnimId=requestAnimationFrame(step);}
+    else{embState=Math.round(to);[0,1].forEach(function(i){document.getElementById('emb-btn-'+i).classList.toggle('active',i===embState);});}
+  }
+  embAnimId=requestAnimationFrame(step);
+}
+function drawEmb(t){
+  var canvas=document.getElementById('c-embeddings');if(!canvas)return;
+  var ctx=canvas.getContext('2d'),W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+  if(!embBefore.length)return;
+  embBefore.forEach(function(pb,i){
+    var pa=embAfter[i];
+    var x=lerp(pb.x,pa.x,t),y=lerp(pb.y,pa.y,t);
+    var col=EMB_COLORS[pb.cls];
+    ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);
+    ctx.fillStyle=col+'88';ctx.fill();ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.stroke();
+  });
+  if(t>0.5){
+    EMB_CLASSES.forEach(function(cls,ci){
+      ctx.globalAlpha=(t-0.5)*2;
+      ctx.fillStyle=EMB_COLORS[ci];ctx.font='bold 13px Inter';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(cls,EMB_CENTERS[ci][0],EMB_CENTERS[ci][1]-26);
+      ctx.textBaseline='alphabetic';ctx.globalAlpha=1;
+    });
+  }
+  var stateLabel=t<0.05?'Before Training':t>0.95?'After Training':'Transforming...';
+  ctx.fillStyle='#8b949e';ctx.font='bold 12px Inter';ctx.textAlign='center';
+  ctx.fillText(stateLabel+' \u2014 5 classes \u00D7 5 points each \u2014 2D embedding projection',W/2,H-8);
+}
+
+// === SECTION 7: FACE ===
+var faceDW=0.4,faceThresh=0.8;
+function setFaceDW(v){
+  faceDW=v;document.getElementById('face-dw-val').textContent=v.toFixed(2);updateFaceVerdict();drawFace();
+}
+function setFaceThresh(v){
+  faceThresh=v;document.getElementById('face-thresh-val').textContent=v.toFixed(2);updateFaceVerdict();drawFace();
+}
+function updateFaceVerdict(){
+  var same=faceDW<faceThresh;
+  document.getElementById('face-verdict-title').textContent=same?'\u2713 SAME PERSON':'\u2717 DIFFERENT PERSON';
+  document.getElementById('face-verdict-title').style.color=same?'#51cf66':'#ef4444';
+  document.getElementById('face-verdict-body').textContent='D\u1D414 = '+faceDW.toFixed(2)+(same?' < ':' \u2265 ')+'\u03C4 = '+faceThresh.toFixed(2)+' \u2192 '+(same?'accept':'reject');
+}
+function drawFace(){
+  var canvas=document.getElementById('c-face');if(!canvas)return;
+  var ctx=canvas.getContext('2d'),W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+  var same=faceDW<faceThresh,col=same?'#51cf66':'#ef4444';
+  function drawFaceCircle(fx,fy,fillCol){
+    ctx.beginPath();ctx.arc(fx,fy,26,0,Math.PI*2);ctx.fillStyle=fillCol+'22';ctx.fill();ctx.strokeStyle=fillCol;ctx.lineWidth=2;ctx.stroke();
+    // Eyes
+    ctx.fillStyle=fillCol;ctx.beginPath();ctx.arc(fx-8,fy-6,4,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(fx+8,fy-6,4,0,Math.PI*2);ctx.fill();
+    // Mouth
+    ctx.beginPath();ctx.arc(fx,fy+5,8,0.1*Math.PI,0.9*Math.PI);ctx.strokeStyle=fillCol;ctx.lineWidth=2;ctx.stroke();
+  }
+  drawFaceCircle(66,H/2,'#a78bfa');
+  drawFaceCircle(W-66,H/2,'#a78bfa');
+  ctx.fillStyle='#8b949e';ctx.font='10px Inter';ctx.textAlign='center';
+  ctx.fillText('G\u1D414(X\u2081)',66,H/2+44);ctx.fillText('G\u1D414(X\u2082)',W-66,H/2+44);
+  // Distance line
+  var lineY=H/2,scale=60;
+  var cx=W/2,dHalf=Math.min(faceDW,1.8)*scale/2;
+  ctx.strokeStyle=col;ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(cx-dHalf,lineY);ctx.lineTo(cx+dHalf,lineY);ctx.stroke();
+  ctx.fillStyle=col;ctx.font='bold 11px Inter';ctx.textAlign='center';
+  ctx.fillText('D\u1D414='+faceDW.toFixed(2),cx,lineY-14);
+  // Endpoint dots
+  [cx-dHalf,cx+dHalf].forEach(function(ex){
+    ctx.beginPath();ctx.arc(ex,lineY,5,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();
+  });
+  // Threshold marker
+  var tx=cx+Math.min(faceThresh,1.8)*scale/2;
+  ctx.strokeStyle='#fdcb6e';ctx.lineWidth=2;ctx.setLineDash([5,4]);
+  ctx.beginPath();ctx.moveTo(tx,lineY-32);ctx.lineTo(tx,lineY+32);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#fdcb6e';ctx.font='10px Inter';ctx.textAlign='center';
+  ctx.fillText('\u03C4='+faceThresh.toFixed(2),tx,lineY-38);
+  // Verdict
+  ctx.fillStyle=col;ctx.font='bold 14px Inter';ctx.textAlign='center';
+  ctx.fillText(same?'ACCEPT \u2713':'REJECT \u2717',W/2,H-14);
+}
+
+// === SECTION 8: RESULTS ===
+var resultsTab=0;
+function setResults(t){
+  resultsTab=t;
+  [0,1,2].forEach(function(i){document.getElementById('res-btn-'+i).classList.toggle('active',i===t);});
+  drawResults();
+}
+function drawResults(){
+  var canvas=document.getElementById('c-results');if(!canvas)return;
+  var ctx=canvas.getContext('2d'),W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+  if(resultsTab===0)drawResultsATT(ctx,W,H);
+  else if(resultsTab===1)drawResultsFERET(ctx,W,H);
+  else drawResultsROC(ctx,W,H);
+}
+function drawResultsATT(ctx,W,H){
+  var methods=['PCA (Eigenface)','Kernel PCA','Fisher LDA','Contrastive Loss'];
+  var scores=[91.2,93.8,95.1,98.7];
+  var colors=['#30363d','#8b949e','#fdcb6e','#51cf66'];
+  ctx.fillStyle='#c9d1d9';ctx.font='bold 12px Inter';ctx.textAlign='center';
+  ctx.fillText('AT&T Face Database \u2014 Verification Accuracy (%)',W/2,22);
+  var bH=44,gap=16,startY=36,minS=88,maxS=100;
+  methods.forEach(function(m,i){
+    var y=startY+i*(bH+gap);
+    var barW=(scores[i]-minS)/(maxS-minS)*(W-220);
+    drawRoundedRect(ctx,160,y,Math.max(4,barW),bH,6);
+    ctx.fillStyle=colors[i]+'55';ctx.fill();ctx.strokeStyle=colors[i];ctx.lineWidth=1.5;ctx.stroke();
+    ctx.fillStyle='#c9d1d9';ctx.font='11px Inter';ctx.textAlign='right';ctx.fillText(m,150,y+bH/2+4);
+    ctx.fillStyle=colors[i];ctx.font='bold 12px Inter';ctx.textAlign='left';ctx.fillText(scores[i]+'%',170+barW,y+bH/2+4);
+  });
+}
+function drawResultsFERET(ctx,W,H){
+  var methods=['PCA (Eigenface)','Kernel PCA','Fisher LDA','Contrastive Loss'];
+  var far=[8.2,6.5,5.8,2.1];
+  var colors=['#30363d','#8b949e','#fdcb6e','#51cf66'];
+  ctx.fillStyle='#c9d1d9';ctx.font='bold 12px Inter';ctx.textAlign='center';
+  ctx.fillText('FERET Database \u2014 False Accept Rate (%) \u2014 Lower is Better',W/2,22);
+  var bH=44,gap=16,startY=36;
+  methods.forEach(function(m,i){
+    var y=startY+i*(bH+gap);
+    var barW=far[i]/10*(W-220);
+    drawRoundedRect(ctx,160,y,Math.max(4,barW),bH,6);
+    ctx.fillStyle=colors[i]+'55';ctx.fill();ctx.strokeStyle=colors[i];ctx.lineWidth=1.5;ctx.stroke();
+    ctx.fillStyle='#c9d1d9';ctx.font='11px Inter';ctx.textAlign='right';ctx.fillText(m,150,y+bH/2+4);
+    ctx.fillStyle=colors[i];ctx.font='bold 12px Inter';ctx.textAlign='left';ctx.fillText(far[i]+'% FAR',170+barW,y+bH/2+4);
+  });
+}
+function drawResultsROC(ctx,W,H){
+  var pad=60,pW=W-pad*2,pH=H-pad*2;
+  ctx.strokeStyle='#30363d';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(pad,pad);ctx.lineTo(pad,H-pad);ctx.lineTo(W-pad,H-pad);ctx.stroke();
+  ctx.fillStyle='#8b949e';ctx.font='11px Inter';ctx.textAlign='center';ctx.fillText('False Accept Rate (FAR)',W/2,H-10);
+  ctx.save();ctx.translate(14,H/2);ctx.rotate(-Math.PI/2);ctx.fillText('True Accept Rate (TAR)',0,0);ctx.restore();
+  ctx.fillStyle='#c9d1d9';ctx.font='bold 12px Inter';ctx.textAlign='center';ctx.fillText('ROC Curve \u2014 AT&T Face Dataset',W/2,pad-14);
+  ctx.strokeStyle='#30363d';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+  ctx.beginPath();ctx.moveTo(pad,H-pad);ctx.lineTo(W-pad,pad);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#30363d';ctx.font='9px Inter';ctx.textAlign='left';ctx.fillText('Random',W-pad+4,H-pad);
+  function drawROC(pts,col,lbl){
+    ctx.strokeStyle=col;ctx.lineWidth=2;ctx.beginPath();
+    pts.forEach(function(p,i){var x=pad+p[0]*pW,y=(H-pad)-p[1]*pH;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});
+    ctx.stroke();
+    var last=pts[pts.length-2];
+    ctx.fillStyle=col;ctx.font='bold 10px Inter';ctx.textAlign='left';
+    ctx.fillText(lbl,pad+last[0]*pW+8,(H-pad)-last[1]*pH-6);
+  }
+  drawROC([[0,0],[0.05,0.55],[0.1,0.72],[0.2,0.85],[0.4,0.94],[1,1]],'#8b949e','PCA baseline');
+  drawROC([[0,0],[0.01,0.64],[0.04,0.88],[0.08,0.95],[0.15,0.98],[0.5,1.0],[1,1]],'#51cf66','Contrastive Loss');
+  ctx.fillStyle='#fdcb6e';ctx.font='9px Inter';ctx.textAlign='center';ctx.fillText('EER',pad+0.055*pW,H-pad+14);
+  ctx.strokeStyle='#fdcb6e44';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+  ctx.beginPath();ctx.moveTo(pad+0.055*pW,H-pad);ctx.lineTo(pad+0.055*pW,pad+0.1*pH);ctx.stroke();ctx.setLineDash([]);
+}
+
+// === SECTION 9: MODERN ===
+var modernTab=0;
+function setModern(t){
+  modernTab=t;
+  [0,1,2,3].forEach(function(i){document.getElementById('mod-btn-'+i).classList.toggle('active',i===t);});
+  drawModern();
+}
+function drawModern(){
+  var canvas=document.getElementById('c-modern');if(!canvas)return;
+  var ctx=canvas.getContext('2d'),W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+  if(modernTab===0)drawFamilyTree(ctx,W,H);
+  else if(modernTab===1)drawTripletLoss(ctx,W,H);
+  else if(modernTab===2)drawNTXent(ctx,W,H);
+  else drawCLIPDiagram(ctx,W,H);
+}
+function drawTreeNode(ctx,x,y,w,h,label,year,col){
+  drawRoundedRect(ctx,x-w/2,y-h/2,w,h,7);
+  ctx.fillStyle=col+'22';ctx.fill();ctx.strokeStyle=col;ctx.lineWidth=2;ctx.stroke();
+  ctx.fillStyle=col;ctx.font='bold 10px Inter';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(label,x,y-5);
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter';ctx.fillText(year,x,y+8);ctx.textBaseline='alphabetic';
+}
+function drawFamilyTree(ctx,W,H){
+  var L1=[{x:W/2,y:45,lbl:'Contrastive Loss',yr:'2005',col:'#06b6d4'}];
+  var L2=[{x:160,y:130,lbl:'DrLIM',yr:'2006',col:'#22d3ee'},{x:410,y:130,lbl:'Siamese Net',yr:'2010',col:'#a78bfa'},{x:660,y:130,lbl:'Deep Face',yr:'2014',col:'#f97316'}];
+  var L3=[{x:90,y:215,lbl:'FaceNet / Triplet',yr:'2015',col:'#7c3aed'},{x:300,y:215,lbl:'DeepID2+',yr:'2015',col:'#e879f9'},{x:520,y:215,lbl:'MoCo',yr:'2019',col:'#10b981'},{x:700,y:215,lbl:'SimCLR',yr:'2020',col:'#51cf66'}];
+  var L4=[{x:190,y:305,lbl:'CLIP',yr:'2021',col:'#06b6d4'},{x:410,y:305,lbl:'DINO',yr:'2021',col:'#f97316'},{x:630,y:305,lbl:'MAE / BYOL',yr:'2021',col:'#fdcb6e'}];
+  var nW=148,nH=36;
+  // Draw connecting lines first
+  ctx.strokeStyle='#30363d';ctx.lineWidth=1.5;
+  L2.forEach(function(n){ctx.beginPath();ctx.moveTo(L1[0].x,L1[0].y+nH/2);ctx.lineTo(n.x,n.y-nH/2);ctx.stroke();});
+  [[0,1],[1,1],[2,2],[3,2]].forEach(function(p){ctx.beginPath();ctx.moveTo(L2[p[1]].x,L2[p[1]].y+nH/2);ctx.lineTo(L3[p[0]].x,L3[p[0]].y-nH/2);ctx.stroke();});
+  [[0,0],[1,1],[2,2]].forEach(function(p){ctx.beginPath();ctx.moveTo(L3[p[1]+1].x,L3[p[1]+1].y+nH/2);ctx.lineTo(L4[p[0]].x,L4[p[0]].y-nH/2);ctx.stroke();});
+  // Draw nodes
+  [L1,L2,L3,L4].forEach(function(lvl){lvl.forEach(function(n){drawTreeNode(ctx,n.x,n.y,nW,nH,n.lbl,n.yr,n.col);});});
+}
+function drawTripletLoss(ctx,W,H){
+  var cx=W/2,cy=H/2+10;
+  var anchor={x:cx,y:cy-80,col:'#06b6d4',lbl:'Anchor (A)'};
+  var pos={x:cx-130,y:cy+70,col:'#51cf66',lbl:'Positive (P)'};
+  var neg={x:cx+130,y:cy+70,col:'#ef4444',lbl:'Negative (N)'};
+  [anchor,pos,neg].forEach(function(n){
+    ctx.beginPath();ctx.arc(n.x,n.y,32,0,Math.PI*2);ctx.fillStyle=n.col+'33';ctx.fill();ctx.strokeStyle=n.col;ctx.lineWidth=2.5;ctx.stroke();
+    ctx.fillStyle=n.col;ctx.font='bold 11px Inter';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(n.lbl.split(' ')[0],n.x,n.y);ctx.textBaseline='alphabetic';
+    ctx.fillStyle='#8b949e';ctx.font='10px Inter';ctx.textAlign='center';ctx.fillText(n.lbl,n.x,n.y+50);
+  });
+  // A-P arrow (green, pull closer)
+  ctx.strokeStyle='#51cf66';ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(anchor.x-12,anchor.y+30);ctx.lineTo(pos.x+16,pos.y-30);ctx.stroke();
+  ctx.fillStyle='#51cf66';ctx.font='bold 10px Inter';ctx.textAlign='center';ctx.fillText('d(A,P) \u2192 0',cx-78,cy+8);
+  // A-N arrow (red, push apart)
+  ctx.strokeStyle='#ef4444';ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(anchor.x+12,anchor.y+30);ctx.lineTo(neg.x-16,neg.y-30);ctx.stroke();
+  ctx.fillStyle='#ef4444';ctx.font='bold 10px Inter';ctx.textAlign='center';ctx.fillText('d(A,N) > m',cx+78,cy+8);
+  // Formula
+  ctx.fillStyle='#22d3ee';ctx.font='12px "JetBrains Mono",monospace';ctx.textAlign='center';
+  ctx.fillText('L = max(0,  d(A,P) \u2212 d(A,N) + margin)',cx,H-36);
+  ctx.fillStyle='#8b949e';ctx.font='10px Inter';ctx.fillText('FaceNet (Schroff et al., Google 2015) \u2014 each example contributes two distances',cx,H-16);
+}
+function drawNTXent(ctx,W,H){
+  var N=6,cx=W/2,cy=H/2-10,r=120;
+  var cols=['#06b6d4','#06b6d4','#f97316','#f97316','#a78bfa','#a78bfa'];
+  var lbls=['aug1','aug2','img1','img2','img3','img4'];
+  var pts=[];
+  for(var i=0;i<N;i++){
+    var angle=i/N*Math.PI*2-Math.PI/2;
+    pts.push({x:cx+Math.cos(angle)*r,y:cy+Math.sin(angle)*r,col:cols[i],lbl:lbls[i]});
+  }
+  // Negative connections first (dim)
+  for(var i=0;i<N;i++){
+    for(var j=i+1;j<N;j++){
+      if(i===0&&j===1)continue;
+      ctx.strokeStyle='#ef444428';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[j].x,pts[j].y);ctx.stroke();
+    }
+  }
+  // Positive pair
+  ctx.strokeStyle='#51cf66';ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);ctx.lineTo(pts[1].x,pts[1].y);ctx.stroke();
+  // Nodes
+  pts.forEach(function(p){
+    ctx.beginPath();ctx.arc(p.x,p.y,22,0,Math.PI*2);ctx.fillStyle=p.col+'33';ctx.fill();ctx.strokeStyle=p.col;ctx.lineWidth=2;ctx.stroke();
+    ctx.fillStyle=p.col;ctx.font='bold 10px Inter';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(p.lbl,p.x,p.y);ctx.textBaseline='alphabetic';
+  });
+  ctx.fillStyle='#51cf66';ctx.font='bold 10px Inter';ctx.textAlign='center';ctx.fillText('Positive pair (same image, two augmentations)',cx,cy-r-30);
+  ctx.fillStyle='#ef4444';ctx.font='10px Inter';ctx.fillText('N\u22121 = 5 negative pairs per anchor',cx,cy+r+28);
+  ctx.fillStyle='#22d3ee';ctx.font='11px "JetBrains Mono",monospace';ctx.fillText('NT-Xent: temperature-scaled cross-entropy, no explicit margin',cx,H-12);
+}
+function drawCLIPDiagram(ctx,W,H){
+  var N=4;
+  var imgLbls=['Dog photo','Cat photo','City photo','Tree photo'];
+  var txtLbls=['"a dog"','"a cat"','"a city"','"a tree"'];
+  var pcols=['#06b6d4','#a78bfa','#f97316','#10b981'];
+  var lx=130,rx=W-130,startY=55,stepY=(H-100)/N;
+  ctx.fillStyle='#8b949e';ctx.font='bold 11px Inter';ctx.textAlign='center';
+  ctx.fillText('Image Encoder',lx,42);ctx.fillText('Text Encoder',rx,42);
+  for(var i=0;i<N;i++){
+    var y=startY+i*stepY+stepY/2;
+    var col=pcols[i];
+    drawRoundedRect(ctx,lx-58,y-18,116,36,8);ctx.fillStyle=col+'22';ctx.fill();ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.stroke();
+    ctx.fillStyle=col;ctx.font='10px Inter';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(imgLbls[i],lx,y);ctx.textBaseline='alphabetic';
+    drawRoundedRect(ctx,rx-58,y-18,116,36,8);ctx.fillStyle=col+'22';ctx.fill();ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.stroke();
+    ctx.fillStyle=col;ctx.font='10px Inter';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(txtLbls[i],rx,y);ctx.textBaseline='alphabetic';
+    // Matching line
+    ctx.strokeStyle=col;ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(lx+58,y);ctx.lineTo(rx-58,y);ctx.stroke();
+  }
+  // Off-diagonal (non-match) lines
+  for(var i=0;i<N;i++){
+    for(var j=0;j<N;j++){
+      if(i===j)continue;
+      var y1=startY+i*stepY+stepY/2,y2=startY+j*stepY+stepY/2;
+      ctx.strokeStyle='#ef444428';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(lx+58,y1);ctx.lineTo(rx-58,y2);ctx.stroke();
+    }
+  }
+  ctx.fillStyle='#8b949e';ctx.font='10px Inter';ctx.textAlign='center';
+  ctx.fillText('CLIP: 400M image-text pairs \u2014 same contrastive objective across modalities (OpenAI, 2021)',W/2,H-8);
+}
+
+// === SECTION 10: QUIZ ===
+var QUIZ_DATA=[
+  {q:'What does Y=0 mean in the contrastive loss formulation?',opts:['Impostor pair (different class)','Genuine pair (same class)','The margin hyperparameter','Zero embedding distance'],ans:1,exp:'Y=0 denotes a genuine pair (same class). The loss term is \u00BD\u00B7D\u1D414\u00B2 which pulls the embeddings together.'},
+  {q:'What happens to the gradient for an impostor pair when D_W \u2265 m?',opts:['Gradient equals D_W','Gradient equals \u2212(m\u2212D_W)','Gradient is zero','Gradient is doubled'],ans:2,exp:'When D\u1D414\u2265m, max(0,m\u2212D\u1D414)=0, so the loss and gradient are both zero. This is the dead zone.'},
+  {q:'Why do Siamese networks use shared weights?',opts:['To halve memory usage','To ensure both inputs use the same transformation','To speed up training convergence','To prevent vanishing gradients'],ans:1,exp:'Shared weights guarantee G\u1D414(X\u2081) and G\u1D414(X\u2082) live in the same embedding space. Without sharing, the distance D\u1D414 would be meaningless.'},
+  {q:'What is the role of the margin m in contrastive loss?',opts:['Controls learning rate','Defines minimum distance for genuine pairs','Defines minimum distance required between impostor pairs','Normalises embedding vectors'],ans:2,exp:'The margin m defines how far apart impostor pairs must be. Once D\u1D414\u2265m, the loss is zero and no more gradient pushes that pair apart.'},
+  {q:'Which paper introduced contrastive loss for face verification?',opts:['FaceNet (Schroff et al., 2015)','Chopra, Hadsell & LeCun, CVPR 2005','SimCLR (Chen et al., 2020)','DeepFace (Taigman et al., 2014)'],ans:1,exp:'Chopra, Hadsell and LeCun published "Learning a Similarity Metric Discriminatively, with Application to Face Verification" at CVPR 2005.'},
+  {q:'What is the key structural difference between contrastive loss and triplet loss?',opts:['Triplet uses pairs; contrastive uses triplets','Triplet uses anchor+positive+negative; contrastive uses labeled pairs','Triplet requires weight sharing; contrastive does not','They are mathematically identical'],ans:1,exp:'Triplet loss uses three examples (anchor, positive, negative) minimising d(A,P)\u2212d(A,N)+margin. Contrastive loss uses pairs with a binary label Y.'},
+  {q:'In metric learning, what is an open-set recognition problem?',opts:['A problem with no closed-form solution','Recognising identities never seen during training','A dataset with no labels','An unsupervised task only'],ans:1,exp:'Open-set means test identities were not in the training set. Metric learning handles this naturally since the learned distance generalises; softmax classifiers cannot.'},
+  {q:'Which modern system extends contrastive learning to image-text pairs at web scale?',opts:['FaceNet','BERT','CLIP','ResNet-50'],ans:2,exp:'CLIP (Contrastive Language-Image Pretraining, OpenAI 2021) applies the same pull-push contrastive objective across 400M image-text pairs, matching images to their descriptions.'}
+];
+var quizAnswers={};
+function renderQuiz(){
+  var c=document.getElementById('quiz-container');if(!c)return;
+  c.innerHTML='';quizAnswers={};
+  QUIZ_DATA.forEach(function(q,qi){
+    var div=document.createElement('div');
+    div.style.cssText='background:#161b22;border:1px solid #30363d;border-radius:12px;padding:20px 22px;margin-bottom:16px;';
+    var qDiv=document.createElement('div');qDiv.className='quiz-q';qDiv.textContent=(qi+1)+'. '+q.q;div.appendChild(qDiv);
+    q.opts.forEach(function(opt,oi){
+      var btn=document.createElement('div');btn.className='quiz-opt';btn.id='qopt-'+qi+'-'+oi;
+      btn.textContent=opt;btn.onclick=function(){selectQuizOpt(qi,oi);};div.appendChild(btn);
+    });
+    var fb=document.createElement('div');fb.className='quiz-feedback';fb.id='qfb-'+qi;div.appendChild(fb);
+    c.appendChild(div);
+  });
+}
+function selectQuizOpt(qi,oi){
+  quizAnswers[qi]=oi;
+  for(var i=0;i<QUIZ_DATA[qi].opts.length;i++){var el=document.getElementById('qopt-'+qi+'-'+i);if(el){el.classList.remove('correct','wrong');el.style.borderColor='';}}
+  var sel=document.getElementById('qopt-'+qi+'-'+oi);if(sel)sel.style.borderColor='#06b6d4';
+}
+function submitQuiz(){
+  var score=0;
+  QUIZ_DATA.forEach(function(q,qi){
+    for(var i=0;i<q.opts.length;i++){var el=document.getElementById('qopt-'+qi+'-'+i);if(el)el.classList.remove('correct','wrong');}
+    var ans=quizAnswers[qi];
+    if(ans===undefined){document.getElementById('qfb-'+qi).textContent='No answer selected.';return;}
+    var selEl=document.getElementById('qopt-'+qi+'-'+ans);
+    if(ans===q.ans){score++;if(selEl)selEl.classList.add('correct');}
+    else{if(selEl)selEl.classList.add('wrong');var cEl=document.getElementById('qopt-'+qi+'-'+q.ans);if(cEl)cEl.classList.add('correct');}
+    document.getElementById('qfb-'+qi).textContent=q.exp;
+  });
+  document.getElementById('quiz-score').textContent=score+'/'+QUIZ_DATA.length+' correct ('+Math.round(score/QUIZ_DATA.length*100)+'%)';
+}
+function resetQuiz(){quizAnswers={};document.getElementById('quiz-score').textContent='';renderQuiz();}
+
+// === INIT ALL ===
+var _origInitAll=window.initAll;
+window.initAll=function(){
+  if(_origInitAll)_origInitAll();
+  drawIntro();
+  drawSiamese(0);
+  drawLoss();updateLossDetail();
+  drawMargin();
+  initTrainPairs();drawTraining();
+  initEmbPoints();drawEmb(0);
+  setFaceDW(0.4);setFaceThresh(0.8);drawFace();
+  drawResults();
+  drawModern();
+  renderQuiz();
+};
+if(sessionStorage.getItem('pg_unlocked_16')==='1'){window.initAll();}
+
+</script>
+</body>
+</html>
