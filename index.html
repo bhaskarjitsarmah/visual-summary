@@ -230,6 +230,96 @@
   .difficulty-badge.level-1 { color: #51cf66; }
   .difficulty-badge.level-2 { color: #fdcb6e; }
   .difficulty-badge.level-3 { color: #f97316; }
+
+  /* SEARCH BAR */
+  .search-wrap {
+    position: relative; flex: 1; max-width: 340px;
+  }
+  .search-icon {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    color: #484f58; font-size: 0.9rem; pointer-events: none; line-height: 1;
+  }
+  .search-input {
+    width: 100%; background: #0d1117; border: 1px solid #30363d;
+    border-radius: 8px; padding: 7px 30px 7px 30px;
+    font-size: 0.82rem; color: #c9d1d9; outline: none; transition: border-color 0.15s;
+  }
+  .search-input:focus { border-color: #7c6fcd; }
+  .search-input::placeholder { color: #484f58; }
+  .search-clear {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; color: #8b949e; cursor: pointer;
+    font-size: 0.78rem; padding: 2px 4px; display: none; line-height: 1;
+  }
+  .search-clear.visible { display: block; }
+  .search-clear:hover { color: #c9d1d9; }
+
+  /* VIEW TOGGLE */
+  .view-toggle { display: flex; gap: 4px; }
+  .view-btn {
+    background: transparent; border: 1px solid #30363d; border-radius: 6px;
+    color: #8b949e; cursor: pointer; padding: 6px 10px; font-size: 0.82rem;
+    transition: all 0.15s; line-height: 1;
+  }
+  .view-btn:hover { color: #c9d1d9; border-color: #8b949e; }
+  .view-btn.active { background: #21262d; color: #c9d1d9; border-color: #7c6fcd; }
+
+  /* LIST VIEW */
+  .posts-grid.list-view {
+    display: flex; flex-direction: column; gap: 0;
+    border: 1px solid #21262d; border-radius: 12px; overflow: hidden;
+  }
+  .posts-grid.list-view .post-card {
+    flex-direction: row; align-items: center; gap: 16px;
+    border: none; border-bottom: 1px solid #21262d;
+    border-radius: 0; padding: 11px 20px;
+    transform: none !important;
+  }
+  .posts-grid.list-view .post-card:last-child { border-bottom: none; }
+  .posts-grid.list-view .post-card::before { display: none; }
+  .posts-grid.list-view .post-card:hover { background: #1c2128; }
+  .posts-grid.list-view .post-num { display: none; }
+  .posts-grid.list-view .post-title { font-size: 0.88rem; margin: 0; }
+  .posts-grid.list-view .post-desc { display: none; }
+  .posts-grid.list-view .post-tags { display: none; }
+  .posts-grid.list-view .post-footer {
+    border-top: none; padding-top: 0; flex-shrink: 0;
+    margin-left: auto; gap: 14px;
+  }
+  .posts-grid.list-view .coming-soon .post-footer { display: none; }
+
+  /* list-num: post number shown in list view */
+  .list-num {
+    display: none; font-size: 0.68rem; font-weight: 700;
+    color: #484f58; min-width: 26px; flex-shrink: 0;
+  }
+  .posts-grid.list-view .list-num { display: block; }
+
+  /* cat-pill: category label shown in list view */
+  .cat-pill {
+    display: none; font-size: 0.65rem; font-weight: 700;
+    padding: 2px 8px; border-radius: 20px; border: 1px solid;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .posts-grid.list-view .cat-pill { display: inline-block; }
+  .cat-pill.foundations     { color: #0984e3; border-color: #0984e344; background: #0984e311; }
+  .cat-pill.training        { color: #a29bfe; border-color: #a29bfe44; background: #a29bfe11; }
+  .cat-pill.representations { color: #e17055; border-color: #e1705544; background: #e1705511; }
+  .cat-pill.agents          { color: #00b894; border-color: #00b89444; background: #00b89411; }
+
+  /* search highlight */
+  mark.hl { background: #7c6fcd44; color: #c9d1d9; border-radius: 2px; padding: 0 1px; }
+
+  /* EMPTY STATE */
+  .empty-state {
+    display: none; grid-column: 1 / -1;
+    text-align: center; padding: 64px 0; color: #8b949e;
+  }
+  .empty-state.visible { display: block; }
+  .empty-icon { font-size: 2rem; margin-bottom: 10px; }
+  .empty-msg  { font-size: 0.9rem; margin-bottom: 6px; }
+  .empty-sub  { font-size: 0.78rem; }
+
   /* FOOTER */
   .footer {
     border-top: 1px solid #21262d;
@@ -274,31 +364,43 @@
   <div class="posts-header">
     <div class="posts-header-title">All Posts</div>
     <div class="posts-count" id="post-count">16 posts</div>
+    <div style="flex:1;"></div>
+    <div class="search-wrap">
+      <span class="search-icon">&#128269;</span>
+      <input class="search-input" id="search-input" type="text"
+        placeholder="Search posts, topics, tags&hellip;" oninput="setSearch(this.value)"
+        onkeydown="if(event.key==='Escape')clearSearch()">
+      <button class="search-clear" id="search-clear" onclick="clearSearch()" title="Clear search">&#10005;</button>
+    </div>
+    <div class="view-toggle">
+      <button class="view-btn active" id="view-grid" onclick="setView('grid')" title="Grid view">&#8862;</button>
+      <button class="view-btn" id="view-list" onclick="setView('list')" title="List view">&#9776;</button>
+    </div>
   </div>
 
   <!-- FILTER TABS -->
   <div class="filter-bar">
-    <button class="filter-tab active" data-filter="all" onclick="setFilter('all', this)">
+    <button class="filter-tab active" data-filter="all" onclick="setFilter('all')">
       <span class="filter-dot" style="background:#7c6fcd"></span>
       All
       <span class="filter-count">16</span>
     </button>
-    <button class="filter-tab" data-filter="foundations" onclick="setFilter('foundations', this)">
+    <button class="filter-tab" data-filter="foundations" onclick="setFilter('foundations')">
       <span class="filter-dot" style="background:#0984e3"></span>
       LLM Foundations
       <span class="filter-count">5</span>
     </button>
-    <button class="filter-tab" data-filter="training" onclick="setFilter('training', this)">
+    <button class="filter-tab" data-filter="training" onclick="setFilter('training')">
       <span class="filter-dot" style="background:#a29bfe"></span>
       Training &amp; Alignment
       <span class="filter-count">3</span>
     </button>
-    <button class="filter-tab" data-filter="representations" onclick="setFilter('representations', this)">
+    <button class="filter-tab" data-filter="representations" onclick="setFilter('representations')">
       <span class="filter-dot" style="background:#e17055"></span>
       Representations
       <span class="filter-count">3</span>
     </button>
-    <button class="filter-tab" data-filter="agents" onclick="setFilter('agents', this)">
+    <button class="filter-tab" data-filter="agents" onclick="setFilter('agents')">
       <span class="filter-dot" style="background:#00b894"></span>
       Agents &amp; Systems
       <span class="filter-count">5</span>
@@ -680,6 +782,13 @@
       </div>
     </a>
 
+    <!-- Empty state -->
+    <div class="empty-state" id="empty-state">
+      <div class="empty-icon">&#128269;</div>
+      <div class="empty-msg">No posts match your search.</div>
+      <div class="empty-sub">Try a different keyword or clear the search to browse all posts.</div>
+    </div>
+
     <!-- Coming soon -->
     <div class="post-card coming-soon" data-group="all" style="--accent-color:#21262d;">
       <div class="coming-soon-badge">Coming soon</div>
@@ -711,44 +820,123 @@
 <script>
 var GROUP_LABELS = {
   all:             'All Posts',
-  foundations:     'LLM Foundations — Tokenization, sampling, inference & in-context learning (easy → hard)',
-  training:        'Training & Alignment — RLHF, prompt optimisation, and pipeline compilation (easy → hard)',
-  representations: 'Representations — Embeddings, metric learning, and compression (easy → hard)',
-  agents:          'Agents & Systems — Frameworks, neurosymbolic AI, and evaluation (easy → hard)',
+  foundations:     'LLM Foundations \u2014 Tokenization, sampling, inference & in-context learning (easy \u2192 hard)',
+  training:        'Training & Alignment \u2014 RLHF, prompt optimisation, and pipeline compilation (easy \u2192 hard)',
+  representations: 'Representations \u2014 Embeddings, metric learning, and compression (easy \u2192 hard)',
+  agents:          'Agents & Systems \u2014 Frameworks, neurosymbolic AI, and evaluation (easy \u2192 hard)',
+};
+var CAT_LABELS = {
+  foundations: 'Foundations', training: 'Training',
+  representations: 'Representations', agents: 'Agents'
 };
 
 var activeFilter = 'all';
+var searchQuery  = '';
+var currentView  = 'grid';
 
-function setFilter(group, btn) {
-  if (activeFilter === group) return;
+// Inject list-num + cat-pill into each real card once on load
+function initCards() {
+  var n = 0;
+  document.querySelectorAll('#posts-grid .post-card:not(.coming-soon)').forEach(function(card) {
+    n++;
+    if (!card.querySelector('.list-num')) {
+      var titleEl = card.querySelector('.post-title');
+      if (titleEl) {
+        var numSpan = document.createElement('span');
+        numSpan.className = 'list-num';
+        numSpan.textContent = (n < 10 ? '0' : '') + n;
+        titleEl.parentNode.insertBefore(numSpan, titleEl);
+      }
+    }
+    if (!card.querySelector('.cat-pill')) {
+      var footer = card.querySelector('.post-footer');
+      var group  = card.dataset.group || '';
+      if (footer && group) {
+        var pill = document.createElement('span');
+        pill.className = 'cat-pill ' + group;
+        pill.textContent = CAT_LABELS[group] || group;
+        footer.insertBefore(pill, footer.firstChild);
+      }
+    }
+  });
+}
+
+function setView(mode) {
+  currentView = mode;
+  document.getElementById('posts-grid').classList.toggle('list-view', mode === 'list');
+  document.getElementById('view-grid').classList.toggle('active', mode === 'grid');
+  document.getElementById('view-list').classList.toggle('active', mode === 'list');
+}
+
+function setSearch(val) {
+  searchQuery = val.trim().toLowerCase();
+  document.getElementById('search-clear').classList.toggle('visible', val.length > 0);
+  applyFilters();
+}
+
+function clearSearch() {
+  searchQuery = '';
+  document.getElementById('search-input').value = '';
+  document.getElementById('search-clear').classList.remove('visible');
+  applyFilters();
+}
+
+function setFilter(group) {
   activeFilter = group;
-
-  // update tab styles
   document.querySelectorAll('.filter-tab').forEach(function(t) {
     t.classList.toggle('active', t.dataset.filter === group);
   });
+  var label = document.getElementById('group-label');
+  if (group === 'all') { label.classList.remove('visible'); }
+  else { label.textContent = GROUP_LABELS[group]; label.classList.add('visible'); }
+  applyFilters();
+}
 
-  // show/hide cards
-  var cards = document.querySelectorAll('#posts-grid .post-card');
+function applyFilters() {
+  var grid    = document.getElementById('posts-grid');
+  var cards   = Array.from(grid.querySelectorAll('.post-card'));
+  var q       = searchQuery;
   var visible = 0;
+
   cards.forEach(function(card) {
-    var match = group === 'all' || card.dataset.group === group || card.dataset.group === 'all';
-    card.classList.toggle('hidden', !match);
-    if (match && !card.classList.contains('coming-soon')) visible++;
+    if (card.classList.contains('coming-soon')) {
+      card.classList.toggle('hidden', q.length > 0);
+      return;
+    }
+    var catMatch = activeFilter === 'all' || card.dataset.group === activeFilter;
+    var searchMatch = true;
+    if (q) {
+      var text = ['.post-title', '.post-desc', '.post-tags', '.post-num'].map(function(sel) {
+        var el = card.querySelector(sel); return el ? el.textContent : '';
+      }).join(' ').toLowerCase();
+      searchMatch = text.indexOf(q) !== -1;
+    }
+    var show = catMatch && searchMatch;
+    card.classList.toggle('hidden', !show);
+    if (show) visible++;
   });
 
-  // update count badge
   document.getElementById('post-count').textContent = visible + (visible === 1 ? ' post' : ' posts');
+  var emptyEl = document.getElementById('empty-state');
+  if (emptyEl) emptyEl.classList.toggle('visible', visible === 0);
 
-  // update group label
-  var label = document.getElementById('group-label');
-  if (group === 'all') {
-    label.classList.remove('visible');
-  } else {
-    label.textContent = GROUP_LABELS[group];
-    label.classList.add('visible');
-  }
+  // reorder: by difficulty within category views, by pub number in "all"
+  var sorted = cards.slice().sort(function(a, b) {
+    if (activeFilter !== 'all') {
+      var la = parseInt(a.dataset.level || '99');
+      var lb = parseInt(b.dataset.level || '99');
+      if (la !== lb) return la - lb;
+    }
+    var ha = a.getAttribute('href') || '';
+    var hb = b.getAttribute('href') || '';
+    var na = parseInt((ha.match(/\/0*(\d+)-/) || [0, 999])[1]);
+    var nb = parseInt((hb.match(/\/0*(\d+)-/) || [0, 999])[1]);
+    return na - nb;
+  });
+  sorted.forEach(function(card) { grid.appendChild(card); });
 }
+
+initCards();
 </script>
 
 </body>
