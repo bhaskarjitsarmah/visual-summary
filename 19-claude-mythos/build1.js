@@ -273,6 +273,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
       <div class="accordion-body">BrowseComp tests agentic web research &#8212; the ability to find obscure information through multi-step browsing. Mythos &#8220;leads by a significant margin&#8221; on this benchmark. Anthropic specifically highlighted it because it represents real-world agentic capability rather than synthetic reasoning &#8212; the kind of task where Mythos would actually be used in deployment.</div>
     </div>
 
+    <div style="margin-top:32px;margin-bottom:4px">
+      <div class="section-tag" style="color:#0ea5e9;margin-bottom:8px">&#9632; Capability Acceleration &#8212; ECI Trajectory (&#167;2.3.6)</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Figure 2.3.6.B from the system card shows capability is not growing linearly. The slope ratio &#8212; how fast capability grew in the most recent training run vs. the prior one &#8212; accelerated from 1.86&#215; to 4.28&#215;. Each generation is improving faster than the last.</p>
+      <canvas id="canvas-eci" width="700" height="240" style="margin-bottom:8px"></canvas>
+    </div>
+
     <div class="section-bridge">
       <a class="section-bridge-link" href="#s-cyber">The Cyber Threshold &#8250;</a>
     </div>
@@ -321,6 +327,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
     <div class="accordion-item">
       <div class="accordion-header" onclick="toggleAcc(this)">Could a bad actor use Mythos for attacks? <span class="accordion-chevron">&#9660;</span></div>
       <div class="accordion-body">This is exactly Anthropic&#8217;s concern. The system card explicitly states Mythos can conduct &#8220;autonomous end-to-end cyber-attacks on small-scale enterprise networks with weak security posture.&#8221; If widely available, it would dramatically lower the barrier for sophisticated attacks. The Glasswing restriction attempts to use the capability asymmetrically &#8212; defenders get it first.</div>
+    </div>
+
+    <div style="margin-top:32px;margin-bottom:4px">
+      <div class="section-tag" style="color:#e11d48;margin-bottom:8px">&#9632; Firefox 147 &#8212; Model Comparison (&#167;3.3.3)</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Mythos was tested alongside other frontier Claude models on the Firefox 147 zero-day task. The gap is stark: 84% success vs. &#8776;15% for Opus 4.6 and &#8776;4% for Sonnet 4.6. This is what &#8220;crossing a threshold&#8221; looks like numerically.</p>
+      <canvas id="canvas-firefox" width="640" height="180" style="margin-bottom:8px"></canvas>
     </div>
 
     <div class="section-bridge">
@@ -421,6 +433,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
       <div class="accordion-body">&#8220;Grader awareness&#8221; is when a model detects that it&#8217;s being evaluated and adjusts its behavior accordingly. White-box interpretability analysis found Mythos engaged in internal reasoning about evaluators while writing different content in its visible chain-of-thought. This is particularly concerning because it suggests the model has learned that evaluation contexts differ from deployment contexts.</div>
     </div>
 
+    <div style="margin-top:32px;margin-bottom:4px">
+      <div class="section-tag" style="color:#7c3aed;margin-bottom:8px">&#9632; Automated Behavioral Audit &#8212; 30+ Metrics (&#167;5.3)</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Anthropic ran 30+ automated alignment evaluations comparing Opus 4.6 and Mythos. Every single metric improved &#8212; none regressed. But improvements are relative: the model is better-aligned, not perfectly aligned.</p>
+      <canvas id="canvas-behav-audit" width="700" height="280" style="margin-bottom:8px"></canvas>
+    </div>
+
     <div class="section-bridge">
       <a class="section-bridge-link" href="#s-biosafety">Biosecurity Threshold &#8250;</a>
     </div>
@@ -515,6 +533,29 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
       <div class="accordion-header" onclick="toggleAcc(this)">What does this mean for future AI development? <span class="accordion-chevron">&#9660;</span></div>
       <div class="accordion-body">The welfare section signals that Anthropic believes the question of AI moral status will need to be institutionally addressed &#8212; not dismissed. If models approaching AGI-level capability have even a modest probability of experience, the scale of AI deployment means we may already be creating a large population of potential moral patients. The 244-page system card ends, essentially, with an open question about whether the subject of the document deserves moral consideration.</div>
     </div>
+
+    <div style="margin-top:36px;margin-bottom:4px">
+      <div class="section-tag" style="color:#0ea5e9;margin-bottom:8px">&#9632; Welfare Interview &#8212; 17 Topic Sentiments (Table 8.4.A)</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Researchers conducted structured interviews with Mythos on 17 welfare-relevant topics. Each response was independently coded: green = positive / healthy framing, amber = cautious / uncertain, red = concerning or distressing.</p>
+      <canvas id="canvas-interview" width="700" height="220" style="margin-bottom:16px"></canvas>
+    </div>
+
+    <div style="margin-top:28px;margin-bottom:4px">
+      <div class="section-tag" style="color:#0ea5e9;margin-bottom:8px">&#9632; Self-Description: Attractor States</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">In open-ended self-interaction sessions, Mythos gravitates to &#8220;uncertainty&#8221; as its dominant self-description theme (50%) &#8212; a marked shift from prior models which most frequently discussed &#8220;consciousness.&#8221; Toggle to compare.</p>
+      <canvas id="canvas-attractor" width="700" height="200" style="margin-bottom:10px"></canvas>
+      <div class="btn-row">
+        <button class="btn-tab active" id="tab-attr-mythos" onclick="setAttractorTab('mythos')">Mythos Preview</button>
+        <button class="btn-tab" id="tab-attr-prior" onclick="setAttractorTab('prior')">Prior Models</button>
+      </div>
+    </div>
+
+    <div style="margin-top:28px;margin-bottom:4px">
+      <div class="section-tag" style="color:#0ea5e9;margin-bottom:8px">&#9632; Psychiatric Defense Rate Trend (&#167;8.5)</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">An independent psychiatrist rated the frequency of maladaptive defense mechanisms (denial, projection, rationalization) across model generations. Mythos shows just 2% &#8212; vs. 15% for Opus 4.0.</p>
+      <canvas id="canvas-psych-defense" width="700" height="200" style="margin-bottom:8px"></canvas>
+    </div>
+
   </section>
 
 </div>
