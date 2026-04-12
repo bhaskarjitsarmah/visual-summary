@@ -123,6 +123,7 @@ if(sessionStorage.getItem(PG_KEY)==='1'){document.getElementById('pg-gate').styl
   <div class="nav-group-title">The Protocol</div>
     <a class="nav-link" href="#s-overview" onclick="setActive(this)"><span class="dot" style="background:#6366f1"></span>USB-C for AI</a>
     <a class="nav-link" href="#s-vsfc" onclick="setActive(this)"><span class="dot" style="background:#f97316"></span>vs Function Calling</a>
+    <a class="nav-link" href="#s-vsrest" onclick="setActive(this)"><span class="dot" style="background:#e879f9"></span>vs REST APIs</a>
     <a class="nav-link" href="#s-architecture" onclick="setActive(this)"><span class="dot" style="background:#00cec9"></span>Three-Role Architecture</a>
   <div class="nav-group-title">Under the Hood</div>
     <a class="nav-link" href="#s-lifecycle" onclick="setActive(this)"><span class="dot" style="background:#74c0fc"></span>Lifecycle &amp; Negotiation</a>
@@ -145,6 +146,8 @@ if(sessionStorage.getItem(PG_KEY)==='1'){document.getElementById('pg-gate').styl
   <span class="pipe-step"><span class="pipe-dot" style="background:#6366f1"></span>Overview</span>
   <span class="pipe-arrow">&#8250;</span>
   <span class="pipe-step"><span class="pipe-dot" style="background:#f97316"></span>vs FC</span>
+  <span class="pipe-arrow">&#8250;</span>
+  <span class="pipe-step"><span class="pipe-dot" style="background:#e879f9"></span>vs REST</span>
   <span class="pipe-arrow">&#8250;</span>
   <span class="pipe-step"><span class="pipe-dot" style="background:#00cec9"></span>Architecture</span>
   <span class="pipe-arrow">&#8250;</span>
@@ -355,6 +358,113 @@ if(sessionStorage.getItem(PG_KEY)==='1'){document.getElementById('pg-gate').styl
 
   <div class="highlight-box">
     <strong>The key insight:</strong> Function calling is a capability of the LLM — the ability to decide "I should call this function." MCP is a protocol layer — the standard for how tools are discovered, how results flow back, how auth works, and how the same server works with any AI. You need both: the LLM's function calling to decide <em>when</em> to use a tool, and MCP to define <em>how</em> that tool works.
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-vsrest">One more: how is MCP different from REST? &#8594;</a>
+  </div>
+</section>
+
+<!-- SECTION: MCP vs REST APIs -->
+<section class="section" id="s-vsrest">
+  <div class="section-tag" style="color:#e879f9;">&#8226; Clarification &bull; vs REST APIs</div>
+  <h1 class="section-title">MCP vs REST APIs — Different Problems</h1>
+  <p class="section-sub">REST APIs are designed for human developers to write integrations. MCP is designed for AI agents to discover and use tools autonomously. The difference isn't technical elegance — it's <em>who does the integration work</em>.</p>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val" style="color:#ff6b6b;">6</div><div class="stat-lbl">Steps via REST (human required)</div></div>
+    <div class="stat"><div class="stat-val" style="color:#51cf66;">3</div><div class="stat-lbl">Steps via MCP (fully autonomous)</div></div>
+    <div class="stat"><div class="stat-val" style="color:#ff6b6b;">1</div><div class="stat-lbl">Human in the loop (REST)</div></div>
+    <div class="stat"><div class="stat-val" style="color:#51cf66;">0</div><div class="stat-lbl">Humans needed (MCP)</div></div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="vsrest-tab-rest" onclick="setVsrestTab('rest')">REST Flow</button>
+    <button class="btn-tab" id="vsrest-tab-mcp" onclick="setVsrestTab('mcp')">MCP Flow</button>
+    <button class="btn-tab" id="vsrest-tab-compare" onclick="setVsrestTab('compare')">Side by Side</button>
+  </div>
+
+  <canvas id="canvas-vsrest" width="700" height="340" style="margin-bottom:12px;cursor:pointer;"></canvas>
+  <div class="info-panel" id="vsrest-info">
+    <strong>REST flow</strong> &mdash; The AI encounters a task that needs weather data. It has no way to discover that OpenWeatherMap exists, what its endpoint is, or how to authenticate. A human developer must read the docs, write integration code, and wire it up. The AI only sees the result after all that manual work is done.
+  </div>
+
+  <!-- Code comparison -->
+  <div class="btn-row" style="margin-top:20px;margin-bottom:10px;">
+    <button class="btn-tab active" id="vsrest-code-rest" onclick="setVsrestCode('rest')">REST: what the AI gets</button>
+    <button class="btn-tab" id="vsrest-code-mcp" onclick="setVsrestCode('mcp')">MCP: what the AI gets</button>
+  </div>
+  <div class="formula" id="vsrest-formula" style="font-size:11px;"></div>
+
+  <div class="highlight-box" style="border-color:#e879f9;background:rgba(232,121,249,.05);">
+    <strong>The core distinction:</strong> A REST API is a contract between two human developers — the provider writes docs, the consumer writes code. MCP is a contract between a server and an AI agent — the server declares its tools in machine-readable format with LLM-optimised descriptions, and the AI discovers and uses them <em>without any human writing integration code</em>.
+  </div>
+
+  <div style="overflow-x:auto;margin:16px 0;">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead>
+        <tr style="border-bottom:1px solid #30363d;">
+          <th style="text-align:left;padding:8px 12px;color:#8b949e;font-weight:700;font-size:10px;text-transform:uppercase;">Feature</th>
+          <th style="text-align:center;padding:8px 12px;color:#ff6b6b;font-weight:700;font-size:10px;text-transform:uppercase;">REST API</th>
+          <th style="text-align:center;padding:8px 12px;color:#51cf66;font-weight:700;font-size:10px;text-transform:uppercase;">MCP</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid #21262d;">
+          <td style="padding:7px 12px;color:#c9d1d9;font-weight:600;">Discovery</td>
+          <td style="padding:7px 12px;text-align:center;color:#ff6b6b;font-size:11px;">Human reads docs manually</td>
+          <td style="padding:7px 12px;text-align:center;color:#51cf66;font-size:11px;font-weight:600;">Dynamic tools/list — AI discovers automatically</td>
+        </tr>
+        <tr style="border-bottom:1px solid #21262d;">
+          <td style="padding:7px 12px;color:#c9d1d9;font-weight:600;">Designed for</td>
+          <td style="padding:7px 12px;text-align:center;color:#ff6b6b;font-size:11px;">Human developers writing code</td>
+          <td style="padding:7px 12px;text-align:center;color:#51cf66;font-size:11px;font-weight:600;">AI agents acting autonomously</td>
+        </tr>
+        <tr style="border-bottom:1px solid #21262d;">
+          <td style="padding:7px 12px;color:#c9d1d9;font-weight:600;">Input schema</td>
+          <td style="padding:7px 12px;text-align:center;color:#ff6b6b;font-size:11px;">OpenAPI spec (optional, external)</td>
+          <td style="padding:7px 12px;text-align:center;color:#51cf66;font-size:11px;font-weight:600;">inputSchema baked into every tool, always present</td>
+        </tr>
+        <tr style="border-bottom:1px solid #21262d;">
+          <td style="padding:7px 12px;color:#c9d1d9;font-weight:600;">Tool description</td>
+          <td style="padding:7px 12px;text-align:center;color:#ff6b6b;font-size:11px;">Human prose in docs (no machine format)</td>
+          <td style="padding:7px 12px;text-align:center;color:#51cf66;font-size:11px;font-weight:600;">LLM-optimised description field per tool</td>
+        </tr>
+        <tr style="border-bottom:1px solid #21262d;">
+          <td style="padding:7px 12px;color:#c9d1d9;font-weight:600;">Response format</td>
+          <td style="padding:7px 12px;text-align:center;color:#ff6b6b;font-size:11px;">Raw JSON / HTML — AI must parse</td>
+          <td style="padding:7px 12px;text-align:center;color:#51cf66;font-size:11px;font-weight:600;">Typed content blocks — AI reads directly</td>
+        </tr>
+        <tr style="border-bottom:1px solid #21262d;">
+          <td style="padding:7px 12px;color:#c9d1d9;font-weight:600;">Session / state</td>
+          <td style="padding:7px 12px;text-align:center;color:#ff6b6b;font-size:11px;">Stateless — every request is independent</td>
+          <td style="padding:7px 12px;text-align:center;color:#51cf66;font-size:11px;font-weight:600;">Lifecycle + capability negotiation + notifications</td>
+        </tr>
+        <tr style="border-bottom:1px solid #21262d;">
+          <td style="padding:7px 12px;color:#c9d1d9;font-weight:600;">Auth standard</td>
+          <td style="padding:7px 12px;text-align:center;color:#ff6b6b;font-size:11px;">No universal standard — API key / OAuth / custom</td>
+          <td style="padding:7px 12px;text-align:center;color:#51cf66;font-size:11px;font-weight:600;">OAuth 2.0 for remote, env vars for local</td>
+        </tr>
+        <tr>
+          <td style="padding:7px 12px;color:#c9d1d9;font-weight:600;">Autonomous AI use</td>
+          <td style="padding:7px 12px;text-align:center;color:#ff6b6b;font-size:11px;">No — needs human to write integration code first</td>
+          <td style="padding:7px 12px;text-align:center;color:#51cf66;font-size:11px;font-weight:600;">Yes — AI discovers and calls tools without human code</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">Can an AI use a REST API directly without MCP? <span class="accordion-chevron">&#9660;</span></div>
+    <div class="accordion-body">Technically yes — if you hardcode the endpoint, auth, and response parsing into the AI's system prompt or tool definitions. But that's exactly the N&times;M problem: someone must write that custom code for every API, every AI app, every time. MCP makes this reusable — the weather MCP server works with Claude, ChatGPT, and VS Code without rewriting anything.</div>
+  </div>
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">Does MCP replace REST APIs? <span class="accordion-chevron">&#9660;</span></div>
+    <div class="accordion-body">No. MCP servers <em>call</em> REST APIs internally. The Slack MCP server calls Slack's REST API under the hood. MCP is the protocol between the AI and the server — REST (or gRPC, GraphQL, etc.) is the protocol between the server and the actual data source. They work at different layers.</div>
+  </div>
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">What about OpenAPI / Swagger specs — can't AI read those? <span class="accordion-chevron">&#9660;</span></div>
+    <div class="accordion-body">OpenAPI specs are a step in the right direction — machine-readable API descriptions. But they're optional, often outdated, and not LLM-optimised. MCP tool descriptions are written specifically for LLMs to understand <em>when</em> and <em>how</em> to use each tool. Plus MCP adds transport, auth, lifecycle, and bidirectionality that OpenAPI doesn't cover.</div>
   </div>
 
   <div class="section-bridge">
@@ -695,7 +805,7 @@ if(sessionStorage.getItem(PG_KEY)==='1'){document.getElementById('pg-gate').styl
 
 <script>
 // NAV + SCROLL UTILS
-var sectionIds=['s-problem','s-overview','s-vsfc','s-architecture','s-lifecycle','s-primitives','s-transport','s-ecosystem','s-usecases','s-quiz'];
+var sectionIds=['s-problem','s-overview','s-vsfc','s-vsrest','s-architecture','s-lifecycle','s-primitives','s-transport','s-ecosystem','s-usecases','s-quiz'];
 function setActive(el){document.querySelectorAll('.nav-link').forEach(function(n){n.classList.remove('active');});el.classList.add('active');}
 function updateNavOnScroll(){
   var scroll=document.getElementById('main-scroll');
@@ -733,6 +843,7 @@ function initAll(){
   initSecurity();
   drawCtx();
   initVsfc();
+  initVsrest();
   initCapMatrix();
   initUseCases();
   initQuiz();
@@ -2317,6 +2428,138 @@ function drawSecurityMCP(ctx,W,H){
   ctx.fillText('Before MCP: 5 services \u00D7 3 concerns = 15 things to audit',40,H-22);
   ctx.fillStyle='#51cf66';
   ctx.fillText('With MCP:   5 servers  + 1 protocol  = 6 things to audit',40,H-10);
+}
+
+// ===== MCP VS REST APIs =====
+var vsrestTab='rest';
+var vsrestCodeTab='rest';
+
+var VSREST_STEPS_REST=[
+  {who:'ai',    label:'AI gets task',         detail:'"What\'s the weather in San Francisco?"',                    color:'#f59e0b', icon:'🤖'},
+  {who:'ai',    label:'AI is stuck',          detail:'No idea what endpoint exists.\nNo way to discover the API.\nCannot proceed autonomously.',color:'#ff6b6b', icon:'❓'},
+  {who:'human', label:'Human reads docs',     detail:'Developer finds api.openweathermap.org\nReads endpoint, auth, params, response schema.',color:'#8b949e', icon:'👨‍💻'},
+  {who:'human', label:'Human writes code',    detail:'Writes: GET /weather?q={city}&appid={KEY}\nHandles auth header, parses JSON response.',color:'#8b949e', icon:'⌨️'},
+  {who:'ai',    label:'AI calls endpoint',    detail:'GET /weather?q=San+Francisco&appid=abc123\nResponse: 3.2KB raw JSON blob',             color:'#74c0fc', icon:'📡'},
+  {who:'ai',    label:'AI parses raw JSON',   detail:'Extracts main.temp, weather[0].description,\nwind.speed, sys.sunrise — must know schema.',color:'#f97316', icon:'🔍'},
+];
+var VSREST_STEPS_MCP=[
+  {who:'ai',    label:'AI gets task',         detail:'"What\'s the weather in San Francisco?"',                    color:'#f59e0b', icon:'🤖'},
+  {who:'ai',    label:'AI calls tools/list',  detail:'→ MCP Weather Server\n← [{name:"get_weather", description:\n  "Get current weather for any city",\n  inputSchema:{location:string}}]', color:'#e879f9', icon:'📋'},
+  {who:'ai',    label:'AI calls tools/call',  detail:'→ {name:"get_weather",\n   arguments:{location:"San Francisco"}}\n← Typed content block with result',color:'#51cf66', icon:'⚡'},
+];
+
+var VSREST_FORMULAS={
+  rest:
+'// What the AI receives from a raw REST call:\n{\n  "coord":   {"lon":-122.4194,"lat":37.7749},\n  "weather": [{"id":800,"main":"Clear","description":"clear sky","icon":"01d"}],\n  "base":    "stations",\n  "main":    {"temp":289.15,"feels_like":288.2,"temp_min":287.04,\n              "temp_max":291.48,"pressure":1013,"humidity":62},\n  "visibility": 10000,\n  "wind":    {"speed":5.66,"deg":230},\n  "clouds":  {"all":1},\n  "dt":      1716998400,\n  "sys":     {"type":2,"id":2017837,"country":"US","sunrise":1716987654,\n              "sunset":1717039012},\n  "timezone":-25200,\n  "id":      5391959,\n  "name":    "San Francisco",\n  "cod":     200\n}\n// AI must know: main.temp is Kelvin (subtract 273.15 for °C)\n// AI must know: weather[0].description for conditions\n// No guidance in the response itself — need external docs',
+  mcp:
+'// What the AI receives from an MCP tools/call:\n{\n  "content": [{\n    "type": "text",\n    "text": "Current weather in San Francisco:\\n'+
+'              Temperature: 16°C (feels like 15°C)\\n'+
+'              Conditions: Clear sky\\n'+
+'              Wind: 5.7 m/s from SW\\n'+
+'              Humidity: 62%\\n'+
+'              Sunrise: 05:54, Sunset: 20:03"\n  }]\n}\n// No parsing needed — the MCP server already translated\n// raw API response into human/LLM-readable text.\n// The tool\'s description told the AI WHEN to use it.\n// The inputSchema told the AI HOW to call it.\n// The content block tells the AI WHAT it got.'
+};
+
+var VSREST_INFOS={
+  rest:'<strong>REST flow</strong> &mdash; The AI encounters a task that needs weather data. It has no way to discover that OpenWeatherMap exists, what its endpoint is, or how to authenticate. A human developer must read the docs, write integration code, and wire it up. The AI only sees the result after all that manual work — and must still parse a raw JSON blob with no guidance.',
+  mcp:'<strong>MCP flow</strong> &mdash; The AI calls <code>tools/list</code> on a Weather MCP server. It receives a tool definition with an LLM-optimised description and input schema. It calls <code>tools/call</code> with the location. The server returns a clean, pre-formatted content block. No human wrote any integration code. No JSON parsing needed.',
+  compare:'<strong>Side by side</strong> &mdash; REST requires 6 steps with a human in the loop. MCP requires 3 steps, fully autonomous. The key structural difference: REST is a contract between two human developers (provider writes docs → consumer writes code). MCP is a contract between a server and an AI (server declares tools in machine-readable format → AI discovers and uses them directly).'
+};
+
+function setVsrestTab(tab){
+  vsrestTab=tab;
+  ['rest','mcp','compare'].forEach(function(t){
+    var el=document.getElementById('vsrest-tab-'+t);
+    if(el)el.classList.toggle('active',t===tab);
+  });
+  var panel=document.getElementById('vsrest-info');
+  if(panel)panel.innerHTML=VSREST_INFOS[tab]||'';
+  drawVsrest();
+}
+function setVsrestCode(tab){
+  vsrestCodeTab=tab;
+  ['rest','mcp'].forEach(function(t){
+    var el=document.getElementById('vsrest-code-'+t);
+    if(el)el.classList.toggle('active',t===tab);
+  });
+  var f=document.getElementById('vsrest-formula');
+  if(f)f.textContent=VSREST_FORMULAS[tab]||'';
+}
+function initVsrest(){
+  setVsrestCode('rest');
+  drawVsrest();
+}
+function drawVsrest(){
+  var canvas=document.getElementById('canvas-vsrest');
+  if(!canvas)return;
+  var ctx=canvas.getContext('2d');
+  var W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#0d1117';ctx.fillRect(0,0,W,H);
+  if(vsrestTab==='compare'){
+    drawVsrestFlow(ctx,10,0,W/2-15,H,VSREST_STEPS_REST,'REST',1);
+    drawVsrestFlow(ctx,W/2+5,0,W/2-15,H,VSREST_STEPS_MCP,'MCP',1);
+    // Divider
+    ctx.beginPath();ctx.moveTo(W/2,20);ctx.lineTo(W/2,H-20);
+    ctx.strokeStyle='#30363d';ctx.lineWidth=1;ctx.stroke();
+    ctx.fillStyle='#ff6b6b';ctx.font='700 9px Inter';ctx.textAlign='center';
+    ctx.fillText('REST — 6 steps, 1 human required',W/4,H-6);
+    ctx.fillStyle='#51cf66';
+    ctx.fillText('MCP — 3 steps, fully autonomous',W*3/4,H-6);
+  } else if(vsrestTab==='rest'){
+    drawVsrestFlow(ctx,40,0,W-80,H,VSREST_STEPS_REST,'REST',1);
+  } else {
+    drawVsrestFlow(ctx,40,0,W-80,H,VSREST_STEPS_MCP,'MCP',1);
+  }
+}
+function drawVsrestFlow(ctx,ox,oy,w,h,steps,label,scale){
+  var n=steps.length;
+  var stepH=Math.floor((h-50)/n);
+  var lineX=ox+34*scale;
+  var titleY=oy+18;
+  // Title
+  ctx.fillStyle=label==='REST'?'#ff6b6b':'#51cf66';
+  ctx.font='700 '+(10*scale)+'px Inter';ctx.textAlign='left';
+  ctx.fillText(label+' — '+n+' steps'+(label==='REST'?' (human required)':' (autonomous)'),ox+4,titleY);
+  // Vertical timeline
+  ctx.beginPath();ctx.moveTo(lineX,titleY+8);ctx.lineTo(lineX,oy+h-30);
+  ctx.strokeStyle='#30363d';ctx.lineWidth=1.5;ctx.setLineDash([3,3]);ctx.stroke();ctx.setLineDash([]);
+  steps.forEach(function(step,i){
+    var y=oy+30+i*stepH;
+    var isHuman=step.who==='human';
+    var dotColor=isHuman?'#8b949e':step.color;
+    // Dot on timeline
+    ctx.beginPath();ctx.arc(lineX,y,6*scale,0,Math.PI*2);
+    ctx.fillStyle=isHuman?'#21262d':step.color+'33';ctx.fill();
+    ctx.beginPath();ctx.arc(lineX,y,6*scale,0,Math.PI*2);
+    ctx.strokeStyle=dotColor;ctx.lineWidth=2;ctx.stroke();
+    // Icon
+    ctx.font=(13*scale)+'px sans-serif';ctx.textAlign='center';
+    ctx.fillText(step.icon,lineX,y+4*scale);
+    // Step box
+    var bx=lineX+16*scale,bw=w-52*scale,bh=Math.min(stepH-8,50)*scale;
+    var by=y-bh/2;
+    var borderCol=isHuman?'#8b949e44':step.color+'66';
+    var bgStr=isHuman?'rgba(33,38,45,0.9)':'rgba(13,17,23,0.95)';
+    drawRoundedRect(ctx,bx,by,bw,bh,5,bgStr,borderCol);
+    // Step label
+    ctx.fillStyle=isHuman?'#8b949e':step.color;
+    ctx.font='700 '+(10*scale)+'px Inter';ctx.textAlign='left';
+    ctx.fillText(step.label+(isHuman?' 👨‍💻':''),bx+6,by+14*scale);
+    // Detail lines
+    var detail=step.detail;
+    var dLines=detail.split('\n');
+    dLines.forEach(function(dl,di){
+      if(by+22*scale+di*11*scale>by+bh-4)return;
+      ctx.fillStyle='#8b949e';ctx.font=(8*scale)+'px Inter';ctx.textAlign='left';
+      ctx.fillText(dl,bx+6,by+24*scale+di*11*scale);
+    });
+    // Human badge on human steps
+    if(isHuman){
+      drawRoundedRect(ctx,bx+bw-50*scale,by+3,46*scale,13*scale,3,'rgba(139,148,158,0.2)','#8b949e88');
+      ctx.fillStyle='#8b949e';ctx.font='700 '+(7.5*scale)+'px Inter';ctx.textAlign='center';
+      ctx.fillText('HUMAN STEP',bx+bw-27*scale,by+12*scale);
+    }
+  });
 }
 
 // ===== MCP VS FUNCTION CALLING =====
