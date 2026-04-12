@@ -205,6 +205,32 @@ if(sessionStorage.getItem(PG_KEY)==='1'){document.getElementById('pg-gate').styl
     </div>
   </div>
 
+  <!-- SECURITY GAPS EXPLAINER -->
+  <div class="card" style="margin-bottom:20px;border-color:#ff6b6b44;">
+    <div class="card-title" style="color:#ff6b6b;margin-bottom:12px;">Why "Security Gaps"? — A Concrete Example</div>
+    <div class="card-body" style="margin-bottom:14px;">
+      Three things multiply when you have N&times;M custom integrations: <strong style="color:#c9d1d9;">auth methods</strong> (how credentials are stored and rotated),
+      <strong style="color:#c9d1d9;">permission scope</strong> (what the AI is actually allowed to do), and
+      <strong style="color:#c9d1d9;">attack surfaces</strong> (places where something can go wrong).
+      Each custom connector handles all three differently. Click a scenario to explore:
+    </div>
+    <div class="btn-row" style="margin-bottom:14px;">
+      <button class="btn-tab active" id="sec-tab-auth" onclick="setSecTab('auth')">&#128273; Auth Chaos</button>
+      <button class="btn-tab" id="sec-tab-perms" onclick="setSecTab('perms')">&#128272; Permission Creep</button>
+      <button class="btn-tab" id="sec-tab-surface" onclick="setSecTab('surface')">&#9888; Attack Surface</button>
+      <button class="btn-tab" id="sec-tab-mcp" onclick="setSecTab('mcp')" style="border-color:#51cf66;color:#51cf66;">With MCP &#10003;</button>
+    </div>
+    <canvas id="canvas-security" width="640" height="340" style="margin-bottom:14px;"></canvas>
+    <div class="info-panel" id="sec-info" style="font-size:12px;line-height:1.7;">
+      <strong>Auth Chaos</strong> &mdash; Each integration invents its own credential strategy.
+      Slack needs a Bot Token + a Signing Secret stored in env vars.
+      GitHub needs a PAT or OAuth App with its own scope syntax.
+      Postgres needs a connection string with plaintext credentials.
+      Stripe needs an API key with its own rotation schedule.
+      Your security team must audit <em>each one separately</em> &mdash; four different patterns, four different failure modes.
+    </div>
+  </div>
+
   <div class="accordion-item">
     <div class="accordion-header" onclick="toggleAcc(this)">Why didn't function calling solve this? <span class="accordion-chevron">&#9660;</span></div>
     <div class="accordion-body">Function calling (tool use) lets an LLM invoke a function — but who defines the function, how it authenticates, and where it runs is still custom per-integration. MCP standardizes the <em>protocol</em> around tools, not just the LLM's ability to call them.</div>
@@ -574,6 +600,7 @@ function initAll(){
   initTransport();
   animateEcosystem();
   drawNoReuse();
+  initSecurity();
 }
 if(sessionStorage.getItem('pg_unlocked_17')==='1'){
   document.getElementById('pg-main').style.display='flex';
@@ -1497,6 +1524,290 @@ function drawNoReuse(){
     ctx.fillStyle='#8b949e';ctx.font='9px Inter';
     ctx.fillText('MCP protocol handles translation',mcpCX,275);
   }
+}
+
+// ===== SECURITY GAPS EXPLAINER =====
+var secTab='auth';
+var SEC_INFO={
+  auth:'<strong>Auth Chaos</strong> &mdash; Each integration invents its own credential strategy. Slack needs a Bot Token + Signing Secret in env vars. GitHub needs a PAT or OAuth App with its own scope syntax. Postgres needs a connection string with plaintext credentials. Stripe needs an API key with its own rotation schedule. Your security team must audit <em>each one separately</em> &mdash; four different patterns, four different failure modes, and a new one every time you add an integration.',
+  perms:'<strong>Permission Creep</strong> &mdash; Custom integrations tend to request more access than needed because scoping is hard and each service has a different permission system. A Slack integration might request <code>channels:write</code> when it only needs <code>chat:write</code>. A GitHub integration might request <code>repo</code> (full read+write) when it only needs <code>contents:read</code>. Over-permissioned tokens are a ticking clock &mdash; if credentials leak, the blast radius is much larger than it needed to be.',
+  surface:'<strong>Attack Surface Multiplication</strong> &mdash; Each custom integration is a new place where credentials can leak, where prompt injection can cause unintended actions, and where the AI can be manipulated into doing something outside its intended scope. N&times;M integrations = N&times;M places to get compromised. There is no shared security baseline &mdash; every team patches their own integration independently.',
+  mcp:'<strong>With MCP</strong> &mdash; Auth is standardized: OAuth 2.0 for remote servers, environment variables for local ones &mdash; one pattern to learn and audit. Permission scope is enforced by the server&rsquo;s tool definitions: each tool&rsquo;s <code>inputSchema</code> makes explicit what the AI can pass in, and the server enforces what it will do. One MCP server = one security review covers all MCP-compatible hosts.'
+};
+
+// Services with their security properties
+var SEC_SERVICES=[
+  {name:'Slack',    color:'#4a9eff', auth:'Bot Token\n+ Signing Secret', authType:'Env var',     perm:'channels:write\n(needs chat:write)', permRisk:3, icon:'\uD83D\uDCAC'},
+  {name:'GitHub',   color:'#a78bfa', auth:'Personal Access\nToken (PAT)',  authType:'Env var',     perm:'repo (full)\n(needs contents:read)', permRisk:4, icon:'\uD83D\uDC31'},
+  {name:'Postgres', color:'#f59e0b', auth:'Connection string\nwith password', authType:'Plaintext', perm:'ALL privileges\n(needs SELECT only)', permRisk:5, icon:'\uD83D\uDDC4'},
+  {name:'Stripe',   color:'#51cf66', auth:'API Secret Key',                authType:'Env var',     perm:'Full read+write\n(needs read only)', permRisk:4, icon:'\uD83D\uDCB3'},
+  {name:'Notion',   color:'#ff6b6b', auth:'Integration Token',             authType:'Env var',     perm:'Full workspace\n(needs 1 database)', permRisk:3, icon:'\uD83D\uDCDD'}
+];
+
+var secSelectedService=null;
+function setSecTab(tab){
+  secTab=tab;
+  secSelectedService=null;
+  ['auth','perms','surface','mcp'].forEach(function(t){
+    var el=document.getElementById('sec-tab-'+t);
+    if(!el)return;
+    el.classList.toggle('active',t===tab);
+    if(t==='mcp'){
+      el.style.borderColor='#51cf66';
+      el.style.color=tab==='mcp'?'#fff':'#51cf66';
+      el.style.background=tab==='mcp'?'#51cf66':'';
+    }
+  });
+  var panel=document.getElementById('sec-info');
+  if(panel)panel.innerHTML=SEC_INFO[tab]||'';
+  drawSecurity();
+}
+function initSecurity(){
+  var canvas=document.getElementById('canvas-security');
+  if(!canvas)return;
+  canvas.addEventListener('click',function(e){
+    if(secTab==='auth'||secTab==='perms'||secTab==='surface'){
+      var rect=canvas.getBoundingClientRect();
+      var mx=e.clientX-rect.left, my=e.clientY-rect.top;
+      var hit=secHitTest(mx,my);
+      if(hit!==null){
+        secSelectedService=(secSelectedService===hit)?null:hit;
+        updateSecDetail(secSelectedService);
+        drawSecurity();
+      }
+    }
+  });
+  drawSecurity();
+}
+function secHitTest(mx,my){
+  var W=640,cols=SEC_SERVICES.length,boxW=96,boxH=120,gapX=(W-cols*boxW)/(cols+1),startY=60;
+  for(var i=0;i<cols;i++){
+    var x=gapX*(i+1)+boxW*i,y=startY;
+    if(mx>=x&&mx<=x+boxW&&my>=y&&my<=y+boxH)return i;
+  }
+  return null;
+}
+function updateSecDetail(idx){
+  var panel=document.getElementById('sec-info');
+  if(!panel)return;
+  if(idx===null){panel.innerHTML=SEC_INFO[secTab];return;}
+  var s=SEC_SERVICES[idx];
+  if(secTab==='auth'){
+    panel.innerHTML='<strong>'+s.name+' auth</strong> &mdash; Uses: <code>'+s.auth.replace('\n',' ')+'</code>. Storage: <span style="color:#f59e0b;">'+s.authType+'</span>. Every service stores credentials differently &mdash; different key names, different rotation periods, different revocation procedures. Add 5 services and you have 5 separate credential management processes to audit and maintain.';
+  } else if(secTab==='perms'){
+    var riskColor=['','#51cf66','#51cf66','#f59e0b','#f97316','#ff6b6b'][s.permRisk]||'#ff6b6b';
+    panel.innerHTML='<strong>'+s.name+' permissions</strong> &mdash; Requested: <span style="color:#ff6b6b;">'+s.perm.replace('\n',' ')+'</span>. Risk level: <span style="color:'+riskColor+';">'+'█'.repeat(s.permRisk)+'░'.repeat(5-s.permRisk)+' '+['','Very Low','Low','Medium','High','Critical'][s.permRisk]+'</span>. The principle of least privilege says grant only what\'s needed &mdash; but when you build custom integrations, it\'s easy to accidentally over-scope because each service has a different permission vocabulary.';
+  } else if(secTab==='surface'){
+    panel.innerHTML='<strong>'+s.name+' attack surface</strong> &mdash; Attack vectors: credential theft from env vars, prompt injection causing unintended '+s.name+' actions, over-permissioned token allowing lateral movement, missing input validation. Every custom integration needs its own threat model. With N&times;M integrations, this doesn\'t scale &mdash; teams patch their own integrations ad-hoc with no shared baseline.';
+  }
+}
+function drawSecurity(){
+  var canvas=document.getElementById('canvas-security');
+  if(!canvas)return;
+  var ctx=canvas.getContext('2d');
+  var W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#0d1117';ctx.fillRect(0,0,W,H);
+  if(secTab==='mcp'){drawSecurityMCP(ctx,W,H);}
+  else if(secTab==='auth'){drawSecurityAuth(ctx,W,H);}
+  else if(secTab==='perms'){drawSecurityPerms(ctx,W,H);}
+  else if(secTab==='surface'){drawSecuritySurface(ctx,W,H);}
+}
+function drawServiceCards(ctx,W,H,renderCard){
+  var cols=SEC_SERVICES.length,boxW=96,boxH=120;
+  var gapX=(W-cols*boxW)/(cols+1),startY=60;
+  SEC_SERVICES.forEach(function(s,i){
+    var x=gapX*(i+1)+boxW*i,y=startY;
+    var isSelected=secSelectedService===i;
+    var borderCol=isSelected?s.color:s.color+'66';
+    var bgCol=isSelected?'rgba(22,27,34,0.98)':'rgba(22,27,34,0.7)';
+    drawRoundedRect(ctx,x,y,boxW,boxH,8,bgCol,borderCol);
+    ctx.fillStyle=s.color;ctx.font='16px sans-serif';ctx.textAlign='center';
+    ctx.fillText(s.name[0]+s.name[1],x+boxW/2,y+26);
+    ctx.fillStyle=s.color;ctx.font='700 11px Inter';ctx.textAlign='center';
+    ctx.fillText(s.name,x+boxW/2,y+44);
+    renderCard(ctx,s,i,x,y,boxW,boxH,isSelected);
+    // click hint
+    if(!isSelected){
+      ctx.fillStyle='#8b949e44';ctx.font='8px Inter';ctx.textAlign='center';
+      ctx.fillText('click',x+boxW/2,y+boxH-6);
+    }
+  });
+}
+function drawSecurityAuth(ctx,W,H){
+  ctx.fillStyle='#8b949e';ctx.font='700 10px Inter';ctx.textAlign='center';
+  ctx.fillText('BEFORE MCP \u2014 5 services, 5 different auth strategies',W/2,20);
+  ctx.fillStyle='#ff6b6b66';ctx.font='9px Inter';
+  ctx.fillText('Each box = a separate credential system to learn, store, rotate, and audit',W/2,34);
+  var authColors={'Env var':'#f59e0b','Plaintext':'#ff6b6b'};
+  drawServiceCards(ctx,W,H,function(ctx,s,i,x,y,bw,bh,sel){
+    // Auth type badge
+    var ac=authColors[s.authType]||'#8b949e';
+    drawRoundedRect(ctx,x+4,y+50,bw-8,16,4,'rgba(0,0,0,0.4)',ac+'88');
+    ctx.fillStyle=ac;ctx.font='700 8px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText(s.authType,x+bw/2,y+61);
+    // auth detail lines
+    var lines=s.auth.split('\n');
+    lines.forEach(function(l,li){
+      ctx.fillStyle='#8b949e';ctx.font='8px JetBrains Mono';ctx.textAlign='center';
+      ctx.fillText(l,x+bw/2,y+78+li*11);
+    });
+    // warning icon if different pattern
+    ctx.fillStyle=ac;ctx.font='11px sans-serif';ctx.textAlign='center';
+    ctx.fillText(s.authType==='Plaintext'?'\u26A0':'\uD83D\uDD11',x+bw/2,y+bh-16);
+  });
+  // Audit boxes below
+  var auditY=210;
+  ctx.fillStyle='#8b949e';ctx.font='700 9px Inter';ctx.textAlign='center';
+  ctx.fillText('\u2193  Security team must audit each independently  \u2193',W/2,auditY);
+  var cols=SEC_SERVICES.length,boxW=96,gapX=(W-cols*boxW)/(cols+1);
+  SEC_SERVICES.forEach(function(s,i){
+    var x=gapX*(i+1)+boxW*i;
+    drawRoundedRect(ctx,x+8,auditY+12,boxW-16,32,6,'rgba(255,107,107,0.08)','#ff6b6b44');
+    ctx.fillStyle='#ff6b6b';ctx.font='700 9px Inter';ctx.textAlign='center';
+    ctx.fillText('\u{1F50D} Audit '+s.name,x+boxW/2,auditY+26);
+    ctx.fillStyle='#8b949e';ctx.font='8px Inter';
+    ctx.fillText(s.authType,x+boxW/2,auditY+38);
+  });
+  // Total label
+  ctx.fillStyle='#ff6b6b';ctx.font='700 11px Inter';ctx.textAlign='center';
+  ctx.fillText('5 separate audits \u2192 5\u00D7 the complexity',W/2,H-20);
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter';
+  ctx.fillText('Add a 6th service? Start from scratch again.',W/2,H-8);
+}
+function drawSecurityPerms(ctx,W,H){
+  ctx.fillStyle='#8b949e';ctx.font='700 10px Inter';ctx.textAlign='center';
+  ctx.fillText('BEFORE MCP \u2014 Custom integrations tend to over-request permissions',W/2,20);
+  ctx.fillStyle='#ff6b6b66';ctx.font='9px Inter';
+  ctx.fillText('Each bar shows requested scope vs what was actually needed',W/2,34);
+  drawServiceCards(ctx,W,H,function(ctx,s,i,x,y,bw,bh,sel){
+    // Compact permission risk bar
+    var barY=y+52,barH=10,barW=bw-12,barX=x+6;
+    // Full bar (requested)
+    drawRoundedRect(ctx,barX,barY,barW,barH,3,'rgba(255,107,107,0.2)','#ff6b6b44');
+    // Needed portion (1 out of 5)
+    var neededW=Math.round(barW/5);
+    drawRoundedRect(ctx,barX,barY,neededW,barH,3,'rgba(81,207,102,0.4)','#51cf66');
+    ctx.fillStyle='#51cf66';ctx.font='700 7px Inter';ctx.textAlign='left';
+    ctx.fillText('needed',barX+1,barY+8);
+    ctx.fillStyle='#ff6b6b';ctx.font='700 7px Inter';ctx.textAlign='right';
+    ctx.fillText('granted',barX+barW,barY+8);
+    // perm label
+    var lines=s.perm.split('\n');
+    lines.forEach(function(l,li){
+      ctx.fillStyle=li===0?'#ff6b6b':'#51cf66';ctx.font='7px JetBrains Mono';ctx.textAlign='center';
+      ctx.fillText(l,x+bw/2,y+72+li*10);
+    });
+    // blast radius indicator
+    var blastR=['','','','Medium','High','Critical'][s.permRisk]||'High';
+    var blastC={'Medium':'#f59e0b','High':'#f97316','Critical':'#ff6b6b'}[blastR]||'#f59e0b';
+    drawRoundedRect(ctx,x+4,y+bh-20,bw-8,14,4,'rgba(0,0,0,0.4)',blastC+'88');
+    ctx.fillStyle=blastC;ctx.font='700 8px Inter';ctx.textAlign='center';
+    ctx.fillText('Blast: '+blastR,x+bw/2,y+bh-10);
+  });
+  // Legend
+  var legendY=220;
+  ctx.fillStyle='#8b949e';ctx.font='700 9px Inter';ctx.textAlign='center';
+  ctx.fillText('If any of these tokens leak, attackers get everything the token can do \u2014 not just what the AI needed',W/2,legendY+10);
+  // blast radius visual
+  var bx=W/2-160,by=legendY+24,bw2=320;
+  drawRoundedRect(ctx,bx,by,bw2,56,8,'rgba(255,107,107,0.06)','#ff6b6b33');
+  ctx.fillStyle='#ff6b6b';ctx.font='700 10px Inter';ctx.textAlign='center';
+  ctx.fillText('\u{1F4A5}  Leaked token blast radius',W/2,by+16);
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter';
+  ctx.fillText('Postgres ALL privileges \u2192 attacker can DROP TABLE, exfiltrate, modify anything',W/2,by+30);
+  ctx.fillText('vs. SELECT-only \u2192 read-only damage, contained',W/2,by+44);
+}
+function drawSecuritySurface(ctx,W,H){
+  ctx.fillStyle='#8b949e';ctx.font='700 10px Inter';ctx.textAlign='center';
+  ctx.fillText('BEFORE MCP \u2014 Each integration is an independent attack surface',W/2,20);
+  ctx.fillStyle='#ff6b6b66';ctx.font='9px Inter';
+  ctx.fillText('Click a service to see its specific attack vectors',W/2,34);
+  var attackVectors=[
+    ['Cred theft','Prompt inject','Bad scope'],
+    ['Token leak','Repo write','No sandbox'],
+    ['SQL inject','Plaintext pw','Priv escal.'],
+    ['Key leak','Charge fraud','No audit log'],
+    ['Token reuse','Page delete','Wide access']
+  ];
+  drawServiceCards(ctx,W,H,function(ctx,s,i,x,y,bw,bh,sel){
+    var vecs=attackVectors[i]||[];
+    vecs.forEach(function(v,vi){
+      var vy=y+52+vi*16;
+      drawRoundedRect(ctx,x+4,vy,bw-8,13,3,'rgba(255,107,107,0.1)','#ff6b6b44');
+      ctx.fillStyle='#ff6b6b';ctx.font='700 7px Inter';ctx.textAlign='center';
+      ctx.fillText('\u26A0 '+v,x+bw/2,vy+9);
+    });
+    // vector count badge
+    drawRoundedRect(ctx,x+bw/2-14,y+bh-20,28,14,4,'rgba(255,107,107,0.2)','#ff6b6b');
+    ctx.fillStyle='#ff6b6b';ctx.font='700 8px Inter';ctx.textAlign='center';
+    ctx.fillText(vecs.length+'v',x+bw/2,y+bh-10);
+  });
+  // Total attack surface label
+  var totalY=220;
+  ctx.fillStyle='#8b949e';ctx.font='700 9px Inter';ctx.textAlign='center';
+  ctx.fillText('Total unique attack vectors across 5 services:',W/2,totalY+6);
+  // count chips
+  var total=0;attackVectors.forEach(function(v){total+=v.length;});
+  var chipX=W/2-40,chipY=totalY+14;
+  drawRoundedRect(ctx,chipX,chipY,80,28,8,'rgba(255,107,107,0.15)','#ff6b6b');
+  ctx.fillStyle='#ff6b6b';ctx.font='700 20px Inter';ctx.textAlign='center';
+  ctx.fillText(total,W/2,chipY+20);
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter';ctx.textAlign='center';
+  ctx.fillText('separate vectors to patch \u2014 each integration updates independently',W/2,totalY+54);
+  ctx.fillText('No shared security baseline. A patch for Slack doesn\u2019t protect GitHub.',W/2,totalY+68);
+  // scale note
+  ctx.fillStyle='#f59e0b';ctx.font='9px Inter';
+  ctx.fillText('Add 5 more services \u2192 '+(total+total)+' vectors. Add 3 AI hosts \u2192 '+(total*3)+' surfaces total.',W/2,H-8);
+}
+function drawSecurityMCP(ctx,W,H){
+  ctx.fillStyle='#51cf66';ctx.font='700 10px Inter';ctx.textAlign='center';
+  ctx.fillText('WITH MCP \u2014 One security model covers all integrations',W/2,20);
+  ctx.fillStyle='#8b949e66';ctx.font='9px Inter';
+  ctx.fillText('Auth, permissions, and attack surface are standardised at the protocol layer',W/2,34);
+  var cx=W/2,shieldY=60,shieldW=160,shieldH=80;
+  // MCP shield
+  drawRoundedRect(ctx,cx-shieldW/2,shieldY,shieldW,shieldH,12,'rgba(81,207,102,0.10)','#51cf66');
+  ctx.fillStyle='#51cf66';ctx.font='700 12px Inter';ctx.textAlign='center';
+  ctx.fillText('\uD83D\uDEE1\uFE0F  MCP Protocol Layer',cx,shieldY+22);
+  // Three guarantees
+  var props=[
+    {label:'OAuth 2.0 / env vars',sub:'One standard auth pattern',col:'#51cf66'},
+    {label:'Tool inputSchema',    sub:'Explicit permission scope',col:'#74c0fc'},
+    {label:'Protocol sandbox',   sub:'Single surface to audit',  col:'#a78bfa'}
+  ];
+  props.forEach(function(p,i){
+    var py=shieldY+36+i*14;
+    ctx.fillStyle=p.col;ctx.font='700 9px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText('\u2713 '+p.label,cx,py);
+  });
+  // Services below shield (all connected the same way)
+  var sY=170,cols=SEC_SERVICES.length,boxW=84,gapX=(W-cols*boxW)/(cols+1);
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter';ctx.textAlign='center';
+  ctx.fillText('\u2193  Each MCP server connects the same way  \u2193',cx,sY-6);
+  SEC_SERVICES.forEach(function(s,i){
+    var sx=gapX*(i+1)+boxW*i;
+    drawRoundedRect(ctx,sx,sY,boxW,50,8,'rgba(22,27,34,0.9)',s.color+'88');
+    ctx.fillStyle=s.color;ctx.font='700 10px Inter';ctx.textAlign='center';
+    ctx.fillText(s.name,sx+boxW/2,sY+18);
+    ctx.fillStyle='#51cf66';ctx.font='8px Inter';
+    ctx.fillText('\u2713 MCP auth',sx+boxW/2,sY+32);
+    ctx.fillText('\u2713 scoped tools',sx+boxW/2,sY+43);
+    // line to shield
+    ctx.beginPath();ctx.moveTo(sx+boxW/2,sY);ctx.lineTo(cx,shieldY+shieldH);
+    ctx.strokeStyle=s.color+'44';ctx.lineWidth=1;ctx.stroke();
+  });
+  // One audit box
+  var audY=246;
+  drawRoundedRect(ctx,cx-100,audY,200,36,8,'rgba(81,207,102,0.10)','#51cf66');
+  ctx.fillStyle='#51cf66';ctx.font='700 10px Inter';ctx.textAlign='center';
+  ctx.fillText('\uD83D\uDD0D One audit covers all integrations',cx,audY+14);
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter';
+  ctx.fillText('Add a new MCP server? Same model, zero new audit overhead.',cx,audY+28);
+  // Compare
+  ctx.fillStyle='#ff6b6b';ctx.font='9px Inter';ctx.textAlign='left';
+  ctx.fillText('Before MCP: 5 services \u00D7 3 concerns = 15 things to audit',40,H-22);
+  ctx.fillStyle='#51cf66';
+  ctx.fillText('With MCP:   5 servers  + 1 protocol  = 6 things to audit',40,H-10);
 }
 
 </script>
