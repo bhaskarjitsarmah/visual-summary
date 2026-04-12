@@ -122,6 +122,7 @@ if(sessionStorage.getItem(PG_KEY)==='1'){document.getElementById('pg-gate').styl
     <a class="nav-link" href="#s-problem" onclick="setActive(this)"><span class="dot" style="background:#f59e0b"></span>N&#xD7;M Integration Mess</a>
   <div class="nav-group-title">The Protocol</div>
     <a class="nav-link" href="#s-overview" onclick="setActive(this)"><span class="dot" style="background:#6366f1"></span>USB-C for AI</a>
+    <a class="nav-link" href="#s-vsfc" onclick="setActive(this)"><span class="dot" style="background:#f97316"></span>vs Function Calling</a>
     <a class="nav-link" href="#s-architecture" onclick="setActive(this)"><span class="dot" style="background:#00cec9"></span>Three-Role Architecture</a>
   <div class="nav-group-title">Under the Hood</div>
     <a class="nav-link" href="#s-lifecycle" onclick="setActive(this)"><span class="dot" style="background:#74c0fc"></span>Lifecycle &amp; Negotiation</a>
@@ -129,6 +130,9 @@ if(sessionStorage.getItem(PG_KEY)==='1'){document.getElementById('pg-gate').styl
   <div class="nav-group-title">Deployment</div>
     <a class="nav-link" href="#s-transport" onclick="setActive(this)"><span class="dot" style="background:#ff6b6b"></span>Local vs Remote Transport</a>
     <a class="nav-link" href="#s-ecosystem" onclick="setActive(this)"><span class="dot" style="background:#a78bfa"></span>The Ecosystem</a>
+  <div class="nav-group-title">Apply &amp; Test</div>
+    <a class="nav-link" href="#s-usecases" onclick="setActive(this)"><span class="dot" style="background:#f59e0b"></span>Use-Case Simulator</a>
+    <a class="nav-link" href="#s-quiz" onclick="setActive(this)"><span class="dot" style="background:#818cf8"></span>Quiz</a>
 </nav>
 
 <!-- MAIN -->
@@ -140,6 +144,8 @@ if(sessionStorage.getItem(PG_KEY)==='1'){document.getElementById('pg-gate').styl
   <span class="pipe-arrow">&#8250;</span>
   <span class="pipe-step"><span class="pipe-dot" style="background:#6366f1"></span>Overview</span>
   <span class="pipe-arrow">&#8250;</span>
+  <span class="pipe-step"><span class="pipe-dot" style="background:#f97316"></span>vs FC</span>
+  <span class="pipe-arrow">&#8250;</span>
   <span class="pipe-step"><span class="pipe-dot" style="background:#00cec9"></span>Architecture</span>
   <span class="pipe-arrow">&#8250;</span>
   <span class="pipe-step"><span class="pipe-dot" style="background:#74c0fc"></span>Lifecycle</span>
@@ -149,6 +155,10 @@ if(sessionStorage.getItem(PG_KEY)==='1'){document.getElementById('pg-gate').styl
   <span class="pipe-step"><span class="pipe-dot" style="background:#ff6b6b"></span>Transport</span>
   <span class="pipe-arrow">&#8250;</span>
   <span class="pipe-step"><span class="pipe-dot" style="background:#a78bfa"></span>Ecosystem</span>
+  <span class="pipe-arrow">&#8250;</span>
+  <span class="pipe-step"><span class="pipe-dot" style="background:#f59e0b"></span>Use Cases</span>
+  <span class="pipe-arrow">&#8250;</span>
+  <span class="pipe-step"><span class="pipe-dot" style="background:#818cf8"></span>Quiz</span>
 </div>
 
 <!-- SECTION 1: THE PROBLEM -->
@@ -309,11 +319,50 @@ if(sessionStorage.getItem(PG_KEY)==='1'){document.getElementById('pg-gate').styl
   </div>
 
   <div class="section-bridge">
-    <a class="section-bridge-link" href="#s-architecture">Who talks to whom? &#8594;</a>
+    <a class="section-bridge-link" href="#s-vsfc">But wait — isn't this just function calling? &#8594;</a>
   </div>
 </section>
 
-<!-- SECTION 3: ARCHITECTURE -->
+<!-- SECTION 3: MCP vs FUNCTION CALLING -->
+<section class="section" id="s-vsfc">
+  <div class="section-tag" style="color:#f97316;">&#8226; Clarification &bull; Most Common Question</div>
+  <h1 class="section-title">MCP vs Function Calling — Not the Same Thing</h1>
+  <p class="section-sub">Function calling lets an LLM decide to invoke a tool. MCP is the standard for how that tool is discovered, authenticated, and invoked — regardless of which LLM or host is driving. They operate at different layers.</p>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="vsfc-tab-fc" onclick="setVsfcTab('fc')">Function Calling Alone</button>
+    <button class="btn-tab" id="vsfc-tab-mcp" onclick="setVsfcTab('mcp')">With MCP</button>
+    <button class="btn-tab" id="vsfc-tab-both" onclick="setVsfcTab('both')">Side by Side</button>
+  </div>
+
+  <canvas id="canvas-vsfc" width="700" height="340" style="margin-bottom:12px;"></canvas>
+  <div class="info-panel" id="vsfc-info">
+    <strong>Function Calling alone</strong> &mdash; The LLM can decide to use a tool, but everything around that decision is custom: how the tool is defined, where it runs, how it authenticates, how results come back. Each AI app re-implements all of this differently. Works for one app, zero reuse.
+  </div>
+
+  <div style="overflow-x:auto;margin:16px 0;">
+    <table id="vsfc-table" style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead>
+        <tr style="border-bottom:1px solid #30363d;">
+          <th style="text-align:left;padding:8px 12px;color:#8b949e;font-weight:700;font-size:10px;text-transform:uppercase;">Feature</th>
+          <th style="text-align:center;padding:8px 12px;color:#f59e0b;font-weight:700;font-size:10px;text-transform:uppercase;">Function Calling</th>
+          <th style="text-align:center;padding:8px 12px;color:#6366f1;font-weight:700;font-size:10px;text-transform:uppercase;">MCP</th>
+        </tr>
+      </thead>
+      <tbody id="vsfc-tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="highlight-box">
+    <strong>The key insight:</strong> Function calling is a capability of the LLM — the ability to decide "I should call this function." MCP is a protocol layer — the standard for how tools are discovered, how results flow back, how auth works, and how the same server works with any AI. You need both: the LLM's function calling to decide <em>when</em> to use a tool, and MCP to define <em>how</em> that tool works.
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-architecture">Now: who are the three actors? &#8594;</a>
+  </div>
+</section>
+
+<!-- SECTION 4 (was 3): ARCHITECTURE -->
 <section class="section" id="s-architecture">
   <div class="section-tag" style="color:#00cec9;">&#8226; The Architecture</div>
   <h1 class="section-title">Three Roles, One Protocol</h1>
@@ -405,6 +454,26 @@ if(sessionStorage.getItem(PG_KEY)==='1'){document.getElementById('pg-gate').styl
   <div class="accordion-item">
     <div class="accordion-header" onclick="toggleAcc(this)">Is MCP stateful or stateless? <span class="accordion-chevron">&#9660;</span></div>
     <div class="accordion-body">MCP is fundamentally stateful — connections have lifecycle, and capability negotiation state persists for the session. However, a subset of MCP can be made stateless using the Streamable HTTP transport, which is useful for serverless deployments.</div>
+  </div>
+
+  <!-- CAPABILITY MATRIX -->
+  <div class="card" style="margin-top:24px;margin-bottom:20px;border-color:#74c0fc44;">
+    <div class="card-title" style="color:#74c0fc;margin-bottom:10px;">&#9881; Interactive: Capability Negotiation Matrix</div>
+    <div class="card-body" style="margin-bottom:14px;">
+      Toggle which capabilities the client and server declare during <code>initialize</code>. See exactly which JSON-RPC methods become available — and which ones are blocked because neither party declared support.
+    </div>
+    <div class="grid2" style="margin-bottom:14px;gap:12px;">
+      <div>
+        <div style="font-size:10px;font-weight:700;color:#74c0fc;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">Client declares:</div>
+        <div id="cap-client-toggles"></div>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;color:#a78bfa;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">Server declares:</div>
+        <div id="cap-server-toggles"></div>
+      </div>
+    </div>
+    <canvas id="canvas-capmatrix" width="640" height="260" style="margin-bottom:10px;"></canvas>
+    <div class="info-panel" id="cap-info" style="font-size:12px;">Toggle capabilities above to see which methods activate.</div>
   </div>
 
   <div class="section-bridge">
@@ -581,6 +650,44 @@ if(sessionStorage.getItem(PG_KEY)==='1'){document.getElementById('pg-gate').styl
     <div class="accordion-header" onclick="toggleAcc(this)">Will MCP replace existing frameworks? <span class="accordion-chevron">&#9660;</span></div>
     <div class="accordion-body">MCP is a protocol, not a framework. LangChain, LlamaIndex, and similar tools are orchestration frameworks. They are complementary — frameworks can use MCP servers as tool sources. MCP focuses solely on the protocol for context exchange; it doesn't dictate how AI applications manage conversation flow or orchestration logic.</div>
   </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-usecases">See it applied to your role &#8594;</a>
+  </div>
+</section>
+
+<!-- SECTION 9: USE-CASE SIMULATOR -->
+<section class="section" id="s-usecases">
+  <div class="section-tag" style="color:#f59e0b;">&#8226; Apply It &bull; Use-Case Simulator</div>
+  <h1 class="section-title">What Would You Wire Up?</h1>
+  <p class="section-sub">MCP servers only matter if they solve a real problem for you. Pick your role — see which servers you'd connect, what flows between them, and what tasks become possible.</p>
+
+  <div class="btn-row" id="role-btn-row">
+    <button class="btn-tab active" id="role-tab-dev" onclick="setRole('dev')">&#128187; Developer</button>
+    <button class="btn-tab" id="role-tab-analyst" onclick="setRole('analyst')">&#128202; Data Analyst</button>
+    <button class="btn-tab" id="role-tab-assistant" onclick="setRole('assistant')">&#9889; Personal Assistant</button>
+  </div>
+
+  <canvas id="canvas-usecases" width="700" height="360" style="margin-bottom:12px;"></canvas>
+  <div class="info-panel" id="usecases-info">
+    <strong>Developer setup</strong> &mdash; Wire up GitHub (code review, PR summaries), Filesystem (read/write project files), Postgres (query your dev database), and Browser (test rendered output). Your AI assistant can now review a PR, find the relevant code files, check the database schema, and open a browser to verify — all in one conversation.
+  </div>
+
+  <div class="grid3" style="margin-top:16px;margin-bottom:20px;" id="usecase-cards"></div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-quiz">Test your knowledge &#8594;</a>
+  </div>
+</section>
+
+<!-- SECTION 10: QUIZ -->
+<section class="section" id="s-quiz">
+  <div class="section-tag" style="color:#818cf8;">&#8226; Knowledge Check</div>
+  <h1 class="section-title">Quiz — How Well Do You Know MCP?</h1>
+  <p class="section-sub">8 questions covering the N&times;M problem, architecture, primitives, transport, and how MCP differs from function calling.</p>
+
+  <div id="quiz-container"></div>
+  <div id="quiz-result" style="display:none;" class="card" style="margin-top:20px;"></div>
 </section>
 
 </div><!-- end .main -->
@@ -588,7 +695,7 @@ if(sessionStorage.getItem(PG_KEY)==='1'){document.getElementById('pg-gate').styl
 
 <script>
 // NAV + SCROLL UTILS
-var sectionIds=['s-problem','s-overview','s-architecture','s-lifecycle','s-primitives','s-transport','s-ecosystem'];
+var sectionIds=['s-problem','s-overview','s-vsfc','s-architecture','s-lifecycle','s-primitives','s-transport','s-ecosystem','s-usecases','s-quiz'];
 function setActive(el){document.querySelectorAll('.nav-link').forEach(function(n){n.classList.remove('active');});el.classList.add('active');}
 function updateNavOnScroll(){
   var scroll=document.getElementById('main-scroll');
@@ -625,6 +732,10 @@ function initAll(){
   drawNoReuse();
   initSecurity();
   drawCtx();
+  initVsfc();
+  initCapMatrix();
+  initUseCases();
+  initQuiz();
 }
 if(sessionStorage.getItem('pg_unlocked_17')==='1'){
   document.getElementById('pg-main').style.display='flex';
@@ -2206,6 +2317,528 @@ function drawSecurityMCP(ctx,W,H){
   ctx.fillText('Before MCP: 5 services \u00D7 3 concerns = 15 things to audit',40,H-22);
   ctx.fillStyle='#51cf66';
   ctx.fillText('With MCP:   5 servers  + 1 protocol  = 6 things to audit',40,H-10);
+}
+
+// ===== MCP VS FUNCTION CALLING =====
+var vsfcTab='fc';
+var VSFC_ROWS=[
+  {feature:'Tool discovery',    fc:'Hardcoded in prompt',          mcp:'Dynamic tools/list',           highlight:'mcp'},
+  {feature:'Transport',         fc:'No standard',                  mcp:'stdio or Streamable HTTP',     highlight:'mcp'},
+  {feature:'Authentication',    fc:'Custom per integration',       mcp:'OAuth 2.0 / env vars',         highlight:'mcp'},
+  {feature:'Reuse across hosts',fc:'Zero — tied to one LLM API',  mcp:'Any MCP-compatible host',      highlight:'mcp'},
+  {feature:'Resources',         fc:'Not defined',                  mcp:'resources/list + read',        highlight:'mcp'},
+  {feature:'Bidirectional',     fc:'LLM \u2192 tool only',        mcp:'Also: sampling, elicitation',  highlight:'mcp'},
+  {feature:'Session lifecycle', fc:'Stateless (no session)',       mcp:'Full lifecycle management',    highlight:'mcp'},
+  {feature:'Multi-server',      fc:'Manual orchestration',         mcp:'Native \u2014 one client per server',highlight:'mcp'},
+];
+var VSFC_INFO={
+  fc:'<strong>Function Calling alone</strong> &mdash; The LLM decides to invoke a tool, but everything around that is custom: how the tool is defined (Anthropic format vs OpenAI format), how it runs, how it authenticates, how results come back. Works for one app. Zero reuse across different AI hosts.',
+  mcp:'<strong>With MCP</strong> &mdash; The protocol layer handles discovery (tools/list), transport (stdio/HTTP), auth (OAuth), and result formatting. The LLM still uses function calling to decide <em>when</em> to call a tool &mdash; MCP defines <em>how</em> that call works at the infrastructure level.',
+  both:'<strong>Side by side</strong> &mdash; Function calling is a feature of the LLM. MCP is the infrastructure around it. Together: the LLM decides when to call a tool (function calling), and MCP ensures that call is discoverable, authenticated, transportable, and reusable across any host.'
+};
+function initVsfc(){
+  buildVsfcTable();
+  drawVsfc();
+}
+function buildVsfcTable(){
+  var tbody=document.getElementById('vsfc-tbody');
+  if(!tbody)return;
+  tbody.innerHTML='';
+  VSFC_ROWS.forEach(function(row,i){
+    var tr=document.createElement('tr');
+    tr.style.borderBottom='1px solid #21262d';
+    tr.style.cursor='pointer';
+    tr.setAttribute('data-idx',i);
+    tr.onmouseenter=function(){this.style.background='rgba(99,102,241,0.05)';};
+    tr.onmouseleave=function(){this.style.background='';};
+    tr.innerHTML='<td style="padding:7px 12px;color:#c9d1d9;font-weight:600;">'+row.feature+'</td>'+
+      '<td style="padding:7px 12px;text-align:center;color:#ff6b6b;font-size:11px;">'+row.fc+'</td>'+
+      '<td style="padding:7px 12px;text-align:center;color:#51cf66;font-size:11px;font-weight:600;">'+row.mcp+'</td>';
+    tbody.appendChild(tr);
+  });
+}
+function setVsfcTab(tab){
+  vsfcTab=tab;
+  ['fc','mcp','both'].forEach(function(t){
+    var el=document.getElementById('vsfc-tab-'+t);
+    if(el)el.classList.toggle('active',t===tab);
+  });
+  var panel=document.getElementById('vsfc-info');
+  if(panel)panel.innerHTML=VSFC_INFO[tab]||'';
+  drawVsfc();
+}
+var vsfcAnimT=0;
+var vsfcAnimHandle=null;
+function drawVsfc(){
+  var canvas=document.getElementById('canvas-vsfc');
+  if(!canvas)return;
+  var ctx=canvas.getContext('2d');
+  if(vsfcAnimHandle)cancelAnimationFrame(vsfcAnimHandle);
+  vsfcAnimT=0;
+  function frame(){
+    vsfcAnimT+=0.012;
+    drawVsfcFrame(ctx,canvas.width,canvas.height,vsfcAnimT);
+    vsfcAnimHandle=requestAnimationFrame(frame);
+  }
+  frame();
+}
+function drawVsfcFrame(ctx,W,H,t){
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#0d1117';ctx.fillRect(0,0,W,H);
+  if(vsfcTab==='both'){
+    drawFCDiagram(ctx,20,20,W/2-30,H-40,t,0.5);
+    drawMCPDiagram(ctx,W/2+10,20,W/2-30,H-40,t,1.0);
+    ctx.fillStyle='#ff6b6b';ctx.font='700 9px Inter';ctx.textAlign='center';
+    ctx.fillText('Function Calling',W/4,14);
+    ctx.fillStyle='#51cf66';
+    ctx.fillText('With MCP',W*3/4,14);
+  } else if(vsfcTab==='fc'){
+    drawFCDiagram(ctx,40,20,W-80,H-40,t,1.0);
+  } else {
+    drawMCPDiagram(ctx,40,20,W-80,H-40,t,1.0);
+  }
+}
+function drawFCDiagram(ctx,ox,oy,w,h,t,scale){
+  var llmX=ox+w/2,llmY=oy+30,llmW=80*scale,llmH=36*scale;
+  drawRoundedRect(ctx,llmX-llmW/2,llmY,llmW,llmH,6,'rgba(245,158,11,0.1)','#f59e0b');
+  ctx.fillStyle='#f59e0b';ctx.font='700 '+(10*scale)+'px Inter';ctx.textAlign='center';
+  ctx.fillText('LLM',llmX,llmY+llmH/2+4);
+  var tools=[
+    {label:'Slack glue',color:'#4a9eff'},
+    {label:'GitHub glue',color:'#a78bfa'},
+    {label:'DB glue',color:'#f59e0b'}
+  ];
+  var toolY=oy+h*0.45,toolSpacing=w/(tools.length+1);
+  tools.forEach(function(tool,i){
+    var tx=ox+toolSpacing*(i+1);
+    var tw=65*scale,th=30*scale;
+    drawRoundedRect(ctx,tx-tw/2,toolY,tw,th,5,'rgba(255,107,107,0.1)','#ff6b6b88');
+    ctx.fillStyle='#ff6b6b';ctx.font=(9*scale)+'px Inter';ctx.textAlign='center';
+    ctx.fillText(tool.label,tx,toolY+th/2+3*scale);
+    ctx.beginPath();ctx.moveTo(llmX,llmY+llmH);ctx.lineTo(tx,toolY);
+    ctx.strokeStyle='#ff6b6b55';ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.stroke();ctx.setLineDash([]);
+    var ph=((t*0.4+i*0.33)%1);
+    var px=lerp(llmX,tx,ph),py=lerp(llmY+llmH,toolY,ph);
+    ctx.beginPath();ctx.arc(px,py,3*scale,0,Math.PI*2);ctx.fillStyle='#ff6b6b';ctx.fill();
+    var apiY=oy+h*0.75;
+    drawRoundedRect(ctx,tx-tw/2,apiY,tw,th*0.9,5,'rgba(22,27,34,0.9)','#30363d');
+    ctx.fillStyle='#8b949e';ctx.font=(9*scale)+'px Inter';ctx.textAlign='center';
+    ctx.fillText(tool.label.replace(' glue',' API'),tx,apiY+th*0.45+3*scale);
+    ctx.beginPath();ctx.moveTo(tx,toolY+th);ctx.lineTo(tx,apiY);
+    ctx.strokeStyle='#30363d';ctx.lineWidth=1;ctx.stroke();
+  });
+  ctx.fillStyle='#ff6b6b';ctx.font='700 '+(8*scale)+'px Inter';ctx.textAlign='center';
+  ctx.fillText('No standard. Each glue = custom code.',ox+w/2,oy+h+12);
+  ctx.fillStyle='#8b949e';ctx.font=(8*scale)+'px Inter';
+  ctx.fillText('Auth \u2715 Discovery \u2715 Transport \u2715 Reuse \u2715',ox+w/2,oy+h+22);
+}
+function drawMCPDiagram(ctx,ox,oy,w,h,t,scale){
+  var llmX=ox+w/2,llmY=oy+20,llmW=80*scale,llmH=36*scale;
+  drawRoundedRect(ctx,llmX-llmW/2,llmY,llmW,llmH,6,'rgba(245,158,11,0.1)','#f59e0b');
+  ctx.fillStyle='#f59e0b';ctx.font='700 '+(10*scale)+'px Inter';ctx.textAlign='center';
+  ctx.fillText('LLM',llmX,llmY+llmH/2+4);
+  var hostY=llmY+llmH+20*scale,hostW=100*scale,hostH=30*scale;
+  drawRoundedRect(ctx,llmX-hostW/2,hostY,hostW,hostH,6,'rgba(99,102,241,0.1)','#6366f1');
+  ctx.fillStyle='#818cf8';ctx.font='700 '+(9*scale)+'px Inter';ctx.textAlign='center';
+  ctx.fillText('MCP Host',llmX,hostY+hostH/2+3*scale);
+  ctx.beginPath();ctx.moveTo(llmX,llmY+llmH);ctx.lineTo(llmX,hostY);
+  ctx.strokeStyle='#6366f1';ctx.lineWidth=1.5;ctx.stroke();
+  var protoY=hostY+hostH+18*scale,protoW=w*0.7,protoH=22*scale;
+  drawRoundedRect(ctx,llmX-protoW/2,protoY,protoW,protoH,5,'rgba(81,207,102,0.1)','#51cf6688');
+  ctx.fillStyle='#51cf66';ctx.font='700 '+(8*scale)+'px JetBrains Mono';ctx.textAlign='center';
+  ctx.fillText('MCP Protocol (JSON-RPC 2.0)',llmX,protoY+protoH/2+3*scale);
+  ctx.beginPath();ctx.moveTo(llmX,hostY+hostH);ctx.lineTo(llmX,protoY);
+  ctx.strokeStyle='#51cf6688';ctx.lineWidth=1.5;ctx.stroke();
+  var servers=[{label:'Slack',color:'#4a9eff'},{label:'GitHub',color:'#a78bfa'},{label:'DB',color:'#f59e0b'}];
+  var srvY=protoY+protoH+18*scale,srvSpacing=w/(servers.length+1);
+  servers.forEach(function(srv,i){
+    var sx=ox+srvSpacing*(i+1);
+    var sw=55*scale,sh=28*scale;
+    drawRoundedRect(ctx,sx-sw/2,srvY,sw,sh,5,'rgba(22,27,34,0.9)',srv.color+'99');
+    ctx.fillStyle=srv.color;ctx.font=(9*scale)+'px Inter';ctx.textAlign='center';
+    ctx.fillText(srv.label,sx,srvY+sh/2+3*scale);
+    ctx.beginPath();ctx.moveTo(llmX,protoY+protoH);ctx.lineTo(sx,srvY);
+    ctx.strokeStyle=srv.color+'55';ctx.lineWidth=1;ctx.stroke();
+    var ph=((t*0.4+i*0.33)%1);
+    var px=lerp(llmX,sx,ph),py=lerp(protoY+protoH,srvY,ph);
+    ctx.beginPath();ctx.arc(px,py,3*scale,0,Math.PI*2);ctx.fillStyle=srv.color;ctx.fill();
+  });
+  ctx.fillStyle='#51cf66';ctx.font='700 '+(8*scale)+'px Inter';ctx.textAlign='center';
+  ctx.fillText('Standard protocol. Any host. Any server.',ox+w/2,oy+h+12);
+  ctx.fillStyle='#8b949e';ctx.font=(8*scale)+'px Inter';
+  ctx.fillText('Auth \u2713 Discovery \u2713 Transport \u2713 Reuse \u2713',ox+w/2,oy+h+22);
+}
+
+// ===== CAPABILITY NEGOTIATION MATRIX =====
+var CAP_CLIENT=[
+  {id:'tools',    label:'tools',     desc:'Can receive & invoke tools from server'},
+  {id:'resources',label:'resources', desc:'Can read resources from server'},
+  {id:'prompts',  label:'prompts',   desc:'Can fetch prompt templates'},
+  {id:'elicitation',label:'elicitation',desc:'Can receive elicitation requests (user input)'},
+];
+var CAP_SERVER=[
+  {id:'tools',    label:'tools',     desc:'Exposes executable tools',      methods:['tools/list','tools/call']},
+  {id:'resources',label:'resources', desc:'Exposes readable resources',    methods:['resources/list','resources/read']},
+  {id:'prompts',  label:'prompts',   desc:'Exposes prompt templates',      methods:['prompts/list','prompts/get']},
+  {id:'sampling', label:'sampling',  desc:'Can request LLM completions',   methods:['sampling/createMessage']},
+  {id:'logging',  label:'logging',   desc:'Can send log messages to client',methods:['notifications/message']},
+];
+var capClientState={tools:true,resources:true,prompts:false,elicitation:true};
+var capServerState={tools:true,resources:true,prompts:false,sampling:false,logging:true};
+function initCapMatrix(){
+  var cDiv=document.getElementById('cap-client-toggles');
+  if(!cDiv)return;
+  CAP_CLIENT.forEach(function(c){
+    var row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer;';
+    var chk=document.createElement('input');
+    chk.type='checkbox';chk.checked=capClientState[c.id]||false;
+    chk.style.cssText='accent-color:#74c0fc;width:14px;height:14px;cursor:pointer;';
+    chk.onchange=function(){capClientState[c.id]=this.checked;drawCapMatrix();};
+    var lbl=document.createElement('label');
+    lbl.style.cssText='font-size:11px;color:#c9d1d9;cursor:pointer;';
+    lbl.textContent=c.label;
+    row.appendChild(chk);row.appendChild(lbl);
+    row.onclick=function(e){if(e.target!==chk){chk.checked=!chk.checked;capClientState[c.id]=chk.checked;drawCapMatrix();}};
+    cDiv.appendChild(row);
+  });
+  var sDiv=document.getElementById('cap-server-toggles');
+  CAP_SERVER.forEach(function(s){
+    var row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer;';
+    var chk=document.createElement('input');
+    chk.type='checkbox';chk.checked=capServerState[s.id]||false;
+    chk.style.cssText='accent-color:#a78bfa;width:14px;height:14px;cursor:pointer;';
+    chk.onchange=function(){capServerState[s.id]=this.checked;drawCapMatrix();};
+    var lbl=document.createElement('label');
+    lbl.style.cssText='font-size:11px;color:#c9d1d9;cursor:pointer;';
+    lbl.textContent=s.label;
+    row.appendChild(chk);row.appendChild(lbl);
+    row.onclick=function(e){if(e.target!==chk){chk.checked=!chk.checked;capServerState[s.id]=chk.checked;drawCapMatrix();}};
+    sDiv.appendChild(row);
+  });
+  drawCapMatrix();
+}
+function drawCapMatrix(){
+  var canvas=document.getElementById('canvas-capmatrix');
+  if(!canvas)return;
+  var ctx=canvas.getContext('2d');
+  var W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#0d1117';ctx.fillRect(0,0,W,H);
+  var available=[];
+  var blocked=[];
+  if(capClientState.tools&&capServerState.tools){available.push('tools/list');available.push('tools/call');}
+  else{blocked.push('tools/list');blocked.push('tools/call');}
+  if(capClientState.resources&&capServerState.resources){available.push('resources/list');available.push('resources/read');}
+  else{blocked.push('resources/list');blocked.push('resources/read');}
+  if(capClientState.prompts&&capServerState.prompts){available.push('prompts/list');available.push('prompts/get');}
+  else{blocked.push('prompts/list');blocked.push('prompts/get');}
+  if(capServerState.sampling){available.push('sampling/createMessage');}
+  else{blocked.push('sampling/createMessage');}
+  if(capServerState.logging){available.push('notifications/message');}
+  else{blocked.push('notifications/message');}
+  if(capClientState.elicitation){available.push('elicitation/create');}
+  else{blocked.push('elicitation/create');}
+  available.push('initialize');available.push('notifications/initialized');
+  var col1X=20,col2X=W/2+20,colW=W/2-40,rowH=28,startY=30;
+  ctx.fillStyle='#51cf66';ctx.font='700 10px Inter';ctx.textAlign='left';
+  ctx.fillText('\u2713 Available methods ('+available.length+')',col1X,18);
+  ctx.fillStyle='#ff6b6b';
+  ctx.fillText('\u2717 Blocked methods ('+blocked.length+')',col2X,18);
+  available.forEach(function(m,i){
+    var y=startY+i*rowH;
+    if(y>H-10)return;
+    drawRoundedRect(ctx,col1X,y,colW-10,rowH-4,5,'rgba(81,207,102,0.08)','#51cf6666');
+    ctx.fillStyle='#51cf66';ctx.font='700 10px JetBrains Mono';ctx.textAlign='left';
+    ctx.fillText('\u2713 '+m,col1X+8,y+rowH/2+3);
+  });
+  blocked.forEach(function(m,i){
+    var y=startY+i*rowH;
+    if(y>H-10)return;
+    drawRoundedRect(ctx,col2X,y,colW-10,rowH-4,5,'rgba(255,107,107,0.06)','#ff6b6b44');
+    ctx.fillStyle='#ff6b6b66';ctx.font='10px JetBrains Mono';ctx.textAlign='left';
+    ctx.fillText('\u2717 '+m,col2X+8,y+rowH/2+3);
+  });
+  var panel=document.getElementById('cap-info');
+  if(panel){
+    var avStr=available.filter(function(m){return m!=='initialize'&&m!=='notifications/initialized';}).join(', ');
+    panel.innerHTML='<strong>'+available.length+' methods active</strong> &mdash; Both sides declared compatible capabilities for: <code>'+avStr+'</code>. '+(blocked.length>0?'<span style="color:#ff6b6b;">'+blocked.length+' blocked</span> because neither or only one side declared support.':'All methods active!');
+  }
+}
+
+// ===== USE-CASE SIMULATOR =====
+var activeRole='dev';
+var ROLES={
+  dev:{
+    label:'Developer',
+    servers:[
+      {name:'GitHub',   color:'#a78bfa',angle:-2.0,  desc:'PR reviews, code search, issue tracking'},
+      {name:'Filesystem',color:'#74c0fc',angle:-1.1, desc:'Read/write project files directly'},
+      {name:'Terminal', color:'#51cf66', angle:-0.2, desc:'Run tests, build commands, scripts'},
+      {name:'Postgres', color:'#f59e0b', angle: 0.9, desc:'Query dev/staging database schemas'},
+      {name:'Browser',  color:'#ff6b6b', angle: 1.8, desc:'Test rendered output, scrape docs'},
+    ],
+    workflow:'Review a PR \u2192 find relevant files \u2192 check DB schema \u2192 run tests \u2192 verify in browser',
+    cards:[
+      {t:'PR Summariser',b:'Ask the agent to summarise a PR. It reads the diff from GitHub, finds the affected files on the filesystem, and explains what changed.'},
+      {t:'DB-Aware Coder',b:'Ask it to write a query. It reads the DB schema from Postgres, checks existing code patterns from the filesystem, then writes type-safe code.'},
+      {t:'Auto-Tester',b:'Ask it to run tests after a change. It edits the file, runs the terminal command, reads the output, and tells you if anything broke.'},
+    ]
+  },
+  analyst:{
+    label:'Data Analyst',
+    servers:[
+      {name:'Postgres',  color:'#f59e0b',angle:-1.8, desc:'Query production data, aggregations'},
+      {name:'Sheets',    color:'#51cf66',angle:-0.9, desc:'Read/write Google Sheets reports'},
+      {name:'Slack',     color:'#4a9eff',angle: 0.0, desc:'Post analysis summaries to channels'},
+      {name:'Filesystem',color:'#74c0fc',angle: 0.9, desc:'Save CSV exports, read raw data files'},
+      {name:'Web Search',color:'#f97316',angle: 1.8, desc:'Research external benchmarks, context'},
+    ],
+    workflow:'Query data \u2192 clean & analyse \u2192 write to Sheets \u2192 post Slack summary \u2192 save CSV',
+    cards:[
+      {t:'Report Generator',b:'Ask for a weekly revenue summary. It queries Postgres, formats the table in Sheets, and posts the key numbers to your Slack channel automatically.'},
+      {t:'Anomaly Finder',b:'Ask why sales dropped last Tuesday. It queries the DB for that window, searches the web for industry context, and posts its finding to Slack.'},
+      {t:'Data Export',b:'Ask it to export filtered data as CSV. It queries Postgres with the right filters and saves the file to the filesystem ready for sharing.'},
+    ]
+  },
+  assistant:{
+    label:'Personal Assistant',
+    servers:[
+      {name:'Calendar',  color:'#6366f1',angle:-2.0, desc:'Schedule events, find free slots'},
+      {name:'Gmail',     color:'#ff6b6b',angle:-1.1, desc:'Read, draft, send emails'},
+      {name:'Notion',    color:'#c9d1d9',angle:-0.2, desc:'Create notes, update wikis'},
+      {name:'Slack',     color:'#4a9eff',angle: 0.9, desc:'Send messages, check channels'},
+      {name:'Web Search',color:'#f97316',angle: 1.8, desc:'Research, look up info'},
+    ],
+    workflow:'Check calendar \u2192 draft email \u2192 add to Notion \u2192 send Slack update \u2192 confirm booking',
+    cards:[
+      {t:'Meeting Planner',b:'Say "schedule a call with Alice next week". It checks your Calendar for free slots, drafts the invite email via Gmail, and adds a Notion note with the agenda.'},
+      {t:'Email Triager',b:'Ask it to handle your inbox. It reads emails via Gmail, creates Notion action items for things that need follow-up, and sends Slack pings for urgent items.'},
+      {t:'Research Assistant',b:'Ask it to research a topic. It searches the web, compiles findings into a Notion page, and sends you the link via Slack.'},
+    ]
+  }
+};
+var usecaseAnimT=0;
+function setRole(role){
+  activeRole=role;
+  ['dev','analyst','assistant'].forEach(function(r){
+    var el=document.getElementById('role-tab-'+r);if(el)el.classList.toggle('active',r===role);
+  });
+  var data=ROLES[role];
+  var panel=document.getElementById('usecases-info');
+  if(panel)panel.innerHTML='<strong>'+data.label+' setup</strong> &mdash; Workflow: <em>'+data.workflow+'</em>';
+  var cardsDiv=document.getElementById('usecase-cards');
+  if(cardsDiv){
+    cardsDiv.innerHTML='';
+    data.cards.forEach(function(c){
+      var div=document.createElement('div');
+      div.className='card';
+      div.innerHTML='<div class="card-title" style="color:#f59e0b;">'+c.t+'</div><div class="card-body">'+c.b+'</div>';
+      cardsDiv.appendChild(div);
+    });
+  }
+  usecaseAnimT=0;
+}
+function initUseCases(){
+  setRole('dev');
+  var canvas=document.getElementById('canvas-usecases');
+  if(!canvas)return;
+  var ctx=canvas.getContext('2d');
+  function frame(){
+    usecaseAnimT+=0.015;
+    drawUseCases(ctx,canvas.width,canvas.height,usecaseAnimT);
+    requestAnimationFrame(frame);
+  }
+  frame();
+}
+function drawUseCases(ctx,W,H,t){
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#0d1117';ctx.fillRect(0,0,W,H);
+  var data=ROLES[activeRole];
+  if(!data)return;
+  var cx=W/2,cy=H/2,dist=145;
+  var hubR=44;
+  ctx.beginPath();ctx.arc(cx,cy,hubR+10,0,Math.PI*2);
+  ctx.fillStyle='rgba(99,102,241,0.08)';ctx.fill();
+  ctx.beginPath();ctx.arc(cx,cy,hubR,0,Math.PI*2);
+  ctx.fillStyle='rgba(99,102,241,0.18)';ctx.fill();
+  ctx.strokeStyle='#6366f1';ctx.lineWidth=2;ctx.stroke();
+  ctx.fillStyle='#818cf8';ctx.font='700 11px Inter';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('MCP',cx,cy-8);
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter';
+  ctx.fillText('Host',cx,cy+6);
+  ctx.textBaseline='alphabetic';
+  data.servers.forEach(function(srv,i){
+    var nx=cx+Math.cos(srv.angle)*dist;
+    var ny=cy+Math.sin(srv.angle)*dist;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(nx,ny);
+    ctx.strokeStyle=srv.color+'55';ctx.lineWidth=1.5;ctx.stroke();
+    var ph1=((t*0.5+i*0.2)%1);
+    var ph2=((t*0.5+i*0.2+0.5)%1);
+    [[ph1,cx,cy,nx,ny],[ph2,nx,ny,cx,cy]].forEach(function(p){
+      var px=lerp(p[1],p[3],p[0]),py=lerp(p[2],p[4],p[0]);
+      ctx.beginPath();ctx.arc(px,py,3,0,Math.PI*2);
+      ctx.fillStyle=srv.color;ctx.fill();
+    });
+    var bw=80,bh=38;
+    drawRoundedRect(ctx,nx-bw/2,ny-bh/2,bw,bh,8,'rgba(13,17,23,0.95)',srv.color+'99');
+    ctx.fillStyle=srv.color;ctx.font='700 10px Inter';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(srv.name,nx,ny-6);
+    ctx.fillStyle='#8b949e';ctx.font='8px Inter';
+    var words=srv.desc.split(',')[0];
+    ctx.fillText(words,nx,ny+8);
+    ctx.textBaseline='alphabetic';
+  });
+}
+
+// ===== QUIZ =====
+var QUIZ_DATA=[
+  {
+    q:'What is the "N\u00D7M integration problem" that MCP solves?',
+    opts:[
+      'N models \u00D7 M parameters = too many weights to store',
+      'N AI apps \u00D7 M data sources = N\u00D7M custom integrations with no reuse',
+      'Each model needs a unique API key per data source',
+      'AI models can only connect to one data source at a time'
+    ],
+    ans:1,
+    exp:'With N AI apps and M data sources, every combination needs a custom connector. MCP turns this into N+M by standardising the protocol \u2014 each AI implements MCP once, each data source builds one MCP server.'
+  },
+  {
+    q:'What does the MCP Client actually do?',
+    opts:[
+      'It runs the LLM and makes decisions about which tool to call',
+      'It permanently stores all tool definitions on disk',
+      'It maintains a dedicated connection to one MCP Server on behalf of the Host',
+      'It is the external data source that exposes tools'
+    ],
+    ans:2,
+    exp:'The Host creates one Client per Server. The Client manages the protocol lifecycle for that specific Server \u2014 initialization, capability negotiation, message routing. One Client = one Server connection.'
+  },
+  {
+    q:'Which MCP primitive gives the AI read-only context data (like a database schema)?',
+    opts:['Tool','Resource','Prompt','Sampling'],
+    ans:1,
+    exp:'Resources are readable data sources \u2014 file contents, DB schemas, API responses. The AI reads them as background context. Tools are executable actions. Prompts are reusable templates.'
+  },
+  {
+    q:'You need an MCP server that serves hundreds of VS Code users simultaneously from a remote host. Which transport should you use?',
+    opts:['stdio \u2014 spawned as a child process','Streamable HTTP \u2014 remote endpoint with SSE','WebSocket \u2014 persistent connection','gRPC \u2014 binary protocol'],
+    ans:1,
+    exp:'Streamable HTTP is designed for remote servers that serve many clients concurrently. stdio spawns a local child process \u2014 one instance per client. Remote SaaS integrations (Sentry, GitHub) use Streamable HTTP.'
+  },
+  {
+    q:'What is actually being negotiated during MCP capability negotiation?',
+    opts:[
+      'Which LLM model the server should use for generating responses',
+      'The price per API call between client and server',
+      'Which features each side supports, so neither sends messages the other cannot handle',
+      'Whether the connection should use stdio or HTTP'
+    ],
+    ans:2,
+    exp:'The initialize handshake lets both sides declare what they support (tools, resources, sampling, etc.). After negotiation, each side knows exactly what methods it can send \u2014 avoiding errors from calling unsupported features.'
+  },
+  {
+    q:'What is the core difference between MCP and function calling?',
+    opts:[
+      'MCP uses a different JSON format for tool definitions than OpenAI function calling',
+      'Function calling is faster than MCP for simple tool invocations',
+      'Function calling is the LLM\'s ability to decide when to use a tool; MCP is the infrastructure standard for how that tool is discovered, transported, authenticated, and reused across any host',
+      'MCP only works with Claude \u2014 other models must use function calling'
+    ],
+    ans:2,
+    exp:'Function calling is an LLM capability \u2014 deciding "I should call this tool now." MCP is the protocol layer around that decision: how the tool is discovered (tools/list), how results flow back, how auth works, and how the same server works with Claude, ChatGPT, and VS Code without rewriting anything.'
+  },
+  {
+    q:'What is "Sampling" in MCP, and why is it useful?',
+    opts:[
+      'A technique for reducing the number of tokens a tool response uses',
+      'Random selection of which tool to call when multiple match',
+      'A client primitive that lets an MCP server request an LLM completion from the host without needing its own API key',
+      'A method for testing a server before connecting it to a production host'
+    ],
+    ans:2,
+    exp:'Sampling lets a server ask the host\'s LLM to generate a completion \u2014 model-agnostic intelligence inside the server. The server stays model-independent while still accessing language model capabilities through the host.'
+  },
+  {
+    q:'Why does "fragile context" happen without MCP when an agent uses multiple tools in sequence?',
+    opts:[
+      'LLMs have a hard limit of one tool call per conversation turn',
+      'Each custom tool integration has no standard state envelope \u2014 data must be manually re-pasted in each call, causing format mismatches at handoffs',
+      'MCP servers are simply faster than custom integrations',
+      'Without MCP, tools can only be called once per session'
+    ],
+    ans:1,
+    exp:'Without a standard state envelope, the agent must carry all prior tool results in its context window and re-paste them on every subsequent call. Each custom connector was written by a different team expecting a different input shape \u2014 the merge fails at handoff. MCP\'s typed content blocks solve this.'
+  }
+];
+var quizState={current:0,selected:null,submitted:false,score:0,answers:[]};
+function initQuiz(){
+  quizState={current:0,selected:null,submitted:false,score:0,answers:[]};
+  renderQuiz();
+}
+function renderQuiz(){
+  var container=document.getElementById('quiz-container');
+  if(!container)return;
+  var q=QUIZ_DATA[quizState.current];
+  var html='<div class="card" style="margin-bottom:8px;">';
+  html+='<div style="font-size:10px;font-weight:700;color:#8b949e;text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;">Question '+(quizState.current+1)+' of '+QUIZ_DATA.length+'</div>';
+  html+='<div style="height:3px;background:#30363d;border-radius:2px;margin-bottom:16px;"><div style="height:3px;background:#6366f1;border-radius:2px;width:'+Math.round((quizState.current/QUIZ_DATA.length)*100)+'%;transition:width .3s;"></div></div>';
+  html+='<div style="font-size:14px;font-weight:700;color:#c9d1d9;margin-bottom:16px;line-height:1.5;">'+q.q+'</div>';
+  q.opts.forEach(function(opt,i){
+    var sel=(i===quizState.selected);
+    var correct=(quizState.submitted&&i===q.ans);
+    var wrong=(quizState.submitted&&sel&&i!==q.ans);
+    var bg=correct?'rgba(81,207,102,0.12)':wrong?'rgba(255,107,107,0.12)':sel?'rgba(99,102,241,0.1)':'transparent';
+    var border=correct?'#51cf66':wrong?'#ff6b6b':sel?'#818cf8':'#30363d';
+    var color=correct?'#51cf66':wrong?'#ff6b6b':sel?'#c9d1d9':'#8b949e';
+    html+='<div onclick="selectQuizOpt('+i+')" style="padding:10px 14px;border:1px solid '+border+';border-radius:8px;margin-bottom:8px;cursor:pointer;background:'+bg+';color:'+color+';font-size:13px;transition:all .15s;">'+opt+'</div>';
+  });
+  if(quizState.submitted){
+    html+='<div style="margin-top:12px;padding:12px;background:rgba(99,102,241,.06);border-radius:6px;color:#c9d1d9;font-size:12px;line-height:1.6;">'+q.exp+'</div>';
+    if(quizState.current<QUIZ_DATA.length-1){
+      html+='<button class="btn" style="margin-top:12px;" onclick="nextQuizQ()">Next Question &rarr;</button>';
+    } else {
+      html+='<button class="btn" style="margin-top:12px;" onclick="showQuizResult()">See Results</button>';
+    }
+  } else {
+    html+='<button class="btn" style="margin-top:12px;opacity:'+(quizState.selected===null?0.4:1)+';" onclick="submitQuizQ()" '+(quizState.selected===null?'disabled':'')+'>Submit</button>';
+  }
+  html+='</div>';
+  container.innerHTML=html;
+  document.getElementById('quiz-result').style.display='none';
+}
+function selectQuizOpt(i){
+  if(quizState.submitted)return;
+  quizState.selected=i;renderQuiz();
+}
+function submitQuizQ(){
+  if(quizState.selected===null)return;
+  quizState.submitted=true;
+  var correct=quizState.selected===QUIZ_DATA[quizState.current].ans;
+  if(correct)quizState.score++;
+  quizState.answers.push({selected:quizState.selected,correct:correct});
+  renderQuiz();
+}
+function nextQuizQ(){
+  quizState.current++;quizState.selected=null;quizState.submitted=false;renderQuiz();
+}
+function showQuizResult(){
+  var container=document.getElementById('quiz-container');
+  if(container)container.innerHTML='';
+  var result=document.getElementById('quiz-result');
+  if(!result)return;
+  result.style.display='block';
+  var pct=Math.round((quizState.score/QUIZ_DATA.length)*100);
+  var grade=pct>=88?'Expert \uD83C\uDFC6':pct>=62?'Solid \uD83D\uDCAA':pct>=37?'Getting there \uD83D\uDCDA':'Keep reading \uD83D\uDD0D';
+  var gradeColor=pct>=88?'#51cf66':pct>=62?'#f59e0b':pct>=37?'#74c0fc':'#ff6b6b';
+  result.innerHTML='<div style="text-align:center;padding:16px 0;">'
+    +'<div style="font-size:48px;font-weight:800;color:'+gradeColor+';">'+quizState.score+'/'+QUIZ_DATA.length+'</div>'
+    +'<div style="font-size:18px;font-weight:700;color:'+gradeColor+';margin:4px 0;">'+grade+'</div>'
+    +'<div style="font-size:12px;color:#8b949e;margin-bottom:16px;">'+pct+'% correct</div>'
+    +'<div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:20px;">'
+    +quizState.answers.map(function(a,i){return '<span style="width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;background:'+(a.correct?'rgba(81,207,102,.2)':'rgba(255,107,107,.2)')+';color:'+(a.correct?'#51cf66':'#ff6b6b')+';border:1px solid '+(a.correct?'#51cf66':'#ff6b6b')+';">'+(i+1)+'</span>';}).join('')
+    +'</div>'
+    +'<button class="btn-tab" onclick="initQuiz()" style="margin-right:8px;">Try Again</button>'
+    +'</div>';
 }
 
 </script>
