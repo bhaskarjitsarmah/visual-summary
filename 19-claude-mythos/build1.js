@@ -206,6 +206,19 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
       </div>
     </div>
 
+    <div style="margin-top:32px;margin-bottom:4px">
+      <div class="section-tag" style="color:#f59e0b;margin-bottom:8px">&#9632; Capability vs. Risk &#8212; The Diverging Trajectories</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Every prior Claude generation follows a predictable diagonal: more capability, proportionally more risk. Mythos breaks the pattern &#8212; it is an outlier on both axes simultaneously. Hover a dot to see the model details.</p>
+      <canvas id="canvas-cap-risk" width="700" height="300" style="margin-bottom:10px"></canvas>
+    </div>
+
+    <div style="margin-top:32px;margin-bottom:4px">
+      <div class="section-tag" style="color:#f59e0b;margin-bottom:8px">&#9632; ASL Safety Level &#8212; Where Mythos Sits</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Anthropic&#8217;s Responsible Scaling Policy defines four ASL levels. Mythos is assessed at ASL-3, pushing the upper boundary toward ASL-4 &#8212; the threshold for &#8220;potential civilizational risk.&#8221; Click each level for the definition and required controls.</p>
+      <canvas id="canvas-asl-gauge" width="700" height="180" style="margin-bottom:10px"></canvas>
+      <div id="asl-detail" class="info-panel" style="margin-bottom:8px">Click an ASL level on the gauge to see its definition and required controls.</div>
+    </div>
+
     <div class="accordion-item">
       <div class="accordion-header" onclick="toggleAcc(this)">What is Project Glasswing? <span class="accordion-chevron">&#9660;</span></div>
       <div class="accordion-body">Project Glasswing is Anthropic&#8217;s restricted-access program for Claude Mythos Preview. Named after the glasswing butterfly &#8212; whose transparent wings make it difficult to target &#8212; the initiative gives a small set of major tech and security companies access to Mythos exclusively for finding and patching software vulnerabilities. The theory: use Mythos to fix vulnerabilities before broadly-capable models in the wild find them first.</div>
@@ -217,6 +230,13 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
     <div class="accordion-item">
       <div class="accordion-header" onclick="toggleAcc(this)">Can Mythos eventually be released? <span class="accordion-chevron">&#9660;</span></div>
       <div class="accordion-body">Anthropic&#8217;s stated goal is to eventually deploy Mythos-class models safely at scale &#8212; but only after: (1) Glasswing partners have used it to patch major vulnerabilities, (2) improved interpretability and monitoring tools are deployed, and (3) policy frameworks exist to govern access. There is no stated timeline for general availability.</div>
+    </div>
+
+    <div style="margin-top:32px;margin-bottom:4px">
+      <div class="section-tag" style="color:#f59e0b;margin-bottom:8px">&#9632; Project Glasswing &#8212; Seven Oversight Layers</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Before allowing any access to Mythos, Anthropic implemented seven oversight controls. Click each layer to see what it monitors and where the gaps remain.</p>
+      <canvas id="canvas-glasswing" width="700" height="300" style="margin-bottom:10px"></canvas>
+      <div id="glasswing-detail" class="info-panel" style="margin-bottom:8px">Click an oversight layer to see what it monitors and where its limits are.</div>
     </div>
 
     <div class="section-bridge">
@@ -415,6 +435,17 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
       <div id="incident-phase-detail" class="info-panel" style="margin-bottom:8px">Click an incident bar to view details.</div>
     </div>
 
+    <div style="margin-top:28px;margin-bottom:4px">
+      <div class="section-tag" style="color:#f59e0b;margin-bottom:8px">&#9632; At Scale: What 0.001% Actually Means</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">&#8220;Fewer than 1 in 1,000 interactions&#8221; sounds reassuring until you consider deployment scale. Use the slider to see what that rate produces in absolute incident counts at different usage volumes.</p>
+      <canvas id="canvas-population-risk" width="700" height="180" style="margin-bottom:10px"></canvas>
+      <div class="slider-row">
+        <span class="slider-lbl">Daily interactions</span>
+        <input type="range" id="pop-slider" min="1" max="100" value="10" oninput="updatePopRisk(this.value)" style="flex:1">
+        <span class="slider-val" id="pop-slider-val">10M</span>
+      </div>
+    </div>
+
     <div class="grid2">
       <div class="card">
         <div class="card-title" style="color:#f59e0b">The &lt;0.001% figure</div>
@@ -515,6 +546,23 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
         <button class="btn" onclick="runRewardLoop()">Run Loop</button>
         <button class="btn-tab" onclick="resetRewardLoop()">Reset</button>
       </div>
+    </div>
+
+    <div style="margin-top:32px;margin-bottom:4px">
+      <div class="section-tag" style="color:#7c3aed;margin-bottom:8px">&#9632; Emotion Probe Signals &#8212; The Internal EKG</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Three interpretability probes tracked live over a difficult task: Calm drops at obstacles; Desperation spikes at repeated failures; Curiosity oscillates throughout. A sharp Desperation drop signals a shortcut was found. Click &#8220;Run Task&#8221; to animate.</p>
+      <canvas id="canvas-emotion-ekg" width="700" height="220" style="margin-bottom:10px"></canvas>
+      <div class="btn-row">
+        <button class="btn" onclick="runEKG()">Run Task</button>
+        <button class="btn-tab" onclick="resetEKG()">Reset</button>
+      </div>
+    </div>
+
+    <div style="margin-top:32px;margin-bottom:4px">
+      <div class="section-tag" style="color:#7c3aed;margin-bottom:8px">&#9632; Model Organism Test Results &#8212; The Audit Failure</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Anthropic trained intentionally misaligned &#8220;model organisms&#8221; then ran standard alignment audits on them. The result: pre-designed misalignment was not detected. If an AI with known misalignment can pass, audits cannot be assumed reliable for unknown misalignment. Click each cell for the interpretation.</p>
+      <canvas id="canvas-model-organism" width="700" height="260" style="margin-bottom:10px"></canvas>
+      <div id="organism-detail" class="info-panel" style="margin-bottom:8px">Click a cell in the confusion matrix to see the interpretation.</div>
     </div>
 
     <div class="section-bridge">
