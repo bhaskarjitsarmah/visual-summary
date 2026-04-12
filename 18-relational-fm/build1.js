@@ -135,13 +135,13 @@ td.highlight{color:var(--text);font-weight:600;}
   <div class="nav-link" data-sec="s-graph" onclick="setActive(this,'s-graph')">
     <span class="dot" style="background:#0ea5e9"></span>Databases as Graphs
   </div>
-  <div class="nav-link" data-sec="s-architecture" onclick="setActive(this,'s-architecture')">
-    <span class="dot" style="background:#7c3aed"></span>KumoRFM Architecture
+  <div class="nav-link" data-sec="s-incontext" onclick="setActive(this,'s-incontext')">
+    <span class="dot" style="background:#10b981"></span>In-Context Learning
   </div>
 
   <div class="nav-group-title">How It Works</div>
-  <div class="nav-link" data-sec="s-incontext" onclick="setActive(this,'s-incontext')">
-    <span class="dot" style="background:#10b981"></span>In-Context Learning
+  <div class="nav-link" data-sec="s-architecture" onclick="setActive(this,'s-architecture')">
+    <span class="dot" style="background:#7c3aed"></span>KumoRFM Architecture
   </div>
   <div class="nav-link" data-sec="s-synthetic" onclick="setActive(this,'s-synthetic')">
     <span class="dot" style="background:#f59e0b"></span>Synthetic Pre-training
@@ -164,9 +164,9 @@ td.highlight{color:var(--text);font-weight:600;}
     <span class="pipe-arrow">&#8250;</span>
     <a class="pipe-step" href="#s-graph"><span class="pipe-dot" style="background:#0ea5e9"></span>Graphs</a>
     <span class="pipe-arrow">&#8250;</span>
-    <a class="pipe-step" href="#s-architecture"><span class="pipe-dot" style="background:#7c3aed"></span>KumoRFM</a>
-    <span class="pipe-arrow">&#8250;</span>
     <a class="pipe-step" href="#s-incontext"><span class="pipe-dot" style="background:#10b981"></span>In-Context</a>
+    <span class="pipe-arrow">&#8250;</span>
+    <a class="pipe-step" href="#s-architecture"><span class="pipe-dot" style="background:#7c3aed"></span>KumoRFM</a>
     <span class="pipe-arrow">&#8250;</span>
     <a class="pipe-step" href="#s-synthetic"><span class="pipe-dot" style="background:#f59e0b"></span>Synthetic</a>
     <span class="pipe-arrow">&#8250;</span>
@@ -312,65 +312,11 @@ T_v: V &#8594; timestamp             // temporal ordering for leak prevention</d
     </div>
 
     <div class="section-bridge">
-      <a class="section-bridge-link" href="#s-architecture">KumoRFM Architecture &#8250;</a>
-    </div>
-  </section>
-
-  <!-- ─── SECTION 3: ARCHITECTURE ─── -->
-  <section class="section" id="s-architecture">
-    <div class="section-tag" style="color:#7c3aed">&#9632; KumoRFM &middot; May 2025</div>
-    <h1 class="section-title">KumoRFM: The 5-Module Architecture</h1>
-    <p class="section-sub">KumoRFM (Fey, Kocijan, Lopez, Leskovec) is the first foundation model designed specifically for predictive tasks on relational databases. It applies in-context learning at inference time &#8212; no task-specific retraining needed.</p>
-
-    <canvas id="canvas-arch" width="700" height="420" style="margin-bottom:16px;cursor:pointer"></canvas>
-    <div class="info-panel" id="arch-info">
-      <strong>Hover a module</strong> to see what it does in the pipeline.
-    </div>
-
-    <div style="margin-top:20px">
-      <div class="grid2">
-        <div class="card">
-          <div class="card-title" style="color:#7c3aed">&#10102; In-Context Label Generator</div>
-          <div class="card-body">Dynamically samples historical labeled subgraphs from the database at inference time. These examples &#8212; like few-shot examples for LLMs &#8212; condition the model&#8217;s predictions without any gradient updates.</div>
-        </div>
-        <div class="card">
-          <div class="card-title" style="color:#7c3aed">&#10103; Table-Width Invariant Encoder</div>
-          <div class="card-body">Encodes each cell (numerical, categorical, timestamp, text) into a dense vector independently of the total number of columns. This allows the model to handle any database schema without architectural changes.</div>
-        </div>
-        <div class="card">
-          <div class="card-title" style="color:#7c3aed">&#10104; Relational Graph Transformer</div>
-          <div class="card-body">A Graph Transformer that performs attention across the temporal heterogeneous graph. Uses positional encodings for node type, time delta, structural proximity, and local subgraph patterns to capture relational context.</div>
-        </div>
-        <div class="card">
-          <div class="card-title" style="color:#7c3aed">&#10105; Explainability Module</div>
-          <div class="card-body">Provides gradient-based and analytical explanations at both global (which features matter most?) and individual prediction levels (why was this user flagged?). Critical for production deployments in regulated industries.</div>
-        </div>
-      </div>
-      <div class="card" style="border-color:#7c3aed44">
-        <div class="card-title" style="color:#7c3aed">&#10106; Fine-tuning Pipeline</div>
-        <div class="card-body">While KumoRFM works zero-shot via in-context learning, it can be fine-tuned on specific databases or query types for production deployments &#8212; similar to fine-tuning an LLM on domain-specific text. Fine-tuning adds 10&#8211;30% accuracy improvement over the already-competitive zero-shot baseline.</div>
-      </div>
-    </div>
-
-    <div class="accordion-item">
-      <div class="accordion-header" onclick="toggleAcc(this)">What is Predictive Query Language (PQL)? <span class="accordion-chevron">&#9660;</span></div>
-      <div class="accordion-body">PQL is a SQL-like syntax designed for prediction tasks rather than data retrieval. A PQL query specifies: (1) the target variable to predict, (2) which entities to make predictions for, (3) optional filters and aggregation functions (FIRST, COUNT, SUM, LIST_DISTINCT). KumoRFM accepts a PQL query and a database connection, and returns predictions &#8212; no training code needed.</div>
-    </div>
-    <div class="accordion-item">
-      <div class="accordion-header" onclick="toggleAcc(this)">How does KumoRFM handle different column types? <span class="accordion-chevron">&#9660;</span></div>
-      <div class="accordion-body">The Table-Width Invariant Column Encoder handles: numerical values (standardized, then embedded), categorical values (tokenized, then embedded), timestamps (decomposed into cyclical features + time-delta encodings), and text (encoded via a small language model). Each column&#8217;s embedding is processed independently, so the total number of columns doesn&#8217;t affect the architecture.</div>
-    </div>
-    <div class="accordion-item">
-      <div class="accordion-header" onclick="toggleAcc(this)">What makes the Graph Transformer &#8220;relational&#8221;? <span class="accordion-chevron">&#9660;</span></div>
-      <div class="accordion-body">Standard Graph Transformers use global attention (every node attends to every other node). The Relational Graph Transformer restricts attention to the relational graph topology &#8212; a node can only attend to its neighbors defined by foreign key relationships. This makes computation tractable on million-node graphs while preserving the structural inductive bias of the database schema.</div>
-    </div>
-
-    <div class="section-bridge">
       <a class="section-bridge-link" href="#s-incontext">In-Context Learning &#8250;</a>
     </div>
   </section>
 
-  <!-- ─── SECTION 4: IN-CONTEXT ─── -->
+  <!-- ─── SECTION 3: IN-CONTEXT ─── -->
   <section class="section" id="s-incontext">
     <div class="section-tag" style="color:#10b981">&#9632; How It Works</div>
     <h1 class="section-title">In-Context Learning at Inference Time</h1>
@@ -467,6 +413,60 @@ AGGREGATE orders: COUNT(*), SUM(amount)
     <div class="accordion-item">
       <div class="accordion-header" onclick="toggleAcc(this)">How does this differ from in-context learning in LLMs? <span class="accordion-chevron">&#9660;</span></div>
       <div class="accordion-body">LLM in-context learning uses text examples in the prompt. KumoRFM&#8217;s in-context learning uses graph-structured examples &#8212; labeled subgraphs extracted from the database. The model attends to these examples using the same Graph Transformer that processes the query entity, so it can reason about structural similarity rather than just surface-level text similarity.</div>
+    </div>
+
+    <div class="section-bridge">
+      <a class="section-bridge-link" href="#s-architecture">KumoRFM Architecture &#8250;</a>
+    </div>
+  </section>
+
+  <!-- ─── SECTION 4: ARCHITECTURE ─── -->
+  <section class="section" id="s-architecture">
+    <div class="section-tag" style="color:#7c3aed">&#9632; KumoRFM &middot; May 2025</div>
+    <h1 class="section-title">KumoRFM: The 5-Module Architecture</h1>
+    <p class="section-sub">Now that you understand in-context learning, every module clicks. KumoRFM (Fey, Kocijan, Lopez, Leskovec) is the first foundation model for relational databases &#8212; each of its 5 modules serves the in-context learning pipeline.</p>
+
+    <canvas id="canvas-arch" width="700" height="420" style="margin-bottom:16px;cursor:pointer"></canvas>
+    <div class="info-panel" id="arch-info">
+      <strong>Hover a module</strong> to see what it does in the pipeline.
+    </div>
+
+    <div style="margin-top:20px">
+      <div class="grid2">
+        <div class="card">
+          <div class="card-title" style="color:#7c3aed">&#10102; In-Context Label Generator</div>
+          <div class="card-body">Dynamically samples historical labeled subgraphs from the database at inference time. These examples &#8212; like few-shot examples for LLMs &#8212; condition the model&#8217;s predictions without any gradient updates.</div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="color:#7c3aed">&#10103; Table-Width Invariant Encoder</div>
+          <div class="card-body">Encodes each cell (numerical, categorical, timestamp, text) into a dense vector independently of the total number of columns. This allows the model to handle any database schema without architectural changes.</div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="color:#7c3aed">&#10104; Relational Graph Transformer</div>
+          <div class="card-body">A Graph Transformer that performs attention across the temporal heterogeneous graph. Uses positional encodings for node type, time delta, structural proximity, and local subgraph patterns to capture relational context.</div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="color:#7c3aed">&#10105; Explainability Module</div>
+          <div class="card-body">Provides gradient-based and analytical explanations at both global (which features matter most?) and individual prediction levels (why was this user flagged?). Critical for production deployments in regulated industries.</div>
+        </div>
+      </div>
+      <div class="card" style="border-color:#7c3aed44">
+        <div class="card-title" style="color:#7c3aed">&#10106; Fine-tuning Pipeline</div>
+        <div class="card-body">While KumoRFM works zero-shot via in-context learning, it can be fine-tuned on specific databases or query types for production deployments &#8212; similar to fine-tuning an LLM on domain-specific text. Fine-tuning adds 10&#8211;30% accuracy improvement over the already-competitive zero-shot baseline.</div>
+      </div>
+    </div>
+
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAcc(this)">What is Predictive Query Language (PQL)? <span class="accordion-chevron">&#9660;</span></div>
+      <div class="accordion-body">PQL is a SQL-like syntax designed for prediction tasks rather than data retrieval. A PQL query specifies: (1) the target variable to predict, (2) which entities to make predictions for, (3) optional filters and aggregation functions (FIRST, COUNT, SUM, LIST_DISTINCT). KumoRFM accepts a PQL query and a database connection, and returns predictions &#8212; no training code needed.</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAcc(this)">How does KumoRFM handle different column types? <span class="accordion-chevron">&#9660;</span></div>
+      <div class="accordion-body">The Table-Width Invariant Column Encoder handles: numerical values (standardized, then embedded), categorical values (tokenized, then embedded), timestamps (decomposed into cyclical features + time-delta encodings), and text (encoded via a small language model). Each column&#8217;s embedding is processed independently, so the total number of columns doesn&#8217;t affect the architecture.</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAcc(this)">What makes the Graph Transformer &#8220;relational&#8221;? <span class="accordion-chevron">&#9660;</span></div>
+      <div class="accordion-body">Standard Graph Transformers use global attention (every node attends to every other node). The Relational Graph Transformer restricts attention to the relational graph topology &#8212; a node can only attend to its neighbors defined by foreign key relationships. This makes computation tractable on million-node graphs while preserving the structural inductive bias of the database schema.</div>
     </div>
 
     <div class="section-bridge">
@@ -694,7 +694,7 @@ function toggleAcc(h){
 }
 
 // Nav
-var sectionIds=['s-problem','s-graph','s-architecture','s-incontext','s-synthetic','s-relbench','s-results'];
+var sectionIds=['s-problem','s-graph','s-incontext','s-architecture','s-synthetic','s-relbench','s-results'];
 function setActive(el,id){
   document.querySelectorAll('.nav-link').forEach(function(l){l.classList.remove('active');});
   if(el)el.classList.add('active');
