@@ -905,11 +905,281 @@ function animateApiFlow(){drawApiFlow();apiFlowAnimRaf=requestAnimationFrame(ani
 function initApiFlow(){var c=document.getElementById('canvas-api-flow');if(!c)return;animateApiFlow();}
 
 // ================================================
+// CANVAS: Prompt Wall (s-why-managed)
+// ================================================
+var pwStep=-1,pwRunning=false,pwRaf=null;
+var PW_TURNS=[
+  {label:'Turn 1',trad:60,managed:60,tradColor:AMBER,desc:'Turn 1 — both send roughly the same size prompt. No difference yet.'},
+  {label:'Turn 2',trad:180,managed:70,tradColor:AMBER,desc:'Turn 2 — traditional agent re-sends Turn 1 history + new message (3x bigger). Managed Agent sends only the new event.'},
+  {label:'Turn 3',trad:340,managed:80,tradColor:'#f97316',desc:'Turn 3 — traditional prompt is now 5x larger than Managed. Latency climbing fast. Tool results included repeatedly.'},
+  {label:'Turn 4',trad:520,managed:85,tradColor:RED,desc:'Turn 4 — traditional agent re-sends everything again. You\'re paying for tokens you already paid for in turns 1-3.'},
+  {label:'Turn 5',trad:700,managed:90,tradColor:RED,desc:'Turn 5 — traditional prompt hits context limit. Task FAILS. Managed Agent is barely growing — only new events each turn.'}
+];
+
+function resetPromptWall(){
+  pwStep=-1;pwRunning=false;
+  var panel=document.getElementById('prompt-wall-detail');
+  if(panel)panel.innerHTML='<strong>Click "Watch it grow"</strong> — see how traditional agents re-send the full history every turn, while Managed Agents only send new events.';
+  drawPromptWall(0);
+}
+function runPromptWall(){
+  if(pwRunning)return;
+  pwRunning=true;
+  pwStep=0;
+  stepPromptWall();
+}
+function stepPromptWall(){
+  if(!pwRunning||pwStep>=PW_TURNS.length){pwRunning=false;return;}
+  var panel=document.getElementById('prompt-wall-detail');
+  if(panel)panel.innerHTML='<span style="color:'+PW_TURNS[pwStep].tradColor+'"><strong>'+PW_TURNS[pwStep].label+'</strong></span> — '+PW_TURNS[pwStep].desc;
+  animatePromptWallStep(pwStep,function(){
+    pwStep++;
+    setTimeout(stepPromptWall,600);
+  });
+}
+
+var pwBarProgress=[];
+function animatePromptWallStep(step,cb){
+  var target=PW_TURNS[step];
+  var startTrad=pwBarProgress[step]?pwBarProgress[step].trad:0;
+  var startManaged=pwBarProgress[step]?pwBarProgress[step].managed:0;
+  var t=0;
+  function tick(){
+    t=Math.min(t+0.06,1);
+    var et=easeInOut(t);
+    pwBarProgress[step]={trad:lerp(startTrad,target.trad,et),managed:lerp(startManaged,target.managed,et)};
+    drawPromptWall(step+1);
+    if(t<1)requestAnimationFrame(tick);
+    else if(cb)cb();
+  }
+  tick();
+}
+
+function drawPromptWall(upToStep){
+  var c=document.getElementById('canvas-prompt-wall');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle=SURF;drawRoundedRect(ctx,0,0,W,H,10);ctx.fill();
+
+  var maxH=180,maxTokens=700;
+  var colW=55,gap=18;
+  var groupW=colW*2+gap;
+  var totalW=PW_TURNS.length*(groupW+24);
+  var startX=(W-totalW)/2+12;
+  var baseY=H-50;
+
+  // Labels at top
+  ctx.fillStyle=MUTED;ctx.font='10px Inter';ctx.textAlign='center';
+  ctx.fillText('TOKENS SENT PER TURN — growing = more cost + latency',W/2,18);
+
+  // Legend
+  var legX=W-220,legY=30;
+  ctx.fillStyle=AMBER+'cc';drawRoundedRect(ctx,legX,legY,14,14,2);ctx.fill();
+  ctx.fillStyle=TEXT;ctx.font='10px Inter';ctx.textAlign='left';ctx.fillText('Traditional agent',legX+18,legY+11);
+  ctx.fillStyle=CYAN+'cc';drawRoundedRect(ctx,legX,legY+18,14,14,2);ctx.fill();
+  ctx.fillStyle=TEXT;ctx.fillText('Managed agent',legX+18,legY+29);
+
+  PW_TURNS.forEach(function(turn,i){
+    var gx=startX+i*(groupW+24);
+    var prog=pwBarProgress[i]||{trad:0,managed:0};
+    var show=i<upToStep;
+
+    // Traditional bar
+    var tradH=show?(prog.trad/maxTokens)*maxH:0;
+    var tradColor=turn.tradColor;
+    if(show){
+      var gr=ctx.createLinearGradient(0,baseY-tradH,0,baseY);
+      gr.addColorStop(0,tradColor);gr.addColorStop(1,tradColor+'66');
+      ctx.fillStyle=gr;
+      drawRoundedRect(ctx,gx,baseY-tradH,colW,tradH,4);ctx.fill();
+      // Token count
+      if(tradH>16){ctx.fillStyle=TEXT;ctx.font='bold 9px Inter';ctx.textAlign='center';ctx.fillText(Math.round(prog.trad)+'t',gx+colW/2,baseY-tradH-4);}
+    } else {
+      ctx.fillStyle=BORDER;drawRoundedRect(ctx,gx,baseY-10,colW,10,2);ctx.fill();
+    }
+
+    // Managed bar
+    var managedH=show?(prog.managed/maxTokens)*maxH:0;
+    if(show){
+      var gr2=ctx.createLinearGradient(0,baseY-managedH,0,baseY);
+      gr2.addColorStop(0,CYAN);gr2.addColorStop(1,CYAN+'66');
+      ctx.fillStyle=gr2;
+      drawRoundedRect(ctx,gx+colW+gap,baseY-managedH,colW,managedH,4);ctx.fill();
+      if(managedH>16){ctx.fillStyle=TEXT;ctx.font='bold 9px Inter';ctx.textAlign='center';ctx.fillText(Math.round(prog.managed)+'t',gx+colW+gap+colW/2,baseY-managedH-4);}
+    } else {
+      ctx.fillStyle=BORDER;drawRoundedRect(ctx,gx+colW+gap,baseY-10,colW,10,2);ctx.fill();
+    }
+
+    // Turn label
+    ctx.fillStyle=i<upToStep?TEXT:MUTED;ctx.font='9px Inter';ctx.textAlign='center';
+    ctx.fillText(turn.label,gx+groupW/2,baseY+14);
+  });
+
+  // Context limit wall
+  var wallY=baseY-maxH;
+  ctx.strokeStyle=RED+'aa';ctx.lineWidth=1.5;ctx.setLineDash([5,3]);
+  ctx.beginPath();ctx.moveTo(startX-10,wallY);ctx.lineTo(W-20,wallY);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle=RED;ctx.font='bold 9px Inter';ctx.textAlign='right';
+  ctx.fillText('Context Limit — task fails here',W-22,wallY-4);
+
+  // Base line
+  ctx.strokeStyle=BORDER;ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(startX-10,baseY+1);ctx.lineTo(W-20,baseY+1);ctx.stroke();
+
+  // Arrow annotation for Turn 5 if shown
+  if(upToStep>=5){
+    var lastGx=startX+4*(groupW+24);
+    ctx.strokeStyle=RED;ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(lastGx+colW/2,wallY+4);ctx.lineTo(lastGx+colW/2,wallY+20);ctx.stroke();
+    ctx.fillStyle=RED;ctx.font='bold 9px Inter';ctx.textAlign='center';
+    ctx.fillText('FAILS',lastGx+colW/2,wallY+32);
+    ctx.fillStyle=CYAN;
+    ctx.fillText('still growing',lastGx+colW+gap+colW/2,baseY-(pwBarProgress[4]?pwBarProgress[4].managed/maxTokens*maxH:0)-14);
+  }
+}
+
+function initPromptWall(){
+  drawPromptWall(0);
+}
+
+// ================================================
+// CANVAS: Infrastructure Compare (s-why-managed)
+// ================================================
+var infraSelected=-1;
+var INFRA_ROWS=[
+  {label:'Session State',icon:'&#128196;',
+   self:'Build a database (Redis/Postgres). Write schema for conversation history. Handle TTL, cleanup jobs, concurrent writes, re-read on every turn.',
+   managed:'Anthropic stores the append-only event log. You query it with a simple API call. No database to provision or maintain.',
+   selfColor:'#f87171',managedColor:GREEN},
+  {label:'Tool Execution',icon:'&#128187;',
+   self:'Spin up a VM or container. Install runtimes (Python, Node, etc). Handle network policy, filesystem sandboxing, and cleanup after each run.',
+   managed:'Each session gets an isolated container from your Environment template. Anthropic spins it up, manages isolation, tears it down.',
+   selfColor:'#f87171',managedColor:GREEN},
+  {label:'Session Lifecycle',icon:'&#9881;',
+   self:'Write pause/resume logic. Handle timeouts. Store "paused" state in your DB. Build human-approval hooks from scratch.',
+   managed:'Sessions have a first-class lifecycle API: created, running, paused, complete, failed. Pause/resume with a single API call.',
+   selfColor:'#f87171',managedColor:GREEN},
+  {label:'Multi-Agent',icon:'&#129302;',
+   self:'Build your own orchestrator. Manage child agent state, fan-out, fan-in, failure propagation, result aggregation — all custom code.',
+   managed:'Declare callable_agents in your Agent config. The runtime dispatches, waits for all results, routes them back as events.',
+   selfColor:'#f87171',managedColor:GREEN},
+  {label:'Credential Security',icon:'&#128274;',
+   self:'Build a vault or inject secrets as env vars. Risk: secrets leak through shell history, logs, or container dumps.',
+   managed:'Vault+MCP proxy mediates all auth. Agent never sees master credentials — only scoped short-lived tokens per resource.',
+   selfColor:'#f87171',managedColor:GREEN}
+];
+
+function drawInfraCompare(){
+  var c=document.getElementById('canvas-infra-compare');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle=SURF;drawRoundedRect(ctx,0,0,W,H,10);ctx.fill();
+
+  var rowH=58,rowY=46,colMid=W/2;
+
+  // Column headers
+  ctx.fillStyle=RED+'cc';ctx.font='bold 11px Inter';ctx.textAlign='center';
+  ctx.fillText('WITHOUT Managed Agents — You Build',colMid/2,22);
+  ctx.fillStyle=GREEN;
+  ctx.fillText('WITH Managed Agents — Anthropic Handles',colMid+colMid/2,22);
+
+  // Divider
+  ctx.strokeStyle=BORDER;ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(colMid,30);ctx.lineTo(colMid,H-10);ctx.stroke();
+
+  INFRA_ROWS.forEach(function(row,i){
+    var y=rowY+i*(rowH+8);
+    var sel=infraSelected===i;
+
+    // Row background
+    if(sel){
+      ctx.fillStyle=CYAN+'11';
+      drawRoundedRect(ctx,10,y-4,W-20,rowH+2,6);ctx.fill();
+    }
+
+    // Left: self-managed
+    ctx.fillStyle=sel?'#f8717133':RED+'11';
+    drawRoundedRect(ctx,14,y,colMid-24,rowH,6);ctx.fill();
+    ctx.strokeStyle=sel?RED:BORDER;ctx.lineWidth=sel?1.5:1;
+    drawRoundedRect(ctx,14,y,colMid-24,rowH,6);ctx.stroke();
+
+    // Right: managed
+    ctx.fillStyle=sel?GREEN+'33':GREEN+'11';
+    drawRoundedRect(ctx,colMid+10,y,colMid-24,rowH,6);ctx.fill();
+    ctx.strokeStyle=sel?GREEN:BORDER;ctx.lineWidth=sel?1.5:1;
+    drawRoundedRect(ctx,colMid+10,y,colMid-24,rowH,6);ctx.stroke();
+
+    // Row label (center)
+    ctx.fillStyle=TEXT;ctx.font='bold 10px Inter';ctx.textAlign='center';
+    ctx.fillText(row.label,colMid,y+rowH/2-4);
+    ctx.fillStyle=MUTED;ctx.font='10px Inter';
+    ctx.fillText(row.icon,colMid,y+rowH/2+10);
+
+    // Left text
+    ctx.fillStyle=RED;ctx.font='9px Inter';ctx.textAlign='left';
+    var leftLines=wrapText(ctx,row.self,22,colMid-30,rowH-10);
+    leftLines.forEach(function(l,j){ctx.fillText(l,22,y+12+j*13);});
+
+    // Right: checkmark + short label
+    ctx.fillStyle=GREEN;ctx.font='9px Inter';ctx.textAlign='left';
+    ctx.fillText('✓ Handled',colMid+18,y+18);
+    ctx.fillStyle=MUTED;ctx.font='9px Inter';
+    var rightLines=wrapText(ctx,row.managed.split('.')[0]+'.',colMid+18,colMid-32,rowH-24);
+    rightLines.forEach(function(l,j){ctx.fillText(l,colMid+18,y+32+j*12);});
+  });
+}
+
+function wrapText(ctx,text,x,maxW,maxH){
+  var words=text.split(' ');
+  var lines=[],line='';
+  var maxLines=Math.floor(maxH/13);
+  words.forEach(function(w){
+    var test=line?line+' '+w:w;
+    if(ctx.measureText(test).width>maxW&&line){lines.push(line);line=w;}
+    else line=test;
+  });
+  if(line)lines.push(line);
+  return lines.slice(0,maxLines);
+}
+
+function initInfraCompare(){
+  var c=document.getElementById('canvas-infra-compare');
+  if(!c)return;
+  c.addEventListener('click',function(e){
+    var rect=c.getBoundingClientRect();
+    var mx=e.clientX-rect.left,my=e.clientY-rect.top;
+    var prev=infraSelected;
+    infraSelected=-1;
+    var rowH=58,rowY=46;
+    INFRA_ROWS.forEach(function(row,i){
+      var y=rowY+i*(rowH+8);
+      if(my>=y-4&&my<=y+rowH+2)infraSelected=i;
+    });
+    var panel=document.getElementById('infra-compare-detail');
+    if(panel&&infraSelected>=0){
+      var r=INFRA_ROWS[infraSelected];
+      panel.innerHTML='<strong style="color:'+r.selfColor+'">Without: </strong>'+r.self+'<br><br><strong style="color:'+r.managedColor+'">With Managed Agents: </strong>'+r.managed;
+    } else if(panel){
+      panel.innerHTML='<strong>Click any row</strong> to see what building it yourself looks like vs what Anthropic handles for you.';
+    }
+    drawInfraCompare();
+  });
+  drawInfraCompare();
+}
+
+// ================================================
 // INIT
 // ================================================
 function doInit(){
   initAnatomyHover();
   initTTFT();
+  initPromptWall();
+  initInfraCompare();
   initConceptsMap();
   initSessionLifecycle();
   initArchBHS();

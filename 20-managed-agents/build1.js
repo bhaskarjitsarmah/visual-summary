@@ -133,6 +133,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
   <div class="nav-link" data-sec="s-overview" onclick="setActive(this,'s-overview')">
     <span class="dot" style="background:#00b4d8"></span>Why Managed Agents</div>
 
+  <div class="nav-group-title">The Why</div>
+  <div class="nav-link" data-sec="s-why-managed" onclick="setActive(this,'s-why-managed')">
+    <span class="dot" style="background:#f7b731"></span>Why "Managed"?</div>
+
   <div class="nav-group-title">Core Concepts</div>
   <div class="nav-link" data-sec="s-concepts" onclick="setActive(this,'s-concepts')">
     <span class="dot" style="background:#7c6af4"></span>Four Primitives</div>
@@ -156,6 +160,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
 <div class="main" id="main-scroll">
 <div class="pipeline-map">
   <div class="pipe-step"><span class="pipe-dot" style="background:#00b4d8"></span>Overview</div>
+  <span class="pipe-arrow">&#8594;</span>
+  <div class="pipe-step"><span class="pipe-dot" style="background:#f7b731"></span>Why Managed</div>
   <span class="pipe-arrow">&#8594;</span>
   <div class="pipe-step"><span class="pipe-dot" style="background:#7c6af4"></span>Concepts</div>
   <span class="pipe-arrow">&#8594;</span>
@@ -206,6 +212,68 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
     <div class="card">
       <div class="card-title" style="color:#f7b731">What Stays Same</div>
       <div class="card-body">The Claude API, prompt engineering, and tool-use patterns you already know. Managed Agents is an orchestration layer on top — not a different model.</div>
+    </div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-why-managed">Why "Managed"? &rarr;</a>
+  </div>
+</section>
+
+<!-- ====== S1b: WHY MANAGED ====== -->
+<section class="section" id="s-why-managed">
+  <div class="section-tag" style="color:#f7b731">Why "Managed"?</div>
+  <h2 class="section-title">You Build the Recipe. Anthropic Manages the Kitchen.</h2>
+  <p class="section-sub">The word "Managed" means Anthropic runs the infrastructure underneath — containers, session state, security, scaling. You only write the agent logic. Here is exactly what that difference looks like.</p>
+
+  <!-- THE WALL -->
+  <div class="card-title" style="color:#ff6b6b;font-size:11px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;">The Problem: The Growing Prompt Wall</div>
+  <p class="section-sub" style="margin-bottom:16px;">Every time your agent takes a new action, you must re-send the <em>entire</em> conversation history to the model — because it has no memory between API calls. The prompt grows with every turn. Eventually it hits the context limit and the task dies.</p>
+
+  <canvas id="canvas-prompt-wall" width="700" height="260" style="margin-bottom:12px;"></canvas>
+  <div class="btn-row">
+    <button class="btn" onclick="runPromptWall()">&#9654; Watch it grow</button>
+    <button class="btn-tab" onclick="resetPromptWall()">&#8635; Reset</button>
+  </div>
+  <div class="info-panel" id="prompt-wall-detail" style="margin-bottom:28px;">
+    <strong>Click "Watch it grow"</strong> — see how traditional agents re-send the full history every turn, while Managed Agents only send new events.
+  </div>
+
+  <!-- SELF vs MANAGED INFRA -->
+  <div class="card-title" style="color:#00b4d8;font-size:11px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;margin-top:8px;">What "Managed" Actually Means — Click a Row to Compare</div>
+
+  <canvas id="canvas-infra-compare" width="700" height="360" style="margin-bottom:12px;cursor:pointer;"></canvas>
+  <div class="info-panel" id="infra-compare-detail">
+    <strong>Click any row</strong> to see what building it yourself looks like vs what Anthropic handles for you.
+  </div>
+
+  <!-- Restaurant analogy -->
+  <div class="highlight-box amber" style="margin-top:20px;">
+    <strong>The restaurant analogy:</strong> A self-managed agent is like owning the restaurant building — you buy the equipment, hire the staff, handle maintenance, pay the utilities. Managed Agents is a managed kitchen space — you just bring your recipes (agent logic). The kitchen, staff, and utilities are handled for you. You focus on the food, not the plumbing.
+  </div>
+
+  <div class="grid2" style="margin-bottom:24px;margin-top:20px;">
+    <div class="card">
+      <div class="card-title" style="color:#ff6b6b">Without Managed Agents — You Build</div>
+      <div class="card-body" style="line-height:2;">
+        &#128196; Session state storage (database)<br>
+        &#128187; Tool execution server (VM or container)<br>
+        &#128260; Retry + timeout logic (custom code)<br>
+        &#129302; Multi-agent orchestration (custom scheduler)<br>
+        &#128274; Credential isolation (your own vault/proxy)<br>
+        &#128200; Scaling + monitoring (DevOps work)
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#51cf66">With Managed Agents — Anthropic Handles</div>
+      <div class="card-body" style="line-height:2;">
+        &#10003; Append-only event log (session state)<br>
+        &#10003; Isolated container per session (execution)<br>
+        &#10003; Session lifecycle API (created/paused/done)<br>
+        &#10003; callable_agents API (multi-agent routing)<br>
+        &#10003; Vault + MCP proxy (credential security)<br>
+        &#10003; Auto-scaling + observability (built-in)
+      </div>
     </div>
   </div>
 
@@ -693,7 +761,7 @@ function pgCheck(){
 document.getElementById('pg-input').addEventListener('keydown',function(e){if(e.key==='Enter')pgCheck();});
 if(sessionStorage.getItem(PG_KEY)==='1'){document.getElementById('pg-gate').style.display='none';}
 
-var sectionIds=['s-overview','s-concepts','s-architecture','s-event-loop','s-multiagent','s-tools','s-api'];
+var sectionIds=['s-overview','s-why-managed','s-concepts','s-architecture','s-event-loop','s-multiagent','s-tools','s-api'];
 function setActive(el,id){
   document.querySelectorAll('.nav-link').forEach(function(n){n.classList.remove('active');});
   el.classList.add('active');
