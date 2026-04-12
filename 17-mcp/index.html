@@ -185,6 +185,29 @@ if(sessionStorage.getItem(PG_KEY)==='1'){document.getElementById('pg-gate').styl
     </div>
   </div>
 
+  <!-- FRAGILE CONTEXT EXPLAINER -->
+  <div class="card" style="margin-bottom:20px;border-color:#f59e0b44;">
+    <div class="card-title" style="color:#f59e0b;margin-bottom:12px;">Why "Fragile Context"? — A Step-by-Step Demo</div>
+    <div class="card-body" style="margin-bottom:14px;">
+      Imagine the agent is given this task: <em style="color:#c9d1d9;">"Find customers inactive for 30 days, look up their Slack IDs, and send each a follow-up."</em>
+      That needs 3 tools in sequence. The problem isn't whether the tools work — it's what happens to the data <strong style="color:#c9d1d9;">between</strong> them. Step through both worlds:
+    </div>
+    <div class="btn-row" style="margin-bottom:10px;">
+      <button class="btn-tab active" id="ctx-tab-before" onclick="setCtxTab('before')">Without MCP</button>
+      <button class="btn-tab" id="ctx-tab-mcp" onclick="setCtxTab('mcp')" style="border-color:#51cf66;color:#51cf66;">With MCP &#10003;</button>
+    </div>
+    <canvas id="canvas-context" width="640" height="370" style="margin-bottom:10px;cursor:pointer;"></canvas>
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;">
+      <button class="btn" id="ctx-play-btn" onclick="ctxTogglePlay()" style="min-width:90px;">&#9654; Play</button>
+      <button class="btn-tab" onclick="ctxReset()">&#8635; Reset</button>
+      <button class="btn-tab" id="ctx-step-btn" onclick="ctxStep()">Step &rarr;</button>
+      <span style="font-size:11px;color:#8b949e;">or click canvas to step</span>
+    </div>
+    <div class="info-panel" id="ctx-info" style="font-size:12px;line-height:1.7;min-height:64px;">
+      Press Play or Step to walk through the task. Watch what happens to the data at each handoff.
+    </div>
+  </div>
+
   <!-- NO REUSE EXPLAINER -->
   <div class="card" style="margin-bottom:20px;border-color:#f59e0b44;">
     <div class="card-title" style="color:#f59e0b;margin-bottom:12px;">Why "No Reuse"? — A Concrete Example</div>
@@ -601,6 +624,7 @@ function initAll(){
   animateEcosystem();
   drawNoReuse();
   initSecurity();
+  drawCtx();
 }
 if(sessionStorage.getItem('pg_unlocked_17')==='1'){
   document.getElementById('pg-main').style.display='flex';
@@ -1304,6 +1328,380 @@ function drawEcosystem(ctx,W,H,t){
   ctx.fillText('One protocol.',W/2,H-20);
   ctx.fillText('Build once.',W/2,H-8);
 }
+
+// ===== FRAGILE CONTEXT EXPLAINER =====
+var ctxTab='before';
+var ctxStep_=0;      // 0=idle, 1-5 = step index (before=5 steps, mcp=5 steps)
+var ctxPlaying=false;
+var ctxPlayTimer=null;
+var ctxAnimT=0;
+var ctxPacketT=0;    // animated packet progress 0..1 for current transition
+var ctxPacketActive=false;
+
+// Task: find inactive customers → get Slack IDs → send messages
+// BEFORE: 5 steps, with a state explosion at step 3 and amnesia at step 4
+// MCP:    5 steps, clean state handoff each time
+
+var CTX_STEPS_BEFORE=[
+  {
+    title:'Step 1: Query Postgres for inactive customers',
+    tool:'Postgres',color:'#f59e0b',icon:'🗄',
+    action:'Agent calls custom DB connector.\nSends raw SQL in the prompt.',
+    result:'Returns: [{name:"Alice",email:"alice@co.com",days:34}, {name:"Bob",...}]',
+    state:'Agent must now carry this raw data\nin its context window for the next step.',
+    stateSize:1,broken:false,
+    stateJson:'[\n  {name:"Alice",email:"alice@co.com",days:34},\n  {name:"Bob",  email:"bob@co.com",  days:41}\n]'
+  },
+  {
+    title:'Step 2: Look up Slack IDs in Notion',
+    tool:'Notion',color:'#a78bfa',icon:'📝',
+    action:'Agent calls custom Notion connector.\nMust re-paste the customer list into the prompt\nso Notion knows who to look up.',
+    result:'Returns: [{name:"Alice",slackId:"U01ABC"}, {name:"Bob",slackId:"U02XYZ"}]',
+    state:'Agent now carries BOTH the DB result AND\nthe Notion result. Context window grows.',
+    stateSize:2,broken:false,
+    stateJson:'// Previous data still in context:\n[\n  {name:"Alice",email:"alice@co.com",days:34},\n  {name:"Bob",  email:"bob@co.com",  days:41}\n]\n// New Notion data appended:\n[\n  {name:"Alice",slackId:"U01ABC"},\n  {name:"Bob",  slackId:"U02XYZ"}\n]'
+  },
+  {
+    title:'Step 3: Check GitHub for recent activity',
+    tool:'GitHub',color:'#6366f1',icon:'🐱',
+    action:'Agent calls custom GitHub connector.\nMust again re-paste all prior context.\nContext window now very large.',
+    result:'Returns: [{name:"Alice",lastCommit:"2024-01-02"}, {name:"Bob",lastCommit:null}]',
+    state:'Three separate data blobs now all in the\nagent\'s context. Still no standard format.\nConnectors don\'t know about each other.',
+    stateSize:3,broken:false,
+    stateJson:'// Entire prior state re-pasted for every call:\n[\n  {name:"Alice",email:"...",days:34},\n  {name:"Bob",  email:"...",days:41}\n]\n[\n  {name:"Alice",slackId:"U01ABC"},\n  {name:"Bob",  slackId:"U02XYZ"}\n]\n// New GitHub data:\n[\n  {name:"Alice",lastCommit:"2024-01-02"},\n  {name:"Bob",  lastCommit:null}\n]'
+  },
+  {
+    title:'💥 State Handoff — The Breaking Point',
+    tool:'Agent',color:'#ff6b6b',icon:'🤖',
+    action:'Agent now needs to merge 3 data blobs\nand call the Slack connector.\nBut there is no standard merge format.\nThe Slack connector was written by a different team\nand expects a completely different input shape.',
+    result:'❌ Slack connector fails:\n"Expected {userId, message} — got raw data dump"',
+    state:'No standard envelope for passing state\nbetween connectors. Agent must now\nhand-merge everything manually in the prompt.\nThis is where tasks fail in the real world.',
+    stateSize:4,broken:true,
+    stateJson:'// Agent tries to manually merge everything:\n// But Slack connector expects:\n{userId: "...", message: "..."}\n// Agent got:\n[...postgres blob...]\n[...notion blob...]\n[...github blob...]\n// ❌ No standard. Re-write or it breaks.'
+  },
+  {
+    title:'Step 4: Send Slack messages (after manual fix)',
+    tool:'Slack',color:'#4a9eff',icon:'💬',
+    action:'Developer manually rewrites the glue code\nto merge the three blobs.\nThe merged state is pasted into the prompt again.',
+    result:'✓ Messages sent — but only after\ncustom merge code was written.',
+    state:'Every new tool added to this pipeline\nneeds more custom merge code.\nThe pipeline is now brittle and\nhard to debug when it breaks.',
+    stateSize:3,broken:false,
+    stateJson:'// After manual developer intervention:\n[\n  {userId:"U01ABC", message:"Hi Alice, we noticed..."},\n  {userId:"U02XYZ", message:"Hi Bob, we noticed..."}\n]\n// ⚠ This merge code exists nowhere standard.\n// Next tool in pipeline = write it again.'
+  }
+];
+
+var CTX_STEPS_MCP=[
+  {
+    title:'Step 1: Query Postgres MCP Server',
+    tool:'Postgres',color:'#f59e0b',icon:'🗄',
+    action:'Host calls MCP Server: tools/call\n→ query_inactive_customers',
+    result:'Returns structured content:\n[{name,email,days_inactive}]',
+    state:'Result stored as a typed MCP content block.\nNo context window stuffing needed.',
+    stateSize:1,broken:false,
+    stateJson:'// MCP content block — clean, typed:\n{\n  "type": "text",\n  "text": "[{\\"name\\":\\"Alice\\",\\"days\\":34},...]"\n}'
+  },
+  {
+    title:'Step 2: Look up Slack IDs via Notion MCP Server',
+    tool:'Notion',color:'#a78bfa',icon:'📝',
+    action:'Host calls MCP Server: tools/call\n→ lookup_slack_ids\nPasses only the needed names — not all prior data.',
+    result:'Returns [{name,slackId}] — clean, typed.',
+    state:'Host holds structured results from both servers.\nEach server only received what it needed.',
+    stateSize:1,broken:false,
+    stateJson:'// Host coordinates: only passes what Notion needs:\n{\n  "method": "tools/call",\n  "params": {\n    "name": "lookup_slack_ids",\n    "arguments": {"names": ["Alice","Bob"]}\n  }\n}'
+  },
+  {
+    title:'Step 3: Check GitHub MCP Server for activity',
+    tool:'GitHub',color:'#6366f1',icon:'🐱',
+    action:'Host calls MCP Server: tools/call\n→ get_last_commit_date\nAgain — only passes the names, not everything.',
+    result:'Returns [{name,lastCommit}] — structured.',
+    state:'Three clean responses held by the host.\nNo context window bloat — each server\nonly saw what it needed.',
+    stateSize:1,broken:false,
+    stateJson:'// Each MCP call is independent and scoped:\n{\n  "name": "get_last_commit_date",\n  "arguments": {"usernames": ["alice","bob"]}\n}'
+  },
+  {
+    title:'Step 4: Host merges results (protocol standard)',
+    tool:'Host',color:'#00cec9',icon:'🤖',
+    action:'MCP Host combines the three typed responses.\nThis is standard MCP orchestration —\nno custom glue code needed.',
+    result:'Merged payload: [{name,email,slackId,lastCommit}]\nReady to pass to Slack server.',
+    state:'The host always knows what each server returned\nbecause every response is a typed MCP content block.\nMerging is trivial — same format every time.',
+    stateSize:1,broken:false,
+    stateJson:'// Host merge — all same format:\n[\n  {\n    name:"Alice", email:"alice@co.com",\n    slackId:"U01ABC",\n    lastCommit:"2024-01-02"\n  },\n  ...\n]'
+  },
+  {
+    title:'Step 5: Send via Slack MCP Server',
+    tool:'Slack',color:'#4a9eff',icon:'💬',
+    action:'Host calls MCP Server: tools/call\n→ send_message\nPasses exactly what the inputSchema expects.',
+    result:'✓ Messages sent. No custom code written.\nPipeline is reusable for any future task.',
+    state:'Add a new step? Just add a new MCP server.\nNo merge code. No format mismatch.\nThe protocol handles the envelope.',
+    stateSize:1,broken:false,
+    stateJson:'// Clean, schema-validated call:\n{\n  "name": "send_message",\n  "arguments": {\n    "userId": "U01ABC",\n    "text": "Hi Alice, we noticed..."\n  }\n}'
+  }
+];
+
+function setCtxTab(tab){
+  ctxTab=tab;
+  ctxReset();
+  ['before','mcp'].forEach(function(t){
+    var el=document.getElementById('ctx-tab-'+t);
+    if(!el)return;
+    el.classList.toggle('active',t===tab);
+    if(t==='mcp'){
+      el.style.borderColor='#51cf66';
+      el.style.color=tab==='mcp'?'#fff':'#51cf66';
+      el.style.background=tab==='mcp'?'#51cf66':'';
+    }
+  });
+}
+function ctxReset(){
+  ctxPlaying=false;ctxStep_=0;ctxPacketT=0;ctxPacketActive=false;
+  if(ctxPlayTimer){clearTimeout(ctxPlayTimer);ctxPlayTimer=null;}
+  var btn=document.getElementById('ctx-play-btn');
+  if(btn)btn.textContent='\u25B6 Play';
+  var panel=document.getElementById('ctx-info');
+  if(panel)panel.textContent='Press Play or Step to walk through the task. Watch what happens to the data at each handoff.';
+  drawCtx();
+}
+function ctxTogglePlay(){
+  ctxPlaying=!ctxPlaying;
+  var btn=document.getElementById('ctx-play-btn');
+  if(btn)btn.textContent=ctxPlaying?'\u23F8 Pause':'\u25B6 Play';
+  if(ctxPlaying)ctxAutoStep();
+}
+function ctxAutoStep(){
+  if(!ctxPlaying)return;
+  var steps=ctxTab==='before'?CTX_STEPS_BEFORE:CTX_STEPS_MCP;
+  if(ctxStep_>=steps.length){ctxPlaying=false;var btn=document.getElementById('ctx-play-btn');if(btn)btn.textContent='\u25B6 Play';return;}
+  ctxStep();
+  ctxPlayTimer=setTimeout(ctxAutoStep,2200);
+}
+function ctxStep(){
+  var steps=ctxTab==='before'?CTX_STEPS_BEFORE:CTX_STEPS_MCP;
+  if(ctxStep_>=steps.length)return;
+  var s=steps[ctxStep_];
+  ctxStep_++;
+  // Update info panel
+  var panel=document.getElementById('ctx-info');
+  if(panel){
+    var col=s.broken?'#ff6b6b':'#c9d1d9';
+    var stateCol=s.broken?'#ff6b6b':ctxTab==='mcp'?'#51cf66':'#f59e0b';
+    panel.innerHTML='<strong style="color:'+col+';">'+s.title+'</strong><br>'+
+      '<span style="color:#8b949e;">Action: </span>'+s.action.replace(/\n/g,'<br>')+'<br>'+
+      '<span style="color:#8b949e;">Result: </span>'+s.result.replace(/\n/g,'<br>')+'<br>'+
+      '<span style="color:'+stateCol+';">State: </span>'+s.state.replace(/\n/g,'<br>');
+  }
+  // Animate packet then redraw
+  ctxPacketT=0;ctxPacketActive=true;
+  animCtxPacket();
+}
+function animCtxPacket(){
+  if(!ctxPacketActive)return;
+  ctxPacketT+=0.06;
+  if(ctxPacketT>=1){ctxPacketT=1;ctxPacketActive=false;drawCtx();return;}
+  drawCtx();
+  requestAnimationFrame(animCtxPacket);
+}
+function drawCtx(){
+  var canvas=document.getElementById('canvas-context');
+  if(!canvas)return;
+  var ctx=canvas.getContext('2d');
+  var W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#0d1117';ctx.fillRect(0,0,W,H);
+  if(ctxTab==='before') drawCtxBefore(ctx,W,H);
+  else drawCtxMCP(ctx,W,H);
+}
+
+function toolBoxes(n){
+  // Return positions for n tool boxes arranged in a row
+  var W=640,boxW=88,boxH=64,gap=(W-n*boxW)/(n+1),y=30;
+  var boxes=[];
+  for(var i=0;i<n;i++) boxes.push({x:gap*(i+1)+boxW*i,y:y,w:boxW,h:boxH});
+  return boxes;
+}
+
+function drawCtxBefore(ctx,W,H){
+  var steps=CTX_STEPS_BEFORE;
+  var tools=[steps[0],steps[1],steps[2],steps[4]]; // Postgres, Notion, GitHub, Slack
+  var boxes=toolBoxes(tools.length);
+  var agentX=W/2,agentY=170,agentW=100,agentH=50;
+
+  // Title
+  ctx.fillStyle='#ff6b6b';ctx.font='700 10px Inter';ctx.textAlign='center';
+  ctx.fillText('WITHOUT MCP \u2014 4-Tool Pipeline (click Step to advance)',W/2,14);
+
+  // Draw tool boxes
+  tools.forEach(function(t,i){
+    var b=boxes[i];
+    var isActive=ctxStep_>0&&steps[i]&&ctxStep_===i+1;
+    var isDone=ctxStep_>i+1;
+    var isBroken=ctxStep_===4&&i===3; // step 4 is broken
+    var borderCol=isBroken?'#ff6b6b':isDone?t.color:isActive?t.color:t.color+'44';
+    var bgAlpha=isDone||isActive?'0.12':'0.04';
+    drawRoundedRect(ctx,b.x,b.y,b.w,b.h,8,'rgba(22,27,34,'+bgAlpha+')',borderCol);
+    ctx.fillStyle=isDone||isActive?t.color:t.color+'66';ctx.font='18px sans-serif';ctx.textAlign='center';
+    ctx.fillText(t.icon,b.x+b.w/2,b.y+24);
+    ctx.font='700 9px Inter';
+    ctx.fillText(t.tool,b.x+b.w/2,b.y+38);
+    if(isDone&&!isBroken){ctx.fillStyle='#51cf66';ctx.font='10px sans-serif';ctx.fillText('\u2713',b.x+b.w-10,b.y+12);}
+    if(isBroken){ctx.fillStyle='#ff6b6b';ctx.font='12px sans-serif';ctx.fillText('\u26A0',b.x+b.w-10,b.y+12);}
+  });
+
+  // Agent box
+  var agentBorder=ctxStep_===4?'#ff6b6b':'#74c0fc';
+  drawRoundedRect(ctx,agentX-agentW/2,agentY,agentW,agentH,10,'rgba(116,192,252,0.08)',agentBorder);
+  ctx.fillStyle='#74c0fc';ctx.font='700 11px Inter';ctx.textAlign='center';
+  ctx.fillText('🤖 Agent',agentX,agentY+18);
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter';
+  ctx.fillText('Context Window',agentX,agentY+33);
+
+  // Context blob — grows with each step
+  if(ctxStep_>0){
+    var blobY=agentY+agentH+14,blobMaxH=100;
+    // Draw accumulated state blobs
+    var blobColors=['#f59e0b','#a78bfa','#6366f1','#4a9eff'];
+    var stepsToDraw=Math.min(ctxStep_,4);
+    var blobH=Math.min(stepsToDraw*22,blobMaxH);
+    var blobX=agentX-130,blobW=260;
+    drawRoundedRect(ctx,blobX,blobY,blobW,blobH+8,6,'rgba(0,0,0,0.4)','#30363d');
+    ctx.fillStyle='#8b949e';ctx.font='700 8px Inter';ctx.textAlign='left';
+    ctx.fillText('Context window contents:',blobX+6,blobY+10);
+    for(var bi=0;bi<stepsToDraw;bi++){
+      var by_=blobY+16+bi*20;
+      var bc=blobColors[bi]||'#8b949e';
+      var isBrokenBlob=(ctxTab==='before'&&bi===3&&ctxStep_===4);
+      drawRoundedRect(ctx,blobX+4,by_,blobW-8,16,3,isBrokenBlob?'rgba(255,107,107,0.15)':'rgba(22,27,34,0.8)',isBrokenBlob?'#ff6b6b':bc+'66');
+      ctx.fillStyle=isBrokenBlob?'#ff6b6b':bc;ctx.font='700 8px JetBrains Mono';ctx.textAlign='left';
+      var labels=['Postgres result (raw JSON)','+ Notion result (appended)','+ GitHub result (appended)','💥 Merge attempt (broken)'];
+      ctx.fillText(labels[bi]||'...',blobX+8,by_+11);
+      if(bi>0&&ctxTab==='before'){
+        ctx.fillStyle='#ff6b6b';ctx.font='8px Inter';ctx.textAlign='right';
+        ctx.fillText('re-pasted',blobX+blobW-6,by_+11);
+      }
+    }
+    // Size warning
+    if(ctxStep_>=3){
+      ctx.fillStyle='#ff6b6b';ctx.font='700 9px Inter';ctx.textAlign='center';
+      var warn=ctxStep_===4?'❌ Format mismatch — connectors don\'t share a standard':'⚠ Context growing — all data re-sent on each call';
+      ctx.fillText(warn,agentX,blobY+blobH+20);
+    }
+  }
+
+  // Arrows tool → agent
+  tools.forEach(function(t,i){
+    if(ctxStep_<=i)return;
+    var b=boxes[i];
+    var bx=b.x+b.w/2,by=b.y+b.h;
+    ctx.beginPath();ctx.moveTo(bx,by);ctx.lineTo(agentX,agentY);
+    var isBrokenArrow=(i===3&&ctxStep_===4);
+    ctx.strokeStyle=isBrokenArrow?'#ff6b6b':t.color+'66';
+    ctx.lineWidth=isBrokenArrow?2:1;
+    if(isBrokenArrow)ctx.setLineDash([4,3]);
+    ctx.stroke();ctx.setLineDash([]);
+    // Animated packet on the currently active arrow
+    if(ctxPacketActive&&ctxStep_===i+1){
+      var pt=easeInOut(ctxPacketT);
+      var px=lerp(bx,agentX,pt),py=lerp(by,agentY,pt);
+      ctx.beginPath();ctx.arc(px,py,5,0,Math.PI*2);
+      ctx.fillStyle=t.color;ctx.fill();
+    }
+  });
+
+  // Step counter
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter';ctx.textAlign='right';
+  ctx.fillText('Step '+ctxStep_+' / '+steps.length,W-12,H-6);
+}
+
+function drawCtxMCP(ctx,W,H){
+  var steps=CTX_STEPS_MCP;
+  var toolDefs=[steps[0],steps[1],steps[2],steps[4]];
+  var boxes=toolBoxes(toolDefs.length);
+  var hostX=W/2,hostY=170,hostW=130,hostH=54;
+
+  ctx.fillStyle='#51cf66';ctx.font='700 10px Inter';ctx.textAlign='center';
+  ctx.fillText('WITH MCP \u2014 Same 4-Tool Pipeline, Clean Handoffs',W/2,14);
+
+  // Tool boxes (MCP servers)
+  toolDefs.forEach(function(t,i){
+    var b=boxes[i];
+    var isActive=ctxStep_>0&&ctxStep_===i+1;
+    var isDone=ctxStep_>i+1;
+    var borderCol=isDone?t.color:isActive?t.color:t.color+'44';
+    drawRoundedRect(ctx,b.x,b.y,b.w,b.h,8,'rgba(22,27,34,'+(isDone||isActive?'0.12':'0.04')+')',borderCol);
+    ctx.fillStyle=isDone||isActive?t.color:t.color+'66';ctx.font='18px sans-serif';ctx.textAlign='center';
+    ctx.fillText(t.icon,b.x+b.w/2,b.y+24);
+    ctx.font='700 9px Inter';
+    ctx.fillText('MCP: '+t.tool,b.x+b.w/2,b.y+38);
+    ctx.fillStyle='#8b949e';ctx.font='8px Inter';
+    ctx.fillText('tools/call',b.x+b.w/2,b.y+50);
+    if(isDone){ctx.fillStyle='#51cf66';ctx.font='10px sans-serif';ctx.fillText('\u2713',b.x+b.w-10,b.y+12);}
+  });
+
+  // MCP Host box
+  drawRoundedRect(ctx,hostX-hostW/2,hostY,hostW,hostH,10,'rgba(99,102,241,0.08)','#6366f1');
+  ctx.fillStyle='#818cf8';ctx.font='700 11px Inter';ctx.textAlign='center';
+  ctx.fillText('🤖 MCP Host',hostX,hostY+18);
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter';
+  ctx.fillText('Orchestrates calls',hostX,hostY+31);
+  ctx.fillStyle='#51cf66';ctx.font='8px Inter';
+  ctx.fillText('Holds typed content blocks',hostX,hostY+43);
+
+  // Clean state indicators - only shows current step result, not accumulation
+  if(ctxStep_>0){
+    var stateY=hostY+hostH+14,stateX=hostX-130,stateW=260;
+    var curStep=steps[Math.min(ctxStep_,steps.length)-1];
+    drawRoundedRect(ctx,stateX,stateY,stateW,56,6,'rgba(81,207,102,0.06)','#51cf6666');
+    ctx.fillStyle='#51cf66';ctx.font='700 8px Inter';ctx.textAlign='left';
+    ctx.fillText('Current state (typed MCP content block):',stateX+6,stateY+11);
+    // Show a single clean state blob
+    drawRoundedRect(ctx,stateX+4,stateY+15,stateW-8,18,3,'rgba(22,27,34,0.8)','#51cf6644');
+    ctx.fillStyle='#51cf66';ctx.font='700 8px JetBrains Mono';ctx.textAlign='left';
+    ctx.fillText('\u2713 '+curStep.tool+' result \u2192 structured, typed, scoped',stateX+8,stateY+27);
+    ctx.fillStyle='#8b949e';ctx.font='8px Inter';
+    ctx.fillText('No re-pasting. No format mismatch. No context bloat.',stateX+8,stateY+40);
+    // Step counter compare
+    if(ctxStep_===5){
+      ctx.fillStyle='#51cf66';ctx.font='700 9px Inter';ctx.textAlign='center';
+      ctx.fillText('\u2713 All 5 steps completed. No custom glue code. Pipeline is reusable.',hostX,stateY+68);
+    }
+  }
+
+  // Arrows tool → host
+  toolDefs.forEach(function(t,i){
+    if(ctxStep_<=i)return;
+    var b=boxes[i];
+    var bx=b.x+b.w/2,by=b.y+b.h;
+    ctx.beginPath();ctx.moveTo(bx,by);ctx.lineTo(hostX,hostY);
+    ctx.strokeStyle=t.color+'66';ctx.lineWidth=1.5;ctx.stroke();
+    if(ctxPacketActive&&ctxStep_===i+1){
+      var pt=easeInOut(ctxPacketT);
+      var px=lerp(bx,hostX,pt),py=lerp(by,hostY,pt);
+      ctx.beginPath();ctx.arc(px,py,5,0,Math.PI*2);
+      ctx.fillStyle=t.color;ctx.fill();
+      // Small "typed" label on packet
+      ctx.fillStyle='#fff';ctx.font='700 6px Inter';ctx.textAlign='center';
+      ctx.fillText('MCP',px,py+2);
+    }
+  });
+
+  // Step counter + compare bar
+  var cmpY=H-36;
+  drawRoundedRect(ctx,20,cmpY,W-40,28,6,'rgba(22,27,34,0.8)','#30363d');
+  ctx.fillStyle='#ff6b6b';ctx.font='9px Inter';ctx.textAlign='left';
+  ctx.fillText('Without MCP: data re-pasted on every call \u2014 context grows \u2014 format breaks at handoff',28,cmpY+12);
+  ctx.fillStyle='#51cf66';
+  ctx.fillText('With MCP:    typed content blocks \u2014 each server gets only what it needs \u2014 no glue code',28,cmpY+24);
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter';ctx.textAlign='right';
+  ctx.fillText('Step '+ctxStep_+' / '+steps.length,W-28,cmpY+18);
+}
+
+// click canvas to step
+(function(){
+  function attachCtxClick(){
+    var c=document.getElementById('canvas-context');
+    if(c)c.addEventListener('click',function(){ctxStep();});
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',attachCtxClick);
+  else attachCtxClick();
+})();
 
 // ===== NO REUSE EXPLAINER =====
 var noReuseTab='claude';
