@@ -185,6 +185,26 @@ if(sessionStorage.getItem(PG_KEY)==='1'){document.getElementById('pg-gate').styl
     </div>
   </div>
 
+  <!-- NO REUSE EXPLAINER -->
+  <div class="card" style="margin-bottom:20px;border-color:#f59e0b44;">
+    <div class="card-title" style="color:#f59e0b;margin-bottom:12px;">Why "No Reuse"? — A Concrete Example</div>
+    <div class="card-body" style="margin-bottom:14px;">
+      The Slack API itself is the same for everyone. The problem is the <strong style="color:#c9d1d9;">glue code</strong> between the LLM and Slack.
+      Claude and ChatGPT speak completely different formats — so you write the connector twice. Pick an AI to see its format:
+    </div>
+    <div class="btn-row" style="margin-bottom:14px;">
+      <button class="btn-tab active" id="noreuse-tab-claude" onclick="setNoReuseTab('claude')">Slack for Claude</button>
+      <button class="btn-tab" id="noreuse-tab-gpt" onclick="setNoReuseTab('gpt')">Slack for ChatGPT</button>
+      <button class="btn-tab" id="noreuse-tab-mcp" onclick="setNoReuseTab('mcp')" style="border-color:#51cf66;color:#51cf66;">With MCP &#10003;</button>
+    </div>
+    <canvas id="canvas-noreuse" width="640" height="320" style="margin-bottom:14px;"></canvas>
+    <div class="info-panel" id="noreuse-info" style="font-size:12px;line-height:1.7;">
+      <strong>Claude (Anthropic SDK)</strong> &mdash; Tool definitions go inside the <code>tools</code> array of the API request.
+      Claude responds with a <code>tool_use</code> content block. You extract <code>input</code>, call Slack, then pass the result back
+      as a <code>tool_result</code> in the next message. This format is unique to Anthropic &mdash; zero reuse with any other AI.
+    </div>
+  </div>
+
   <div class="accordion-item">
     <div class="accordion-header" onclick="toggleAcc(this)">Why didn't function calling solve this? <span class="accordion-chevron">&#9660;</span></div>
     <div class="accordion-body">Function calling (tool use) lets an LLM invoke a function — but who defines the function, how it authenticates, and where it runs is still custom per-integration. MCP standardizes the <em>protocol</em> around tools, not just the LLM's ability to call them.</div>
@@ -553,6 +573,7 @@ function initAll(){
   initPrimitives();
   initTransport();
   animateEcosystem();
+  drawNoReuse();
 }
 if(sessionStorage.getItem('pg_unlocked_17')==='1'){
   document.getElementById('pg-main').style.display='flex';
@@ -1255,6 +1276,227 @@ function drawEcosystem(ctx,W,H,t){
   ctx.fillStyle='#818cf8';ctx.font='700 9px Inter';ctx.textAlign='center';
   ctx.fillText('One protocol.',W/2,H-20);
   ctx.fillText('Build once.',W/2,H-8);
+}
+
+// ===== NO REUSE EXPLAINER =====
+var noReuseTab='claude';
+var NOREUSE_INFO={
+  claude:'<strong>Claude (Anthropic SDK)</strong> &mdash; Tool definitions go in a <code>tools</code> array. Claude responds with a <code>tool_use</code> content block containing <code>tool_use_id</code> and <code>input</code>. You call Slack, then return the result as a <code>tool_result</code> message. <span style="color:#ff6b6b;">This format is 100% Anthropic-specific</span> &mdash; the wrapper code cannot run against OpenAI\'s API at all.',
+  gpt:'<strong>ChatGPT (OpenAI SDK)</strong> &mdash; Tool definitions go in a <code>tools</code> array too, but the schema shape differs. GPT responds with a <code>tool_calls</code> array (not <code>tool_use</code>), each item has a <code>function.arguments</code> string (JSON-encoded). You call Slack, then return a message with <code>role: "tool"</code> and <code>tool_call_id</code>. <span style="color:#ff6b6b;">Completely different from Claude\'s format</span> &mdash; you must rewrite the integration from scratch.',
+  mcp:'<strong>With MCP</strong> &mdash; You write <em>one</em> MCP server that exposes a <code>send_slack_message</code> tool. The server speaks the MCP protocol (JSON-RPC 2.0) &mdash; it has no idea whether Claude, ChatGPT, or VS Code is on the other end. <span style="color:#51cf66;">Any MCP-compatible host can use this server without any changes.</span> Write once, run everywhere.'
+};
+
+var NOREUSE_CODE={
+  claude:[
+    {t:'cm',s:'# 1. Define the tool (Anthropic format)'},
+    {t:'kw',s:'tools'},{t:'tx',s:' = [{'},
+    {t:'tx',s:'  "name": "send_slack_message",'},
+    {t:'tx',s:'  "input_schema": {'},
+    {t:'tx',s:'    "type": "object",'},
+    {t:'tx',s:'    "properties": {'},
+    {t:'str',s:'      "channel": {"type": "string"},'},
+    {t:'str',s:'      "text":    {"type": "string"}'},
+    {t:'tx',s:'    }'},
+    {t:'tx',s:'  }'},
+    {t:'tx',s:'}]'},
+    {t:'cm',s:'# 2. Parse Claude\'s response'},
+    {t:'kw',s:'if'},{t:'tx',s:' block["type"] == '},{t:'str',s:'"tool_use"'},{t:'tx',s:':'},
+    {t:'fn',s:'    call_slack'},{t:'tx',s:'(block['},{t:'str',s:'"input"'},{t:'tx',s:'])'},
+    {t:'cm',s:'# 3. Return result as tool_result'},
+    {t:'tx',s:'{"role":'},{t:'str',s:'"user"'},{t:'tx',s:','},
+    {t:'tx',s:' "content":[{"type":'},{t:'str',s:'"tool_result"'},{t:'tx',s:','},
+    {t:'tx',s:'  "tool_use_id": block['},{t:'str',s:'"id"'},{t:'tx',s:']}]}'}
+  ],
+  gpt:[
+    {t:'cm',s:'# 1. Define the tool (OpenAI format)'},
+    {t:'kw',s:'tools'},{t:'tx',s:' = [{"type": "function", "function": {'},
+    {t:'tx',s:'  "name": "send_slack_message",'},
+    {t:'tx',s:'  "parameters": {'},
+    {t:'tx',s:'    "type": "object",'},
+    {t:'tx',s:'    "properties": {'},
+    {t:'str',s:'      "channel": {"type": "string"},'},
+    {t:'str',s:'      "text":    {"type": "string"}'},
+    {t:'tx',s:'    }'},
+    {t:'tx',s:'  }}}]'},
+    {t:'cm',s:'# 2. Parse GPT\'s response (different key!)'},
+    {t:'kw',s:'for'},{t:'tx',s:' tc '},{t:'kw',s:'in'},{t:'tx',s:' msg.tool_calls:'},
+    {t:'fn',s:'    call_slack'},{t:'tx',s:'(json.loads(tc.function.arguments))'},
+    {t:'cm',s:'# 3. Return result as role="tool"'},
+    {t:'tx',s:'{"role":'},{t:'str',s:'"tool"'},{t:'tx',s:', "tool_call_id": tc.id,'},
+    {t:'tx',s:' "content":'},{t:'str',s:'"ok"'},{t:'tx',s:'}'}
+  ],
+  mcp:[
+    {t:'cm',s:'# One MCP server — works with any host'},
+    {t:'kw',s:'from'},{t:'tx',s:' mcp.server '},{t:'kw',s:'import'},{t:'tx',s:' FastMCP'},
+    {t:'tx',s:''},
+    {t:'fn',s:'mcp'},{t:'tx',s:' = FastMCP('},{t:'str',s:'"slack-server"'},{t:'tx',s:')'},
+    {t:'tx',s:''},
+    {t:'tx',s:'@mcp.tool()'},
+    {t:'kw',s:'def'},{t:'fn',s:' send_slack_message'},{t:'tx',s:'('},
+    {t:'tx',s:'    channel: '},{t:'cls',s:'str'},{t:'tx',s:', text: '},{t:'cls',s:'str'},{t:'tx',s:') -> '},{t:'cls',s:'str'},{t:'tx',s:':'},
+    {t:'tx',s:'    '},{t:'cm',s:'"""Send a message to a Slack channel"""'},
+    {t:'tx',s:'    slack_client.chat_postMessage('},
+    {t:'tx',s:'        channel=channel, text=text'},
+    {t:'tx',s:'    )'},
+    {t:'kw',s:'    return'},{t:'tx',s:' '},{t:'str',s:'"Message sent"'},
+    {t:'cm',s:'# Claude, ChatGPT, VS Code all call this same server'}
+  ]
+};
+
+function setNoReuseTab(tab){
+  noReuseTab=tab;
+  ['claude','gpt','mcp'].forEach(function(t){
+    var el=document.getElementById('noreuse-tab-'+t);
+    if(!el)return;
+    el.classList.toggle('active',t===tab);
+    if(t==='mcp'){
+      el.style.borderColor=tab==='mcp'?'#51cf66':'#51cf66';
+      el.style.color=tab==='mcp'?'#fff':'#51cf66';
+      el.style.background=tab==='mcp'?'#51cf66':'';
+    }
+  });
+  var panel=document.getElementById('noreuse-info');
+  if(panel)panel.innerHTML=NOREUSE_INFO[tab]||'';
+  drawNoReuse();
+}
+function drawNoReuse(){
+  var canvas=document.getElementById('canvas-noreuse');
+  if(!canvas)return;
+  var ctx=canvas.getContext('2d');
+  var W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#0d1117';ctx.fillRect(0,0,W,H);
+  // Left panel: code
+  var codeW=Math.floor(W*0.52),diagX=codeW+20;
+  drawRoundedRect(ctx,0,0,codeW,H,8,'#0d1117','#30363d');
+  // Code header bar
+  drawRoundedRect(ctx,0,0,codeW,28,8,'#21262d','transparent');
+  ctx.fillRect(0,14,codeW,14);
+  // Traffic lights
+  [[10,14,'#ff5f57'],[26,14,'#febc2e'],[42,14,'#28c840']].forEach(function(d){
+    ctx.beginPath();ctx.arc(d[0],d[1],5,0,Math.PI*2);ctx.fillStyle=d[2];ctx.fill();
+  });
+  // File label
+  var labels={claude:'slack_for_claude.py',gpt:'slack_for_gpt.py',mcp:'slack_mcp_server.py'};
+  var headerCol={claude:'#ff6b6b',gpt:'#f59e0b',mcp:'#51cf66'};
+  ctx.fillStyle=headerCol[noReuseTab]||'#8b949e';ctx.font='700 10px JetBrains Mono';ctx.textAlign='center';
+  ctx.fillText(labels[noReuseTab]||'',codeW/2+20,18);
+  // Code lines
+  var lines=NOREUSE_CODE[noReuseTab]||[];
+  var lineH=16,startY=42,x=10;
+  var colorMap={cm:'#64748b',kw:'#818cf8',str:'#51cf66',fn:'#22d3ee',cls:'#f0abfc',tx:'#c9d1d9'};
+  // Group tokens into lines by {t:'cm'...} being comment (full line) or tx containing newline
+  var codeLines=[[]];
+  lines.forEach(function(tok){
+    if(tok.t==='cm'){
+      if(codeLines[codeLines.length-1].length>0)codeLines.push([]);
+      codeLines[codeLines.length-1].push(tok);
+      codeLines.push([]);
+    } else if(tok.s===''||tok.s==='\n'){
+      if(codeLines[codeLines.length-1].length>0)codeLines.push([]);
+    } else {
+      codeLines[codeLines.length-1].push(tok);
+    }
+  });
+  ctx.font='11px JetBrains Mono';ctx.textAlign='left';
+  codeLines.forEach(function(line,i){
+    var cy=startY+i*lineH;
+    if(cy>H-10)return;
+    var cx=x;
+    line.forEach(function(tok){
+      ctx.fillStyle=colorMap[tok.t]||'#c9d1d9';
+      ctx.fillText(tok.s,cx,cy);
+      cx+=ctx.measureText(tok.s).width;
+    });
+  });
+  // Right panel: diagram
+  var dW=W-diagX-8;
+  drawRoundedRect(ctx,diagX,0,dW,H,8,'#0d1117','#30363d');
+  if(noReuseTab==='claude'||noReuseTab==='gpt'){
+    // Show the two connectors as separate boxes, connected to Slack separately
+    var aiName=noReuseTab==='claude'?'Claude':'ChatGPT';
+    var aiColor=noReuseTab==='claude'?'#f59e0b':'#10b981';
+    var connColor='#ff6b6b';
+    var slackColor='#4a9eff';
+    var cx2=diagX+dW/2;
+    // AI box
+    drawRoundedRect(ctx,cx2-45,20,90,36,8,'rgba(22,27,34,0.9)',aiColor+'99');
+    ctx.fillStyle=aiColor;ctx.font='700 11px Inter';ctx.textAlign='center';
+    ctx.fillText(aiName,cx2,42);
+    // Custom connector box
+    var connY=100;
+    drawRoundedRect(ctx,cx2-60,connY,120,36,8,'rgba(255,107,107,0.15)','#ff6b6b99');
+    ctx.fillStyle='#ff6b6b';ctx.font='700 10px Inter';ctx.textAlign='center';
+    ctx.fillText('Custom Glue Code',cx2,connY+15);
+    ctx.fillStyle='#8b949e';ctx.font='9px Inter';
+    ctx.fillText('('+aiName+' format only)',cx2,connY+28);
+    // Slack API box
+    var slackY=180;
+    drawRoundedRect(ctx,cx2-45,slackY,90,36,8,'rgba(74,154,255,0.1)',slackColor+'99');
+    ctx.fillStyle=slackColor;ctx.font='700 11px Inter';ctx.textAlign='center';
+    ctx.fillText('Slack API',cx2,slackY+22);
+    // Arrows
+    ctx.beginPath();ctx.moveTo(cx2,56);ctx.lineTo(cx2,connY);
+    ctx.strokeStyle=aiColor;ctx.lineWidth=1.5;ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx2,connY+36);ctx.lineTo(cx2,slackY);
+    ctx.strokeStyle='#ff6b6b';ctx.lineWidth=1.5;ctx.stroke();
+    // Arrowheads
+    [[cx2,connY,aiColor],[cx2,slackY,'#ff6b6b']].forEach(function(a){
+      ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(a[0]-5,a[1]-8);ctx.lineTo(a[0]+5,a[1]-8);ctx.closePath();
+      ctx.fillStyle=a[2];ctx.fill();
+    });
+    // Lock icon: "not reusable"
+    ctx.fillStyle='#ff6b6b';ctx.font='700 9px Inter';ctx.textAlign='center';
+    ctx.fillText('\u{1F512} format lock-in',cx2,connY+52);
+    // Other AI blocked
+    var otherName=noReuseTab==='claude'?'ChatGPT':'Claude';
+    var otherColor=noReuseTab==='claude'?'#10b981':'#f59e0b';
+    drawRoundedRect(ctx,cx2-45,240,90,30,8,'rgba(22,27,34,0.6)',otherColor+'44');
+    ctx.fillStyle=otherColor+'66';ctx.font='700 10px Inter';ctx.textAlign='center';
+    ctx.fillText(otherName,cx2,259);
+    ctx.fillStyle='#ff6b6b44';ctx.font='700 9px Inter';
+    ctx.fillText('\u2717 incompatible',cx2,273);
+    // Blocked arrow
+    ctx.beginPath();ctx.moveTo(cx2,270);ctx.lineTo(cx2,connY+36);
+    ctx.strokeStyle='#ff6b6b44';ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.stroke();ctx.setLineDash([]);
+  } else {
+    // MCP: one server, both clients
+    var mcpCX=diagX+dW/2;
+    // Claude
+    drawRoundedRect(ctx,mcpCX-100,15,80,30,8,'rgba(22,27,34,0.9)','#f59e0b99');
+    ctx.fillStyle='#f59e0b';ctx.font='700 10px Inter';ctx.textAlign='center';
+    ctx.fillText('Claude',mcpCX-60,34);
+    // ChatGPT
+    drawRoundedRect(ctx,mcpCX+20,15,80,30,8,'rgba(22,27,34,0.9)','#10b98199');
+    ctx.fillStyle='#10b981';ctx.font='700 10px Inter';ctx.textAlign='center';
+    ctx.fillText('ChatGPT',mcpCX+60,34);
+    // MCP server
+    drawRoundedRect(ctx,mcpCX-55,100,110,40,8,'rgba(81,207,102,0.12)','#51cf6699');
+    ctx.fillStyle='#51cf66';ctx.font='700 11px Inter';ctx.textAlign='center';
+    ctx.fillText('MCP Server',mcpCX,117);
+    ctx.fillStyle='#8b949e';ctx.font='9px Inter';
+    ctx.fillText('(Slack tools)',mcpCX,130);
+    // Slack API
+    drawRoundedRect(ctx,mcpCX-45,190,90,36,8,'rgba(74,154,255,0.1)','#4a9eff99');
+    ctx.fillStyle='#4a9eff';ctx.font='700 11px Inter';ctx.textAlign='center';
+    ctx.fillText('Slack API',mcpCX,212);
+    // Arrows Claude -> server
+    ctx.beginPath();ctx.moveTo(mcpCX-60,45);ctx.lineTo(mcpCX-20,100);
+    ctx.strokeStyle='#51cf66';ctx.lineWidth=1.5;ctx.stroke();
+    // Arrows GPT -> server
+    ctx.beginPath();ctx.moveTo(mcpCX+60,45);ctx.lineTo(mcpCX+20,100);
+    ctx.strokeStyle='#51cf66';ctx.lineWidth=1.5;ctx.stroke();
+    // Arrow server -> Slack
+    ctx.beginPath();ctx.moveTo(mcpCX,140);ctx.lineTo(mcpCX,190);
+    ctx.strokeStyle='#4a9eff';ctx.lineWidth=1.5;ctx.stroke();
+    [[mcpCX-20,100,'#51cf66'],[mcpCX+20,100,'#51cf66'],[mcpCX,190,'#4a9eff']].forEach(function(a){
+      ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(a[0]-5,a[1]-8);ctx.lineTo(a[0]+5,a[1]-8);ctx.closePath();
+      ctx.fillStyle=a[2];ctx.fill();
+    });
+    ctx.fillStyle='#51cf66';ctx.font='700 9px Inter';ctx.textAlign='center';
+    ctx.fillText('\u2713 Both use same server',mcpCX,260);
+    ctx.fillStyle='#8b949e';ctx.font='9px Inter';
+    ctx.fillText('MCP protocol handles translation',mcpCX,275);
+  }
 }
 
 </script>
