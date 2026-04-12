@@ -95,6 +95,13 @@ th{background:var(--surface);border:1px solid var(--border);padding:8px 12px;tex
 td{border:1px solid var(--border);padding:8px 12px;color:var(--muted);}
 tr:hover td{background:rgba(14,165,233,.04);}
 td.highlight{color:var(--text);font-weight:600;}
+.pql-select{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:12px;outline:none;font-family:'JetBrains Mono','Courier New',monospace;}
+.pql-select:focus{border-color:var(--accent);}
+.matrix-grid{display:grid;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.matrix-cell{padding:8px 10px;font-size:11px;cursor:pointer;transition:background .15s;background:var(--surface);}
+.matrix-cell:hover{background:#1c2128;}
+.matrix-cell.header{background:#0d1117;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.8px;cursor:default;}
+.matrix-cell.header:hover{background:#0d1117;}
 </style>
 </head>
 <body>
@@ -184,6 +191,24 @@ td.highlight{color:var(--text);font-weight:600;}
     <canvas id="canvas-problem" width="700" height="340" style="margin-bottom:20px;cursor:pointer"></canvas>
     <p style="font-size:11px;color:var(--muted);margin-bottom:20px;">Click a table to see what joins are needed to make a single prediction.</p>
 
+    <div style="margin-bottom:28px">
+      <div class="section-tag" style="margin-bottom:12px;color:#f59e0b">Join Complexity Scaler</div>
+      <div class="slider-row">
+        <span class="slider-lbl">Number of tables</span>
+        <input type="range" id="fe-table-slider" min="1" max="10" value="3" oninput="updateFEScale(this.value)">
+        <span class="slider-val" id="fe-table-val">3</span>
+      </div>
+      <canvas id="canvas-fe-scale" width="700" height="200" style="margin-bottom:8px"></canvas>
+      <p style="font-size:11px;color:var(--muted)">Manual join complexity grows O(n&sup2;). Graph approach stays flat O(n).</p>
+    </div>
+
+    <div style="margin-bottom:28px">
+      <div class="section-tag" style="margin-bottom:8px;color:#f87171">Temporal Leakage Visualizer</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Drag the red cutoff line left or right to control the train/test split. Watch what happens to accuracy when future data leaks into training features.</p>
+      <canvas id="canvas-leakage" width="700" height="220" style="margin-bottom:8px;cursor:ew-resize"></canvas>
+      <div class="info-panel" id="leakage-info"><strong>Drag the cutoff line</strong> to control when training stops. Future events leaking in = silent accuracy collapse in production.</div>
+    </div>
+
     <div class="highlight-box amber">
       <strong>The core problem:</strong> No ML method can learn directly from multiple interconnected tables. Data must be manually joined and aggregated into a single flat training table &#8212; a process called feature engineering. It is slow, error-prone, and produces suboptimal models.
     </div>
@@ -251,6 +276,17 @@ td.highlight{color:var(--text);font-weight:600;}
         <div class="card-title" style="color:#0ea5e9">Temporal = Safe</div>
         <div class="card-body">Because every node carries its timestamp, GNNs can be constrained to only aggregate along temporally valid edges &#8212; automatically preventing data leakage without manual date filters.</div>
       </div>
+    </div>
+
+    <div style="margin-bottom:28px">
+      <div class="section-tag" style="margin-bottom:12px;color:#0ea5e9">GNN Hop Depth Explorer</div>
+      <div class="slider-row">
+        <span class="slider-lbl">Message passing depth</span>
+        <input type="range" id="hop-slider" min="1" max="3" value="1" oninput="updateHopDepth(this.value)">
+        <span class="slider-val" id="hop-val">1 hop</span>
+      </div>
+      <canvas id="canvas-hop" width="700" height="300" style="margin-bottom:8px"></canvas>
+      <div class="info-panel" id="hop-info"><strong>1 hop:</strong> Direct neighbors only &#8212; equivalent to a single SQL JOIN. Gets orders, events, and support tickets directly connected to the user.</div>
     </div>
 
     <div class="formula">// Relational Database &#8594; Temporal Heterogeneous Graph
@@ -353,8 +389,54 @@ T_v: V &#8594; timestamp             // temporal ordering for leak prevention</d
       <strong>The key insight:</strong> Historical data in a database IS the in-context examples. KumoRFM treats past user behavior as few-shot demonstrations and uses them to predict future behavior &#8212; without retraining.
     </div>
 
+    <div style="margin-bottom:28px">
+      <div class="section-tag" style="margin-bottom:12px;color:#10b981">Interactive PQL Builder</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Build a real PQL query by selecting the prediction target, time window, and aggregations. See the assembled query and mock output update live.</p>
+      <div class="grid2" style="margin-bottom:12px">
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Target Variable</div>
+          <select id="pql-target" class="pql-select" onchange="updatePQL()">
+            <option value="churn">user.will_churn_30d</option>
+            <option value="fraud">transaction.fraud_score</option>
+            <option value="ltv">user.ltv_90d</option>
+            <option value="recommend">user.next_purchase_item</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px">History Window</div>
+          <select id="pql-window" class="pql-select" onchange="updatePQL()">
+            <option value="30">30 days</option>
+            <option value="90" selected>90 days</option>
+            <option value="180">180 days</option>
+            <option value="365">1 year</option>
+          </select>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Aggregations to include</div>
+      <div class="btn-row" style="margin-bottom:14px">
+        <button class="btn-tab active" id="agg-count" onclick="toggleAgg('count')">COUNT(*)</button>
+        <button class="btn-tab active" id="agg-sum" onclick="toggleAgg('sum')">SUM(amount)</button>
+        <button class="btn-tab" id="agg-first" onclick="toggleAgg('first')">FIRST(event_type)</button>
+        <button class="btn-tab" id="agg-list" onclick="toggleAgg('list')">LIST_DISTINCT(category)</button>
+      </div>
+      <div class="formula" id="pql-output" style="min-height:90px;white-space:pre-wrap"></div>
+      <div class="info-panel" id="pql-result" style="margin-top:0"></div>
+    </div>
+
+    <div style="margin-bottom:28px">
+      <div class="section-tag" style="margin-bottom:12px;color:#10b981">In-Context Examples vs Accuracy</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Drag to add more in-context examples. Watch accuracy rise then plateau &#8212; the same scaling shape as LLM few-shot learning.</p>
+      <div class="slider-row">
+        <span class="slider-lbl">Context examples</span>
+        <input type="range" id="ic-examples-slider" min="0" max="16" value="4" oninput="updateICExamples(this.value)">
+        <span class="slider-val" id="ic-examples-val">4</span>
+      </div>
+      <canvas id="canvas-ic-acc" width="700" height="220" style="margin-bottom:8px"></canvas>
+      <div class="info-panel" id="ic-acc-info"></div>
+    </div>
+
     <div style="margin-bottom:20px">
-      <div class="section-tag" style="margin-bottom:12px">PQL Query Example</div>
+      <div class="section-tag" style="margin-bottom:12px">PQL Reference</div>
       <div class="formula">PREDICT user.will_churn_30d
 FOR users WHERE subscription_tier = 'pro'
 USING HISTORY 90 DAYS
@@ -551,6 +633,13 @@ Loss(D, T) &#8733; D^&#945; &#215; T^&#946;  where &#945;,&#946; &lt; 0
 
     <div class="highlight-box green">
       <strong>The full stack:</strong> Relational Graph Transformers (April 2025) show an additional 10% win over GNN baselines and 40% over LightGBM on RelBench &#8212; with 95% less data preparation effort and 20&#215; faster time-to-value vs. traditional approaches.
+    </div>
+
+    <div style="margin-bottom:28px">
+      <div class="section-tag" style="margin-bottom:10px;color:#f87171">Method Comparison Matrix</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Click any cell to see a concrete example of what that score means in practice.</p>
+      <div id="method-matrix"></div>
+      <div class="info-panel" id="matrix-detail" style="margin-top:12px;display:none"></div>
     </div>
 
     <div class="grid2" style="margin-top:20px">

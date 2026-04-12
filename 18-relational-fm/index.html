@@ -94,6 +94,13 @@ th{background:var(--surface);border:1px solid var(--border);padding:8px 12px;tex
 td{border:1px solid var(--border);padding:8px 12px;color:var(--muted);}
 tr:hover td{background:rgba(14,165,233,.04);}
 td.highlight{color:var(--text);font-weight:600;}
+.pql-select{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:12px;outline:none;font-family:'JetBrains Mono','Courier New',monospace;}
+.pql-select:focus{border-color:var(--accent);}
+.matrix-grid{display:grid;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.matrix-cell{padding:8px 10px;font-size:11px;cursor:pointer;transition:background .15s;background:var(--surface);}
+.matrix-cell:hover{background:#1c2128;}
+.matrix-cell.header{background:#0d1117;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.8px;cursor:default;}
+.matrix-cell.header:hover{background:#0d1117;}
 </style>
 </head>
 <body>
@@ -183,6 +190,24 @@ td.highlight{color:var(--text);font-weight:600;}
     <canvas id="canvas-problem" width="700" height="340" style="margin-bottom:20px;cursor:pointer"></canvas>
     <p style="font-size:11px;color:var(--muted);margin-bottom:20px;">Click a table to see what joins are needed to make a single prediction.</p>
 
+    <div style="margin-bottom:28px">
+      <div class="section-tag" style="margin-bottom:12px;color:#f59e0b">Join Complexity Scaler</div>
+      <div class="slider-row">
+        <span class="slider-lbl">Number of tables</span>
+        <input type="range" id="fe-table-slider" min="1" max="10" value="3" oninput="updateFEScale(this.value)">
+        <span class="slider-val" id="fe-table-val">3</span>
+      </div>
+      <canvas id="canvas-fe-scale" width="700" height="200" style="margin-bottom:8px"></canvas>
+      <p style="font-size:11px;color:var(--muted)">Manual join complexity grows O(n&sup2;). Graph approach stays flat O(n).</p>
+    </div>
+
+    <div style="margin-bottom:28px">
+      <div class="section-tag" style="margin-bottom:8px;color:#f87171">Temporal Leakage Visualizer</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Drag the red cutoff line left or right to control the train/test split. Watch what happens to accuracy when future data leaks into training features.</p>
+      <canvas id="canvas-leakage" width="700" height="220" style="margin-bottom:8px;cursor:ew-resize"></canvas>
+      <div class="info-panel" id="leakage-info"><strong>Drag the cutoff line</strong> to control when training stops. Future events leaking in = silent accuracy collapse in production.</div>
+    </div>
+
     <div class="highlight-box amber">
       <strong>The core problem:</strong> No ML method can learn directly from multiple interconnected tables. Data must be manually joined and aggregated into a single flat training table &#8212; a process called feature engineering. It is slow, error-prone, and produces suboptimal models.
     </div>
@@ -250,6 +275,17 @@ td.highlight{color:var(--text);font-weight:600;}
         <div class="card-title" style="color:#0ea5e9">Temporal = Safe</div>
         <div class="card-body">Because every node carries its timestamp, GNNs can be constrained to only aggregate along temporally valid edges &#8212; automatically preventing data leakage without manual date filters.</div>
       </div>
+    </div>
+
+    <div style="margin-bottom:28px">
+      <div class="section-tag" style="margin-bottom:12px;color:#0ea5e9">GNN Hop Depth Explorer</div>
+      <div class="slider-row">
+        <span class="slider-lbl">Message passing depth</span>
+        <input type="range" id="hop-slider" min="1" max="3" value="1" oninput="updateHopDepth(this.value)">
+        <span class="slider-val" id="hop-val">1 hop</span>
+      </div>
+      <canvas id="canvas-hop" width="700" height="300" style="margin-bottom:8px"></canvas>
+      <div class="info-panel" id="hop-info"><strong>1 hop:</strong> Direct neighbors only &#8212; equivalent to a single SQL JOIN. Gets orders, events, and support tickets directly connected to the user.</div>
     </div>
 
     <div class="formula">// Relational Database &#8594; Temporal Heterogeneous Graph
@@ -352,8 +388,54 @@ T_v: V &#8594; timestamp             // temporal ordering for leak prevention</d
       <strong>The key insight:</strong> Historical data in a database IS the in-context examples. KumoRFM treats past user behavior as few-shot demonstrations and uses them to predict future behavior &#8212; without retraining.
     </div>
 
+    <div style="margin-bottom:28px">
+      <div class="section-tag" style="margin-bottom:12px;color:#10b981">Interactive PQL Builder</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Build a real PQL query by selecting the prediction target, time window, and aggregations. See the assembled query and mock output update live.</p>
+      <div class="grid2" style="margin-bottom:12px">
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Target Variable</div>
+          <select id="pql-target" class="pql-select" onchange="updatePQL()">
+            <option value="churn">user.will_churn_30d</option>
+            <option value="fraud">transaction.fraud_score</option>
+            <option value="ltv">user.ltv_90d</option>
+            <option value="recommend">user.next_purchase_item</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px">History Window</div>
+          <select id="pql-window" class="pql-select" onchange="updatePQL()">
+            <option value="30">30 days</option>
+            <option value="90" selected>90 days</option>
+            <option value="180">180 days</option>
+            <option value="365">1 year</option>
+          </select>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Aggregations to include</div>
+      <div class="btn-row" style="margin-bottom:14px">
+        <button class="btn-tab active" id="agg-count" onclick="toggleAgg('count')">COUNT(*)</button>
+        <button class="btn-tab active" id="agg-sum" onclick="toggleAgg('sum')">SUM(amount)</button>
+        <button class="btn-tab" id="agg-first" onclick="toggleAgg('first')">FIRST(event_type)</button>
+        <button class="btn-tab" id="agg-list" onclick="toggleAgg('list')">LIST_DISTINCT(category)</button>
+      </div>
+      <div class="formula" id="pql-output" style="min-height:90px;white-space:pre-wrap"></div>
+      <div class="info-panel" id="pql-result" style="margin-top:0"></div>
+    </div>
+
+    <div style="margin-bottom:28px">
+      <div class="section-tag" style="margin-bottom:12px;color:#10b981">In-Context Examples vs Accuracy</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Drag to add more in-context examples. Watch accuracy rise then plateau &#8212; the same scaling shape as LLM few-shot learning.</p>
+      <div class="slider-row">
+        <span class="slider-lbl">Context examples</span>
+        <input type="range" id="ic-examples-slider" min="0" max="16" value="4" oninput="updateICExamples(this.value)">
+        <span class="slider-val" id="ic-examples-val">4</span>
+      </div>
+      <canvas id="canvas-ic-acc" width="700" height="220" style="margin-bottom:8px"></canvas>
+      <div class="info-panel" id="ic-acc-info"></div>
+    </div>
+
     <div style="margin-bottom:20px">
-      <div class="section-tag" style="margin-bottom:12px">PQL Query Example</div>
+      <div class="section-tag" style="margin-bottom:12px">PQL Reference</div>
       <div class="formula">PREDICT user.will_churn_30d
 FOR users WHERE subscription_tier = 'pro'
 USING HISTORY 90 DAYS
@@ -550,6 +632,13 @@ Loss(D, T) &#8733; D^&#945; &#215; T^&#946;  where &#945;,&#946; &lt; 0
 
     <div class="highlight-box green">
       <strong>The full stack:</strong> Relational Graph Transformers (April 2025) show an additional 10% win over GNN baselines and 40% over LightGBM on RelBench &#8212; with 95% less data preparation effort and 20&#215; faster time-to-value vs. traditional approaches.
+    </div>
+
+    <div style="margin-bottom:28px">
+      <div class="section-tag" style="margin-bottom:10px;color:#f87171">Method Comparison Matrix</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Click any cell to see a concrete example of what that score means in practice.</p>
+      <div id="method-matrix"></div>
+      <div class="info-panel" id="matrix-detail" style="margin-top:12px;display:none"></div>
     </div>
 
     <div class="grid2" style="margin-top:20px">
@@ -1426,16 +1515,448 @@ function initResults(){
   frame();
 }
 
+// ─── FEATURE ENGINEERING COMPLEXITY SCALER ──────────────────────────────────
+function updateFEScale(n){
+  document.getElementById('fe-table-val').textContent=n;
+  drawFEScale(parseInt(n));
+}
+function drawFEScale(n){
+  var c=document.getElementById('canvas-fe-scale');if(!c)return;
+  var ctx=c.getContext('2d');
+  ctx.clearRect(0,0,700,200);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,700,200);
+  var manualJoins=n*(n-1)/2;
+  var maxManual=10*9/2; // 45
+  // Left side: Manual joins O(n²)
+  var lx=40,ly=160,lw=280,barH=Math.round(manualJoins/maxManual*120);
+  drawRoundedRect(ctx,lx+60,ly-barH,80,barH,4,'#f87171','#f87171');
+  ctx.fillStyle='#f87171';ctx.font='bold 22px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText(manualJoins,lx+100,ly-barH-10);
+  ctx.fillStyle='#8b949e';ctx.font='11px Inter,sans-serif';
+  ctx.fillText('manual joins needed',lx+100,ly+16);
+  ctx.fillText('O(n²) growth',lx+100,ly+30);
+  // Table node mini-viz
+  var allJoins=[];
+  for(var i=0;i<n;i++){for(var j=i+1;j<n;j++){allJoins.push([i,j]);}}
+  var vizX=lx+180,vizY=ly-80,vizR=50;
+  allJoins.forEach(function(pair){
+    var a1=pair[0]/n*Math.PI*2-Math.PI/2,a2=pair[1]/n*Math.PI*2-Math.PI/2;
+    ctx.beginPath();ctx.moveTo(vizX+vizR*Math.cos(a1),vizY+vizR*Math.sin(a1));
+    ctx.lineTo(vizX+vizR*Math.cos(a2),vizY+vizR*Math.sin(a2));
+    ctx.strokeStyle='#f8717166';ctx.lineWidth=1;ctx.stroke();
+  });
+  for(var i=0;i<n;i++){
+    var angle=i/n*Math.PI*2-Math.PI/2;
+    var nx=vizX+vizR*Math.cos(angle),ny=vizY+vizR*Math.sin(angle);
+    ctx.beginPath();ctx.arc(nx,ny,7,0,Math.PI*2);
+    ctx.fillStyle='#f87171';ctx.fill();
+  }
+  ctx.strokeStyle='#30363d';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(350,20);ctx.lineTo(350,170);ctx.stroke();
+  // Right side: Graph GNN O(n)
+  var rx=360;
+  var graphOps=n;
+  var gBarH=Math.round(graphOps/10*120);
+  drawRoundedRect(ctx,rx+60,ly-gBarH,80,gBarH,4,'#10b981','#10b981');
+  ctx.fillStyle='#10b981';ctx.font='bold 22px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText(graphOps,rx+100,ly-gBarH-10);
+  ctx.fillStyle='#8b949e';ctx.font='11px Inter,sans-serif';
+  ctx.fillText('graph edges added',rx+100,ly+16);
+  ctx.fillText('O(n) growth',rx+100,ly+30);
+  // Star graph mini-viz
+  var gvx=rx+210,gvy=ly-80;
+  ctx.beginPath();ctx.arc(gvx,gvy,8,0,Math.PI*2);ctx.fillStyle='#7c3aed';ctx.fill();
+  for(var i=0;i<n;i++){
+    var angle=i/n*Math.PI*2-Math.PI/2;
+    var nx=gvx+vizR*Math.cos(angle),ny=gvy+vizR*Math.sin(angle);
+    ctx.beginPath();ctx.moveTo(gvx,gvy);ctx.lineTo(nx,ny);ctx.strokeStyle='#10b98166';ctx.lineWidth=1.5;ctx.stroke();
+    ctx.beginPath();ctx.arc(nx,ny,7,0,Math.PI*2);ctx.fillStyle='#10b981';ctx.fill();
+  }
+  // Labels
+  ctx.fillStyle='#f87171';ctx.font='bold 12px Inter,sans-serif';ctx.textAlign='center';ctx.fillText('Manual Joins',lx+100,14);
+  ctx.fillStyle='#10b981';ctx.fillText('Graph (RDL / KumoRFM)',rx+100,14);
+  ctx.textAlign='left';
+  ctx.strokeStyle='#30363d';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(40,ly+2);ctx.lineTo(660,ly+2);ctx.stroke();
+}
+
+// ─── TEMPORAL LEAKAGE VISUALIZER ─────────────────────────────────────────────
+var leakageCutoff=0.6;
+var leakageDragging=false;
+function leakageAccuracy(cutoff){
+  // >0.5 = correct split, <0.5 = leakage
+  if(cutoff>=0.7)return{train:84,test:81,status:'good',label:'No leakage ✓'};
+  if(cutoff>=0.55)return{train:87,test:79,status:'warn',label:'Minor overlap'};
+  if(cutoff>=0.4)return{train:93,test:51,status:'bad',label:'Significant leakage!'};
+  return{train:98,test:22,status:'bad',label:'Severe leakage — model is useless in production'};
+}
+function drawLeakage(){
+  var c=document.getElementById('canvas-leakage');if(!c)return;
+  var ctx=c.getContext('2d');
+  ctx.clearRect(0,0,700,220);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,700,220);
+  var ox=60,tw=580,ty=60,th=80;
+  var cutX=ox+leakageCutoff*tw;
+  var acc=leakageAccuracy(leakageCutoff);
+  // Timeline background zones
+  ctx.fillStyle='#0ea5e911';ctx.fillRect(ox,ty,cutX-ox,th); // train
+  if(leakageCutoff<0.75){
+    ctx.fillStyle='#f8717133';ctx.fillRect(cutX,ty,Math.max(0,ox+tw*0.75-cutX),th); // leak zone
+  }
+  ctx.fillStyle='#10b98111';ctx.fillRect(Math.max(cutX,ox+tw*0.75),ty,ox+tw-Math.max(cutX,ox+tw*0.75),th); // test
+  // Timeline axis
+  ctx.strokeStyle='#30363d';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(ox,ty+th+10);ctx.lineTo(ox+tw,ty+th+10);ctx.stroke();
+  // Time labels
+  ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].forEach(function(m,i){
+    var x=ox+i*(tw/11);
+    ctx.fillStyle='#30363d';ctx.beginPath();ctx.moveTo(x,ty+th+8);ctx.lineTo(x,ty+th+16);ctx.stroke();
+    ctx.fillStyle='#8b949e';ctx.font='9px Inter,sans-serif';ctx.textAlign='center';ctx.fillText(m,x,ty+th+26);
+  });
+  ctx.textAlign='left';
+  // Events (dots on timeline)
+  var rand=seededRand(42);
+  for(var i=0;i<60;i++){
+    var ex=ox+rand()*tw,ey=ty+10+rand()*(th-20);
+    var isLeak=ex>cutX&&ex<ox+tw*0.75;
+    ctx.beginPath();ctx.arc(ex,ey,3,0,Math.PI*2);
+    ctx.fillStyle=isLeak?'#f87171':(ex<cutX?'#0ea5e9':'#10b981');
+    ctx.fill();
+  }
+  // Zone labels
+  ctx.fillStyle='#0ea5e9';ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('TRAIN',ox+(cutX-ox)/2,ty+th/2+4);
+  if(leakageCutoff<0.75){
+    ctx.fillStyle='#f87171';
+    ctx.fillText('LEAK',cutX+(ox+tw*0.75-cutX)/2,ty+th/2+4);
+  }
+  ctx.fillStyle='#10b981';
+  var testStart=Math.max(cutX,ox+tw*0.75);
+  ctx.fillText('TEST',testStart+(ox+tw-testStart)/2,ty+th/2+4);
+  ctx.textAlign='left';
+  // Draggable cutoff line
+  ctx.strokeStyle='#f87171';ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.moveTo(cutX,ty-15);ctx.lineTo(cutX,ty+th+8);ctx.stroke();
+  // Drag handle
+  ctx.beginPath();ctx.arc(cutX,ty-15,8,0,Math.PI*2);
+  ctx.fillStyle='#f87171';ctx.fill();
+  ctx.fillStyle='#fff';ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='center';ctx.fillText('⇔',cutX,ty-12);ctx.textAlign='left';
+  // Accuracy bars
+  var bx=ox,by=180,bw=260,bh=24;
+  ['Train accuracy','Test accuracy'].forEach(function(lbl,i){
+    var val=i===0?acc.train:acc.test;
+    var color=i===0?'#0ea5e9':(acc.status==='good'?'#10b981':acc.status==='warn'?'#f59e0b':'#f87171');
+    drawRoundedRect(ctx,bx+i*300,by,Math.round(val/100*bw),bh,4,color+'44',color);
+    ctx.fillStyle=color;ctx.font='bold 11px Inter,sans-serif';
+    ctx.fillText(lbl+': '+val+'%',bx+i*300+6,by+16);
+  });
+  // Status
+  var statusColor=acc.status==='good'?'#10b981':acc.status==='warn'?'#f59e0b':'#f87171';
+  ctx.fillStyle=statusColor;ctx.font='bold 12px Inter,sans-serif';ctx.textAlign='right';
+  ctx.fillText(acc.label,ox+tw,195);ctx.textAlign='left';
+  // Update info panel
+  var panel=document.getElementById('leakage-info');
+  if(panel){
+    if(acc.status==='good'){panel.innerHTML='<strong style="color:#10b981">No leakage ✓</strong> — Cutoff is after 70% of data. Train and test are cleanly separated. Model will perform similarly in production.';}
+    else if(acc.status==='warn'){panel.innerHTML='<strong style="color:#f59e0b">Minor overlap</strong> — Some future events are bleeding into training features. Train accuracy is slightly inflated. Production accuracy will be lower than measured.';}
+    else{panel.innerHTML='<strong style="color:#f87171">Leakage detected!</strong> — Future events (red dots) are included in training features. The model has learned from the future. Test accuracy of '+acc.test+'% will collapse to near-random in production. This is the most common silent failure in production ML.';}
+  }
+}
+function initLeakage(){
+  var c=document.getElementById('canvas-leakage');if(!c)return;
+  drawLeakage();
+  function getCutoff(e){
+    var rect=c.getBoundingClientRect();
+    var mx=(e.clientX||e.touches[0].clientX)-rect.left;
+    return Math.max(0.05,Math.min(0.98,(mx-60)/580));
+  }
+  c.addEventListener('mousedown',function(e){leakageDragging=true;leakageCutoff=getCutoff(e);drawLeakage();});
+  window.addEventListener('mousemove',function(e){if(leakageDragging){leakageCutoff=getCutoff(e);drawLeakage();}});
+  window.addEventListener('mouseup',function(){leakageDragging=false;});
+}
+
+// ─── GNN HOP DEPTH EXPLORER ───────────────────────────────────────────────────
+var hopDepth=1;
+var HOP_COLORS=['#0ea5e9','#7c3aed','#f59e0b','#10b981','#f87171'];
+var HOP_NODES=[
+  {id:0,label:'User\nAlice',type:'center',x:350,y:150,r:28,color:'#7c3aed'},
+  {id:1,label:'Order\n#10',type:'hop1',x:180,y:80,r:22,color:'#0ea5e9'},
+  {id:2,label:'Order\n#11',type:'hop1',x:180,y:210,r:22,color:'#0ea5e9'},
+  {id:3,label:'Event\nview',type:'hop1',x:520,y:80,r:22,color:'#0ea5e9'},
+  {id:4,label:'Support\n#3',type:'hop1',x:520,y:210,r:22,color:'#0ea5e9'},
+  {id:5,label:'Product\nA',type:'hop2',x:60,y:50,r:18,color:'#f59e0b'},
+  {id:6,label:'Product\nB',type:'hop2',x:60,y:250,r:18,color:'#f59e0b'},
+  {id:7,label:'User\nBob',type:'hop2',x:620,y:50,r:18,color:'#f59e0b'},
+  {id:8,label:'User\nCarol',type:'hop2',x:620,y:250,r:18,color:'#f59e0b'},
+  {id:9,label:'Category\nElectronics',type:'hop3',x:30,y:150,r:15,color:'#10b981'},
+  {id:10,label:'Purchase\nHistory',type:'hop3',x:670,y:150,r:15,color:'#10b981'},
+];
+var HOP_EDGES=[
+  {a:0,b:1,label:'has order'},{a:0,b:2,label:'has order'},{a:0,b:3,label:'triggered'},{a:0,b:4,label:'filed'},
+  {a:1,b:5,label:'product'},{a:2,b:6,label:'product'},{a:3,b:7,label:'similar user'},{a:4,b:8,label:'similar user'},
+  {a:5,b:9,label:'category'},{a:7,b:10,label:'history'},
+];
+var HOP_SQL=['Direct JOIN (1 table)','Two-level JOIN chain (2 tables)','Complex 3-way JOIN (data engineer hours)'];
+function updateHopDepth(n){
+  hopDepth=parseInt(n);
+  document.getElementById('hop-val').textContent=n+' hop'+(n>1?'s':'');
+  drawHopDepth();
+  var infos=[
+    '<strong>1 hop:</strong> Direct neighbors — orders, events, support tickets connected directly to Alice. Equivalent SQL: <code>JOIN orders ON orders.user_id = users.id</code>',
+    '<strong>2 hops:</strong> Neighbors of neighbors — products ordered, other users who ordered same products. Equivalent SQL: <code>JOIN orders o ON ... JOIN products p ON o.product_id = p.id</code>. Each hop doubles the relational context.',
+    '<strong>3 hops:</strong> Full relational neighborhood — product categories, purchase history patterns, global trends. The equivalent SQL query would take a senior data engineer half a day to write and is prone to data leakage errors.',
+  ];
+  var panel=document.getElementById('hop-info');if(panel)panel.innerHTML=infos[hopDepth-1];
+}
+function drawHopDepth(){
+  var c=document.getElementById('canvas-hop');if(!c)return;
+  var ctx=c.getContext('2d');
+  ctx.clearRect(0,0,700,300);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,700,300);
+  var typeDepth={center:0,hop1:1,hop2:2,hop3:3};
+  // Draw edges
+  HOP_EDGES.forEach(function(e){
+    var an=HOP_NODES[e.a],bn=HOP_NODES[e.b];
+    var ad=typeDepth[an.type],bd=typeDepth[bn.type];
+    var maxD=Math.max(ad,bd);
+    var active=maxD<=hopDepth;
+    ctx.beginPath();ctx.moveTo(an.x,an.y);ctx.lineTo(bn.x,bn.y);
+    ctx.strokeStyle=active?HOP_COLORS[maxD-1]+'66':'#30363d33';
+    ctx.lineWidth=active?2:1;ctx.setLineDash(active?[]:[3,3]);ctx.stroke();ctx.setLineDash([]);
+    if(active){
+      var mx=(an.x+bn.x)/2,my=(an.y+bn.y)/2;
+      ctx.fillStyle=HOP_COLORS[maxD-1]+'88';ctx.font='8px Inter,sans-serif';ctx.textAlign='center';
+      ctx.fillText(e.label,mx,my-4);ctx.textAlign='left';
+    }
+  });
+  // Draw nodes
+  HOP_NODES.forEach(function(n){
+    var depth=typeDepth[n.type];
+    var active=depth===0||depth<=hopDepth;
+    var alpha=active?1:0.2;
+    ctx.globalAlpha=alpha;
+    ctx.beginPath();ctx.arc(n.x,n.y,n.r,0,Math.PI*2);
+    ctx.fillStyle=n.color+'33';ctx.fill();
+    ctx.strokeStyle=n.color;ctx.lineWidth=depth===0?2.5:1.5;ctx.stroke();
+    ctx.fillStyle=n.color;ctx.font='bold '+(depth===0?11:9)+'px Inter,sans-serif';ctx.textAlign='center';
+    var parts=n.label.split('\n');
+    ctx.fillText(parts[0],n.x,n.y-(parts[1]?5:2));
+    if(parts[1]){ctx.fillStyle='#c9d1d9';ctx.font='8px Inter,sans-serif';ctx.fillText(parts[1],n.x,n.y+7);}
+    ctx.textAlign='left';ctx.globalAlpha=1;
+  });
+  // Hop ring indicators
+  for(var h=1;h<=3;h++){
+    var active=h<=hopDepth;
+    ctx.beginPath();ctx.arc(350,150,h*90,0,Math.PI*2);
+    ctx.strokeStyle=active?HOP_COLORS[h-1]+'22':'#30363d11';
+    ctx.lineWidth=active?1:0.5;ctx.setLineDash([4,8]);ctx.stroke();ctx.setLineDash([]);
+    if(active){
+      ctx.fillStyle=HOP_COLORS[h-1];ctx.font='9px Inter,sans-serif';
+      ctx.fillText('hop '+h,350+h*90+4,152);
+    }
+  }
+  // SQL equivalent
+  ctx.fillStyle='#8b949e';ctx.font='11px Inter,sans-serif';
+  ctx.fillText('SQL equivalent: '+HOP_SQL[hopDepth-1],14,288);
+  ctx.fillStyle=HOP_COLORS[hopDepth-1];ctx.font='bold 11px Inter,sans-serif';
+  ctx.fillText('Active nodes: '+(hopDepth===1?5:hopDepth===2?9:11),500,288);
+}
+
+// ─── PQL QUERY BUILDER ────────────────────────────────────────────────────────
+var pqlAggs={count:true,sum:true,first:false,list:false};
+var PQL_META={
+  churn:{entity:'users',filter:"subscription_tier = 'pro'",table:'orders',output:'Binary classification',example:'P(churn) = 0.82 — HIGH risk. Likely drivers: 0 orders in 30d, 3 support tickets.'},
+  fraud:{entity:'transactions',filter:"amount > 50",table:'accounts',output:'Regression (0–1 score)',example:'fraud_score = 0.94 — Flag for manual review. Unusual location + velocity.'},
+  ltv:{entity:'users',filter:"age_days > 30",table:'purchases',output:'Regression ($ value)',example:'ltv_90d = $284.50 — Top 15% of user cohort.'},
+  recommend:{entity:'users',filter:"active_last_7d = true",table:'interactions',output:'Link prediction (ranked list)',example:'next_purchase_item = [SKU-4821, SKU-0033, SKU-7792] — MAP@3 = 0.41'},
+};
+var AGG_LINES={count:'COUNT(*)',sum:'SUM(amount)',first:'FIRST(event_type)',list:'LIST_DISTINCT(category)'};
+function toggleAgg(agg){
+  pqlAggs[agg]=!pqlAggs[agg];
+  var el=document.getElementById('agg-'+agg);
+  if(el)el.className='btn-tab'+(pqlAggs[agg]?' active':'');
+  updatePQL();
+}
+function updatePQL(){
+  var target=document.getElementById('pql-target');if(!target)return;
+  var tval=target.value;
+  var window=document.getElementById('pql-window').value;
+  var meta=PQL_META[tval];
+  var aggLines=Object.keys(pqlAggs).filter(function(k){return pqlAggs[k];}).map(function(k){return '          '+meta.table+': '+AGG_LINES[k];}).join('\n');
+  var pql='PREDICT '+meta.entity.replace(/s$/,'')+'.'+tval+(tval==='recommend'?'_item':tval==='fraud'?'_score':tval==='ltv'?'_90d':'_30d')+'\nFOR '+meta.entity+' WHERE '+meta.filter+'\nUSING HISTORY '+window+' DAYS';
+  if(aggLines)pql+='\nAGGREGATE\n'+aggLines;
+  var out=document.getElementById('pql-output');
+  if(out)out.textContent=pql;
+  var res=document.getElementById('pql-result');
+  if(res)res.innerHTML='<strong>Output type:</strong> '+meta.output+'<br><strong>Example result:</strong> '+meta.example;
+}
+
+// ─── IN-CONTEXT EXAMPLES vs ACCURACY ─────────────────────────────────────────
+function updateICExamples(n){
+  n=parseInt(n);
+  document.getElementById('ic-examples-val').textContent=n;
+  drawICAccuracy(n);
+}
+function drawICAccuracy(n){
+  var c=document.getElementById('canvas-ic-acc');if(!c)return;
+  var ctx=c.getContext('2d');
+  ctx.clearRect(0,0,700,220);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,700,220);
+  var ox=70,oy=180,w=580,h=140;
+  // Grid
+  for(var i=0;i<=4;i++){
+    var gy=oy-i*h/4;
+    ctx.beginPath();ctx.moveTo(ox,gy);ctx.lineTo(ox+w,gy);
+    ctx.strokeStyle='#30363d44';ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#8b949e';ctx.font='9px Inter,sans-serif';ctx.textAlign='right';
+    ctx.fillText((40+i*15)+'%',ox-5,gy+3);ctx.textAlign='left';
+  }
+  // Axes
+  ctx.strokeStyle='#30363d';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(ox,oy-h-10);ctx.lineTo(ox,oy);ctx.lineTo(ox+w,oy);ctx.stroke();
+  // Three method curves
+  var methods=[
+    {label:'KumoRFM (in-context)',color:'#10b981',fn:function(x){return 0.48+0.28*(1-Math.exp(-x*0.4));}},
+    {label:'LLM few-shot baseline',color:'#7c3aed',fn:function(x){return 0.38+0.18*(1-Math.exp(-x*0.5));}},
+    {label:'Zero training (random)',color:'#30363d',fn:function(x){return 0.42;},dash:true},
+  ];
+  methods.forEach(function(m){
+    ctx.beginPath();
+    for(var x=0;x<=16;x++){
+      var acc=m.fn(x);
+      var px=ox+x/16*w,py=oy-(acc-0.4)/0.4*h;
+      if(x===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);
+    }
+    ctx.strokeStyle=m.color;ctx.lineWidth=m.dash?1.5:2.5;
+    if(m.dash)ctx.setLineDash([5,5]);ctx.stroke();ctx.setLineDash([]);
+    var acc=m.fn(16);
+    ctx.fillStyle=m.color;ctx.font='bold 9px Inter,sans-serif';ctx.fillText(m.label,ox+w+4,oy-(acc-0.4)/0.4*h+3);
+  });
+  // Current n marker
+  var curAcc=methods[0].fn(n);
+  var px=ox+n/16*w,py=oy-(curAcc-0.4)/0.4*h;
+  ctx.beginPath();ctx.arc(px,py,7,0,Math.PI*2);ctx.fillStyle='#10b981';ctx.fill();
+  ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+  // Vertical guide
+  ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px,oy);
+  ctx.strokeStyle='#10b98144';ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.stroke();ctx.setLineDash([]);
+  // X-axis labels
+  [0,2,4,6,8,10,12,14,16].forEach(function(x){
+    ctx.fillStyle=x===n?'#10b981':'#8b949e';ctx.font=x===n?'bold 9px Inter,sans-serif':'9px Inter,sans-serif';
+    ctx.textAlign='center';ctx.fillText(x,ox+x/16*w,oy+12);ctx.textAlign='left';
+  });
+  ctx.fillStyle='#8b949e';ctx.font='10px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('Number of in-context examples',ox+w/2,oy+26);ctx.textAlign='left';
+  // Info panel
+  var panel=document.getElementById('ic-acc-info');
+  if(panel){
+    var accPct=Math.round(curAcc*100);
+    var msg=n===0?'<strong style="color:#f87171">0 examples:</strong> Model uses prior knowledge only. Accuracy ~48% — barely above chance for binary classification.'
+      :n<=4?'<strong style="color:#f59e0b">'+n+' examples:</strong> Accuracy climbs to ~'+accPct+'%. Even a few examples provide strong signal about local data distribution.'
+      :n<=8?'<strong style="color:#10b981">'+n+' examples:</strong> '+accPct+'% accuracy. Approaching plateau — each new example gives diminishing returns beyond this point.'
+      :'<strong style="color:#10b981">'+n+' examples:</strong> '+accPct+'% accuracy. Near-plateau. Adding more context barely helps. Same shape as LLM few-shot scaling curves.';
+    panel.innerHTML=msg;
+  }
+}
+
+// ─── METHOD COMPARISON MATRIX ────────────────────────────────────────────────
+var MATRIX_METHODS=['Traditional\nFE','AutoML','Supervised\nRDL','KumoRFM\nzero-shot','KumoRFM\nfine-tuned'];
+var MATRIX_DIMS=['Setup time','Code needed','Leakage risk','Handles new tasks?','Accuracy','Explainability'];
+var MATRIX_DATA=[
+  // setup time
+  [{v:'12+ hrs',c:'#f87171',s:0},{v:'2–4 hrs',c:'#f59e0b',s:1},{v:'1–2 hrs',c:'#f59e0b',s:1},{v:'~1 sec',c:'#10b981',s:2},{v:'~5 min',c:'#10b981',s:2}],
+  // code needed
+  [{v:'878 lines',c:'#f87171',s:0},{v:'~50 lines',c:'#f59e0b',s:1},{v:'~100 lines',c:'#f59e0b',s:1},{v:'1 line (PQL)',c:'#10b981',s:2},{v:'~20 lines',c:'#10b981',s:2}],
+  // leakage risk
+  [{v:'HIGH',c:'#f87171',s:0},{v:'Medium',c:'#f59e0b',s:1},{v:'Low',c:'#10b981',s:2},{v:'None',c:'#10b981',s:2},{v:'None',c:'#10b981',s:2}],
+  // new tasks
+  [{v:'No — rewrite',c:'#f87171',s:0},{v:'Partial',c:'#f59e0b',s:1},{v:'Partial',c:'#f59e0b',s:1},{v:'Yes — instant',c:'#10b981',s:2},{v:'Yes — fast',c:'#10b981',s:2}],
+  // accuracy
+  [{v:'Baseline',c:'#0ea5e9',s:1},{v:'Good',c:'#0ea5e9',s:1},{v:'Better',c:'#10b981',s:2},{v:'+2–8%',c:'#10b981',s:2},{v:'+10–30%',c:'#10b981',s:2}],
+  // explainability
+  [{v:'Manual',c:'#f59e0b',s:1},{v:'Limited',c:'#f59e0b',s:1},{v:'Limited',c:'#f59e0b',s:1},{v:'Built-in',c:'#10b981',s:2},{v:'Full',c:'#10b981',s:2}],
+];
+var MATRIX_DETAIL=[
+  // setup time
+  ['878 lines of SQL joins + feature engineering scripts. Data scientist typically needs a full day to set up a new prediction task from scratch.',
+   'AutoML tools (H2O, AutoGluon) still require a pre-built flat table — so you still need the feature engineering step first.',
+   'RDL reduces engineering by automating joins via GNN, but still needs training data setup and model training (~1–2 hrs on GPU).',
+   'One PQL query. No data prep, no training, no model selection. KumoRFM samples in-context examples at inference time — ~1 second end to end.',
+   'Fine-tuning adds ~5 minutes on a specific database but gives 10–30% accuracy boost over zero-shot. Still zero feature engineering.'],
+  // code
+  ['Typical feature engineering pipeline: SQL (200 lines) + aggregation logic (300 lines) + train/test split (100 lines) + model code (278 lines) = 878 lines.',
+   'AutoML handles model selection but requires a flat DataFrame — SQL preprocessing still needed. ~50 lines with pandas.',
+   'RDL with PyG requires defining the graph schema, temporal splits, and GNN architecture — ~100 lines, but reusable.',
+   'PREDICT user.will_churn_30d FOR users USING HISTORY 90 DAYS — literally 1 line. No training code, no model selection, no data pipelines.',
+   'Fine-tuning script is ~20 lines: load KumoRFM, call fine_tune(db_connection, pql_query), save checkpoint.'],
+  // leakage
+  ['Manual feature engineering is the #1 source of data leakage. Aggregating future events (e.g., "did user cancel in next 30 days") into past features is easy to do accidentally and hard to detect.',
+   'AutoML cannot prevent leakage in the input features — that is still your responsibility. Many AutoML benchmarks have been found to have leakage.',
+   'RDL\'s temporal graph construction enforces strict temporal constraints — only edges with timestamp < prediction_time are used. Leakage is architecturally prevented.',
+   'KumoRFM builds on RDL\'s temporal graph — leakage is impossible by construction. The in-context examples are also constrained to be before the query time.',
+   'Same as zero-shot — leakage prevention is built into the architecture, not a configuration option.'],
+  // new tasks
+  ['Every new prediction task requires starting from scratch: new SQL joins, new feature aggregations, new training run. A team of 5 might handle 2–3 new tasks per quarter.',
+   'AutoML reduces model selection effort but the feature engineering must be redone for each new task. Partial reuse possible if similar schemas.',
+   'The GNN architecture can be retrained on new tasks, but still requires a new training run (30 min – 2 hrs) per task.',
+   'New task = new PQL query = instant prediction. The same pre-trained KumoRFM handles any prediction task on any connected database with zero additional work.',
+   'Fine-tuned variant is task-specific, but zero-shot KumoRFM handles new tasks instantly. Fine-tuning is optional for extra accuracy.'],
+  // accuracy
+  ['Feature-engineered baselines (LightGBM, XGBoost on flat features) are the standard comparison point — set to 100% relative accuracy.',
+   'AutoML typically matches or marginally improves over manual feature engineering by ensembling models. ~0–5% improvement.',
+   'Supervised RDL (Relational Graph Transformer) outperforms feature engineering baselines by ~10% and LightGBM by ~40% on RelBench by capturing multi-hop relational context.',
+   'KumoRFM zero-shot outperforms feature engineering baselines by 2–8% without any task-specific training. This is the headline result — better accuracy AND zero setup.',
+   'Fine-tuned KumoRFM improves 10–30% over zero-shot, matching or exceeding expert-built supervised deep learning systems on most RelBench tasks.'],
+  // explainability
+  ['Feature importance from gradient boosted trees tells you which hand-crafted features matter — but the features are aggregated so the original rows are lost.',
+   'AutoML explainability is limited to SHAP values on the flat feature table — no connection back to original relational structure.',
+   'GNN explainability via attention weights is possible but not built-in. Requires additional tooling (GNNExplainer, etc.).',
+   'KumoRFM has a built-in Explainability Module providing gradient-based attribution at both global level (which table/column matters most?) and individual prediction level (why was this user flagged?).',
+   'Full explainability with fine-tuning — same Explainability Module, but trained on domain-specific data gives more precise attribution.'],
+];
+function initMethodMatrix(){
+  var el=document.getElementById('method-matrix');if(!el)return;
+  var cols=MATRIX_METHODS.length+1;
+  var html='<div class="matrix-grid" style="grid-template-columns: 130px '+MATRIX_METHODS.map(function(){return '1fr';}).join(' ')+'">';
+  // Header row
+  html+='<div class="matrix-cell header" style="color:#8b949e"></div>';
+  MATRIX_METHODS.forEach(function(m,mi){
+    html+='<div class="matrix-cell header" style="color:'+['#f87171','#f59e0b','#0ea5e9','#10b981','#10b981'][mi]+'">'+m.replace('\n','<br>')+'</div>';
+  });
+  // Data rows
+  MATRIX_DIMS.forEach(function(dim,di){
+    html+='<div class="matrix-cell header" style="color:#8b949e">'+dim+'</div>';
+    MATRIX_DATA[di].forEach(function(cell,ci){
+      html+='<div class="matrix-cell" style="color:'+cell.c+';font-weight:600" onclick="showMatrixDetail('+di+','+ci+')">'+cell.v+'</div>';
+    });
+  });
+  html+='</div>';
+  el.innerHTML=html;
+}
+function showMatrixDetail(di,ci){
+  var panel=document.getElementById('matrix-detail');if(!panel)return;
+  panel.style.display='block';
+  var method=MATRIX_METHODS[ci].replace('\n',' ');
+  var dim=MATRIX_DIMS[di];
+  var cell=MATRIX_DATA[di][ci];
+  var detail=MATRIX_DETAIL[di][ci];
+  panel.innerHTML='<strong style="color:'+cell.c+'">'+method+' — '+dim+':</strong> '+cell.v+'<br><br>'+detail;
+}
+
 // ─── INIT ALL ────────────────────────────────────────────────────────────────
 (function(){
   function doInit(){
     initProblem();
+    drawFEScale(3);
+    initLeakage();
     initDbGraph();
+    drawHopDepth();
     initArch();
+    updatePQL();
+    updateICExamples(4);
     initInContext();
     initSynthetic();
     initRelbench();
     initResults();
+    initMethodMatrix();
   }
   if(document.readyState==='loading'){
     document.addEventListener('DOMContentLoaded',doInit);
