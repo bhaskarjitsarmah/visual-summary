@@ -136,6 +136,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
   <div class="nav-group-title">The Why</div>
   <div class="nav-link" data-sec="s-why-managed" onclick="setActive(this,'s-why-managed')">
     <span class="dot" style="background:#f7b731"></span>Why "Managed"?</div>
+  <div class="nav-link" data-sec="s-usecases" onclick="setActive(this,'s-usecases')">
+    <span class="dot" style="background:#51cf66"></span>Use Cases</div>
 
   <div class="nav-group-title">Core Concepts</div>
   <div class="nav-link" data-sec="s-concepts" onclick="setActive(this,'s-concepts')">
@@ -154,6 +156,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
     <span class="dot" style="background:#ff6b6b"></span>Tools &amp; Security</div>
   <div class="nav-link" data-sec="s-api" onclick="setActive(this,'s-api')">
     <span class="dot" style="background:#7c6af4"></span>Getting Started</div>
+  <div class="nav-link" data-sec="s-compare" onclick="setActive(this,'s-compare')">
+    <span class="dot" style="background:#00b4d8"></span>vs. Alternatives</div>
 </nav>
 
 <!-- MAIN -->
@@ -162,6 +166,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
   <div class="pipe-step"><span class="pipe-dot" style="background:#00b4d8"></span>Overview</div>
   <span class="pipe-arrow">&#8594;</span>
   <div class="pipe-step"><span class="pipe-dot" style="background:#f7b731"></span>Why Managed</div>
+  <span class="pipe-arrow">&#8594;</span>
+  <div class="pipe-step"><span class="pipe-dot" style="background:#51cf66"></span>Use Cases</div>
   <span class="pipe-arrow">&#8594;</span>
   <div class="pipe-step"><span class="pipe-dot" style="background:#7c6af4"></span>Concepts</div>
   <span class="pipe-arrow">&#8594;</span>
@@ -174,6 +180,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
   <div class="pipe-step"><span class="pipe-dot" style="background:#ff6b6b"></span>Security</div>
   <span class="pipe-arrow">&#8594;</span>
   <div class="pipe-step"><span class="pipe-dot" style="background:#7c6af4"></span>API</div>
+  <span class="pipe-arrow">&#8594;</span>
+  <div class="pipe-step"><span class="pipe-dot" style="background:#00b4d8"></span>Compare</div>
 </div>
 
 <!-- ====== S1: OVERVIEW ====== -->
@@ -188,6 +196,14 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
     <div class="stat"><div class="stat-val" style="color:#f7b731">4</div><div class="stat-lbl">core primitives</div></div>
     <div class="stat"><div class="stat-val" style="color:#7c6af4">$0.08</div><div class="stat-lbl">per runtime hour</div></div>
   </div>
+
+  <!-- COST CALCULATOR -->
+  <div class="card-title" style="color:#51cf66;font-size:11px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;">Monthly Cost Calculator — Adjust Sliders to Estimate Your Cost</div>
+  <div class="slider-row"><span class="slider-lbl">Sessions per day</span><input type="range" id="sl-sessions" min="1" max="500" value="50" oninput="updateCostCalc()"><span class="slider-val" id="val-sessions">50</span></div>
+  <div class="slider-row"><span class="slider-lbl">Avg task duration (min)</span><input type="range" id="sl-duration" min="1" max="60" value="5" oninput="updateCostCalc()"><span class="slider-val" id="val-duration">5 min</span></div>
+  <div class="slider-row"><span class="slider-lbl">Avg tokens per session</span><input type="range" id="sl-tokens" min="1000" max="100000" step="1000" value="10000" oninput="updateCostCalc()"><span class="slider-val" id="val-tokens">10k</span></div>
+  <canvas id="canvas-cost-calc" width="700" height="240" style="margin-bottom:8px;"></canvas>
+  <div class="info-panel" id="cost-detail" style="margin-bottom:24px;font-size:12px;"></div>
 
   <canvas id="canvas-agent-anatomy" width="700" height="240" style="margin-bottom:20px;cursor:pointer;"></canvas>
   <div class="info-panel" id="anatomy-detail">
@@ -278,6 +294,43 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
   </div>
 
   <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-usecases">Real-World Use Cases &rarr;</a>
+  </div>
+</section>
+
+<!-- ====== S1c: USE CASES ====== -->
+<section class="section" id="s-usecases">
+  <div class="section-tag" style="color:#51cf66">Real-World Use Cases</div>
+  <h2 class="section-title">What Do You Actually Build With This?</h2>
+  <p class="section-sub">Managed Agents is not an abstract framework — it's built for tasks that take minutes, not milliseconds. Here are four real patterns, each showing which tools fire and how the session unfolds.</p>
+
+  <div class="grid2" style="margin-bottom:16px;" id="usecase-cards">
+    <div class="tool-card active" id="uc-card-0" onclick="selectUsecase(0)" style="cursor:pointer;">
+      <div class="tool-icon">&#128202;</div>
+      <div class="tool-name" style="color:#00b4d8;">Code Reviewer</div>
+      <div class="tool-desc">Reviews a pull request: runs tests, reads diffs, checks coverage, writes structured feedback.</div>
+    </div>
+    <div class="tool-card" id="uc-card-1" onclick="selectUsecase(1)" style="cursor:pointer;">
+      <div class="tool-icon">&#128270;</div>
+      <div class="tool-name" style="color:#7c6af4;">Research Agent</div>
+      <div class="tool-desc">Given a topic, searches the web, reads papers, synthesizes a structured briefing document.</div>
+    </div>
+    <div class="tool-card" id="uc-card-2" onclick="selectUsecase(2)" style="cursor:pointer;">
+      <div class="tool-icon">&#128200;</div>
+      <div class="tool-name" style="color:#f7b731;">Data Analyst</div>
+      <div class="tool-desc">Loads a CSV, runs Python analysis, generates charts, and writes an executive summary.</div>
+    </div>
+    <div class="tool-card" id="uc-card-3" onclick="selectUsecase(3)" style="cursor:pointer;">
+      <div class="tool-icon">&#128172;</div>
+      <div class="tool-name" style="color:#51cf66;">Support Bot</div>
+      <div class="tool-desc">Handles customer queries: looks up docs, checks order status, escalates to a specialist agent if needed.</div>
+    </div>
+  </div>
+
+  <canvas id="canvas-usecase-flow" width="700" height="300" style="margin-bottom:12px;"></canvas>
+  <div class="info-panel" id="usecase-detail">Select a use case above to see its event flow and tool breakdown.</div>
+
+  <div class="section-bridge">
     <a class="section-bridge-link" href="#s-concepts">Four Core Primitives &rarr;</a>
   </div>
 </section>
@@ -331,6 +384,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
     <div class="accordion-header" onclick="toggleAcc(this)">How does pausing a session work? <span class="accordion-chevron">&#9660;</span></div>
     <div class="accordion-body">A session can be paused mid-execution — for example when it needs human approval before proceeding, or when waiting for an async external event. The environment is preserved (filesystem, process state). When you resume, the agent picks up from the exact event it paused on, as if nothing happened.</div>
   </div>
+
+  <!-- AGENT RELATIONSHIP DIAGRAM -->
+  <div class="card-title" style="color:#7c6af4;font-size:11px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;margin-top:28px;">Agent → Session → Event: The One-to-Many Relationships</div>
+  <canvas id="canvas-agent-relationship" width="700" height="280" style="margin-bottom:12px;cursor:pointer;"></canvas>
+  <div class="info-panel" id="relationship-detail"><strong>Click any node</strong> to understand the cardinality: how one Agent spawns many Sessions, one Environment serves many Sessions, and each Session produces many Events.</div>
 
   <div class="section-bridge">
     <a class="section-bridge-link" href="#s-architecture">Inside the Architecture &rarr;</a>
@@ -399,6 +457,13 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
     <button class="btn" onclick="resetEventLoop()">&#9654; Run Loop</button>
     <button class="btn-tab" id="btn-pause-loop" onclick="pauseEventLoop()">&#9646;&#9646; Pause</button>
   </div>
+
+  <!-- SESSION REPLAY SCRUBBER -->
+  <div class="card-title" style="color:#f7b731;font-size:11px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;">Session Replay — Drag to Scrub Through a Real Agent Session</div>
+  <p style="font-size:12px;color:var(--muted);margin-bottom:12px;">Task: "Analyze sales_data.csv and find the top 5 products by revenue." Drag the scrubber to move through every event as it happened.</p>
+  <canvas id="canvas-session-replay" width="700" height="180" style="margin-bottom:8px;"></canvas>
+  <input type="range" id="replay-scrubber" min="0" max="10" value="0" oninput="scrubReplay(parseInt(this.value))" style="width:700px;margin-bottom:6px;display:block;">
+  <div class="info-panel" id="replay-detail" style="margin-bottom:24px;font-family:'JetBrains Mono','Courier New',monospace;font-size:11px;min-height:70px;"><strong>Drag the scrubber</strong> to step through each event in the session.</div>
 
   <div class="event-feed" id="event-feed">
     <div class="event-line"><span class="event-ts">00:00:00 </span><span class="event-type">session.created </span><span class="event-data">{ id: "sess_01", agent: "code-reviewer" }</span></div>
@@ -746,6 +811,31 @@ curl -N "https://api.anthropic.com/v1/beta/sessions/sess_xxx/events?stream=true"
   <div class="highlight-box violet">
     <strong>What this enables:</strong> Long-running research agents, automated code review pipelines, multi-step data analysis, parallelized content generation — all without managing your own container infrastructure or building custom session state.
   </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-compare">How Does It Compare? &rarr;</a>
+  </div>
+</section>
+
+<!-- ====== S8: COMPARE ====== -->
+<section class="section" id="s-compare">
+  <div class="section-tag" style="color:#00b4d8">Alternatives Comparison</div>
+  <h2 class="section-title">Managed Agents vs. LangChain vs. AutoGen vs. DIY</h2>
+  <p class="section-sub">If you're already using one of these frameworks, here's exactly where Managed Agents fits and where it differs. Click any cell for the full explanation.</p>
+
+  <canvas id="canvas-compare-matrix" width="700" height="340" style="margin-bottom:12px;cursor:pointer;"></canvas>
+  <div class="info-panel" id="compare-detail"><strong>Click any cell</strong> in the matrix to see a detailed comparison for that feature and framework.</div>
+
+  <div class="grid2" style="margin-top:20px;margin-bottom:24px;">
+    <div class="card">
+      <div class="card-title" style="color:#00b4d8;">When to choose Managed Agents</div>
+      <div class="card-body">Tasks that run for minutes, need real tool execution (shell, files, web), require session persistence, or involve parallel subagents. You want Anthropic to manage the infrastructure so your team can focus on agent logic.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#f7b731;">When to stick with DIY / LangChain</div>
+      <div class="card-body">Tasks that complete in a single round-trip, teams with existing container infrastructure, or cases where you need fine-grained control over every layer of the stack. LangChain excels for rapid prototyping with many model providers.</div>
+    </div>
+  </div>
 </section>
 
 </div><!-- end .main -->
@@ -761,7 +851,7 @@ function pgCheck(){
 document.getElementById('pg-input').addEventListener('keydown',function(e){if(e.key==='Enter')pgCheck();});
 if(sessionStorage.getItem(PG_KEY)==='1'){document.getElementById('pg-gate').style.display='none';}
 
-var sectionIds=['s-overview','s-why-managed','s-concepts','s-architecture','s-event-loop','s-multiagent','s-tools','s-api'];
+var sectionIds=['s-overview','s-why-managed','s-usecases','s-concepts','s-architecture','s-event-loop','s-multiagent','s-tools','s-api','s-compare'];
 function setActive(el,id){
   document.querySelectorAll('.nav-link').forEach(function(n){n.classList.remove('active');});
   el.classList.add('active');
