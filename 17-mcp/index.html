@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Model Context Protocol &#8212; USB-C for AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#c9d1d9;--muted:#8b949e;
+  --accent:#6366f1;--accent2:#818cf8;--accent3:#e0e7ff;
+  --mcp:#6366f1;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+.sidebar{width:240px;min-width:240px;height:100vh;position:sticky;top:0;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:0 0 40px;flex-shrink:0;}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.sidebar-logo-title{font-size:13px;font-weight:700;color:var(--accent2);}
+.sidebar-logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.nav-group-title{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;padding:10px 16px 4px;}
+.nav-link{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;}
+.nav-link:hover,.nav-link.active{color:var(--text);background:rgba(99,102,241,.08);}
+.nav-link.active{color:var(--accent2);}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.main{flex:1;overflow-y:auto;height:100vh;}
+.pipeline-map{position:sticky;top:0;z-index:50;background:rgba(13,17,23,.96);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+.pipe-step{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);padding:2px 6px;border-radius:4px;transition:color .15s;}
+.pipe-step:hover{color:var(--text);}
+.pipe-dot{width:6px;height:6px;border-radius:50%;}
+.pipe-arrow{color:var(--border);font-size:12px;}
+.section{min-height:100vh;padding:60px 48px 80px;border-bottom:1px solid var(--border);}
+.section-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px;}
+.section-title{font-size:28px;font-weight:800;color:var(--text);margin-bottom:8px;line-height:1.25;}
+.section-sub{font-size:14px;color:var(--muted);margin-bottom:28px;max-width:680px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:16px;}
+.card-title{font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px;}
+.card-body{font-size:13px;color:var(--muted);line-height:1.6;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+canvas{display:block;border-radius:10px;background:var(--surface);border:1px solid var(--border);}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s;}
+.btn:hover{opacity:.85;}
+.btn-tab{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-tab.active,.btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+.formula{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-family:'JetBrains Mono','Courier New',monospace;font-size:12px;color:#818cf8;line-height:1.8;margin-bottom:16px;white-space:pre;}
+.stats-row{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:24px;}
+.stat{text-align:center;}
+.stat-val{font-size:28px;font-weight:800;color:var(--accent2);}
+.stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;}
+.section-bridge{margin-top:48px;padding-top:28px;border-top:1px solid var(--border);text-align:right;}
+.section-bridge-link{font-size:12px;color:var(--accent2);font-weight:600;border:1px solid var(--accent2);border-radius:6px;padding:6px 14px;transition:all .15s;}
+.section-bridge-link:hover{background:rgba(99,102,241,.1);}
+.accordion-item{border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+.accordion-header{padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;background:var(--surface);}
+.accordion-header:hover{background:#1c2128;}
+.accordion-chevron{transition:transform .2s;font-size:10px;color:var(--muted);}
+.accordion-body{padding:14px 16px;font-size:12px;color:var(--muted);display:none;border-top:1px solid var(--border);}
+#pg-gate{position:fixed;inset:0;background:#0d1117;z-index:9999;display:flex;align-items:center;justify-content:center;}
+.pg-box{background:#161b22;border:1px solid #30363d;border-radius:16px;padding:40px 48px;max-width:420px;width:100%;text-align:center;}
+.pg-icon{font-size:2.5rem;margin-bottom:16px;}
+.pg-title{font-size:1.3rem;font-weight:800;color:#c9d1d9;margin-bottom:6px;}
+.pg-sub{font-size:12px;color:#8b949e;margin-bottom:24px;}
+.pg-input{width:100%;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:10px 14px;color:#c9d1d9;font-size:14px;outline:none;text-align:center;}
+.pg-input:focus{border-color:#6366f1;}
+.pg-btn{margin-top:12px;width:100%;background:#6366f1;color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;}
+.pg-err{color:#ff6b6b;font-size:11px;margin-top:8px;min-height:16px;}
+.code-block{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-family:'JetBrains Mono','Courier New',monospace;font-size:11px;color:#e2e8f0;line-height:1.7;margin-bottom:16px;overflow-x:auto;}
+.code-block .kw{color:#6366f1;}.code-block .str{color:#51cf66;}.code-block .cm{color:#64748b;}.code-block .fn{color:#818cf8;}.code-block .cls{color:#e0e7ff;}
+.highlight-box{border-left:3px solid var(--accent);padding:12px 16px;background:rgba(99,102,241,.06);border-radius:0 8px 8px 0;margin-bottom:16px;font-size:13px;color:var(--muted);}
+.highlight-box.green{border-color:#51cf66;background:rgba(81,207,102,.06);}
+.highlight-box.red{border-color:#ff6b6b;background:rgba(255,107,107,.06);}
+.highlight-box.amber{border-color:#f59e0b;background:rgba(245,158,11,.06);}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;background:var(--border);border-radius:4px;outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;}
+.slider-row{display:flex;gap:12px;align-items:center;margin-bottom:16px;}
+.slider-lbl{font-size:11px;color:var(--muted);min-width:120px;}
+.slider-val{font-size:12px;font-weight:700;color:var(--accent2);min-width:40px;}
+.info-panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-top:12px;font-size:13px;color:var(--muted);min-height:80px;}
+.info-panel strong{color:var(--text);}
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-right:4px;}
+.badge-indigo{background:rgba(99,102,241,.2);color:#818cf8;}
+.badge-teal{background:rgba(0,206,201,.2);color:#00cec9;}
+.badge-mint{background:rgba(81,207,102,.2);color:#51cf66;}
+.badge-amber{background:rgba(245,158,11,.2);color:#f59e0b;}
+.badge-coral{background:rgba(255,107,107,.2);color:#ff6b6b;}
+/* SCROLL PROGRESS */
+#scroll-progress{position:fixed;top:0;left:0;height:2px;background:var(--accent);z-index:9998;transition:width .1s;}
+</style>
+</head>
+<body>
+
+<div id="pg-gate">
+  <div class="pg-box">
+    <div class="pg-icon">&#128279;</div>
+    <div class="pg-title">Model Context Protocol</div>
+    <div class="pg-sub">The open standard for connecting AI to the world &#8212; Anthropic, Nov 2024</div>
+    <input class="pg-input" id="pg-input" type="password" placeholder="Enter password" onkeydown="if(event.key==='Enter')pgCheck()">
+    <button class="pg-btn" onclick="pgCheck()">Unlock</button>
+    <div class="pg-err" id="pg-err"></div>
+  </div>
+</div>
+
+<script>
+var PG_PASSWORD='visual2025';var PG_KEY='pg_unlocked_17';
+function pgCheck(){var v=document.getElementById('pg-input').value.trim();if(v===PG_PASSWORD){sessionStorage.setItem(PG_KEY,'1');document.getElementById('pg-gate').style.display='none';document.getElementById('pg-main').style.display='flex';initAll();}else{document.getElementById('pg-err').textContent='Incorrect password.';}}
+if(sessionStorage.getItem(PG_KEY)==='1'){document.getElementById('pg-gate').style.display='none';}
+</script>
+
+<div id="scroll-progress"></div>
+<div id="pg-main" style="display:none;width:100%;">
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-title">Model Context Protocol</div>
+    <div class="sidebar-logo-sub">Anthropic &#8226; Open Standard &#8226; Nov 2024</div>
+  </div>
+  <div class="nav-group-title">The Problem</div>
+    <a class="nav-link" href="#s-problem" onclick="setActive(this)"><span class="dot" style="background:#f59e0b"></span>N&#xD7;M Integration Mess</a>
+  <div class="nav-group-title">The Protocol</div>
+    <a class="nav-link" href="#s-overview" onclick="setActive(this)"><span class="dot" style="background:#6366f1"></span>USB-C for AI</a>
+    <a class="nav-link" href="#s-architecture" onclick="setActive(this)"><span class="dot" style="background:#00cec9"></span>Three-Role Architecture</a>
+  <div class="nav-group-title">Under the Hood</div>
+    <a class="nav-link" href="#s-lifecycle" onclick="setActive(this)"><span class="dot" style="background:#74c0fc"></span>Lifecycle &amp; Negotiation</a>
+    <a class="nav-link" href="#s-primitives" onclick="setActive(this)"><span class="dot" style="background:#51cf66"></span>Tools, Resources &amp; Prompts</a>
+  <div class="nav-group-title">Deployment</div>
+    <a class="nav-link" href="#s-transport" onclick="setActive(this)"><span class="dot" style="background:#ff6b6b"></span>Local vs Remote Transport</a>
+    <a class="nav-link" href="#s-ecosystem" onclick="setActive(this)"><span class="dot" style="background:#a78bfa"></span>The Ecosystem</a>
+</nav>
+
+<!-- MAIN -->
+<div class="main" id="main-scroll">
+
+<!-- PIPELINE MAP -->
+<div class="pipeline-map">
+  <span class="pipe-step"><span class="pipe-dot" style="background:#f59e0b"></span>Problem</span>
+  <span class="pipe-arrow">&#8250;</span>
+  <span class="pipe-step"><span class="pipe-dot" style="background:#6366f1"></span>Overview</span>
+  <span class="pipe-arrow">&#8250;</span>
+  <span class="pipe-step"><span class="pipe-dot" style="background:#00cec9"></span>Architecture</span>
+  <span class="pipe-arrow">&#8250;</span>
+  <span class="pipe-step"><span class="pipe-dot" style="background:#74c0fc"></span>Lifecycle</span>
+  <span class="pipe-arrow">&#8250;</span>
+  <span class="pipe-step"><span class="pipe-dot" style="background:#51cf66"></span>Primitives</span>
+  <span class="pipe-arrow">&#8250;</span>
+  <span class="pipe-step"><span class="pipe-dot" style="background:#ff6b6b"></span>Transport</span>
+  <span class="pipe-arrow">&#8250;</span>
+  <span class="pipe-step"><span class="pipe-dot" style="background:#a78bfa"></span>Ecosystem</span>
+</div>
+
+<!-- SECTION 1: THE PROBLEM -->
+<section class="section" id="s-problem">
+  <div class="section-tag" style="color:#f59e0b;">&#8226; The Problem &bull; ~12 min read</div>
+  <h1 class="section-title">The N&times;M Integration Mess</h1>
+  <p class="section-sub">Every AI system that needs to connect to external data must build a custom connector. N AI apps &times; M data sources = N&times;M bespoke integrations. No standards, no reuse, no ecosystem.</p>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val" style="color:#f59e0b;">N&times;M</div><div class="stat-lbl">Custom integrations</div></div>
+    <div class="stat"><div class="stat-val" style="color:#f59e0b;">Nov 2024</div><div class="stat-lbl">MCP released</div></div>
+    <div class="stat"><div class="stat-val" style="color:#f59e0b;">Open</div><div class="stat-lbl">Source &amp; standard</div></div>
+    <div class="stat"><div class="stat-val" style="color:#f59e0b;">15k+</div><div class="stat-lbl">GitHub stars</div></div>
+  </div>
+
+  <canvas id="canvas-problem" width="700" height="320" style="margin-bottom:20px;"></canvas>
+
+  <div class="highlight-box amber">
+    <strong>The core problem:</strong> Even the most capable frontier models are limited by information silos. Connecting Claude to your Postgres database requires writing custom code. Connecting it to Slack requires different custom code. Connecting it to GitHub requires yet more custom code. There is no standard.
+  </div>
+
+  <div class="grid3" style="margin-bottom:20px;">
+    <div class="card">
+      <div class="card-title" style="color:#f59e0b;">No Reuse</div>
+      <div class="card-body">A Slack connector for Claude cannot be reused for ChatGPT. Every team rebuilds the same thing from scratch.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#f59e0b;">Security Gaps</div>
+      <div class="card-body">Each custom integration has unique auth flows, permission models, and attack surfaces — multiplying audit burden.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#f59e0b;">Fragile Context</div>
+      <div class="card-body">When an agent switches tools or data sources mid-task, it loses context. No standard for handing off state.</div>
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">Why didn't function calling solve this? <span class="accordion-chevron">&#9660;</span></div>
+    <div class="accordion-body">Function calling (tool use) lets an LLM invoke a function — but who defines the function, how it authenticates, and where it runs is still custom per-integration. MCP standardizes the <em>protocol</em> around tools, not just the LLM's ability to call them.</div>
+  </div>
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">What about LangChain / LlamaIndex connectors? <span class="accordion-chevron">&#9660;</span></div>
+    <div class="accordion-body">Framework-specific connectors (LangChain tools, LlamaIndex loaders) are excellent — but they only work within that framework. A LangChain tool cannot be directly used by a Claude Desktop session or a VS Code Copilot agent. MCP aims to be model- and framework-agnostic.</div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-overview">The solution: a standard protocol &#8594;</a>
+  </div>
+</section>
+
+<!-- SECTION 2: OVERVIEW -->
+<section class="section" id="s-overview">
+  <div class="section-tag" style="color:#6366f1;">&#8226; The Protocol</div>
+  <h1 class="section-title">MCP: USB-C for AI</h1>
+  <p class="section-sub">Model Context Protocol is an open standard that defines how AI applications connect to external data sources and tools. One protocol. Build once, integrate everywhere.</p>
+
+  <canvas id="canvas-usbc" width="700" height="280" style="margin-bottom:20px;"></canvas>
+
+  <div class="highlight-box">
+    <strong>The USB-C analogy:</strong> USB-C provides a standardized physical and electrical interface so any device can connect to any peripheral. MCP provides a standardized software interface so any AI host can connect to any MCP server — regardless of which LLM powers the host or what system the server exposes.
+  </div>
+
+  <div class="grid2" style="margin-bottom:20px;">
+    <div class="card">
+      <div class="card-title" style="color:#6366f1;">For Developers</div>
+      <div class="card-body">Build one MCP server for your database. It works with Claude, ChatGPT, VS Code Copilot, Cursor — any MCP host. No per-integration work.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#6366f1;">For AI Applications</div>
+      <div class="card-body">Access a growing ecosystem of pre-built MCP servers for Google Drive, Slack, GitHub, Postgres, and more — instantly, with no custom code.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#6366f1;">For End Users</div>
+      <div class="card-body">AI assistants that can actually access your data and take actions on your behalf — your calendar, your files, your databases, your workflows.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#6366f1;">Open Standard</div>
+      <div class="card-body">MCP is fully open-source (MIT). Anthropic created it but doesn't own it. Any company can implement it, extend it, or build tooling around it.</div>
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">Who uses MCP today? <span class="accordion-chevron">&#9660;</span></div>
+    <div class="accordion-body">Claude (Anthropic), ChatGPT (OpenAI), VS Code (Microsoft), Cursor, Zed, Replit, Codeium, Sourcegraph, Block, Apollo, and many more. The ecosystem grew rapidly after the Nov 2024 release.</div>
+  </div>
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">Is MCP just for Claude? <span class="accordion-chevron">&#9660;</span></div>
+    <div class="accordion-body">No. Anthropic created MCP, but it is deliberately model-agnostic and fully open. OpenAI, Microsoft, and many other companies have adopted it. The goal is universal adoption, not lock-in.</div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-architecture">Who talks to whom? &#8594;</a>
+  </div>
+</section>
+
+<!-- SECTION 3: ARCHITECTURE -->
+<section class="section" id="s-architecture">
+  <div class="section-tag" style="color:#00cec9;">&#8226; The Architecture</div>
+  <h1 class="section-title">Three Roles, One Protocol</h1>
+  <p class="section-sub">MCP has three distinct roles: the Host (AI application), the Client (connection manager inside the host), and the Server (the thing that exposes data/tools). The protocol defines how all three interact.</p>
+
+  <canvas id="canvas-arch" width="700" height="380" style="margin-bottom:12px;"></canvas>
+  <div class="info-panel" id="arch-info">Hover over a component to learn about its role in the MCP architecture.</div>
+
+  <div class="grid3" style="margin-top:16px;margin-bottom:20px;">
+    <div class="card">
+      <div class="card-title" style="color:#00cec9;">MCP Host</div>
+      <div class="card-body">The AI application — Claude Desktop, VS Code, your custom agent. The Host coordinates one or more MCP Clients and owns the conversation with the LLM.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#74c0fc;">MCP Client</div>
+      <div class="card-body">One Client per Server connection, created by the Host. The Client maintains the dedicated connection and handles protocol-level communication with its Server.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#a78bfa;">MCP Server</div>
+      <div class="card-body">A program exposing tools, resources, and prompts. It can run locally (on the same machine) or remotely (on Sentry's servers, for example). It doesn't know which LLM is behind the Host.</div>
+    </div>
+  </div>
+
+  <div class="formula">MCP Host (VS Code)
+  ├── MCP Client 1  ──[stdio]──&gt;  MCP Server: Filesystem (local)
+  ├── MCP Client 2  ──[stdio]──&gt;  MCP Server: Database   (local)
+  └── MCP Client 3  ──[HTTP]──&gt;   MCP Server: Sentry     (remote)</div>
+
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">Why is there a Client between Host and Server? <span class="accordion-chevron">&#9660;</span></div>
+    <div class="accordion-body">The Client is the dedicated connection object for one server. A Host connecting to 5 servers creates 5 independent Clients — each managing its own connection lifecycle, capability set, and message stream. This isolation means a crashed Server only affects its Client, not the entire Host.</div>
+  </div>
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">Can one Server serve many Clients? <span class="accordion-chevron">&#9660;</span></div>
+    <div class="accordion-body">Yes, for remote servers (Streamable HTTP transport). A Sentry MCP server running on Sentry's infrastructure can serve hundreds of VS Code instances simultaneously. Local servers (stdio) typically serve one Client at a time since they're spawned as child processes.</div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-lifecycle">How does a connection begin? &#8594;</a>
+  </div>
+</section>
+
+<!-- SECTION 4: LIFECYCLE -->
+<section class="section" id="s-lifecycle">
+  <div class="section-tag" style="color:#74c0fc;">&#8226; Under the Hood</div>
+  <h1 class="section-title">Connect, Negotiate, Use</h1>
+  <p class="section-sub">Every MCP session follows a defined lifecycle: initialize, negotiate capabilities, then exchange messages. The protocol is JSON-RPC 2.0 — simple request/response with notification support.</p>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="tab-init" onclick="setLifecycleTab('init')">1. Initialize</button>
+    <button class="btn-tab" id="tab-discover" onclick="setLifecycleTab('discover')">2. Discover Tools</button>
+    <button class="btn-tab" id="tab-call" onclick="setLifecycleTab('call')">3. Call Tool</button>
+    <button class="btn-tab" id="tab-notify" onclick="setLifecycleTab('notify')">4. Notifications</button>
+  </div>
+
+  <canvas id="canvas-lifecycle" width="700" height="300" style="margin-bottom:12px;"></canvas>
+  <div class="info-panel" id="lifecycle-info">
+    <strong>Initialization</strong> — The client sends an <code>initialize</code> request with its capabilities. The server responds with its own capabilities. Both parties now know what the other supports.
+  </div>
+
+  <div class="highlight-box">
+    <strong>Capability negotiation</strong> is MCP's handshake. The client declares what it can do (e.g., "I support elicitation"), and the server declares what it exposes (e.g., "I have tools and resources, and I'll notify you if my tool list changes"). Neither side sends unsupported messages after this.
+  </div>
+
+  <div class="formula">// JSON-RPC 2.0 Initialize Request
+{
+  "jsonrpc": "2.0", "id": 1,
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "2025-06-18",
+    "capabilities": { "elicitation": {} },
+    "clientInfo": { "name": "claude-desktop", "version": "1.0.0" }
+  }
+}
+
+// Server Response
+{
+  "jsonrpc": "2.0", "id": 1,
+  "result": {
+    "capabilities": { "tools": { "listChanged": true }, "resources": {} },
+    "serverInfo": { "name": "filesystem-server", "version": "1.0.0" }
+  }
+}</div>
+
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">What is JSON-RPC 2.0? <span class="accordion-chevron">&#9660;</span></div>
+    <div class="accordion-body">A lightweight remote procedure call protocol using JSON. Every request has a <code>method</code>, optional <code>params</code>, and an <code>id</code> for matching responses. Notifications have no <code>id</code> and expect no response. MCP uses JSON-RPC 2.0 for all data layer communication.</div>
+  </div>
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">Is MCP stateful or stateless? <span class="accordion-chevron">&#9660;</span></div>
+    <div class="accordion-body">MCP is fundamentally stateful — connections have lifecycle, and capability negotiation state persists for the session. However, a subset of MCP can be made stateless using the Streamable HTTP transport, which is useful for serverless deployments.</div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-primitives">What can a server expose? &#8594;</a>
+  </div>
+</section>
+
+<!-- SECTION 5: PRIMITIVES -->
+<section class="section" id="s-primitives">
+  <div class="section-tag" style="color:#51cf66;">&#8226; Server Primitives</div>
+  <h1 class="section-title">Tools, Resources &amp; Prompts</h1>
+  <p class="section-sub">MCP servers expose three kinds of primitives. Each has a different role: Tools are executable actions, Resources are readable data, and Prompts are reusable interaction templates.</p>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="prim-tab-tools" onclick="setPrimTab('tools')">Tools</button>
+    <button class="btn-tab" id="prim-tab-resources" onclick="setPrimTab('resources')">Resources</button>
+    <button class="btn-tab" id="prim-tab-prompts" onclick="setPrimTab('prompts')">Prompts</button>
+    <button class="btn-tab" id="prim-tab-client" onclick="setPrimTab('client')">Client Primitives</button>
+  </div>
+
+  <canvas id="canvas-primitives" width="700" height="340" style="margin-bottom:12px;"></canvas>
+  <div class="info-panel" id="primitives-info">
+    <strong>Tools</strong> are executable functions the AI can invoke. Examples: <code>query_database</code>, <code>fetch_url</code>, <code>send_email</code>. Each tool has a name, description, and JSON Schema for its input parameters. The LLM decides when to call them; the user can approve.
+  </div>
+
+  <div class="formula" id="prim-formula">// tools/list response (excerpt)
+{
+  "tools": [{
+    "name": "query_database",
+    "description": "Execute a SQL SELECT query against the connected database",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": { "type": "string", "description": "SQL query to execute" }
+      },
+      "required": ["query"]
+    }
+  }]
+}</div>
+
+  <div class="grid3" style="margin-bottom:20px;">
+    <div class="card">
+      <div class="card-title" style="color:#51cf66;">Discovery</div>
+      <div class="card-body">Clients call <code>*/list</code> to discover primitives: <code>tools/list</code>, <code>resources/list</code>, <code>prompts/list</code>. Lists can be dynamic — servers notify when they change.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#51cf66;">Execution</div>
+      <div class="card-body">Tools are invoked with <code>tools/call</code>. Resources are read with <code>resources/read</code>. Prompts are fetched with <code>prompts/get</code>.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#51cf66;">Bidirectional</div>
+      <div class="card-body">Clients also expose primitives. Servers can call <code>sampling/complete</code> to ask the host LLM for a completion, or <code>elicitation/request</code> to ask the user for input.</div>
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">What's the difference between Tools and Resources? <span class="accordion-chevron">&#9660;</span></div>
+    <div class="accordion-body">Tools are <em>executable</em> — they perform actions (query DB, call API, send email). Resources are <em>readable</em> — they provide context data (the DB schema, a file's contents, an API response). The distinction matters: the LLM invokes tools, but reads resources as background context.</div>
+  </div>
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">What is Sampling, and why is it powerful? <span class="accordion-chevron">&#9660;</span></div>
+    <div class="accordion-body">Sampling lets an MCP server ask the host LLM for a completion without needing its own LLM SDK or API key. A server can say "given this context, what should I do next?" — and the host's LLM answers. This enables server-side intelligence that stays model-agnostic.</div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-transport">How do messages travel? &#8594;</a>
+  </div>
+</section>
+
+<!-- SECTION 6: TRANSPORT -->
+<section class="section" id="s-transport">
+  <div class="section-tag" style="color:#ff6b6b;">&#8226; Transport Layer</div>
+  <h1 class="section-title">Local vs Remote Transport</h1>
+  <p class="section-sub">The transport layer is how bytes move between client and server. MCP defines two: stdio for local processes, and Streamable HTTP for remote services. Same JSON-RPC protocol, different wires.</p>
+
+  <div class="btn-row">
+    <button class="btn-tab active" id="transport-tab-stdio" onclick="setTransportTab('stdio')">stdio (Local)</button>
+    <button class="btn-tab" id="transport-tab-http" onclick="setTransportTab('http')">Streamable HTTP (Remote)</button>
+  </div>
+
+  <canvas id="canvas-transport" width="700" height="300" style="margin-bottom:12px;"></canvas>
+  <div class="info-panel" id="transport-info">
+    <strong>stdio transport</strong> — The Host spawns the MCP Server as a child process. They communicate over stdin/stdout. Zero network overhead, maximum performance. Used for local servers like the filesystem server, database server, or any server running on the same machine.
+  </div>
+
+  <div class="grid2" style="margin-bottom:20px;">
+    <div class="card">
+      <div class="card-title" style="color:#ff6b6b;">stdio Transport</div>
+      <div class="card-body">Host spawns Server as child process. Communicates via stdin/stdout. <br><br>Best for: local tools (filesystem, DB, shell), developer workflows, private data. <br><br>One server instance per client connection.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#ff6b6b;">Streamable HTTP</div>
+      <div class="card-body">Client sends HTTP POST to server endpoint. Server can respond with SSE stream for long-running operations. <br><br>Best for: SaaS integrations (Sentry, GitHub, Slack), shared infrastructure, remote teams. <br><br>One server serves many clients.</div>
+    </div>
+  </div>
+
+  <div class="formula">// stdio: server spawned as child process
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/home/user"]
+    }
+  }
+}
+
+// Streamable HTTP: remote endpoint
+{
+  "mcpServers": {
+    "sentry": {
+      "url": "https://mcp.sentry.io/mcp",
+      "headers": { "Authorization": "Bearer &lt;token&gt;" }
+    }
+  }
+}</div>
+
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">What is SSE and why does HTTP transport use it? <span class="accordion-chevron">&#9660;</span></div>
+    <div class="accordion-body">Server-Sent Events (SSE) is a one-way HTTP stream from server to client. For long-running tool calls (e.g., a database query that takes 10 seconds), SSE lets the server stream progress updates and the final result without the client polling. The initial request is HTTP POST; the streaming response is SSE.</div>
+  </div>
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">How does auth work for remote servers? <span class="accordion-chevron">&#9660;</span></div>
+    <div class="accordion-body">Streamable HTTP supports standard HTTP auth: bearer tokens, API keys, or custom headers. MCP recommends OAuth 2.0 for user-delegated access. Local stdio servers typically inherit the shell environment's credentials (env vars, config files).</div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-ecosystem">What's already been built? &#8594;</a>
+  </div>
+</section>
+
+<!-- SECTION 7: ECOSYSTEM -->
+<section class="section" id="s-ecosystem">
+  <div class="section-tag" style="color:#a78bfa;">&#8226; The Ecosystem &bull; What This Means</div>
+  <h1 class="section-title">The MCP Ecosystem</h1>
+  <p class="section-sub">From a Nov 2024 Anthropic release to a cross-industry standard in months. Pre-built servers for every major system. Clients in every major AI app. The N&times;M problem becomes N+M.</p>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val" style="color:#a78bfa;">N+M</div><div class="stat-lbl">Integrations needed</div></div>
+    <div class="stat"><div class="stat-val" style="color:#a78bfa;">15+</div><div class="stat-lbl">Official servers</div></div>
+    <div class="stat"><div class="stat-val" style="color:#a78bfa;">1000+</div><div class="stat-lbl">Community servers</div></div>
+    <div class="stat"><div class="stat-val" style="color:#a78bfa;">Free</div><div class="stat-lbl">MIT license</div></div>
+  </div>
+
+  <canvas id="canvas-ecosystem" width="700" height="340" style="margin-bottom:20px;"></canvas>
+
+  <div class="highlight-box" style="border-color:#a78bfa;background:rgba(167,139,250,.06);">
+    <strong>The N&times;M to N+M shift:</strong> Before MCP, connecting 5 AI apps to 10 data sources required 50 custom integrations. With MCP, each AI app implements MCP once (N implementations) and each data source builds one MCP server (M servers). Total work: N+M instead of N&times;M.
+  </div>
+
+  <div class="grid3" style="margin-bottom:20px;">
+    <div class="card">
+      <div class="card-title" style="color:#a78bfa;">Official Servers</div>
+      <div class="card-body">Anthropic ships reference servers for: Google Drive, Slack, GitHub, Git, Postgres, SQLite, Puppeteer, Fetch, Memory, Filesystem, and more.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#a78bfa;">MCP Clients</div>
+      <div class="card-body">Claude Desktop, Claude Code, ChatGPT, VS Code Copilot, Cursor, Zed, Replit, Codeium, Sourcegraph, and dozens more all support MCP.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#a78bfa;">SDKs</div>
+      <div class="card-body">Official SDKs in Python, TypeScript, Java, Kotlin, C#, Swift, and Ruby. Build your server in the language you already use.</div>
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">How do I build my own MCP server? <span class="accordion-chevron">&#9660;</span></div>
+    <div class="accordion-body">Pick an SDK (Python or TypeScript are most popular), define your tools/resources/prompts, and run it. A minimal weather server in Python with the MCP SDK is ~50 lines. The SDK handles all protocol-level concerns (lifecycle, JSON-RPC, transport).</div>
+  </div>
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">What is the MCP Inspector? <span class="accordion-chevron">&#9660;</span></div>
+    <div class="accordion-body">An official debugging tool (open-source) for MCP servers. Connect it to any server and explore its tools, resources, and prompts interactively. Essential for development and testing before wiring a server into a production AI host.</div>
+  </div>
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">Will MCP replace existing frameworks? <span class="accordion-chevron">&#9660;</span></div>
+    <div class="accordion-body">MCP is a protocol, not a framework. LangChain, LlamaIndex, and similar tools are orchestration frameworks. They are complementary — frameworks can use MCP servers as tool sources. MCP focuses solely on the protocol for context exchange; it doesn't dictate how AI applications manage conversation flow or orchestration logic.</div>
+  </div>
+</section>
+
+</div><!-- end .main -->
+</div><!-- end #pg-main -->
+
+<script>
+// NAV + SCROLL UTILS
+var sectionIds=['s-problem','s-overview','s-architecture','s-lifecycle','s-primitives','s-transport','s-ecosystem'];
+function setActive(el){document.querySelectorAll('.nav-link').forEach(function(n){n.classList.remove('active');});el.classList.add('active');}
+function updateNavOnScroll(){
+  var scroll=document.getElementById('main-scroll');
+  if(!scroll)return;
+  var st=scroll.scrollTop,wh=scroll.clientHeight;
+  var best=null,bestY=Infinity;
+  sectionIds.forEach(function(id){var s=document.getElementById(id);if(!s)return;var y=s.getBoundingClientRect().top;if(y>=0&&y<bestY){bestY=y;best=id;}});
+  if(!best){var maxVis=-Infinity;sectionIds.forEach(function(id){var s=document.getElementById(id);if(!s)return;var r=s.getBoundingClientRect();if(r.top<wh&&r.bottom>0){var v=Math.min(r.bottom,wh)-Math.max(r.top,0);if(v>maxVis){maxVis=v;best=id;}}});}
+  if(best){document.querySelectorAll('.nav-link').forEach(function(n){var h=n.getAttribute('href');n.classList.toggle('active',h==='#'+best);});}
+  var total=scroll.scrollHeight-scroll.clientHeight;
+  var pct=total>0?Math.min(100,Math.round(st/total*100)):0;
+  var prog=document.getElementById('scroll-progress');if(prog)prog.style.width=pct+'%';
+}
+document.getElementById('main-scroll').addEventListener('scroll',updateNavOnScroll);
+
+// ACCORDION
+function toggleAcc(header){
+  var body=header.nextElementSibling;
+  var chev=header.querySelector('.accordion-chevron');
+  var open=body.style.display==='block';
+  body.style.display=open?'none':'block';
+  if(chev)chev.style.transform=open?'':'rotate(180deg)';
+}
+
+function initAll(){
+  updateNavOnScroll();
+  animateProblem();
+  animateUsbc();
+  animateArch();
+  initLifecycle();
+  initPrimitives();
+  initTransport();
+  animateEcosystem();
+}
+if(sessionStorage.getItem('pg_unlocked_17')==='1'){
+  document.getElementById('pg-main').style.display='flex';
+  window.addEventListener('DOMContentLoaded',function(){initAll();});
+}
+
+// ===== UTILITIES =====
+function lerp(a,b,t){return a+(b-a)*t;}
+function easeInOut(t){return t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2;}
+function drawRoundedRect(ctx,x,y,w,h,r,fill,stroke){
+  ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);
+  ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
+  if(fill){ctx.fillStyle=fill;ctx.fill();}
+  if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1.5;ctx.stroke();}
+}
+function seededRand(seed){var x=Math.sin(seed+1)*10000;return x-Math.floor(x);}
+
+// ===== S1: PROBLEM CANVAS =====
+var problemAnimHandle=null;
+var problemT=0;
+function animateProblem(){
+  var canvas=document.getElementById('canvas-problem');
+  if(!canvas)return;
+  var ctx=canvas.getContext('2d');
+  problemT=0;
+  function frame(){
+    drawProblem(ctx,canvas.width,canvas.height,problemT);
+    problemT=Math.min(1,problemT+0.008);
+    if(problemT<1){problemAnimHandle=requestAnimationFrame(frame);}
+    else{
+      // keep drawing slowly pulsing
+      problemAnimHandle=requestAnimationFrame(function(){
+        problemT+=0.005;
+        drawProblem(ctx,canvas.width,canvas.height,problemT);
+        problemAnimHandle=requestAnimationFrame(arguments.callee);
+      });
+    }
+  }
+  requestAnimationFrame(frame);
+}
+function drawProblem(ctx,W,H,t){
+  ctx.clearRect(0,0,W,H);
+  var bg='#161b22';ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+  // LEFT side: AI Apps
+  var apps=[
+    {name:'Claude',color:'#f59e0b',y:60},
+    {name:'ChatGPT',color:'#10b981',y:130},
+    {name:'VS Code',color:'#74c0fc',y:200},
+    {name:'Cursor',color:'#a78bfa',y:270}
+  ];
+  // RIGHT side: Data Sources
+  var sources=[
+    {name:'GitHub',color:'#6366f1',y:45},
+    {name:'Slack',color:'#f59e0b',y:100},
+    {name:'Postgres',color:'#4a9eff',y:155},
+    {name:'Drive',color:'#51cf66',y:210},
+    {name:'Notion',color:'#c9d1d9',y:265}
+  ];
+  var lx=90,rx=580,midX=W/2;
+  // Draw connections (N*M web, faded red)
+  apps.forEach(function(a){
+    sources.forEach(function(s){
+      var p=Math.min(1,(t-0.1)*2.5);
+      if(p<=0)return;
+      ctx.beginPath();
+      ctx.moveTo(lx+40,a.y);
+      var cp1x=midX,cp1y=a.y,cp2x=midX,cp2y=s.y;
+      ctx.bezierCurveTo(cp1x,cp1y,cp2x,cp2y,rx-40,s.y);
+      ctx.strokeStyle='rgba(255,107,107,'+(0.12*p)+')';
+      ctx.lineWidth=1;ctx.stroke();
+    });
+  });
+  // BEFORE/AFTER label
+  ctx.fillStyle='#8b949e';ctx.font='700 10px Inter';ctx.textAlign='center';
+  ctx.fillText('BEFORE MCP',W/2,16);
+  ctx.fillStyle='rgba(255,107,107,0.6)';ctx.font='700 9px Inter';
+  ctx.fillText('N\u00D7M custom integrations = fragile, no reuse',W/2,30);
+  // Draw AI app boxes
+  apps.forEach(function(a,i){
+    var p=Math.min(1,t*4-i*0.3);if(p<=0)return;
+    drawRoundedRect(ctx,lx-40,a.y-16,80,32,6,'rgba(22,27,34,0.95)',a.color+'88');
+    ctx.fillStyle=a.color;ctx.font='700 11px Inter';ctx.textAlign='center';
+    ctx.globalAlpha=p;
+    ctx.fillText(a.name,lx,a.y+4);
+    ctx.globalAlpha=1;
+  });
+  // Draw source boxes
+  sources.forEach(function(s,i){
+    var p=Math.min(1,t*4-i*0.3);if(p<=0)return;
+    drawRoundedRect(ctx,rx-40,s.y-16,80,32,6,'rgba(22,27,34,0.95)',s.color+'88');
+    ctx.fillStyle=s.color;ctx.font='700 11px Inter';ctx.textAlign='center';
+    ctx.globalAlpha=p;
+    ctx.fillText(s.name,rx,s.y+4);
+    ctx.globalAlpha=1;
+  });
+  // Chaos label
+  if(t>0.6){
+    var a=Math.min(1,(t-0.6)*4);
+    ctx.globalAlpha=a*0.85;
+    drawRoundedRect(ctx,W/2-70,H/2-22,140,44,8,'rgba(255,107,107,0.15)','#ff6b6b88');
+    ctx.fillStyle='#ff6b6b';ctx.font='700 13px Inter';ctx.textAlign='center';
+    ctx.fillText('20 custom connectors',W/2,H/2-4);
+    ctx.fillStyle='#8b949e';ctx.font='11px Inter';
+    ctx.fillText('4 apps \u00D7 5 sources',W/2,H/2+14);
+    ctx.globalAlpha=1;
+  }
+  // Labels
+  ctx.fillStyle='#8b949e';ctx.font='10px Inter';ctx.textAlign='center';
+  ctx.fillText('AI Apps',lx,H-12);
+  ctx.fillText('Data Sources',rx,H-12);
+}
+
+// ===== S2: USB-C CANVAS =====
+var usbcT=0;
+function animateUsbc(){
+  var canvas=document.getElementById('canvas-usbc');
+  if(!canvas)return;
+  var ctx=canvas.getContext('2d');
+  usbcT=0;
+  function frame(){
+    drawUsbc(ctx,canvas.width,canvas.height,usbcT);
+    usbcT+=0.012;
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+function drawUsbc(ctx,W,H,t){
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+  var cx=W/2,cy=H/2;
+  // Central MCP hub
+  var hubR=36;
+  var glow=Math.sin(t*1.5)*0.15+0.85;
+  ctx.beginPath();ctx.arc(cx,cy,hubR+8,0,Math.PI*2);
+  ctx.fillStyle='rgba(99,102,241,0.12)';ctx.fill();
+  ctx.beginPath();ctx.arc(cx,cy,hubR,0,Math.PI*2);
+  ctx.fillStyle='rgba(99,102,241,0.25)';ctx.fill();
+  ctx.beginPath();ctx.arc(cx,cy,hubR,0,Math.PI*2);
+  ctx.strokeStyle='#6366f1';ctx.lineWidth=2;ctx.stroke();
+  ctx.fillStyle='#818cf8';ctx.font='700 11px Inter';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('MCP',cx,cy-5);
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter';
+  ctx.fillText('Protocol',cx,cy+8);
+  ctx.textBaseline='alphabetic';
+  // AI Hosts (left)
+  var hosts=[
+    {name:'Claude',color:'#f59e0b',angle:Math.PI*1.15},
+    {name:'ChatGPT',color:'#10b981',angle:Math.PI},
+    {name:'VS Code',color:'#74c0fc',angle:Math.PI*0.85}
+  ];
+  // Servers (right)
+  var servers=[
+    {name:'GitHub',color:'#6366f1',angle:Math.PI*0.1},
+    {name:'Postgres',color:'#4a9eff',angle:Math.PI*0.0},
+    {name:'Slack',color:'#f59e0b',angle:Math.PI*1.9},
+    {name:'Drive',color:'#51cf66',angle:Math.PI*1.8}
+  ];
+  var dist=130;
+  function drawNode(angle,name,color,isHost){
+    var nx=cx+Math.cos(angle)*dist;
+    var ny=cy+Math.sin(angle)*dist;
+    // animated packet along spoke
+    var phase=((t*0.7+angle)*0.5)%1;
+    var px,py;
+    if(isHost){px=lerp(nx,cx,phase);py=lerp(ny,cy,phase);}
+    else{px=lerp(cx,nx,phase);py=lerp(cy,ny,phase);}
+    // spoke
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(nx,ny);
+    ctx.strokeStyle=color+'44';ctx.lineWidth=1.5;ctx.stroke();
+    // packet
+    ctx.beginPath();ctx.arc(px,py,3.5,0,Math.PI*2);
+    ctx.fillStyle=color;ctx.fill();
+    // node
+    drawRoundedRect(ctx,nx-30,ny-14,60,28,6,'#161b22',color+'99');
+    ctx.fillStyle=color;ctx.font='700 10px Inter';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(name,nx,ny);
+    ctx.textBaseline='alphabetic';
+  }
+  hosts.forEach(function(h){drawNode(h.angle,h.name,h.color,true);});
+  servers.forEach(function(s){drawNode(s.angle,s.name,s.color,false);});
+  // Labels
+  ctx.fillStyle='#8b949e';ctx.font='10px Inter';ctx.textAlign='center';
+  ctx.fillText('AI Hosts',cx-dist-10,H-15);
+  ctx.fillText('MCP Servers',cx+dist-10,H-15);
+  // N+M label
+  ctx.fillStyle='#51cf66';ctx.font='700 12px Inter';ctx.textAlign='center';
+  ctx.fillText('N + M connections (not N\u00D7M)',cx,H-15);
+}
+
+// ===== S3: ARCHITECTURE CANVAS =====
+var archHovered=null;
+var archAnimHandle=null;
+var archT=0;
+var archPackets=[];
+function initArchPackets(){
+  archPackets=[];
+  var routes=[
+    {from:{x:160,y:140},to:{x:370,y:140},color:'#74c0fc',speed:0.007},
+    {from:{x:370,y:140},to:{x:580,y:100},color:'#00cec9',speed:0.009},
+    {from:{x:370,y:140},to:{x:580,y:180},color:'#a78bfa',speed:0.006},
+    {from:{x:580,y:100},to:{x:370,y:140},color:'#51cf66',speed:0.008,ret:true},
+    {from:{x:370,y:140},to:{x:160,y:140},color:'#51cf66',speed:0.007,ret:true}
+  ];
+  routes.forEach(function(r,i){
+    archPackets.push({from:r.from,to:r.to,color:r.color,t:seededRand(i)*1,speed:r.speed,ret:r.ret||false});
+  });
+}
+function animateArch(){
+  var canvas=document.getElementById('canvas-arch');
+  if(!canvas)return;
+  initArchPackets();
+  var ctx=canvas.getContext('2d');
+  canvas.addEventListener('mousemove',function(e){
+    var rect=canvas.getBoundingClientRect();
+    var mx=e.clientX-rect.left,my=e.clientY-rect.top;
+    var hit=null;
+    var nodes=[
+      {x:160,y:140,w:140,h:200,role:'host'},
+      {x:310,y:90,w:120,h:100,role:'client1'},
+      {x:310,y:200,w:120,h:80,role:'client2'},
+      {x:490,y:75,w:150,h:60,role:'serverA'},
+      {x:490,y:165,w:150,h:60,role:'serverB'},
+      {x:490,y:255,w:150,h:60,role:'serverC'}
+    ];
+    nodes.forEach(function(n){
+      if(mx>=n.x&&mx<=n.x+n.w&&my>=n.y&&my<=n.y+n.h)hit=n.role;
+    });
+    if(hit!==archHovered){
+      archHovered=hit;
+      updateArchInfo(hit);
+    }
+  });
+  canvas.addEventListener('mouseleave',function(){archHovered=null;updateArchInfo(null);});
+  function frame(){
+    drawArch(ctx,canvas.width,canvas.height);
+    archAnimHandle=requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+function updateArchInfo(role){
+  var panel=document.getElementById('arch-info');
+  if(!panel)return;
+  var info={
+    host:'<strong>MCP Host</strong> — The AI application (e.g., Claude Desktop, VS Code). Coordinates all MCP Clients, owns the LLM conversation. One Host can manage multiple Clients simultaneously.',
+    client1:'<strong>MCP Client 1</strong> — A dedicated connection object for one MCP Server. Created by the Host. Manages the protocol lifecycle for its Server independently.',
+    client2:'<strong>MCP Client 2</strong> — A separate Client for a second Server. Client isolation means if one Server crashes, other connections are unaffected.',
+    serverA:'<strong>MCP Server A (Local)</strong> — A local server, e.g., the Filesystem server. Runs as a child process on the same machine. Communicates via stdio transport.',
+    serverB:'<strong>MCP Server B (Local)</strong> — Another local server, e.g., a local Postgres server. Completely isolated from Server A.',
+    serverC:'<strong>MCP Server C (Remote)</strong> — A remote server, e.g., Sentry\'s MCP endpoint. Runs on Sentry\'s infrastructure, accessible via Streamable HTTP.'
+  };
+  panel.innerHTML=role&&info[role]?info[role]:'Hover over a component to learn about its role in the MCP architecture.';
+}
+function drawArch(ctx,W,H){
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+  // Host box
+  var hostCol=archHovered==='host'?'#00cec9':'#00cec966';
+  drawRoundedRect(ctx,20,60,240,300,10,'rgba(0,206,201,0.06)',hostCol);
+  ctx.fillStyle='#00cec9';ctx.font='700 10px Inter';ctx.textAlign='center';
+  ctx.fillText('MCP HOST',140,80);
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter';
+  ctx.fillText('(AI Application)',140,93);
+  // Client boxes
+  var c1Col=archHovered==='client1'?'#74c0fc':'#74c0fc66';
+  var c2Col=archHovered==='client2'?'#74c0fc':'#74c0fc66';
+  drawRoundedRect(ctx,50,105,160,85,8,'rgba(116,192,252,0.08)',c1Col);
+  ctx.fillStyle='#74c0fc';ctx.font='700 10px Inter';ctx.textAlign='center';
+  ctx.fillText('MCP Client 1',130,128);
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter';
+  ctx.fillText('Connection mgr',130,143);
+  drawRoundedRect(ctx,50,205,160,70,8,'rgba(116,192,252,0.08)',c2Col);
+  ctx.fillStyle='#74c0fc';ctx.font='700 10px Inter';ctx.textAlign='center';
+  ctx.fillText('MCP Client 2',130,228);
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter';
+  ctx.fillText('Connection mgr',130,243);
+  // Server boxes
+  var servers=[
+    {x:460,y:75,label:'Server A',sub:'Filesystem (local)',col:'serverA',c:'#51cf66'},
+    {x:460,y:165,label:'Server B',sub:'Database (local)',col:'serverB',c:'#a78bfa'},
+    {x:460,y:255,label:'Server C',sub:'Sentry (remote)',col:'serverC',c:'#f59e0b'}
+  ];
+  servers.forEach(function(s){
+    var sc=archHovered===s.col?s.c:s.c+'66';
+    drawRoundedRect(ctx,s.x,s.y,175,55,8,'rgba(22,27,34,0.9)',sc);
+    ctx.fillStyle=s.c;ctx.font='700 10px Inter';ctx.textAlign='left';
+    ctx.fillText('MCP '+s.label,s.x+10,s.y+20);
+    ctx.fillStyle='#8b949e';ctx.font='9px Inter';
+    ctx.fillText(s.sub,s.x+10,s.y+35);
+  });
+  // Connection lines
+  var lines=[
+    {x1:210,y1:147,x2:460,y2:102,col:'#74c0fc',label:'stdio'},
+    {x1:210,y1:240,x2:460,y2:192,col:'#a78bfa',label:'stdio'},
+    {x1:210,y1:240,x2:460,y2:282,col:'#f59e0b',label:'HTTP',dashed:true}
+  ];
+  lines.forEach(function(l){
+    ctx.beginPath();ctx.moveTo(l.x1,l.y1);ctx.lineTo(l.x2,l.y2);
+    if(l.dashed)ctx.setLineDash([4,3]);else ctx.setLineDash([]);
+    ctx.strokeStyle=l.col+'88';ctx.lineWidth=1.5;ctx.stroke();
+    ctx.setLineDash([]);
+    var mx=(l.x1+l.x2)/2,my=(l.y1+l.y2)/2-10;
+    ctx.fillStyle=l.col;ctx.font='9px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText(l.label,mx,my);
+  });
+  // Animate packets
+  archPackets.forEach(function(p){
+    p.t=(p.t+p.speed)%1;
+    var x=lerp(p.from.x,p.to.x,p.t);
+    var y=lerp(p.from.y,p.to.y,p.t);
+    ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);
+    ctx.fillStyle=p.color;ctx.fill();
+  });
+}
+
+// ===== S4: LIFECYCLE CANVAS =====
+var lcTab='init';
+var lcAnimT=0;
+function setLifecycleTab(tab){
+  lcTab=tab;lcAnimT=0;
+  ['init','discover','call','notify'].forEach(function(t){
+    var el=document.getElementById('tab-'+t);
+    if(el)el.classList.toggle('active',t===tab);
+  });
+  var infos={
+    init:'<strong>Initialization</strong> — The client sends an <code>initialize</code> request with its capabilities and protocol version. The server responds with its own capabilities. After the client sends <code>notifications/initialized</code>, the session is fully ready.',
+    discover:'<strong>Tool Discovery</strong> — The client sends <code>tools/list</code> to discover available tools. The server responds with an array of tool definitions (name, description, inputSchema). The client also uses <code>resources/list</code> and <code>prompts/list</code> for other primitives.',
+    call:'<strong>Tool Execution</strong> — The LLM decides to call a tool. The client sends <code>tools/call</code> with the tool name and arguments. The server executes the tool and returns the result as a content array.',
+    notify:'<strong>Notifications</strong> — When server state changes (new tools added, resources updated), the server proactively pushes a notification to the client (e.g., <code>notifications/tools/list_changed</code>). No response expected. The client then refreshes its tool registry.'
+  };
+  var panel=document.getElementById('lifecycle-info');
+  if(panel)panel.innerHTML=infos[tab]||'';
+  drawLifecycle();
+}
+function initLifecycle(){drawLifecycle();}
+function drawLifecycle(){
+  var canvas=document.getElementById('canvas-lifecycle');
+  if(!canvas)return;
+  var ctx=canvas.getContext('2d');
+  var W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+  // Two participants
+  var cx=200,sx=500,ty=50;
+  ctx.fillStyle='#74c0fc';ctx.font='700 11px Inter';ctx.textAlign='center';
+  ctx.fillText('MCP Client',cx,ty);
+  ctx.fillStyle='#a78bfa';
+  ctx.fillText('MCP Server',sx,ty);
+  // vertical timelines
+  ctx.beginPath();ctx.moveTo(cx,ty+10);ctx.lineTo(cx,H-20);
+  ctx.strokeStyle='#74c0fc44';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);ctx.stroke();ctx.setLineDash([]);
+  ctx.beginPath();ctx.moveTo(sx,ty+10);ctx.lineTo(sx,H-20);
+  ctx.strokeStyle='#a78bfa44';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);ctx.stroke();ctx.setLineDash([]);
+  // Messages per tab
+  var msgs={
+    init:[
+      {from:'c',label:'initialize',color:'#74c0fc',y:90,dir:1,sub:'"protocolVersion","capabilities"'},
+      {from:'s',label:'initialize (response)',color:'#a78bfa',y:150,dir:-1,sub:'"capabilities": {tools, resources}'},
+      {from:'c',label:'notifications/initialized',color:'#51cf66',y:210,dir:1,sub:'Session ready'},
+    ],
+    discover:[
+      {from:'c',label:'tools/list',color:'#74c0fc',y:90,dir:1,sub:'Request all tools'},
+      {from:'s',label:'tools/list (response)',color:'#a78bfa',y:150,dir:-1,sub:'"tools": [{name, description, inputSchema}]'},
+      {from:'c',label:'resources/list',color:'#74c0fc',y:210,dir:1,sub:'Request all resources'},
+      {from:'s',label:'resources/list (response)',color:'#a78bfa',y:260,dir:-1,sub:'"resources": [{uri, name}]'}
+    ],
+    call:[
+      {from:'c',label:'tools/call',color:'#74c0fc',y:90,dir:1,sub:'"name":"query_database","arguments":{...}'},
+      {from:'s',label:'tools/call (response)',color:'#51cf66',y:180,dir:-1,sub:'"content":[{"type":"text","text":"..."}]'}
+    ],
+    notify:[
+      {from:'s',label:'notifications/tools/list_changed',color:'#f59e0b',y:90,dir:-1,sub:'Server state changed (no id, no response)'},
+      {from:'c',label:'tools/list',color:'#74c0fc',y:170,dir:1,sub:'Client refreshes tool registry'},
+      {from:'s',label:'tools/list (response)',color:'#a78bfa',y:230,dir:-1,sub:'Updated tools array'}
+    ]
+  };
+  var list=msgs[lcTab]||[];
+  list.forEach(function(m){
+    var x1=m.from==='c'?cx:sx;
+    var x2=m.from==='c'?sx:cx;
+    // Arrow
+    ctx.beginPath();ctx.moveTo(x1,m.y);ctx.lineTo(x2-12*m.dir,m.y);
+    ctx.strokeStyle=m.color;ctx.lineWidth=1.5;ctx.setLineDash([]);ctx.stroke();
+    // Arrowhead
+    ctx.beginPath();ctx.moveTo(x2,m.y);
+    ctx.lineTo(x2-10*m.dir,m.y-5);ctx.lineTo(x2-10*m.dir,m.y+5);ctx.closePath();
+    ctx.fillStyle=m.color;ctx.fill();
+    // Label
+    var lx=(x1+x2)/2;
+    drawRoundedRect(ctx,lx-70,m.y-13,140,16,4,'rgba(22,27,34,0.95)','transparent');
+    ctx.fillStyle=m.color;ctx.font='700 10px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText(m.label,lx,m.y);
+    ctx.fillStyle='#8b949e';ctx.font='9px Inter';
+    ctx.fillText(m.sub,lx,m.y+16);
+  });
+}
+
+// ===== S5: PRIMITIVES CANVAS =====
+var primTab='tools';
+var PRIM_FORMULAS={
+  tools:'// tools/list response (excerpt)\n{\n  "tools": [{\n    "name": "query_database",\n    "description": "Execute a SQL SELECT query",\n    "inputSchema": {\n      "type": "object",\n      "properties": {\n        "query": { "type": "string" }\n      },\n      "required": ["query"]\n    }\n  }]\n}',
+  resources:'// resources/list response (excerpt)\n{\n  "resources": [{\n    "uri": "postgres://localhost/mydb/schema",\n    "name": "Database Schema",\n    "description": "Full schema of connected database",\n    "mimeType": "application/json"\n  }]\n}',
+  prompts:'// prompts/list response (excerpt)\n{\n  "prompts": [{\n    "name": "sql-assistant",\n    "description": "Few-shot examples for SQL generation",\n    "arguments": [{\n      "name": "dialect",\n      "description": "SQL dialect (postgres, sqlite)",\n      "required": false\n    }]\n  }]\n}',
+  client:'// Sampling: server asks the LLM a question\n// (server-side call to client primitive)\n{\n  "jsonrpc": "2.0", "id": 42,\n  "method": "sampling/createMessage",\n  "params": {\n    "messages": [{"role":"user","content":"What SQL query should I use?"}],\n    "maxTokens": 200\n  }\n}'
+};
+var PRIM_INFOS={
+  tools:'<strong>Tools</strong> are executable functions the AI can invoke. Examples: <code>query_database</code>, <code>fetch_url</code>, <code>send_email</code>. Each tool has a name, description, and JSON Schema for its input. The LLM decides when to call them; the user can approve.',
+  resources:'<strong>Resources</strong> provide readable context data — not actions. Examples: the database schema, a file\'s contents, an API response. The AI reads resources for background context, like attaching a document before asking a question.',
+  prompts:'<strong>Prompts</strong> are reusable interaction templates — system prompts, few-shot examples, structured workflows. A server can expose a "sql-assistant" prompt with few-shot examples that any host can use when querying its database.',
+  client:'<strong>Client primitives</strong> let the server interact with the host. <strong>Sampling</strong>: server asks the host LLM for a completion (model-agnostic intelligence). <strong>Elicitation</strong>: server asks the user for input or confirmation. <strong>Logging</strong>: debug messages to the client.'
+};
+function setPrimTab(tab){
+  primTab=tab;
+  ['tools','resources','prompts','client'].forEach(function(t){
+    var el=document.getElementById('prim-tab-'+t);
+    if(el)el.classList.toggle('active',t===tab);
+  });
+  var f=document.getElementById('prim-formula');
+  if(f)f.textContent=PRIM_FORMULAS[tab]||'';
+  var panel=document.getElementById('primitives-info');
+  if(panel)panel.innerHTML=PRIM_INFOS[tab]||'';
+  drawPrimitives();
+}
+function initPrimitives(){drawPrimitives();}
+function drawPrimitives(){
+  var canvas=document.getElementById('canvas-primitives');
+  if(!canvas)return;
+  var ctx=canvas.getContext('2d');
+  var W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+  // Server box on right
+  drawRoundedRect(ctx,W-180,H/2-100,160,200,10,'rgba(22,27,34,0.9)','#a78bfa66');
+  ctx.fillStyle='#a78bfa';ctx.font='700 11px Inter';ctx.textAlign='center';
+  ctx.fillText('MCP Server',W-100,H/2-80);
+  // Three primitive slots on left
+  var prims=[
+    {name:'Tools',color:'#51cf66',desc:'Executable actions',y:H/2-90},
+    {name:'Resources',color:'#74c0fc',desc:'Readable data',y:H/2},
+    {name:'Prompts',color:'#f59e0b',desc:'Interaction templates',y:H/2+90}
+  ];
+  var clientPrims=[
+    {name:'Sampling',color:'#6366f1',desc:'Ask LLM for completion',y:H/2-50},
+    {name:'Elicitation',color:'#ff6b6b',desc:'Ask user for input',y:H/2+50}
+  ];
+  if(primTab==='client'){
+    // Show client primitives flowing from server -> client
+    clientPrims.forEach(function(p){
+      drawRoundedRect(ctx,40,p.y-18,180,36,8,'rgba(22,27,34,0.9)',p.color+'99');
+      ctx.fillStyle=p.color;ctx.font='700 11px Inter';ctx.textAlign='left';
+      ctx.fillText(p.name,55,p.y-2);
+      ctx.fillStyle='#8b949e';ctx.font='9px Inter';
+      ctx.fillText(p.desc,55,p.y+13);
+      // Arrow from server to this
+      ctx.beginPath();ctx.moveTo(W-180,H/2);ctx.lineTo(220,p.y);
+      ctx.strokeStyle=p.color+'66';ctx.lineWidth=1.5;ctx.stroke();
+      ctx.beginPath();ctx.arc(W-180,H/2,4,0,Math.PI*2);
+      ctx.fillStyle=p.color;ctx.fill();
+    });
+    ctx.fillStyle='#8b949e';ctx.font='10px Inter';ctx.textAlign='center';
+    ctx.fillText('Server \u2192 Client primitives',W/2,H-15);
+  } else {
+    prims.forEach(function(p,i){
+      var isActive=primTab===p.name.toLowerCase();
+      var col=isActive?p.color:p.color+'55';
+      drawRoundedRect(ctx,40,p.y-18,200,36,8,isActive?'rgba(22,27,34,0.95)':'rgba(22,27,34,0.6)',col);
+      ctx.fillStyle=isActive?p.color:p.color+'88';ctx.font='700 11px Inter';ctx.textAlign='left';
+      ctx.fillText(p.name,55,p.y-2);
+      ctx.fillStyle=isActive?'#8b949e':'#8b949e44';ctx.font='9px Inter';
+      ctx.fillText(p.desc,55,p.y+13);
+      // Arrow to server
+      ctx.beginPath();ctx.moveTo(240,p.y);ctx.lineTo(W-180,H/2);
+      ctx.strokeStyle=isActive?p.color+'88':p.color+'22';ctx.lineWidth=isActive?2:1;ctx.stroke();
+      // Active dot
+      if(isActive){
+        ctx.beginPath();ctx.arc(240,p.y,4,0,Math.PI*2);
+        ctx.fillStyle=p.color;ctx.fill();
+      }
+    });
+    // */list labels
+    ctx.fillStyle='#8b949e';ctx.font='9px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText('tools/list \u2192 tools/call',W/2,H-30);
+    ctx.fillText('resources/list \u2192 resources/read',W/2,H-18);
+  }
+  // Server internals
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter';ctx.textAlign='center';
+  ctx.fillText('exposes',W-100,H/2-60);
+  ctx.fillText('primitives',W-100,H/2-48);
+  // Title
+  ctx.fillStyle='#8b949e';ctx.font='10px Inter';ctx.textAlign='left';
+  ctx.fillText('Server Primitive Explorer \u2014 click tabs to explore',16,20);
+}
+
+// ===== S6: TRANSPORT CANVAS =====
+var transportTab='stdio';
+var transportT=0;
+var transportAnimHandle=null;
+function setTransportTab(tab){
+  transportTab=tab;
+  ['stdio','http'].forEach(function(t){
+    var el=document.getElementById('transport-tab-'+t);
+    if(el)el.classList.toggle('active',t===tab);
+  });
+  var infos={
+    stdio:'<strong>stdio transport</strong> — The Host spawns the MCP Server as a child process on the same machine. They communicate via stdin/stdout streams. Zero network overhead. Perfect for local tools (filesystem, database, shell). One client per server instance.',
+    http:'<strong>Streamable HTTP transport</strong> — The Client sends HTTP POST requests to a remote server endpoint. For long-running operations, the server can stream responses via Server-Sent Events (SSE). Supports OAuth, bearer tokens, API keys. One server serves many clients simultaneously.'
+  };
+  var panel=document.getElementById('transport-info');
+  if(panel)panel.innerHTML=infos[tab]||'';
+}
+function initTransport(){
+  setTransportTab('stdio');
+  var canvas=document.getElementById('canvas-transport');
+  if(!canvas)return;
+  var ctx=canvas.getContext('2d');
+  transportT=0;
+  function frame(){
+    drawTransport(ctx,canvas.width,canvas.height,transportT);
+    transportT+=0.015;
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+function drawTransport(ctx,W,H,t){
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+  if(transportTab==='stdio'){
+    drawStdio(ctx,W,H,t);
+  } else {
+    drawHttpTransport(ctx,W,H,t);
+  }
+}
+function drawStdio(ctx,W,H,t){
+  var hx=130,hy=H/2,sx=W-130,sy=H/2;
+  // Host
+  drawRoundedRect(ctx,hx-60,hy-40,120,80,10,'rgba(116,192,252,0.08)','#74c0fc88');
+  ctx.fillStyle='#74c0fc';ctx.font='700 11px Inter';ctx.textAlign='center';
+  ctx.fillText('MCP Host',hx,hy-10);
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter';
+  ctx.fillText('(Parent Process)',hx,hy+5);
+  // Server
+  drawRoundedRect(ctx,sx-60,sy-40,120,80,10,'rgba(81,207,102,0.08)','#51cf6688');
+  ctx.fillStyle='#51cf66';ctx.font='700 11px Inter';ctx.textAlign='center';
+  ctx.fillText('MCP Server',sx,sy-10);
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter';
+  ctx.fillText('(Child Process)',sx,sy+5);
+  // Two channels: stdin / stdout
+  var y1=hy-15,y2=hy+15;
+  // stdin arrow (host -> server)
+  ctx.beginPath();ctx.moveTo(hx+60,y1);ctx.lineTo(sx-60,y1);
+  ctx.strokeStyle='#74c0fc';ctx.lineWidth=2;ctx.stroke();
+  ctx.beginPath();ctx.moveTo(sx-60,y1);ctx.lineTo(sx-68,y1-5);ctx.lineTo(sx-68,y1+5);ctx.closePath();
+  ctx.fillStyle='#74c0fc';ctx.fill();
+  ctx.fillStyle='#74c0fc';ctx.font='700 9px JetBrains Mono';ctx.textAlign='center';
+  ctx.fillText('stdin (requests)',W/2,y1-8);
+  // stdout arrow (server -> host)
+  ctx.beginPath();ctx.moveTo(sx-60,y2);ctx.lineTo(hx+60,y2);
+  ctx.strokeStyle='#51cf66';ctx.lineWidth=2;ctx.stroke();
+  ctx.beginPath();ctx.moveTo(hx+60,y2);ctx.lineTo(hx+68,y2-5);ctx.lineTo(hx+68,y2+5);ctx.closePath();
+  ctx.fillStyle='#51cf66';ctx.fill();
+  ctx.fillStyle='#51cf66';ctx.font='700 9px JetBrains Mono';ctx.textAlign='center';
+  ctx.fillText('stdout (responses)',W/2,y2+16);
+  // Animated packet on stdin
+  var p1=((t*0.4)%1);
+  var px1=lerp(hx+60,sx-60,p1);
+  ctx.beginPath();ctx.arc(px1,y1,4,0,Math.PI*2);
+  ctx.fillStyle='#74c0fc';ctx.fill();
+  // Animated packet on stdout
+  var p2=((t*0.4+0.5)%1);
+  var px2=lerp(sx-60,hx+60,p2);
+  ctx.beginPath();ctx.arc(px2,y2,4,0,Math.PI*2);
+  ctx.fillStyle='#51cf66';ctx.fill();
+  // Labels
+  ctx.fillStyle='#8b949e';ctx.font='10px Inter';ctx.textAlign='center';
+  ctx.fillText('stdio Transport \u2014 Same Machine \u2014 Zero Network Overhead',W/2,H-15);
+  // spawn arrow
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter';ctx.textAlign='center';
+  ctx.fillText('Host spawns Server',W/2,40);
+  ctx.beginPath();ctx.moveTo(W/2,45);ctx.lineTo(sx-60,H/2-40);
+  ctx.strokeStyle='#8b949e44';ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.stroke();ctx.setLineDash([]);
+}
+function drawHttpTransport(ctx,W,H,t){
+  var clients=[
+    {x:80,y:80,label:'VS Code'},
+    {x:80,y:170,label:'Claude'},
+    {x:80,y:260,label:'Cursor'}
+  ];
+  var serverX=W-130,serverY=H/2;
+  drawRoundedRect(ctx,serverX-70,serverY-60,140,120,10,'rgba(245,158,11,0.08)','#f59e0b88');
+  ctx.fillStyle='#f59e0b';ctx.font='700 11px Inter';ctx.textAlign='center';
+  ctx.fillText('Remote MCP',serverX,serverY-20);
+  ctx.fillText('Server',serverX,serverY-5);
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter';
+  ctx.fillText('(e.g., Sentry)',serverX,serverY+15);
+  clients.forEach(function(c,i){
+    drawRoundedRect(ctx,c.x-45,c.y-20,90,40,8,'rgba(116,192,252,0.08)','#74c0fc88');
+    ctx.fillStyle='#74c0fc';ctx.font='700 10px Inter';ctx.textAlign='center';
+    ctx.fillText(c.label,c.x,c.y+4);
+    // HTTP POST arrow
+    var phase=((t*0.35+i*0.33)%1);
+    var px=lerp(c.x+45,serverX-70,phase);
+    var py=lerp(c.y,serverY,phase);
+    ctx.beginPath();ctx.moveTo(c.x+45,c.y);ctx.lineTo(serverX-70,serverY);
+    ctx.strokeStyle='#74c0fc33';ctx.lineWidth=1;ctx.stroke();
+    ctx.beginPath();ctx.arc(px,py,3.5,0,Math.PI*2);
+    ctx.fillStyle='#74c0fc';ctx.fill();
+    // SSE return arrow
+    var phase2=((t*0.35+i*0.33+0.5)%1);
+    var px2=lerp(serverX-70,c.x+45,phase2);
+    var py2=lerp(serverY,c.y,phase2);
+    ctx.beginPath();ctx.moveTo(serverX-70,serverY);ctx.lineTo(c.x+45,c.y);
+    ctx.strokeStyle='#f59e0b33';ctx.lineWidth=1;ctx.stroke();
+    ctx.beginPath();ctx.arc(px2,py2,3.5,0,Math.PI*2);
+    ctx.fillStyle='#f59e0b';ctx.fill();
+  });
+  ctx.fillStyle='#74c0fc';ctx.font='9px JetBrains Mono';ctx.textAlign='center';
+  ctx.fillText('HTTP POST (requests)',W/2-40,H-30);
+  ctx.fillStyle='#f59e0b';
+  ctx.fillText('SSE stream (responses)',W/2-40,H-15);
+}
+
+// ===== S7: ECOSYSTEM CANVAS =====
+var ecoAnimT=0;
+function animateEcosystem(){
+  var canvas=document.getElementById('canvas-ecosystem');
+  if(!canvas)return;
+  var ctx=canvas.getContext('2d');
+  ecoAnimT=0;
+  function frame(){
+    drawEcosystem(ctx,canvas.width,canvas.height,ecoAnimT);
+    ecoAnimT+=0.008;
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+function drawEcosystem(ctx,W,H,t){
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+  // Clients column (left)
+  var clients=[
+    {name:'Claude',color:'#f59e0b'},
+    {name:'ChatGPT',color:'#10b981'},
+    {name:'VS Code',color:'#74c0fc'},
+    {name:'Cursor',color:'#a78bfa'},
+    {name:'Zed',color:'#ff6b6b'}
+  ];
+  // Servers column (right)
+  var servers=[
+    {name:'GitHub',color:'#6366f1'},
+    {name:'Slack',color:'#f59e0b'},
+    {name:'Postgres',color:'#4a9eff'},
+    {name:'Drive',color:'#51cf66'},
+    {name:'Puppeteer',color:'#ff6b6b'},
+    {name:'Filesystem',color:'#00cec9'}
+  ];
+  var lx=90,rx=W-90,cy=H/2;
+  var lspacing=H/(clients.length+1);
+  var rspacing=H/(servers.length+1);
+  // MCP Protocol bar in center
+  var barX=W/2-60,barW=120,barH=H-40;
+  drawRoundedRect(ctx,barX,20,barW,barH,12,'rgba(99,102,241,0.08)','#6366f144');
+  ctx.fillStyle='#818cf8';ctx.font='700 10px Inter';ctx.textAlign='center';
+  ctx.fillText('MCP',W/2,H/2-6);
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter';
+  ctx.fillText('Protocol',W/2,H/2+8);
+  // Draw client nodes + connections
+  clients.forEach(function(c,i){
+    var y=(i+1)*lspacing;
+    var appear=Math.min(1,(t*3-i*0.3));if(appear<=0)return;
+    ctx.globalAlpha=appear;
+    drawRoundedRect(ctx,lx-40,y-14,80,28,6,'rgba(22,27,34,0.9)',c.color+'99');
+    ctx.fillStyle=c.color;ctx.font='700 10px Inter';ctx.textAlign='center';
+    ctx.fillText(c.name,lx,y+4);
+    // Line to MCP bar
+    ctx.beginPath();ctx.moveTo(lx+40,y);ctx.lineTo(barX,H/2);
+    ctx.strokeStyle=c.color+'33';ctx.lineWidth=1;ctx.stroke();
+    // Packet
+    var ph=((t*0.4+i*0.2)%1);
+    var px=lerp(lx+40,barX,ph),py=lerp(y,H/2,ph);
+    ctx.beginPath();ctx.arc(px,py,3,0,Math.PI*2);ctx.fillStyle=c.color;ctx.fill();
+    ctx.globalAlpha=1;
+  });
+  // Draw server nodes + connections
+  servers.forEach(function(s,i){
+    var y=(i+1)*rspacing;
+    var appear=Math.min(1,(t*3-i*0.3));if(appear<=0)return;
+    ctx.globalAlpha=appear;
+    drawRoundedRect(ctx,rx-40,y-14,80,28,6,'rgba(22,27,34,0.9)',s.color+'99');
+    ctx.fillStyle=s.color;ctx.font='700 10px Inter';ctx.textAlign='center';
+    ctx.fillText(s.name,rx,y+4);
+    // Line from MCP bar
+    ctx.beginPath();ctx.moveTo(barX+barW,H/2);ctx.lineTo(rx-40,y);
+    ctx.strokeStyle=s.color+'33';ctx.lineWidth=1;ctx.stroke();
+    // Packet
+    var ph=((t*0.4+i*0.2+0.5)%1);
+    var px=lerp(barX+barW,rx-40,ph),py=lerp(H/2,y,ph);
+    ctx.beginPath();ctx.arc(px,py,3,0,Math.PI*2);ctx.fillStyle=s.color;ctx.fill();
+    ctx.globalAlpha=1;
+  });
+  // Labels
+  ctx.fillStyle='#8b949e';ctx.font='10px Inter';ctx.textAlign='center';
+  ctx.fillText('MCP Hosts',lx,H-8);
+  ctx.fillText('MCP Servers',rx,H-8);
+  ctx.fillStyle='#818cf8';ctx.font='700 9px Inter';ctx.textAlign='center';
+  ctx.fillText('One protocol.',W/2,H-20);
+  ctx.fillText('Build once.',W/2,H-8);
+}
+
+</script>
+</body>
+</html>
