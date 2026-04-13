@@ -150,6 +150,18 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
     <span class="dot" style="background:#51cf66"></span>Maturity Check</div>
   <div class="nav-link" data-sec="s-crosswalk" onclick="setActive(this,'s-crosswalk')">
     <span class="dot" style="background:#0984e3"></span>EU AI Act</div>
+
+  <div class="nav-group-title">Applied</div>
+  <div class="nav-link" data-sec="s-cases" onclick="setActive(this,'s-cases')">
+    <span class="dot" style="background:#ff6b6b"></span>Case Studies</div>
+  <div class="nav-link" data-sec="s-roadmap" onclick="setActive(this,'s-roadmap')">
+    <span class="dot" style="background:#6c5ce7"></span>Roadmap</div>
+  <div class="nav-link" data-sec="s-tradeoffs" onclick="setActive(this,'s-tradeoffs')">
+    <span class="dot" style="background:#a29bfe"></span>Trade-offs</div>
+  <div class="nav-link" data-sec="s-sectors" onclick="setActive(this,'s-sectors')">
+    <span class="dot" style="background:#00b894"></span>Sector Profiles</div>
+  <div class="nav-link" data-sec="s-actors" onclick="setActive(this,'s-actors')">
+    <span class="dot" style="background:#fd79a8"></span>Actor Map</div>
 </nav>
 
 <!-- MAIN -->
@@ -618,6 +630,126 @@ G6 &mdash; Policies for AI risk in human oversight are maintained</div>
   </div>
 </section>
 
+<!-- ====== S13: CASE STUDIES ====== -->
+<section class="section" id="s-cases">
+  <div class="section-tag" style="color:#ff6b6b">Real-World Failures</div>
+  <h2 class="section-title">Three AI Failures the RMF Would Have Caught</h2>
+  <p class="section-sub">Abstract frameworks become concrete through failures. These three real incidents show exactly which RMF functions were absent &mdash; and what would have changed if they had been in place.</p>
+
+  <div class="btn-row">
+    <button class="btn" id="case-btn-0" onclick="selectCase(0)">Amazon Hiring AI (2018)</button>
+    <button class="btn-tab" id="case-btn-1" onclick="selectCase(1)">COMPAS Recidivism (2016)</button>
+    <button class="btn-tab" id="case-btn-2" onclick="selectCase(2)">AI Hallucination in Court (2023)</button>
+  </div>
+  <canvas id="canvas-case-study" width="700" height="320" style="margin-bottom:12px;"></canvas>
+  <div class="info-panel" id="case-detail">Select a case study above to see which RMF functions were missing and what the outcome was.</div>
+
+  <div class="highlight-box red" style="margin-top:16px;">
+    <strong>These are not edge cases &mdash; they are the norm.</strong> Most AI failures trace directly to missing GOVERN policies, incomplete MAP risk identification, absent MEASURE metrics, or no MANAGE response plan. The RMF does not prevent all AI failures; it prevents the preventable ones.
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-roadmap">Implementation Roadmap &rarr;</a>
+  </div>
+</section>
+
+<!-- ====== S14: ROADMAP ====== -->
+<section class="section" id="s-roadmap">
+  <div class="section-tag" style="color:#6c5ce7">Getting Started</div>
+  <h2 class="section-title">12-Month Implementation Roadmap</h2>
+  <p class="section-sub">Where do I start? Here is a realistic first-year implementation sequence for an organization new to structured AI risk management. Hover any bar to see what it involves and which RMF subcategories it covers.</p>
+
+  <canvas id="canvas-roadmap" width="700" height="360" style="margin-bottom:12px;cursor:pointer;"></canvas>
+  <div class="info-panel" id="roadmap-detail">Hover a roadmap item to see what it involves and which RMF subcategories it covers.</div>
+
+  <div class="grid3" style="margin-top:20px;">
+    <div class="card">
+      <div class="card-title" style="color:#0984e3">Start with GOVERN</div>
+      <div class="card-body">Before mapping risks or measuring anything, name one person accountable for AI risk. Without G2 accountability, all subsequent work has no owner. This is the single most important first action and costs almost nothing.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#f7b731">MAP One System First</div>
+      <div class="card-body">Do not try to MAP all AI systems at once. Pick your highest-risk system and complete MAP 1&ndash;5 for it. One fully-mapped system teaches more than five half-mapped ones and gives you a template for the rest.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#51cf66">Iterate, Don&rsquo;t Perfect</div>
+      <div class="card-body">A 60% implementation across all four functions beats 100% in one. The RMF is designed for iteration &mdash; revisit and deepen each function annually. Year 2 is when most organizations achieve real maturity.</div>
+    </div>
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-tradeoffs">Trade-off Explorer &rarr;</a>
+  </div>
+</section>
+
+<!-- ====== S15: TRADE-OFFS ====== -->
+<section class="section" id="s-tradeoffs">
+  <div class="section-tag" style="color:#a29bfe">Design Tensions</div>
+  <h2 class="section-title">Trustworthiness Trade-offs: You Cannot Maximize Everything</h2>
+  <p class="section-sub">The 7 trustworthiness characteristics pull against each other. Select a pair to explore the tension, then use the slider to see how shifting the balance changes what you gain and lose. Understanding these trade-offs is what MEASURE and GOVERN are actually about.</p>
+
+  <div class="btn-row">
+    <button class="btn" id="tb-0" onclick="selectTradeoff(0)">Accuracy vs Explainability</button>
+    <button class="btn-tab" id="tb-1" onclick="selectTradeoff(1)">Fairness vs Accuracy</button>
+    <button class="btn-tab" id="tb-2" onclick="selectTradeoff(2)">Privacy vs Utility</button>
+    <button class="btn-tab" id="tb-3" onclick="selectTradeoff(3)">Security vs Access</button>
+    <button class="btn-tab" id="tb-4" onclick="selectTradeoff(4)">Safety vs Capability</button>
+  </div>
+  <canvas id="canvas-tradeoffs" width="700" height="280" style="margin-bottom:12px;"></canvas>
+  <div class="slider-row" style="max-width:580px;margin:0 auto 14px;align-items:center;">
+    <span class="slider-lbl" id="tradeoff-lbl-a" style="min-width:120px;text-align:right;color:#74b9ff;font-weight:700;">Accurate</span>
+    <input type="range" id="sl-tradeoff" min="0" max="100" value="50" oninput="tradeoffSlider=parseInt(this.value);drawTradeoffs()">
+    <span class="slider-lbl" id="tradeoff-lbl-b" style="color:#fd79a8;font-weight:700;">Explainable</span>
+  </div>
+  <div class="info-panel" id="tradeoff-detail">Select a pair above to explore the design tension and the sweet-spot resolution.</div>
+
+  <div class="highlight-box" style="border-color:#a29bfe;background:rgba(162,155,254,.06);margin-top:16px;">
+    <strong>There is no universally correct resolution to these trade-offs.</strong> The right balance depends on deployment context and the cost of different failure modes. GOVERN G2 requires that trade-offs are made explicitly &mdash; documented with rationale &mdash; not implicitly by whoever builds the model.
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-sectors">Sector Profiles &rarr;</a>
+  </div>
+</section>
+
+<!-- ====== S16: SECTOR PROFILES ====== -->
+<section class="section" id="s-sectors">
+  <div class="section-tag" style="color:#00b894">Domain-Specific</div>
+  <h2 class="section-title">Sector Risk Profiles: Same Framework, Different Priorities</h2>
+  <p class="section-sub">The RMF applies everywhere, but dominant risks, key metrics, and regulatory context differ dramatically by sector. Select your domain to see which RMF functions matter most and which risks are most prevalent.</p>
+
+  <div class="btn-row">
+    <button class="btn" id="sec-btn-0" onclick="selectSector(0)">Healthcare</button>
+    <button class="btn-tab" id="sec-btn-1" onclick="selectSector(1)">Financial Services</button>
+    <button class="btn-tab" id="sec-btn-2" onclick="selectSector(2)">Criminal Justice</button>
+    <button class="btn-tab" id="sec-btn-3" onclick="selectSector(3)">HR &amp; Recruitment</button>
+  </div>
+  <canvas id="canvas-sector-profile" width="700" height="320" style="margin-bottom:12px;cursor:pointer;"></canvas>
+  <div class="info-panel" id="sector-detail">Select a sector above to see its dominant AI risks and RMF priorities.</div>
+
+  <div class="highlight-box teal" style="margin-top:16px;">
+    <strong>Sector context determines which MAP risks to prioritize, which MEASURE metrics matter, and which regulatory frameworks apply.</strong> The RMF does not prescribe sector-specific metrics &mdash; it provides the structure to derive them. This is what that looks like in practice.
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-actors">Actor Responsibility Map &rarr;</a>
+  </div>
+</section>
+
+<!-- ====== S17: ACTOR MAP ====== -->
+<section class="section" id="s-actors">
+  <div class="section-tag" style="color:#fd79a8">Who Does What</div>
+  <h2 class="section-title">AI Actor Responsibility Map</h2>
+  <p class="section-sub">Different actors have different obligations across the four functions. Developers, deployers, operators, affected communities, and regulators all play distinct roles. Click any actor to see their specific responsibilities &mdash; and where accountability gaps most often occur.</p>
+
+  <canvas id="canvas-actor-map" width="700" height="340" style="margin-bottom:12px;cursor:pointer;"></canvas>
+  <div class="info-panel" id="actor-detail">Click an actor to see their responsibilities across each RMF function.</div>
+
+  <div class="highlight-box" style="margin-top:16px;">
+    <strong>The most common accountability failure: everyone assumes someone else is responsible.</strong> Developers assume deployers will address context-specific risks. Deployers assume developers handled technical risks. The RMF requires all of these to be explicitly assigned &mdash; with names attached.
+  </div>
+</section>
+
 </div><!-- /main -->
 <script>
 var PG_PASSWORD='visual2025';
@@ -630,7 +762,7 @@ function pgCheck(){
 document.getElementById('pg-input').addEventListener('keydown',function(e){if(e.key==='Enter')pgCheck();});
 if(localStorage.getItem(PG_KEY)==='1'){document.getElementById('pg-gate').style.display='none';}
 
-var sectionIds=['s-overview','s-trustworthy','s-govern','s-map','s-measure','s-manage','s-lifecycle','s-risk-flow','s-genai','s-subcats','s-maturity','s-crosswalk'];
+var sectionIds=['s-overview','s-trustworthy','s-govern','s-map','s-measure','s-manage','s-lifecycle','s-risk-flow','s-genai','s-subcats','s-maturity','s-crosswalk','s-cases','s-roadmap','s-tradeoffs','s-sectors','s-actors'];
 function setActive(el,id){
   document.querySelectorAll('.nav-link').forEach(function(n){n.classList.remove('active');});
   el.classList.add('active');
@@ -984,6 +1116,196 @@ var EU_CROSSWALK=[
   {rmfFn:'MANAGE',rmfCat:'MG2: Response',euArt:'Art. 9: Risk Treatment',euDesc:'Risks must be eliminated or reduced to acceptable levels with appropriate risk management measures.',align:0.90,fnColor:'#51cf66'},
   {rmfFn:'MANAGE',rmfCat:'MG3: Monitor',euArt:'Art. 62: Incidents',euDesc:'Providers must report serious incidents and malfunctions to market surveillance authorities without delay.',align:0.85,fnColor:'#51cf66'},
   {rmfFn:'MANAGE',rmfCat:'MG4: Residual Risk',euArt:'Art. 65: Surveillance',euDesc:'Regulatory authorities conduct market surveillance checks on AI system performance post-deployment.',align:0.65,fnColor:'#51cf66'}
+];
+
+// ===== CASE STUDIES DATA =====
+var selectedCase=0;
+var CASE_STUDIES=[
+  {id:'amazon',title:'Amazon Hiring AI',year:'2018',color:'#ff6b6b',
+   system:'ML model trained on 10 years of resumes to screen candidates for technical roles at Amazon.',
+   wrong:'The model penalized resumes mentioning all-female colleges and downgraded certain extracurricular activities correlated with gender. It had learned from historical data that reflected male-dominated hiring decisions.',
+   gaps:{GOVERN:['G2: No named accountability for fairness outcomes','G5: No policy requiring bias testing before hiring AI deployment'],
+         MAP:['MAP 3: Bias risk from historical training data not catalogued','MAP 5: Societal gender equity impact not assessed','MAP 1: Unintended use as final decision-maker not documented'],
+         MEASURE:['MS 1: No fairness metric defined for demographic parity','MS 2: System not tested across gender-correlated proxies'],
+         MANAGE:['MG 3: No monitoring for disparate outcomes post-deployment','MG 2: No planned response if bias was detected']},
+   outcome:'Amazon disbanded the team and scrapped the system in 2018 after discovering the bias internally. The system was never used in production hiring decisions.',
+   lesson:'Historical data encodes historical bias. Without MAP 3 risk identification and MS 1 fairness metrics, a biased system can operate invisibly for years.'},
+  {id:'compas',title:'COMPAS Recidivism',year:'2016',color:'#fd79a8',
+   system:'Algorithmic risk score used by US courts to predict likelihood of criminal reoffending and inform bail and sentencing decisions.',
+   wrong:'A ProPublica analysis found Black defendants were nearly twice as likely to be falsely flagged high-risk compared to white defendants with similar backgrounds. Northpointe disputed the methodology but the disparate false positive rate was confirmed by multiple analyses.',
+   gaps:{GOVERN:['G6: Human oversight requirements not defined - judges varied widely in deference to the score','G2: No clear accountability owner for disparate outcomes'],
+         MAP:['MAP 3: Racial bias risk in training data not mapped','MAP 5: Civil liberties impact on affected communities not assessed','MAP 1: Use as decision replacement vs supplement not bounded'],
+         MEASURE:['MS 1: Fairness metric (calibration) optimized for accuracy but missed disparate false positive rates','MS 3: No independent fairness evaluation commissioned'],
+         MANAGE:['MG 2: No Avoid option exercised despite high-stakes criminal justice context','MG 4: Residual bias risk not communicated to judges using the tool']},
+   outcome:'Still used in some US jurisdictions. Sparked national debate on algorithmic fairness in criminal justice. Multiple states have passed algorithmic accountability legislation since.',
+   lesson:'In high-stakes domains, MAP 5 societal impact and G6 human oversight policy are not optional. Deployment without these is a governance failure, not a technical one.'},
+  {id:'chatgpt-legal',title:'AI Hallucination in Court',year:'2023',color:'#f7b731',
+   system:'Attorneys used a large language model to research case law and draft legal briefs submitted to federal court.',
+   wrong:'The brief cited six cases that did not exist - all hallucinated by the AI. When the court requested copies of the cases, the attorney submitted AI-generated fake summaries confirming they existed.',
+   gaps:{GOVERN:['G1: No firm policy on AI use in legal research and citation','G3: No training on AI hallucination risk for legal professionals'],
+         MAP:['MAP 1: Intended use (drafting aid) vs unintended use (authoritative citation) not assessed','MAP 3: Hallucination risk for legal citation not catalogued as high-risk'],
+         MEASURE:['MS 2: No output verification process for AI-generated legal citations','MS 3: No expert review of AI outputs before court submission'],
+         MANAGE:['MG 1: No mitigation plan for hallucination risk in high-stakes legal context','MG 2: Accept strategy used by default without deliberate risk decision']},
+   outcome:'The attorney was sanctioned $5,000. The case became a landmark example of AI hallucination harm. Bar associations across the US issued guidance on AI use in legal practice.',
+   lesson:'MAP 1 unintended use assessment would have flagged legal citation as high-risk. G1 policy and G3 training are the GOVERN subcategories that prevent this entire class of failure.'}
+];
+function selectCase(idx){
+  selectedCase=idx;
+  for(var i=0;i<3;i++){var b=document.getElementById('case-btn-'+i);if(b)b.className=(i===idx)?'btn':'btn-tab';}
+  if(typeof drawCaseStudy==='function')drawCaseStudy();
+  showCaseDetail();
+}
+function showCaseDetail(){
+  var det=document.getElementById('case-detail');
+  if(!det)return;
+  var c=CASE_STUDIES[selectedCase];
+  det.innerHTML='<strong style="color:'+c.color+'">'+c.title+' ('+c.year+')</strong><br><strong>What went wrong:</strong> '+c.wrong+'<div style="margin-top:8px;padding:8px 12px;background:rgba(0,0,0,.3);border-radius:6px;font-size:11px"><strong>Lesson:</strong> '+c.lesson+'</div>';
+}
+
+// ===== ROADMAP DATA =====
+var hoveredRoadmapItem=null;
+var ROADMAP_ITEMS=[
+  {month:1,duration:2,fn:'GOVERN',color:'#0984e3',label:'Name AI risk owner',
+   detail:'G2: Designate one accountable person. Define initial risk tolerance. Conduct AI inventory - what AI systems exist and who built them?'},
+  {month:2,duration:2,fn:'GOVERN',color:'#0984e3',label:'Draft AI risk policy',
+   detail:'G1: Write a one-page AI risk policy. G5: Define acceptable use cases and prohibited applications. Establish incident escalation path.'},
+  {month:3,duration:2,fn:'MAP',color:'#f7b731',label:'MAP one high-risk system',
+   detail:'MAP 1-3: Pick your highest-risk AI system. Document intended use, affected parties, top 5 risks. Template becomes reusable.'},
+  {month:4,duration:2,fn:'MAP',color:'#f7b731',label:'Build first risk register',
+   detail:'MAP 4: Formalize risk prioritization by likelihood x impact. MAP 5: Assess societal impacts. First risk register complete.'},
+  {month:5,duration:2,fn:'MEASURE',color:'#ff6b6b',label:'Define metrics',
+   detail:'MS 1: For each high-priority risk, define one measurable metric. Baseline current performance before any changes.'},
+  {month:6,duration:2,fn:'MEASURE',color:'#ff6b6b',label:'Run evaluation suite',
+   detail:'MS 2: Test against defined metrics including fairness and robustness. MS 3: Involve domain experts in evaluation.'},
+  {month:7,duration:3,fn:'MANAGE',color:'#51cf66',label:'Build response playbook',
+   detail:'MG 1-2: For each risk, document treatment decision with rationale. Assign mitigation owners and timelines.'},
+  {month:9,duration:2,fn:'MANAGE',color:'#51cf66',label:'Launch monitoring',
+   detail:'MG 3: Establish continuous metric monitoring. Set alert thresholds. Define and test incident response process.'},
+  {month:11,duration:2,fn:'GOVERN',color:'#0984e3',label:'Board review + expand',
+   detail:'Present AI risk summary to leadership. Expand MAP and MEASURE to 2-3 more AI systems. Plan year 2 maturity goals.'}
+];
+
+// ===== TRADE-OFF DATA =====
+var selectedTradeoff=0;
+var tradeoffSlider=50;
+var TRADEOFF_PAIRS=[
+  {a:'Accurate',b:'Explainable',colA:'#74b9ff',colB:'#a29bfe',
+   tension:'Higher accuracy often requires complex models (deep neural nets, ensemble methods) that are hard to explain. Simple, explainable models (decision trees, logistic regression) typically sacrifice accuracy.',
+   examples:['95% accurate deep model with 1000 features vs 89% accurate decision tree with 12 interpretable rules','Medical imaging AI: ResNet accuracy vs radiologist-readable feature analysis'],
+   sweetSpot:'SHAP values and feature importance give partial explainability without full accuracy sacrifice. Post-hoc explanation + high-accuracy model is often viable.',
+   rmfLink:'MS 1: Define both accuracy AND explainability metrics. GOVERN: document which trade-off was made and why.'},
+  {a:'Fair',b:'Accurate',colA:'#fd79a8',colB:'#74b9ff',
+   tension:'Demographic parity (equal selection rates) requires different thresholds per group, reducing overall accuracy. Multiple fairness definitions (parity vs equalized odds vs calibration) cannot all be satisfied simultaneously.',
+   examples:['Hiring model: 82% accurate unconstrained vs 79% with gender parity constraint','Credit scoring: calibration per race group vs equal false positive rates - mathematically incompatible'],
+   sweetSpot:'Define which fairness metric is legally and ethically required for your context BEFORE training. Then optimize accuracy within that constraint.',
+   rmfLink:'MAP 3: Catalogue which fairness definition applies. MS 1: Measure the metric you chose, not the easiest one.'},
+  {a:'Privacy',b:'Useful',colA:'#00b894',colB:'#f7b731',
+   tension:'Data minimization reduces signal available for accurate predictions. Differential privacy adds calibrated noise. Federated learning prevents centralization but limits model quality.',
+   examples:['Federated healthcare model: 91% accuracy vs 96% centralized version','Differential privacy on census data: reduces utility for small subgroups most'],
+   sweetSpot:'Federated learning plus differential privacy gives most of the utility with most of the privacy. Acceptable for many healthcare and finance use cases.',
+   rmfLink:'MAP 3: Privacy risk assessment. MS 1: Measure privacy budget consumed. G1: Policy on data minimization requirements.'},
+  {a:'Secure',b:'Accessible',colA:'#ff6b6b',colB:'#51cf66',
+   tension:'Adversarial defenses, rate limiting, and access controls make AI harder to use legitimately. Open APIs enable both legitimate use and adversarial probing. CAPTCHA harms accessibility.',
+   examples:['Content moderation API: strict rate limiting blocks both spam campaigns and legitimate researchers','Fraud detection: closed-loop system is more secure but prevents external audit for bias'],
+   sweetSpot:'Tiered access: open for low-risk use cases, credentialed for high-volume or sensitive access. Separation of audit access from production access.',
+   rmfLink:'MAP 3: Model security risk. G6: Policy on who can access AI systems and under what conditions.'},
+  {a:'Safe',b:'Capable',colA:'#51cf66',colB:'#6c5ce7',
+   tension:'Safety guardrails (refusal, uncertainty flags, conservative outputs) reduce the range of tasks the system performs. Highly capable generative AI requires more constraints to prevent misuse.',
+   examples:['Medical AI: always deferring when uncertain is safer but creates bottlenecks in low-resource settings','LLM content policies: strict filtering prevents misuse but also blocks legitimate creative and research use'],
+   sweetSpot:'Context-adaptive safety: stricter guardrails in high-stakes domains (medical, legal, financial), more flexible in low-risk creative applications.',
+   rmfLink:'MAP 1: Define the deployment context and risk tolerance. MG 2: Explicit decision on acceptable capability-safety balance per context.'}
+];
+function selectTradeoff(idx){
+  selectedTradeoff=idx;
+  tradeoffSlider=50;
+  var sl=document.getElementById('sl-tradeoff');if(sl)sl.value=50;
+  for(var i=0;i<5;i++){var b=document.getElementById('tb-'+i);if(b)b.className=(i===idx)?'btn':'btn-tab';}
+  var p=TRADEOFF_PAIRS[idx];
+  var la=document.getElementById('tradeoff-lbl-a');var lb=document.getElementById('tradeoff-lbl-b');
+  if(la){la.textContent=p.a;la.style.color=p.colA;}
+  if(lb){lb.textContent=p.b;lb.style.color=p.colB;}
+  if(typeof drawTradeoffs==='function')drawTradeoffs();
+  showTradeoffDetail();
+}
+function showTradeoffDetail(){
+  var det=document.getElementById('tradeoff-detail');
+  if(!det)return;
+  var p=TRADEOFF_PAIRS[selectedTradeoff];
+  var bias=tradeoffSlider<40?('Optimizing for <strong style="color:'+p.colA+'">'+p.a+'</strong>'):tradeoffSlider>60?('Optimizing for <strong style="color:'+p.colB+'">'+p.b+'</strong>'):'<strong>Balanced</strong> approach';
+  det.innerHTML='<strong style="color:'+p.colA+'">'+p.a+'</strong> vs <strong style="color:'+p.colB+'">'+p.b+'</strong> &mdash; '+p.tension+'<div style="margin-top:8px;padding:8px 12px;background:rgba(0,0,0,.3);border-radius:6px;font-size:11px"><strong>Sweet spot:</strong> '+p.sweetSpot+'<br><strong>RMF action:</strong> '+p.rmfLink+'</div>';
+}
+
+// ===== SECTOR PROFILES DATA =====
+var selectedSector=0;
+var SECTORS=[
+  {id:'healthcare',label:'Healthcare',color:'#ff6b6b',
+   importance:{GOVERN:85,MAP:90,MEASURE:95,MANAGE:88},
+   topRisks:['Hallucination in clinical AI','Model drift in diagnostic systems','Bias in treatment recommendations','Over-reliance by clinicians','Privacy leakage from health records'],
+   riskColors:['#ff6b6b','#f7b731','#fd79a8','#0984e3','#6c5ce7'],
+   keyMetrics:'Sensitivity and specificity by demographic group; out-of-distribution detection; human override rate',
+   regulatory:'FDA AI/ML action plan + EU AI Act (high-risk) + HIPAA + state health data laws'},
+  {id:'finance',label:'Financial Services',color:'#f7b731',
+   importance:{GOVERN:90,MAP:85,MEASURE:95,MANAGE:80},
+   topRisks:['Credit scoring disparate impact','Model risk in trading algorithms','Explainability for adverse action notices','Data poisoning in fraud detection','Regulatory model validation gaps'],
+   riskColors:['#fd79a8','#ff6b6b','#6c5ce7','#e17055','#f7b731'],
+   keyMetrics:'Disparate impact ratio (4/5ths rule); model stability index; feature attribution for declined applications',
+   regulatory:'SR 11-7 Model Risk Management + ECOA/FCRA + Basel III + CFPB guidance on AI in lending'},
+  {id:'criminal-justice',label:'Criminal Justice',color:'#6c5ce7',
+   importance:{GOVERN:95,MAP:90,MEASURE:85,MANAGE:80},
+   topRisks:['Racial bias in risk assessments','Over-reliance replacing human judgment','Lack of explainability for decisions','Historical discrimination in training data','Civil liberties impact at scale'],
+   riskColors:['#ff6b6b','#fd79a8','#a29bfe','#e17055','#6c5ce7'],
+   keyMetrics:'False positive/negative rates by race and gender; calibration across demographic groups; judge override rate',
+   regulatory:'14th Amendment equal protection + state algorithmic accountability laws (IL, CA, NY) + Civil Rights Act'},
+  {id:'hr',label:'HR & Recruitment',color:'#00b894',
+   importance:{GOVERN:80,MAP:90,MEASURE:85,MANAGE:75},
+   topRisks:['Gender and racial bias in screening','Personality assessment validity','Interview AI bias by speech patterns','Proxy discrimination via zip code','EEOC disparate impact liability'],
+   riskColors:['#fd79a8','#f7b731','#ff6b6b','#6c5ce7','#e17055'],
+   keyMetrics:'Adverse impact ratio by protected class (4/5ths rule); selection rate parity; interview score consistency',
+   regulatory:'EEOC guidance on AI in employment + NYC Local Law 144 (mandatory bias audits) + EU AI Act (high-risk)'}
+];
+function selectSector(idx){
+  selectedSector=idx;
+  for(var i=0;i<4;i++){var b=document.getElementById('sec-btn-'+i);if(b)b.className=(i===idx)?'btn':'btn-tab';}
+  if(typeof drawSectorProfile==='function')drawSectorProfile();
+  var s=SECTORS[idx];
+  var det=document.getElementById('sector-detail');
+  if(det)det.innerHTML='<strong style="color:'+s.color+'">'+s.label+'</strong><br><strong>Key metrics:</strong> '+s.keyMetrics+'<br><strong>Regulatory:</strong> '+s.regulatory;
+}
+
+// ===== ACTOR MAP DATA =====
+var selectedActor=null;
+var hoveredActor=null;
+var ACTORS=[
+  {id:'developer',label:'AI Developer',color:'#6c5ce7',
+   desc:'Creates the AI model, training pipeline, and technical documentation.',
+   governs:['G1: Document dev policies','G3: Ensure team competencies'],
+   maps:['MAP 2: Apply domain knowledge','MAP 3: Identify technical risks'],
+   measures:['MS 1: Define initial metrics','MS 2: Pre-deployment evaluation','MS 3: Internal red-team'],
+   manages:['MG 1: Document known limitations','MG 4: Communicate residual risks to deployer']},
+  {id:'deployer',label:'AI Deployer',color:'#0984e3',
+   desc:'Deploys the AI in a specific context and configures it for their use case.',
+   governs:['G2: Define deployment accountability','G5: Establish deployment risk policy'],
+   maps:['MAP 1: Document intended and unintended use','MAP 5: Assess societal impact for context'],
+   measures:['MS 2: Context-specific evaluation','MS 4: Post-deployment feedback loops'],
+   manages:['MG 2: Select risk treatment strategy','MG 3: Operate monitoring systems']},
+  {id:'operator',label:'Operator / User',color:'#f7b731',
+   desc:'Uses the AI day-to-day in professional contexts (doctors, judges, HR managers).',
+   governs:['G4: Commit to risk management practices','G6: Exercise human oversight'],
+   maps:['MAP 1: Report unintended use cases observed in practice'],
+   measures:['MS 4: Provide user feedback on failures and unexpected outputs'],
+   manages:['MG 2: Exercise override authority','MG 3: Report incidents via defined channels']},
+  {id:'community',label:'Affected Communities',color:'#fd79a8',
+   desc:'Individuals and groups impacted by AI decisions, often without direct interaction.',
+   governs:['G1: Provide input into governance policy development','G4: Advocate for accountability mechanisms'],
+   maps:['MAP 5: Participate in societal impact assessment as stakeholders'],
+   measures:['MS 3: Provide external evaluation input and lived-experience data'],
+   manages:['MG 4: Receive clear residual risk communications']},
+  {id:'regulator',label:'Regulator',color:'#51cf66',
+   desc:'Sets rules, enforces compliance, and conducts market surveillance of AI systems.',
+   governs:['G5: Define regulatory policy requirements','G2: Enforce accountability standards'],
+   maps:['MAP 3: Define prohibited risk categories and prohibited uses'],
+   measures:['MS 2: Mandate evaluation standards and third-party audit requirements'],
+   manages:['MG 3: Market surveillance post-deployment','MG 4: Enforcement actions on residual harms']}
 ];
 </script>
 <script>

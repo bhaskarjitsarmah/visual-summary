@@ -1581,6 +1581,490 @@ function drawCrosswalk(){
   ctx.fillText('NIST AI RMF \u2194 EU AI Act Crosswalk \u2014 Hover a row to explore',16,4);
 }
 
+// ===== CASE STUDY (canvas-case-study) =====
+function initCaseStudy(){
+  var canvas=document.getElementById('canvas-case-study');
+  if(!canvas)return;
+  drawCaseStudy();
+  canvas.addEventListener('click',function(e){
+    var r=canvas.getBoundingClientRect();
+    var mx=e.clientX-r.left,my=e.clientY-r.top;
+    var W=700,fns=['GOVERN','MAP','MEASURE','MANAGE'];
+    var laneH=58,topY=60,colW=130,labW=90;
+    var c=CASE_STUDIES[selectedCase];
+    if(!c)return;
+    fns.forEach(function(fn,fi){
+      var y=topY+fi*laneH;
+      var gaps=c.gaps[fn]||[];
+      gaps.forEach(function(gap,gi){
+        var x=labW+gi*(colW+10)+10;
+        if(mx>=x&&mx<=x+colW&&my>=y+4&&my<=y+laneH-4){
+          var det=document.getElementById('case-gap-detail');
+          if(det)det.innerHTML='<strong style="color:'+c.color+'">'+fn+'</strong>: '+gap;
+        }
+      });
+    });
+  });
+}
+
+function drawCaseStudy(){
+  var canvas=document.getElementById('canvas-case-study');
+  if(!canvas||typeof CASE_STUDIES==='undefined')return;
+  var ctx=canvas.getContext('2d');
+  var W=700,H=320;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var c=CASE_STUDIES[selectedCase];
+  if(!c)return;
+
+  var fns=['GOVERN','MAP','MEASURE','MANAGE'];
+  var fnColors=['#0984e3','#f7b731','#ff6b6b','#51cf66'];
+  var laneH=58,topY=28,labW=88;
+
+  // Title bar
+  drawRoundedRect(ctx,0,0,W,24,0,c.color+'33',null);
+  ctx.fillStyle=c.color;ctx.font='bold 12px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
+  ctx.fillText(c.title+' ('+c.year+')',10,12);
+  ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='10px Inter,sans-serif';
+  ctx.fillText('RMF Gap Analysis — click a gap card to see details',300,12);
+
+  fns.forEach(function(fn,fi){
+    var y=topY+fi*laneH;
+    var bg=(fi%2===0)?'#1a2233':'#161b22';
+    ctx.fillStyle=bg;ctx.fillRect(0,y,W,laneH);
+
+    // Function label
+    drawRoundedRect(ctx,4,y+8,labW-8,laneH-16,6,fnColors[fi]+'33',fnColors[fi]+'66');
+    ctx.fillStyle=fnColors[fi];ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(fn,labW/2,y+laneH/2);
+
+    // Gap cards
+    var gaps=c.gaps[fn]||[];
+    var colW=Math.min(140,(W-labW-20)/(gaps.length||1)-8);
+    gaps.forEach(function(gap,gi){
+      var gx=labW+gi*(colW+8)+8;
+      drawRoundedRect(ctx,gx,y+6,colW,laneH-12,6,'#ff6b6b22','#ff6b6b66');
+      // X mark
+      ctx.fillStyle='#ff6b6b';ctx.font='bold 13px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+      ctx.fillText('\u2717',gx+6,y+10);
+      // Gap text
+      ctx.fillStyle='rgba(255,255,255,0.8)';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+      wrapText(ctx,gap,gx+20,y+10,colW-24,11);
+    });
+    if(gaps.length===0){
+      ctx.fillStyle='#51cf6688';ctx.font='11px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
+      ctx.fillText('\u2713 No major gap identified',labW+10,y+laneH/2);
+    }
+  });
+
+  // Bottom outcome bar
+  var botY=topY+fns.length*laneH+4;
+  drawRoundedRect(ctx,4,botY,W-8,H-botY-4,6,'#ffffff0a','#ffffff15');
+  ctx.fillStyle='rgba(255,255,255,0.6)';ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+  ctx.fillText('OUTCOME:',10,botY+6);
+  ctx.fillStyle='rgba(255,255,255,0.85)';ctx.font='9px Inter,sans-serif';
+  wrapText(ctx,c.outcome,70,botY+6,W-80,12);
+}
+
+// ===== ROADMAP (canvas-roadmap) =====
+var hoveredRoadmapIdx=null;
+function initRoadmap(){
+  var canvas=document.getElementById('canvas-roadmap');
+  if(!canvas)return;
+  drawRoadmap();
+  canvas.addEventListener('mousemove',function(e){
+    var r=canvas.getBoundingClientRect();
+    var mx=e.clientX-r.left,my=e.clientY-r.top;
+    var W=700,H=360,padL=90,padT=50,padR=20,padB=40;
+    var plotW=W-padL-padR,plotH=H-padT-padB;
+    var months=12,barH=28;
+    var newHov=null;
+    if(typeof ROADMAP_ITEMS!=='undefined'){
+      ROADMAP_ITEMS.forEach(function(item,idx){
+        var fns=['GOVERN','MAP','MEASURE','MANAGE'];
+        var fi=fns.indexOf(item.fn);
+        var laneH=plotH/4;
+        var y=padT+fi*laneH+(laneH-barH)/2;
+        var x=padL+(item.month-1)/months*plotW;
+        var w=item.duration/months*plotW;
+        if(mx>=x&&mx<=x+w&&my>=y&&my<=y+barH){newHov=idx;}
+      });
+    }
+    if(newHov!==hoveredRoadmapIdx){hoveredRoadmapIdx=newHov;drawRoadmap();}
+  });
+  canvas.addEventListener('mouseleave',function(){hoveredRoadmapIdx=null;drawRoadmap();});
+}
+
+function drawRoadmap(){
+  var canvas=document.getElementById('canvas-roadmap');
+  if(!canvas||typeof ROADMAP_ITEMS==='undefined')return;
+  var ctx=canvas.getContext('2d');
+  var W=700,H=360,padL=90,padT=50,padR=20,padB=40;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var plotW=W-padL-padR,plotH=H-padT-padB;
+  var months=12;
+  var fns=['GOVERN','MAP','MEASURE','MANAGE'];
+  var fnColors=['#0984e3','#f7b731','#ff6b6b','#51cf66'];
+
+  // Month grid lines
+  for(var m=0;m<=months;m++){
+    var gx=padL+m/months*plotW;
+    ctx.strokeStyle=m%3===0?'#30363d':'#1e2530';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(gx,padT);ctx.lineTo(gx,H-padB);ctx.stroke();
+    if(m<months){
+      ctx.fillStyle='rgba(255,255,255,0.4)';ctx.font='10px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+      ctx.fillText('M'+(m+1),padL+(m+0.5)/months*plotW,padT-18);
+    }
+  }
+
+  // Phase labels at top
+  [[0,3,'Phase 1: Foundation','#0984e3'],[3,6,'Phase 2: Assessment','#f7b731'],[6,9,'Phase 3: Implement','#ff6b6b'],[9,12,'Phase 4: Sustain','#51cf66']].forEach(function(ph){
+    var px=padL+ph[0]/months*plotW;
+    var pw=ph[1]/months*plotW-ph[0]/months*plotW;
+    ctx.fillStyle=ph[3]+'33';ctx.fillRect(px,padT-22,pw,18);
+    ctx.fillStyle=ph[3];ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(ph[2],px+pw/2,padT-13);
+  });
+
+  // Function lanes
+  fns.forEach(function(fn,fi){
+    var laneH=plotH/4;
+    var y=padT+fi*laneH;
+    ctx.fillStyle=(fi%2===0)?'#1a2233':'#161b22';ctx.fillRect(padL,y,plotW,laneH);
+    // Lane label
+    ctx.fillStyle=fnColors[fi];ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='right';ctx.textBaseline='middle';
+    ctx.fillText(fn,padL-8,y+laneH/2);
+    // Lane border
+    ctx.strokeStyle='#2d333b';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+plotW,y);ctx.stroke();
+  });
+
+  // Bars
+  var barH=26;
+  ROADMAP_ITEMS.forEach(function(item,idx){
+    var fi=fns.indexOf(item.fn);
+    var laneH=plotH/4;
+    var y=padT+fi*laneH+(laneH-barH)/2;
+    var x=padL+(item.month-1)/months*plotW;
+    var w=item.duration/months*plotW;
+    var isHov=(hoveredRoadmapIdx===idx);
+    var alpha=isHov?1:0.75;
+    drawRoundedRect(ctx,x+2,y,w-4,barH,5,item.color+(isHov?'ee':'99'),item.color);
+    ctx.fillStyle='rgba(255,255,255,'+(isHov?0.95:0.8)+')';ctx.font=(isHov?'bold ':'')+'9px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
+    if(w>40)ctx.fillText(item.label,x+8,y+barH/2);
+
+    if(isHov){
+      // Tooltip
+      var tx=Math.min(x,W-180),ty=y-38;
+      if(ty<0)ty=y+barH+4;
+      drawRoundedRect(ctx,tx,ty,175,32,6,'#1e2b3c','#6c5ce7');
+      ctx.fillStyle='rgba(255,255,255,0.9)';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+      ctx.fillText(item.fn+': '+item.label,tx+6,ty+5);
+      ctx.fillStyle='rgba(255,255,255,0.6)';ctx.font='8px Inter,sans-serif';
+      wrapText(ctx,item.detail,tx+6,ty+17,163,10);
+
+      // Update detail panel
+      var det=document.getElementById('roadmap-detail');
+      if(det)det.innerHTML='<strong style="color:'+item.color+'">'+item.fn+' \u2014 Month '+item.month+':</strong> '+item.detail;
+    }
+  });
+
+  ctx.fillStyle='rgba(255,255,255,0.3)';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='bottom';
+  ctx.fillText('12-Month AI RMF Implementation Roadmap \u2014 Hover a bar for details',padL,H-2);
+}
+
+// ===== TRADEOFFS (canvas-tradeoffs) =====
+var tradeoffAnimT=0;
+var tradeoffRaf=null;
+function initTradeoffs(){
+  var canvas=document.getElementById('canvas-tradeoffs');
+  if(!canvas)return;
+  drawTradeoffs();
+}
+
+function drawTradeoffs(){
+  var canvas=document.getElementById('canvas-tradeoffs');
+  if(!canvas||typeof TRADEOFF_PAIRS==='undefined')return;
+  var ctx=canvas.getContext('2d');
+  var W=700,H=280;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var pair=TRADEOFF_PAIRS[selectedTradeoff];
+  if(!pair)return;
+  var t=tradeoffSlider/100;
+
+  var cx=W/2,gaugR=70,gaugeY=130;
+
+  // Left gauge (A) — decreases as slider goes right
+  var valA=1-t*0.6;
+  drawGauge(ctx,160,gaugeY,gaugR,valA,pair.colA,pair.a,'Higher');
+
+  // Right gauge (B) — increases as slider goes right
+  var valB=0.3+t*0.65;
+  drawGauge(ctx,540,gaugeY,gaugR,valB,pair.colB,pair.b,'Higher');
+
+  // Tension arrow in middle
+  var midY=gaugeY;
+  ctx.fillStyle='rgba(255,255,255,0.15)';ctx.fillRect(cx-55,midY-12,110,24);
+  ctx.fillStyle='rgba(255,255,255,0.6)';ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('TENSION',cx,midY);
+
+  // Bidirectional arrow
+  drawArrow(ctx,cx-55,midY,cx-20,midY,'rgba(255,255,255,0.4)',1.5);
+  drawArrow(ctx,cx+55,midY,cx+20,midY,'rgba(255,255,255,0.4)',1.5);
+
+  // Slider track visualization
+  var trkY=gaugeY+gaugR+28,trkX=80,trkW=W-160;
+  ctx.strokeStyle='#30363d';ctx.lineWidth=4;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(trkX,trkY);ctx.lineTo(trkX+trkW,trkY);ctx.stroke();
+  // Color gradient from A to B
+  var grad=ctx.createLinearGradient(trkX,0,trkX+trkW,0);
+  grad.addColorStop(0,pair.colA+'cc');grad.addColorStop(1,pair.colB+'cc');
+  ctx.strokeStyle=grad;ctx.lineWidth=3;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(trkX,trkY);ctx.lineTo(trkX+trkW,trkY);ctx.stroke();
+  // Thumb
+  var thumbX=trkX+t*trkW;
+  ctx.beginPath();ctx.arc(thumbX,trkY,8,0,Math.PI*2);
+  ctx.fillStyle='#fff';ctx.fill();
+  ctx.strokeStyle='#6c5ce7';ctx.lineWidth=2;ctx.stroke();
+
+  // Labels
+  ctx.fillStyle=pair.colA;ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
+  ctx.fillText('\u2190 More '+pair.a,trkX,trkY+20);
+  ctx.fillStyle=pair.colB;ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='right';
+  ctx.fillText('More '+pair.b+' \u2192',trkX+trkW,trkY+20);
+
+  // Sweet spot indicator
+  var ssT=0.5,ssX=trkX+ssT*trkW;
+  ctx.strokeStyle='#ffd32a55';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+  ctx.beginPath();ctx.moveTo(ssX,trkY-20);ctx.lineTo(ssX,trkY+10);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='rgba(255,211,42,0.7)';ctx.font='8px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+  ctx.fillText('sweet spot',ssX,trkY+12);
+
+  // Update info panel
+  var det=document.getElementById('tradeoff-detail');
+  if(det){
+    var emphasis=t<0.35?pair.a:(t>0.65?pair.b:'balanced');
+    det.innerHTML='<strong>'+pair.a+' vs '+pair.b+'</strong><br>'+pair.tension+'<br><br><em>Current emphasis: <strong>'+emphasis+'</strong></em><br>'+pair.rmfLink;
+  }
+}
+
+function drawGauge(ctx,cx,cy,r,val,color,label,prefix){
+  // Background arc
+  ctx.beginPath();ctx.arc(cx,cy,r,-Math.PI*0.8,Math.PI*0.8);
+  ctx.strokeStyle='#2d333b';ctx.lineWidth=12;ctx.lineCap='round';ctx.stroke();
+  // Value arc
+  var endAngle=-Math.PI*0.8+val*Math.PI*1.6;
+  ctx.beginPath();ctx.arc(cx,cy,r,-Math.PI*0.8,endAngle);
+  ctx.strokeStyle=color;ctx.lineWidth=10;ctx.lineCap='round';ctx.stroke();
+  // Value text
+  ctx.fillStyle=color;ctx.font='bold 20px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(Math.round(val*100)+'%',cx,cy-6);
+  ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='9px Inter,sans-serif';
+  ctx.fillText(prefix,cx,cy+14);
+  // Label below
+  ctx.fillStyle='rgba(255,255,255,0.8)';ctx.font='bold 12px Inter,sans-serif';ctx.textBaseline='top';
+  ctx.fillText(label,cx,cy+r+10);
+}
+
+// ===== SECTOR PROFILE (canvas-sector-profile) =====
+function initSectorProfile(){
+  var canvas=document.getElementById('canvas-sector-profile');
+  if(!canvas)return;
+  drawSectorProfile();
+}
+
+function drawSectorProfile(){
+  var canvas=document.getElementById('canvas-sector-profile');
+  if(!canvas||typeof SECTORS==='undefined')return;
+  var ctx=canvas.getContext('2d');
+  var W=700,H=320;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var sec=SECTORS[selectedSector];
+  if(!sec)return;
+
+  var midX=W/2,padT=30,padB=20;
+  // Divider
+  ctx.strokeStyle='#30363d';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(midX,padT);ctx.lineTo(midX,H-padB);ctx.stroke();
+
+  // LEFT: Function importance bars
+  var fns=['GOVERN','MAP','MEASURE','MANAGE'];
+  var fnColors=['#0984e3','#f7b731','#ff6b6b','#51cf66'];
+  ctx.fillStyle='rgba(255,255,255,0.7)';ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+  ctx.fillText('RMF Function Importance in '+sec.label,10,6);
+
+  var barAreaW=midX-80,barH=28,barGap=12,startY=padT+10;
+  fns.forEach(function(fn,fi){
+    var y=startY+fi*(barH+barGap);
+    var val=sec.importance[fn]||0;
+    var maxW=barAreaW;
+    // Label
+    ctx.fillStyle=fnColors[fi];ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.fillText(fn,10,y+barH/2);
+    // Background bar
+    drawRoundedRect(ctx,70,y,maxW,barH,5,'#ffffff0a','#30363d');
+    // Value bar
+    var bw=val/100*maxW;
+    drawRoundedRect(ctx,70,y,bw,barH,5,fnColors[fi]+'99',fnColors[fi]);
+    // Percentage
+    ctx.fillStyle='rgba(255,255,255,0.9)';ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='right';ctx.textBaseline='middle';
+    ctx.fillText(val+'%',70+bw-6,y+barH/2);
+  });
+
+  // RIGHT: Top risks
+  ctx.fillStyle='rgba(255,255,255,0.7)';ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+  ctx.fillText('Top AI Risks in '+sec.label,midX+10,6);
+
+  var risks=sec.topRisks||[];
+  var riskColors=sec.riskColors||[];
+  var rBarH=26,rBarGap=8,rStartY=padT+10;
+  var rAreaW=midX-70;
+  risks.forEach(function(risk,ri){
+    var y=rStartY+ri*(rBarH+rBarGap);
+    var col=riskColors[ri]||sec.color;
+    var severity=(5-ri)/5;
+    // Risk bar background
+    drawRoundedRect(ctx,midX+10,y,rAreaW,rBarH,5,'#ffffff0a','#30363d');
+    drawRoundedRect(ctx,midX+10,y,severity*rAreaW,rBarH,5,col+'99',col);
+    ctx.fillStyle='rgba(255,255,255,0.85)';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.fillText(risk,midX+16,y+rBarH/2);
+    // Severity rank
+    ctx.fillStyle=col;ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='right';ctx.textBaseline='middle';
+    ctx.fillText(['Critical','High','High','Medium','Medium'][ri]||'',midX+rAreaW+6,y+rBarH/2);
+  });
+
+  // Bottom info
+  ctx.fillStyle='rgba(255,255,255,0.35)';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='bottom';
+  ctx.fillText('Key metrics: '+sec.keyMetrics,10,H-4);
+
+  // Update detail panel
+  var det=document.getElementById('sector-detail');
+  if(det)det.innerHTML='<strong style="color:'+sec.color+'">'+sec.label+'</strong><br>Key regulation: '+sec.regulatory+'<br>Critical metrics: '+sec.keyMetrics;
+}
+
+// ===== ACTOR MAP (canvas-actor-map) =====
+function initActorMap(){
+  var canvas=document.getElementById('canvas-actor-map');
+  if(!canvas)return;
+  drawActorMap();
+  canvas.addEventListener('click',function(e){
+    var r=canvas.getBoundingClientRect();
+    var mx=e.clientX-r.left,my=e.clientY-r.top;
+    if(typeof ACTORS==='undefined')return;
+    var W=700,H=340,padL=100,padT=60,colW=(W-padL-20)/ACTORS.length;
+    ACTORS.forEach(function(actor,ai){
+      var ax=padL+ai*colW+colW/2;
+      var ay=30;
+      if(mx>=ax-colW/2+5&&mx<=ax+colW/2-5&&my>=ay-18&&my<=ay+18){
+        selectedActor=(selectedActor===actor.id)?null:actor.id;
+        drawActorMap();
+      }
+    });
+  });
+  canvas.addEventListener('mousemove',function(e){
+    var r=canvas.getBoundingClientRect();
+    var mx=e.clientX-r.left,my=e.clientY-r.top;
+    if(typeof ACTORS==='undefined')return;
+    var W=700,padL=100,padT=60,colW=(W-padL-20)/ACTORS.length;
+    var newHov=null;
+    ACTORS.forEach(function(actor,ai){
+      var ax=padL+ai*colW+colW/2;
+      if(mx>=padL+ai*colW+5&&mx<=padL+(ai+1)*colW-5&&my>=padT&&my<=340-20){newHov=actor.id;}
+    });
+    if(newHov!==hoveredActor){hoveredActor=newHov;drawActorMap();}
+  });
+  canvas.addEventListener('mouseleave',function(){hoveredActor=null;drawActorMap();});
+}
+
+function drawActorMap(){
+  var canvas=document.getElementById('canvas-actor-map');
+  if(!canvas||typeof ACTORS==='undefined')return;
+  var ctx=canvas.getContext('2d');
+  var W=700,H=340,padL=100,padT=60,padR=20,padB=20;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var fns=['GOVERN','MAP','MEASURE','MANAGE'];
+  var fnColors=['#0984e3','#f7b731','#ff6b6b','#51cf66'];
+  var colW=(W-padL-padR)/ACTORS.length;
+  var rowH=(H-padT-padB)/fns.length;
+
+  // Column headers (Actor names)
+  ACTORS.forEach(function(actor,ai){
+    var ax=padL+ai*colW+colW/2;
+    var isActive=(selectedActor===actor.id||hoveredActor===actor.id);
+    drawRoundedRect(ctx,padL+ai*colW+3,8,colW-6,padT-16,6,isActive?actor.color+'44':'#ffffff0a',isActive?actor.color:'#30363d');
+    ctx.fillStyle=isActive?actor.color:'rgba(255,255,255,0.7)';ctx.font=(isActive?'bold ':'')+'10px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(actor.label,ax,padT/2);
+    if(isActive){ctx.fillStyle=actor.color;ctx.font='8px Inter,sans-serif';ctx.textBaseline='bottom';ctx.fillText('(click to deselect)',ax,padT-4);}
+  });
+
+  // Row headers (Functions)
+  fns.forEach(function(fn,fi){
+    var fy=padT+fi*rowH+rowH/2;
+    ctx.fillStyle=fnColors[fi];ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='right';ctx.textBaseline='middle';
+    ctx.fillText(fn,padL-6,fy);
+    // Row divider
+    ctx.strokeStyle='#2d333b';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(padL,padT+fi*rowH);ctx.lineTo(W-padR,padT+fi*rowH);ctx.stroke();
+  });
+
+  // Cells
+  ACTORS.forEach(function(actor,ai){
+    var isActorActive=(selectedActor===actor.id||hoveredActor===actor.id);
+    fns.forEach(function(fn,fi){
+      var cx2=padL+ai*colW+colW/2;
+      var cy2=padT+fi*rowH+rowH/2;
+      var cellW=colW-8,cellH=rowH-8;
+      var respList={GOVERN:actor.governs,MAP:actor.maps,MEASURE:actor.measures,MANAGE:actor.manages}[fn]||[];
+
+      var bg=isActorActive?actor.color+'22':'#1a2233';
+      var border=isActorActive?actor.color+'66':'#2d333b';
+      drawRoundedRect(ctx,padL+ai*colW+4,padT+fi*rowH+4,cellW,cellH,5,bg,border);
+
+      if(respList.length>0){
+        // Dot indicator
+        ctx.beginPath();ctx.arc(padL+ai*colW+14,padT+fi*rowH+14,4,0,Math.PI*2);
+        ctx.fillStyle=isActorActive?actor.color:fnColors[fi]+'99';ctx.fill();
+        // First responsibility text
+        ctx.fillStyle=isActorActive?'rgba(255,255,255,0.9)':'rgba(255,255,255,0.55)';
+        ctx.font=(isActorActive?'bold ':'')+'8px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+        wrapText(ctx,respList[0],padL+ai*colW+7,padT+fi*rowH+22,cellW-10,10);
+      } else {
+        ctx.fillStyle='rgba(255,255,255,0.2)';ctx.font='11px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText('\u2014',cx2,cy2);
+      }
+    });
+
+    // Show detail panel for active actor
+    if(selectedActor===actor.id){
+      var det=document.getElementById('actor-detail');
+      if(det){
+        var html='<strong style="color:'+actor.color+'">'+actor.label+'</strong><br>'+actor.desc+'<br><br>';
+        fns.forEach(function(fn,fi){
+          var list={GOVERN:actor.governs,MAP:actor.maps,MEASURE:actor.measures,MANAGE:actor.manages}[fn]||[];
+          if(list.length>0){
+            html+='<strong style="color:'+fnColors[fi]+'">'+fn+':</strong> '+list.join('; ')+'<br>';
+          }
+        });
+        det.innerHTML=html;
+      }
+    }
+  });
+
+  // Bottom legend
+  ctx.fillStyle='rgba(255,255,255,0.3)';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='bottom';
+  ctx.fillText('Click a column header to highlight responsibilities \u2014 each cell shows key duties per function',padL,H-3);
+}
+
 // ===== INIT ALL =====
 function doInit(){
   initRMFWheel();
@@ -1599,6 +2083,11 @@ function doInit(){
   initSubcatBrowser();
   initMaturityAssessment();
   initCrosswalk();
+  initCaseStudy();
+  initRoadmap();
+  initTradeoffs();
+  initSectorProfile();
+  initActorMap();
   updateNavOnScroll();
 }
 
