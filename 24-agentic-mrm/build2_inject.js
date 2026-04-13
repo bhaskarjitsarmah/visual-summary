@@ -361,6 +361,17 @@ function drawMRMPipeline(){
     });
     ctx.fillText(line,x+stepW/2,ly);
   });
+
+  // Click handler
+  c.onclick=function(e){
+    var r=c.getBoundingClientRect();
+    var mx=e.clientX-r.left;
+    for(var i=0;i<n;i++){
+      var x=12+i*(stepW+4);
+      if(mx>=x&&mx<=x+stepW)selectStep(i);
+    }
+  };
+  c.style.cursor='pointer';
 }
 
 // ============================================================
