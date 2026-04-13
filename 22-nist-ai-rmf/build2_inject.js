@@ -2065,6 +2065,386 @@ function drawActorMap(){
   ctx.fillText('Click a column header to highlight responsibilities \u2014 each cell shows key duties per function',padL,H-3);
 }
 
+// ===== QUIZ RADAR (canvas-quiz-radar) =====
+function initQuizRadar(){
+  var canvas=document.getElementById('canvas-quiz-radar');
+  if(!canvas)return;
+  drawQuizRadar();
+}
+
+function drawQuizRadar(){
+  var canvas=document.getElementById('canvas-quiz-radar');
+  if(!canvas)return;
+  var ctx=canvas.getContext('2d');
+  var W=700,H=280,cx=350,cy=150,maxR=110;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var fns=['GOVERN','MAP','MEASURE','MANAGE'];
+  var fnColors=['#0984e3','#f7b731','#ff6b6b','#51cf66'];
+  var maxScores={GOVERN:6,MAP:6,MEASURE:6,MANAGE:6};
+  var angles=fns.map(function(f,i){return -Math.PI/2+i*(Math.PI*2/4);});
+
+  // Background rings
+  [0.25,0.5,0.75,1].forEach(function(t){
+    ctx.beginPath();
+    angles.forEach(function(a,i){
+      var x=cx+Math.cos(a)*maxR*t,y=cy+Math.sin(a)*maxR*t;
+      if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    });
+    ctx.closePath();
+    ctx.strokeStyle=(t===1)?'#30363d':'#1e2530';ctx.lineWidth=1;ctx.stroke();
+    if(t<1){ctx.fillStyle='rgba(255,255,255,0.15)';ctx.font='8px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(Math.round(t*100)+'%',cx,cy-maxR*t-6);}
+  });
+
+  // Spoke lines
+  angles.forEach(function(a){
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(a)*maxR,cy+Math.sin(a)*maxR);
+    ctx.strokeStyle='#30363d';ctx.lineWidth=1;ctx.stroke();
+  });
+
+  var scoresFilled=typeof quizComplete!=='undefined'&&quizComplete;
+  var scores=typeof quizScores!=='undefined'?quizScores:{GOVERN:0,MAP:0,MEASURE:0,MANAGE:0};
+
+  // Score polygon
+  if(scoresFilled){
+    ctx.beginPath();
+    fns.forEach(function(fn,i){
+      var t=scores[fn]/(maxScores[fn]||6);
+      var r=maxR*Math.min(t,1);
+      var x=cx+Math.cos(angles[i])*r,y=cy+Math.sin(angles[i])*r;
+      if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    });
+    ctx.closePath();
+    ctx.fillStyle='rgba(108,92,231,0.25)';ctx.fill();
+    ctx.strokeStyle='#6c5ce7';ctx.lineWidth=2;ctx.stroke();
+    // Score dots
+    fns.forEach(function(fn,i){
+      var t=scores[fn]/(maxScores[fn]||6);
+      var r=maxR*Math.min(t,1);
+      var x=cx+Math.cos(angles[i])*r,y=cy+Math.sin(angles[i])*r;
+      ctx.beginPath();ctx.arc(x,y,6,0,Math.PI*2);
+      ctx.fillStyle=fnColors[i];ctx.fill();
+      // Score label
+      var lx=cx+Math.cos(angles[i])*(r+18),ly=cy+Math.sin(angles[i])*(r+18);
+      ctx.fillStyle=fnColors[i];ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(scores[fn]+'/'+maxScores[fn],lx,ly);
+    });
+  } else {
+    // Empty state — dashed outline
+    ctx.beginPath();
+    angles.forEach(function(a,i){
+      var x=cx+Math.cos(a)*maxR*0.15,y=cy+Math.sin(a)*maxR*0.15;
+      if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    });
+    ctx.closePath();
+    ctx.strokeStyle='#30363d';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='rgba(255,255,255,0.2)';ctx.font='12px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('Complete the quiz to see your scores',cx,cy);
+  }
+
+  // Axis labels
+  fns.forEach(function(fn,i){
+    var labelR=maxR+30;
+    var lx=cx+Math.cos(angles[i])*labelR,ly=cy+Math.sin(angles[i])*labelR;
+    ctx.fillStyle=fnColors[i];ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(fn,lx,ly);
+  });
+
+  if(scoresFilled){
+    // Overall score
+    var total=fns.reduce(function(s,fn){return s+scores[fn];},0);
+    var totalMax=fns.reduce(function(s,fn){return s+(maxScores[fn]||6);},0);
+    var pct=Math.round(total/totalMax*100);
+    var grade=pct>=80?'Strong':pct>=60?'Developing':pct>=40?'Foundational':'Early Stage';
+    var gradeColor=pct>=80?'#51cf66':pct>=60?'#f7b731':'#ff6b6b';
+    ctx.fillStyle=gradeColor;ctx.font='bold 18px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(pct+'%',cx,cy-10);
+    ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='10px Inter,sans-serif';ctx.textBaseline='top';
+    ctx.fillText(grade,cx,cy+8);
+  }
+
+  ctx.fillStyle='rgba(255,255,255,0.3)';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+  ctx.fillText('AI RMF Readiness Radar \u2014 based on 15-question self-assessment',10,4);
+}
+
+// ===== RISK SANDBOX (canvas-sandbox) =====
+var sandboxCanvas=null;
+var sandboxDragIdx=null;
+var sandboxDragOffX=0,sandboxDragOffY=0;
+var SANDBOX_COLORS=['#ff6b6b','#f7b731','#6c5ce7','#51cf66','#0984e3','#fd79a8','#a29bfe','#00b894','#e84118','#74b9ff'];
+
+function initSandbox(){
+  sandboxCanvas=document.getElementById('canvas-sandbox');
+  if(!sandboxCanvas)return;
+  drawSandbox();
+  sandboxCanvas.addEventListener('mousedown',function(e){
+    var r=sandboxCanvas.getBoundingClientRect();
+    var mx=e.clientX-r.left,my=e.clientY-r.top;
+    var pad=50;
+    // Check if clicking existing risk
+    for(var i=sandboxRisks.length-1;i>=0;i--){
+      var rk=sandboxRisks[i];
+      var px=pad+rk.px*(700-pad*2),py=pad+rk.py*(340-pad*2);
+      if(Math.abs(mx-px)<14&&Math.abs(my-py)<14){sandboxDragIdx=i;sandboxDragOffX=mx-px;sandboxDragOffY=my-py;sandboxSelectedIdx=i;drawSandbox();return;}
+    }
+    // Place new risk
+    if(mx>=pad&&mx<=700-pad&&my>=pad&&my<=340-pad){
+      var sel=document.getElementById('sandbox-label-select');
+      var label=sel?sel.value:'Risk';
+      var npx=(mx-pad)/(700-pad*2),npy=(my-pad)/(340-pad*2);
+      sandboxRisks.push({label:label,px:npx,py:npy,color:SANDBOX_COLORS[sandboxRisks.length%SANDBOX_COLORS.length]});
+      sandboxSelectedIdx=sandboxRisks.length-1;
+      drawSandbox();
+      showSandboxDetail(sandboxSelectedIdx);
+    }
+  });
+  sandboxCanvas.addEventListener('mousemove',function(e){
+    if(sandboxDragIdx===null)return;
+    var r=sandboxCanvas.getBoundingClientRect();
+    var mx=e.clientX-r.left,my=e.clientY-r.top;
+    var pad=50;
+    var npx=Math.max(0,Math.min(1,(mx-sandboxDragOffX-pad)/(700-pad*2)));
+    var npy=Math.max(0,Math.min(1,(my-sandboxDragOffY-pad)/(340-pad*2)));
+    sandboxRisks[sandboxDragIdx].px=npx;sandboxRisks[sandboxDragIdx].py=npy;
+    drawSandbox();
+    showSandboxDetail(sandboxDragIdx);
+  });
+  sandboxCanvas.addEventListener('mouseup',function(){sandboxDragIdx=null;});
+  sandboxCanvas.addEventListener('mouseleave',function(){sandboxDragIdx=null;});
+}
+
+function showSandboxDetail(idx){
+  var rk=sandboxRisks[idx];if(!rk)return;
+  var quad=rk.px>0.5&&rk.py<0.5?'ACT NOW':rk.px<=0.5&&rk.py<0.5?'PRIORITIZE':rk.px>0.5?'WATCH':'MONITOR';
+  var quadColor={'ACT NOW':'#ff6b6b','PRIORITIZE':'#f7b731','WATCH':'#0984e3','MONITOR':'#51cf66'}[quad];
+  var rec={'ACT NOW':'Immediate mitigation required. Assign owner this sprint. Consider pausing deployment. (MG-1, MG-2)','PRIORITIZE':'High impact but less likely. Build a mitigation plan with timeline. (MAP-4, MG-1)','WATCH':'Likely but lower impact. Monitor closely. Set automated alerts. (MG-3)','MONITOR':'Low priority for now. Log it. Revisit each quarter. (MG-4)'}[quad];
+  var d=document.getElementById('sandbox-detail');
+  if(d)d.innerHTML='<strong style="color:'+rk.color+'">'+rk.label+'</strong> &mdash; Quadrant: <strong style="color:'+quadColor+'">'+quad+'</strong><br>Likelihood: <strong>'+Math.round(rk.px*100)+'%</strong> &nbsp; Impact: <strong>'+Math.round((1-rk.py)*100)+'%</strong><br><em>'+rec+'</em>';
+}
+
+function drawSandbox(){
+  var canvas=document.getElementById('canvas-sandbox');
+  if(!canvas)return;
+  var ctx=canvas.getContext('2d');
+  var W=700,H=340,pad=50;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var plotW=W-pad*2,plotH=H-pad*2;
+
+  // Quadrant backgrounds
+  var quads=[
+    {x:pad,y:pad,w:plotW/2,h:plotH/2,label:'PRIORITIZE',color:'rgba(247,183,49,0.07)'},
+    {x:pad+plotW/2,y:pad,w:plotW/2,h:plotH/2,label:'ACT NOW',color:'rgba(255,107,107,0.07)'},
+    {x:pad,y:pad+plotH/2,w:plotW/2,h:plotH/2,label:'MONITOR',color:'rgba(81,207,102,0.07)'},
+    {x:pad+plotW/2,y:pad+plotH/2,w:plotW/2,h:plotH/2,label:'WATCH',color:'rgba(9,132,227,0.07)'}
+  ];
+  quads.forEach(function(q){
+    ctx.fillStyle=q.color;ctx.fillRect(q.x,q.y,q.w,q.h);
+    ctx.fillStyle='rgba(255,255,255,0.15)';ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(q.label,q.x+q.w/2,q.y+q.h/2);
+  });
+
+  // Grid lines
+  ctx.strokeStyle='#30363d';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(pad+plotW/2,pad);ctx.lineTo(pad+plotW/2,pad+plotH);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(pad,pad+plotH/2);ctx.lineTo(pad+plotW,pad+plotH/2);ctx.stroke();
+
+  // Axis labels
+  ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='10px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('LIKELIHOOD',pad+plotW/2,H-8);
+  ctx.save();ctx.translate(12,pad+plotH/2);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.fillText('IMPACT',0,0);ctx.restore();
+  ctx.fillStyle='rgba(255,255,255,0.35)';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';ctx.fillText('Low',pad,pad-10);
+  ctx.textAlign='right';ctx.fillText('High',pad+plotW,pad-10);
+  ctx.save();ctx.translate(pad-22,pad);ctx.rotate(-Math.PI/2);ctx.textAlign='right';ctx.font='9px Inter,sans-serif';ctx.fillStyle='rgba(255,255,255,0.35)';ctx.fillText('Low',0,0);ctx.restore();
+  ctx.save();ctx.translate(pad-22,pad+plotH);ctx.rotate(-Math.PI/2);ctx.textAlign='left';ctx.font='9px Inter,sans-serif';ctx.fillStyle='rgba(255,255,255,0.35)';ctx.fillText('High',0,0);ctx.restore();
+
+  // Risk dots
+  if(typeof sandboxRisks!=='undefined'){
+    sandboxRisks.forEach(function(rk,i){
+      var rx=pad+rk.px*plotW,ry=pad+rk.py*plotH;
+      var isSel=(typeof sandboxSelectedIdx!=='undefined'&&sandboxSelectedIdx===i);
+      ctx.beginPath();ctx.arc(rx,ry,isSel?12:9,0,Math.PI*2);
+      ctx.fillStyle=rk.color+(isSel?'ff':'cc');ctx.fill();
+      if(isSel){ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();}
+      ctx.fillStyle='rgba(255,255,255,0.9)';ctx.font=(isSel?'bold ':'')+'8px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+      ctx.fillText(rk.label.slice(0,12),rx,ry+13);
+    });
+  }
+
+  ctx.fillStyle='rgba(255,255,255,0.3)';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+  ctx.fillText('Click to place \u2014 Drag to reposition \u2014 MAP 4 Risk Prioritization Exercise',pad,4);
+}
+
+// ===== INCIDENT TREE (canvas-incident-tree) =====
+function initIncidentTree(){
+  var canvas=document.getElementById('canvas-incident-tree');
+  if(!canvas)return;
+  drawIncidentTree();
+}
+
+function drawIncidentTree(){
+  var canvas=document.getElementById('canvas-incident-tree');
+  if(!canvas||typeof INCIDENT_NODES==='undefined')return;
+  var ctx=canvas.getContext('2d');
+  var W=700,H=300;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  if(typeof incidentStarted==='undefined'||!incidentStarted){
+    ctx.fillStyle='rgba(255,255,255,0.25)';ctx.font='13px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('Start the scenario below to walk through the AI incident response decision tree',W/2,H/2);
+    ctx.fillStyle='rgba(255,107,107,0.4)';ctx.font='10px Inter,sans-serif';ctx.textBaseline='top';ctx.textAlign='center';
+    ctx.fillText('MG-3.2: Organizations must have a documented AI incident response process before deployment',W/2,H/2+24);
+    return;
+  }
+
+  var path=typeof incidentPath!=='undefined'?incidentPath:[0];
+  var nodeW=120,nodeH=46,hGap=16,vGap=40;
+  var maxPerRow=5;
+  // Layout: left-to-right tree, up to 5 nodes wide
+  var positions={};
+  path.forEach(function(nid,idx){
+    var x=40+idx*(nodeW+hGap*2);
+    var y=H/2-nodeH/2;
+    positions[nid]={x:x,y:y};
+  });
+
+  // Draw connectors
+  path.forEach(function(nid,idx){
+    if(idx===0)return;
+    var prev=positions[path[idx-1]];var cur=positions[nid];
+    if(!prev||!cur)return;
+    drawArrow(ctx,prev.x+nodeW,prev.y+nodeH/2,cur.x,cur.y+nodeH/2,'rgba(255,255,255,0.3)',1.5);
+  });
+
+  // Draw nodes
+  path.forEach(function(nid,idx){
+    var node=INCIDENT_NODES[nid];if(!node)return;
+    var pos=positions[nid];if(!pos)return;
+    var isCurrent=(nid===incidentCurrentNode);
+    var isLast=(idx===path.length-1);
+    drawRoundedRect(ctx,pos.x,pos.y,nodeW,nodeH,8,
+      isCurrent?node.color+'44':'#1a2233',
+      isCurrent?node.color:'#30363d');
+    if(isCurrent){ctx.strokeStyle=node.color;ctx.lineWidth=2;}
+    ctx.fillStyle=isCurrent?'rgba(255,255,255,0.9)':'rgba(255,255,255,0.5)';
+    ctx.font=(isCurrent?'bold ':'')+'8px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+    wrapText(ctx,node.text.slice(0,50),pos.x+nodeW/2,pos.y+6,nodeW-12,10);
+    if(node.rmf&&node.rmf!==''){
+      ctx.fillStyle=node.color;ctx.font='7px JetBrains Mono,monospace';ctx.textAlign='center';ctx.textBaseline='bottom';
+      ctx.fillText(node.rmf.slice(0,16),pos.x+nodeW/2,pos.y+nodeH-3);
+    }
+    // Step number badge
+    ctx.beginPath();ctx.arc(pos.x+nodeW-8,pos.y+8,8,0,Math.PI*2);
+    ctx.fillStyle=node.color;ctx.fill();
+    ctx.fillStyle='#fff';ctx.font='bold 8px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(idx+1,pos.x+nodeW-8,pos.y+8);
+  });
+
+  ctx.fillStyle='rgba(255,255,255,0.3)';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='bottom';
+  ctx.fillText('AI Incident Response Decision Tree \u2014 MANAGE (MG-2, MG-3, MG-4)',10,H-3);
+}
+
+// ===== FRAMEWORK MATRIX (canvas-framework-matrix) =====
+function initFrameworkMatrix(){
+  var canvas=document.getElementById('canvas-framework-matrix');
+  if(!canvas)return;
+  drawFrameworkMatrix();
+  canvas.addEventListener('mousemove',function(e){
+    var r=canvas.getBoundingClientRect();
+    var mx=e.clientX-r.left,my=e.clientY-r.top;
+    var newHov=null;
+    if(typeof FRAMEWORK_ROWS!=='undefined'&&typeof FRAMEWORK_HEADERS!=='undefined'){
+      var padL=90,padT=36,padR=10,padB=30;
+      var W=700,H=260;
+      var cellW=(W-padL-padR)/FRAMEWORK_HEADERS.length;
+      var cellH=(H-padT-padB)/FRAMEWORK_ROWS.length;
+      FRAMEWORK_ROWS.forEach(function(row,ri){
+        FRAMEWORK_HEADERS.forEach(function(h,ci){
+          var cx2=padL+ci*cellW,cy2=padT+ri*cellH;
+          if(mx>=cx2&&mx<=cx2+cellW&&my>=cy2&&my<=cy2+cellH){
+            newHov={ri:ri,ci:ci};
+          }
+        });
+      });
+    }
+    if(JSON.stringify(newHov)!==JSON.stringify(hoveredFrameworkCell)){
+      hoveredFrameworkCell=newHov;
+      drawFrameworkMatrix();
+      if(newHov){
+        var row=FRAMEWORK_ROWS[newHov.ri];
+        var hdr=FRAMEWORK_HEADERS[newHov.ci];
+        var note=(row.notes&&row.notes[newHov.ci])||'';
+        var score=row.scores[newHov.ci];
+        var scoreLabel=COVERAGE_LABELS[score]||'';
+        var det=document.getElementById('framework-detail');
+        if(det)det.innerHTML='<strong style="color:'+row.color+'">'+row.name+'</strong> &mdash; <strong>'+hdr+'</strong>: <span style="color:'+(score===3?'#51cf66':score===2?'#f7b731':score===1?'#ff6b6b':'#8b949e')+'">'+scoreLabel+'</span><br>'+note;
+      }
+    }
+  });
+  canvas.addEventListener('mouseleave',function(){hoveredFrameworkCell=null;drawFrameworkMatrix();});
+}
+
+function drawFrameworkMatrix(){
+  var canvas=document.getElementById('canvas-framework-matrix');
+  if(!canvas||typeof FRAMEWORK_ROWS==='undefined')return;
+  var ctx=canvas.getContext('2d');
+  var W=700,H=260,padL=90,padT=36,padR=10,padB=30;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var cellW=(W-padL-padR)/FRAMEWORK_HEADERS.length;
+  var cellH=(H-padT-padB)/FRAMEWORK_ROWS.length;
+  var scoreColors=['#2d333b','#ff6b6b88','#f7b73188','#51cf6688'];
+
+  // Column headers
+  FRAMEWORK_HEADERS.forEach(function(h,ci){
+    ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='bold 8px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';
+    ctx.save();
+    var hx=padL+(ci+0.5)*cellW,hy=padT-4;
+    ctx.translate(hx,hy);ctx.rotate(-0.35);
+    ctx.fillText(h,0,0);
+    ctx.restore();
+  });
+
+  // Rows
+  FRAMEWORK_ROWS.forEach(function(row,ri){
+    var ry=padT+ri*cellH;
+    // Row label
+    ctx.fillStyle=row.color;ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='right';ctx.textBaseline='middle';
+    ctx.fillText(row.name,padL-6,ry+cellH/2);
+
+    row.scores.forEach(function(score,ci){
+      var cx2=padL+ci*cellW;
+      var isHov=(hoveredFrameworkCell&&hoveredFrameworkCell.ri===ri&&hoveredFrameworkCell.ci===ci);
+      var bg=scoreColors[score]||(scoreColors[0]);
+      drawRoundedRect(ctx,cx2+2,ry+2,cellW-4,cellH-4,4,isHov?row.color+'44':bg,isHov?row.color:'transparent');
+
+      // Score indicator dots
+      for(var s=0;s<3;s++){
+        ctx.beginPath();ctx.arc(cx2+cellW/2-10+s*10,ry+cellH/2,3,0,Math.PI*2);
+        ctx.fillStyle=s<score?(score===3?'#51cf66':score===2?'#f7b731':'#ff6b6b'):'#2d333b';
+        ctx.fill();
+      }
+    });
+  });
+
+  // Legend
+  var lgx=padL;var lgy=H-padB+8;
+  COVERAGE_LABELS.forEach(function(lbl,i){
+    var dotColor=['#2d333b','#ff6b6b','#f7b731','#51cf66'][i];
+    ctx.beginPath();ctx.arc(lgx+i*90+6,lgy+6,4,0,Math.PI*2);ctx.fillStyle=dotColor;ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.4)';ctx.font='8px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.fillText(lbl,lgx+i*90+14,lgy+6);
+  });
+
+  ctx.fillStyle='rgba(255,255,255,0.3)';ctx.font='9px Inter,sans-serif';ctx.textAlign='right';ctx.textBaseline='bottom';
+  ctx.fillText('Hover a cell for details',W-padR,H-2);
+}
+
 // ===== INIT ALL =====
 function doInit(){
   initRMFWheel();
@@ -2088,6 +2468,11 @@ function doInit(){
   initTradeoffs();
   initSectorProfile();
   initActorMap();
+  initQuizRadar();
+  initSandbox();
+  initIncidentTree();
+  initFrameworkMatrix();
+  if(typeof initGlossary==='function')initGlossary();
   updateNavOnScroll();
 }
 
