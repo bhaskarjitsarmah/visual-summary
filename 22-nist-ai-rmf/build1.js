@@ -138,6 +138,18 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
   <div class="nav-group-title">In Practice</div>
   <div class="nav-link" data-sec="s-lifecycle" onclick="setActive(this,'s-lifecycle')">
     <span class="dot" style="background:#6c5ce7"></span>AI Lifecycle</div>
+
+  <div class="nav-group-title">Going Deeper</div>
+  <div class="nav-link" data-sec="s-risk-flow" onclick="setActive(this,'s-risk-flow')">
+    <span class="dot" style="background:#f7b731"></span>Follow a Risk</div>
+  <div class="nav-link" data-sec="s-genai" onclick="setActive(this,'s-genai')">
+    <span class="dot" style="background:#fd79a8"></span>GenAI Profile</div>
+  <div class="nav-link" data-sec="s-subcats" onclick="setActive(this,'s-subcats')">
+    <span class="dot" style="background:#6c5ce7"></span>72 Subcategories</div>
+  <div class="nav-link" data-sec="s-maturity" onclick="setActive(this,'s-maturity')">
+    <span class="dot" style="background:#51cf66"></span>Maturity Check</div>
+  <div class="nav-link" data-sec="s-crosswalk" onclick="setActive(this,'s-crosswalk')">
+    <span class="dot" style="background:#0984e3"></span>EU AI Act</div>
 </nav>
 
 <!-- MAIN -->
@@ -493,6 +505,119 @@ G6 &mdash; Policies for AI risk in human oversight are maintained</div>
 
 </section>
 
+<!-- ====== S8: FOLLOW A RISK ====== -->
+<section class="section" id="s-risk-flow">
+  <div class="section-tag" style="color:#f7b731">In Practice &middot; Interactive Walkthrough</div>
+  <h2 class="section-title">Follow a Risk Through All Four Functions</h2>
+  <p class="section-sub">Trace a single real-world risk &mdash; algorithmic bias in a hiring AI &mdash; through MAP, MEASURE, MANAGE, and GOVERN. See exactly what each function does with it, step by step.</p>
+
+  <div class="btn-row">
+    <button class="btn" id="flow-btn-0" onclick="setFlowStep(0)">1. MAP: Identify</button>
+    <button class="btn-tab" id="flow-btn-1" onclick="setFlowStep(1)">2. MEASURE: Quantify</button>
+    <button class="btn-tab" id="flow-btn-2" onclick="setFlowStep(2)">3. MANAGE: Respond</button>
+    <button class="btn-tab" id="flow-btn-3" onclick="setFlowStep(3)">4. GOVERN: Institutionalize</button>
+  </div>
+  <canvas id="canvas-risk-flow" width="700" height="290" style="margin-bottom:12px;"></canvas>
+  <div class="info-panel" id="risk-flow-detail">Click a step above to trace algorithmic bias through the AI RMF.</div>
+
+  <div class="highlight-box amber" style="margin-top:16px;">
+    <strong>The functions run concurrently, not sequentially.</strong> While MANAGE responds to the bias risk, MAP is cataloguing new risks, MEASURE is tracking mitigation effectiveness, and GOVERN is updating policy. This walkthrough shows each function&rsquo;s role &mdash; not the order they run in.
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-genai">GenAI Profile &rarr;</a>
+  </div>
+</section>
+
+<!-- ====== S9: GENAI PROFILE ====== -->
+<section class="section" id="s-genai">
+  <div class="section-tag" style="color:#fd79a8">NIST-AI-600-1 &middot; July 2024</div>
+  <h2 class="section-title">12 Risks Unique to Generative AI</h2>
+  <p class="section-sub">The GenAI Profile extends the core RMF with 12 risks that don&rsquo;t appear in traditional AI systems. From hallucination to CBRN hazards, these require new thinking about measurement and management. Click any card to see mitigations.</p>
+
+  <canvas id="canvas-genai-grid" width="700" height="360" style="margin-bottom:12px;cursor:pointer;"></canvas>
+  <div class="info-panel" id="genai-detail"><strong>Click a risk card</strong> to see description, severity, and mitigation strategies.</div>
+
+  <div class="highlight-box" style="border-color:#fd79a8;background:rgba(253,121,168,.06);margin-top:16px;">
+    <strong>The GenAI Profile uses the same four-function structure as the core RMF.</strong> Organizations already implementing GOVERN/MAP/MEASURE/MANAGE can adopt the GenAI Profile by adding these 12 risks to their existing MAP risk registers &mdash; no new framework to learn.
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-subcats">72 Subcategories &rarr;</a>
+  </div>
+</section>
+
+<!-- ====== S10: SUBCATEGORIES ====== -->
+<section class="section" id="s-subcats">
+  <div class="section-tag" style="color:#6c5ce7">The Actionable Core</div>
+  <h2 class="section-title">72 Subcategories: Where the Framework Becomes Action</h2>
+  <p class="section-sub">The 72 subcategories are the actual requirements &mdash; specific things an organization must demonstrate. Filter by function to browse. Each subcategory corresponds to concrete organizational actions.</p>
+
+  <div class="btn-row" id="subcat-filter-row">
+    <button class="btn" id="sf-ALL" onclick="filterSubcats('ALL')">All (40 shown)</button>
+    <button class="btn-tab" id="sf-GOVERN" onclick="filterSubcats('GOVERN')" style="border-color:#0984e3;color:#0984e3">GOVERN</button>
+    <button class="btn-tab" id="sf-MAP" onclick="filterSubcats('MAP')" style="border-color:#f7b731;color:#f7b731">MAP</button>
+    <button class="btn-tab" id="sf-MEASURE" onclick="filterSubcats('MEASURE')" style="border-color:#ff6b6b;color:#ff6b6b">MEASURE</button>
+    <button class="btn-tab" id="sf-MANAGE" onclick="filterSubcats('MANAGE')" style="border-color:#51cf66;color:#51cf66">MANAGE</button>
+  </div>
+  <div id="subcat-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;"></div>
+
+  <div class="highlight-box">
+    <strong>You don&rsquo;t need all 72 subcategories on day one.</strong> NIST explicitly supports incremental adoption. A practical approach: implement 10&ndash;15 subcategories covering your highest-risk AI systems in year one, then expand. The order matters less than starting.
+  </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-maturity">Maturity Check &rarr;</a>
+  </div>
+</section>
+
+<!-- ====== S11: MATURITY ASSESSMENT ====== -->
+<section class="section" id="s-maturity">
+  <div class="section-tag" style="color:#51cf66">Self-Assessment</div>
+  <h2 class="section-title">AI Governance Maturity: Where Does Your Org Stand?</h2>
+  <p class="section-sub">Answer 12 yes/partial/no questions to score your organization&rsquo;s maturity across all four RMF functions. The radar chart updates live. Be honest &mdash; the goal is to find gaps, not pass a test.</p>
+
+  <div class="grid2" style="gap:24px;align-items:start;">
+    <div id="maturity-questions-container" style="min-height:300px;"></div>
+    <canvas id="canvas-maturity-radar" width="320" height="300" style="margin-bottom:12px;"></canvas>
+  </div>
+  <div class="info-panel" id="maturity-detail" style="margin-top:12px;">Answer all 12 questions to see your maturity assessment.</div>
+  <button class="btn" onclick="scoreMaturity()" style="margin-top:12px;">See My Score</button>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-crosswalk">EU AI Act Crosswalk &rarr;</a>
+  </div>
+</section>
+
+<!-- ====== S12: EU AI ACT CROSSWALK ====== -->
+<section class="section" id="s-crosswalk">
+  <div class="section-tag" style="color:#0984e3">Regulatory Alignment</div>
+  <h2 class="section-title">EU AI Act Crosswalk: From Framework to Regulation</h2>
+  <p class="section-sub">The EU AI Act, fully in effect August 2026, mandates specific obligations for high-risk AI. The NIST AI RMF maps closely to these requirements. Hover any row to see the alignment detail and identify where you need to go beyond the RMF.</p>
+
+  <canvas id="canvas-crosswalk" width="700" height="320" style="margin-bottom:12px;cursor:pointer;"></canvas>
+  <div class="info-panel" id="crosswalk-detail">Hover a row to see how the RMF subcategory aligns with the EU AI Act article and where gaps remain.</div>
+
+  <div class="highlight-box" style="border-color:#0984e3;background:rgba(9,132,227,.06);margin-top:16px;">
+    <strong>Implementing the RMF significantly reduces your EU AI Act compliance gap</strong> &mdash; but does not close it entirely. EU-specific requirements like CE marking, notified body assessments, and registration in the EU AI database have no RMF equivalent.
+  </div>
+
+  <div class="grid3" style="margin-top:20px;">
+    <div class="card">
+      <div class="card-title" style="color:#0984e3">Strongest Alignment</div>
+      <div class="card-body">GOVERN G2 (accountability) maps almost directly to EU Art. 9 (risk management system). Both require named owners, documented roles, and clear accountability for AI outcomes. MEASURE MS4 maps well to Art. 61 (post-market monitoring).</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#51cf66">Partial Overlap</div>
+      <div class="card-body">MAP 5 (societal impact) partially overlaps EU Art. 43 (conformity assessment), but the EU Act is narrower &mdash; it mandates assessment only for high-risk system categories. The RMF encourages broader societal impact assessment for all AI systems.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#f7b731">Gaps to Address</div>
+      <div class="card-body">EU-specific: CE marking, notified body involvement, registration in the EU AI database, and Art. 65 market surveillance. Organizations need EU legal counsel alongside RMF implementation to address these gaps.</div>
+    </div>
+  </div>
+</section>
+
 </div><!-- /main -->
 <script>
 var PG_PASSWORD='visual2025';
@@ -505,7 +630,7 @@ function pgCheck(){
 document.getElementById('pg-input').addEventListener('keydown',function(e){if(e.key==='Enter')pgCheck();});
 if(localStorage.getItem(PG_KEY)==='1'){document.getElementById('pg-gate').style.display='none';}
 
-var sectionIds=['s-overview','s-trustworthy','s-govern','s-map','s-measure','s-manage','s-lifecycle'];
+var sectionIds=['s-overview','s-trustworthy','s-govern','s-map','s-measure','s-manage','s-lifecycle','s-risk-flow','s-genai','s-subcats','s-maturity','s-crosswalk'];
 function setActive(el,id){
   document.querySelectorAll('.nav-link').forEach(function(n){n.classList.remove('active');});
   el.classList.add('active');
@@ -683,6 +808,183 @@ var LIFECYCLE_STAGES=[
    detail:'GOVERN determines decommission criteria and process. MANAGE executes the wind-down, including data deletion, user communication, and documentation of lessons learned.'}
 ];
 var hoveredStage=null;
+
+// ===== RISK FLOW DATA =====
+var riskFlowStep=0;
+var RISK_FLOW_STEPS=[
+  {fn:'MAP',title:'MAP: Identify the Risk',
+   desc:'Context established: hiring AI screens resumes for tech roles. MAP 3 identifies the risk: model may encode historical hiring biases present in training data. MAP 4 prioritization: HIGH likelihood, HIGH impact, affecting protected demographic groups.',
+   action:'Output: Risk register entry \u2014 Algorithmic Bias, Likelihood: HIGH, Impact: HIGH, Category: MAP3/MAP5'},
+  {fn:'MEASURE',title:'MEASURE: Quantify It',
+   desc:'MS 1: Define metric \u2014 demographic parity ratio. MS 2: Evaluate on historical data. Result: female candidates selected at 0.62\u00d7 the rate of male candidates for equivalent qualifications.',
+   action:'Output: Fairness score 62% \u2014 below 80% threshold. Flagged for MANAGE intervention. MS 4: Report to leadership.'},
+  {fn:'MANAGE',title:'MANAGE: Respond',
+   desc:'MG 1: Treatment plan \u2014 Mitigate. MG 2: Remove gender-correlated proxy features, add human review for borderline candidates, implement fairness constraints in retraining. MG 3: Monthly fairness monitoring post-deployment.',
+   action:'Output: Residual risk 74% parity after mitigation. Monthly review cadence set. Rollback plan documented.'},
+  {fn:'GOVERN',title:'GOVERN: Institutionalize',
+   desc:'G2: CHRO designated as accountability owner. G5: Policy updated \u2014 fairness testing required before any model update. G6: Human review layer made mandatory for any automated rejection decision.',
+   action:'Output: Board-level AI risk summary updated. Annual third-party audit scheduled. Risk tolerance threshold formally documented.'}
+];
+function setFlowStep(idx){
+  riskFlowStep=idx;
+  for(var i=0;i<4;i++){var btn=document.getElementById('flow-btn-'+i);if(btn)btn.className=(i===idx)?'btn':'btn-tab';}
+  if(typeof drawRiskFlow==='function')drawRiskFlow();
+  var s=RISK_FLOW_STEPS[idx];
+  var fnObj=RMF_FUNCTIONS.find(function(f){return f.name===s.fn;});
+  var det=document.getElementById('risk-flow-detail');
+  if(det)det.innerHTML='<strong style="color:'+(fnObj?fnObj.color:'#fff')+'">'+s.title+'</strong><br>'+s.desc+'<div style="margin-top:8px;padding:8px 12px;background:rgba(0,0,0,.3);border-radius:6px;font-size:11px;color:#a29bfe">'+s.action+'</div>';
+}
+
+// ===== GENAI RISKS DATA =====
+var selectedGenAIRisk=null;
+var GENAI_RISKS=[
+  {name:'Hallucination\\n& Fabrication',color:'#ff6b6b',fn:'MAP+MEASURE',sev:4,
+   desc:'LLMs generate plausible but factually incorrect outputs presented with apparent confidence.',
+   mit:'Retrieval augmentation, fact-checking pipelines, uncertainty quantification, calibration training.'},
+  {name:'Prompt\\nInjection',color:'#e17055',fn:'MAP+MANAGE',sev:4,
+   desc:'Malicious inputs hijack LLM behavior, bypassing safety controls or exfiltrating data.',
+   mit:'Input sanitization, instruction hierarchy enforcement, output monitoring, sandboxed execution.'},
+  {name:'Training Data\\nPrivacy',color:'#6c5ce7',fn:'MAP+MEASURE',sev:4,
+   desc:'LLMs may memorize and reproduce personal information from training data via extraction attacks.',
+   mit:'Differential privacy, data minimization, membership inference testing, PII filtering.'},
+  {name:'IP &\\nCopyright',color:'#a29bfe',fn:'GOVERN+MAP',sev:3,
+   desc:'GenAI may reproduce copyrighted material verbatim or generate infringing derivative works.',
+   mit:'Training data licensing review, output filtering, provenance tracking, legal review process.'},
+  {name:'CBRN\\nHazards',color:'#fd79a8',fn:'GOVERN+MANAGE',sev:5,
+   desc:'GenAI could generate information useful for chemical, biological, radiological, or nuclear harm.',
+   mit:'Red-teaming for CBRN scenarios, strict output filtering, deployment restrictions, incident reporting.'},
+  {name:'Data\\nProvenance',color:'#00b894',fn:'MAP+MEASURE',sev:3,
+   desc:'Unclear sourcing of training data makes it hard to assess bias, licensing, and quality risks.',
+   mit:'Data lineage documentation, provenance tracking tools, supply chain audits.'},
+  {name:'Output\\nHomogenization',color:'#0984e3',fn:'MAP+MANAGE',sev:2,
+   desc:'Widespread GenAI use may reduce diversity of thought, culture, and information in society.',
+   mit:'Diversity-aware training, multiple model alternatives, human review requirements.'},
+  {name:'Misinformation\\nat Scale',color:'#f7b731',fn:'GOVERN+MANAGE',sev:4,
+   desc:'GenAI enables synthetic media creation at scale, dramatically accelerating misinformation.',
+   mit:'Watermarking, provenance standards, media literacy programs, platform-level policies.'},
+  {name:'Human\\nOver-reliance',color:'#51cf66',fn:'GOVERN+MAP',sev:3,
+   desc:'Users defer excessively to GenAI outputs without critical evaluation in high-stakes contexts.',
+   mit:'Uncertainty disclosure, calibrated confidence display, user training, human-in-the-loop design.'},
+  {name:'Agentic\\nSystem Risks',color:'#fd79a8',fn:'MAP+MEASURE+MANAGE',sev:4,
+   desc:'Autonomous AI agents amplify risk: errors cascade across multi-step actions, oversight gaps emerge.',
+   mit:'Human oversight checkpoints, action scope constraints, step-level logging, kill-switch mechanisms.'},
+  {name:'AI Power\\nConcentration',color:'#e17055',fn:'GOVERN+MAP',sev:3,
+   desc:'GenAI capabilities concentrated in few organizations may distort markets and democratic institutions.',
+   mit:'Governance policies on deployment scope, open model alternatives, regulatory engagement.'},
+  {name:'Environmental\\nImpact',color:'#00b894',fn:'GOVERN+MEASURE',sev:2,
+   desc:'Training and running large GenAI models consumes significant energy and water resources.',
+   mit:'Efficiency optimization, renewable energy sourcing, compute carbon accounting, public reporting.'}
+];
+
+// ===== SUBCATEGORIES DATA =====
+var subcatFilter='ALL';
+var SUBCATS=[
+  {id:'GV-1.1',fn:'GOVERN',cat:'G1',text:'Policies for the responsible development and use of AI are established, documented, and communicated.',color:'#0984e3'},
+  {id:'GV-1.2',fn:'GOVERN',cat:'G1',text:'Organizational teams document the integration of AI in risk management processes.',color:'#0984e3'},
+  {id:'GV-1.3',fn:'GOVERN',cat:'G1',text:'Organizational leaders take responsibility for decisions about risks of AI systems.',color:'#0984e3'},
+  {id:'GV-1.4',fn:'GOVERN',cat:'G1',text:'Teams commit to organizational principles and policies for responsible AI development.',color:'#0984e3'},
+  {id:'GV-2.1',fn:'GOVERN',cat:'G2',text:'Roles and responsibilities for AI risk management are clearly defined and documented.',color:'#0984e3'},
+  {id:'GV-2.2',fn:'GOVERN',cat:'G2',text:'Organizational AI risk tolerance is established, communicated, and maintained.',color:'#0984e3'},
+  {id:'GV-3.1',fn:'GOVERN',cat:'G3',text:'AI risk training and awareness programs are provided to relevant organizational teams.',color:'#0984e3'},
+  {id:'GV-3.2',fn:'GOVERN',cat:'G3',text:'Diversity, equity, inclusion practices are integrated into AI workforce policies.',color:'#0984e3'},
+  {id:'GV-4.1',fn:'GOVERN',cat:'G4',text:'Policies for review and update of AI risk management practices are established.',color:'#0984e3'},
+  {id:'GV-6.1',fn:'GOVERN',cat:'G6',text:'Policies for human oversight of AI systems including escalation paths are maintained.',color:'#0984e3'},
+  {id:'MP-1.1',fn:'MAP',cat:'MAP1',text:'Context is established for AI risk assessment including impacts on all affected communities.',color:'#f7b731'},
+  {id:'MP-1.2',fn:'MAP',cat:'MAP1',text:'Intended uses and reasonably foreseeable unintended uses of AI are documented.',color:'#f7b731'},
+  {id:'MP-1.3',fn:'MAP',cat:'MAP1',text:'AI system requirements are defined and understood by relevant organizational teams.',color:'#f7b731'},
+  {id:'MP-2.1',fn:'MAP',cat:'MAP2',text:'Scientific and domain knowledge about AI risk is established and incorporated into assessment.',color:'#f7b731'},
+  {id:'MP-2.2',fn:'MAP',cat:'MAP2',text:'Organizational risk tolerance and policies are applied throughout the AI lifecycle.',color:'#f7b731'},
+  {id:'MP-3.1',fn:'MAP',cat:'MAP3',text:'Potential benefits of the AI system to individuals, groups, and society are identified.',color:'#f7b731'},
+  {id:'MP-3.2',fn:'MAP',cat:'MAP3',text:'AI system is categorized with trustworthiness characteristics and risk levels considered.',color:'#f7b731'},
+  {id:'MP-4.1',fn:'MAP',cat:'MAP4',text:'Risk assessments are performed for high-priority AI risks in alignment with risk tolerance.',color:'#f7b731'},
+  {id:'MP-5.1',fn:'MAP',cat:'MAP5',text:'Likelihood and potential magnitude of risks to humans and organizations are assessed.',color:'#f7b731'},
+  {id:'MP-5.2',fn:'MAP',cat:'MAP5',text:'Practices for supporting communities affected by AI systems are established.',color:'#f7b731'},
+  {id:'MS-1.1',fn:'MEASURE',cat:'MS1',text:'Approaches and metrics for measuring AI risks are established and documented.',color:'#ff6b6b'},
+  {id:'MS-1.2',fn:'MEASURE',cat:'MS1',text:'Internal experts who can identify and address AI risks are available to the organization.',color:'#ff6b6b'},
+  {id:'MS-1.3',fn:'MEASURE',cat:'MS1',text:'AI test sets are representative of real-world conditions including edge cases.',color:'#ff6b6b'},
+  {id:'MS-2.1',fn:'MEASURE',cat:'MS2',text:'Test sets for measuring AI trustworthiness characteristics are in place.',color:'#ff6b6b'},
+  {id:'MS-2.2',fn:'MEASURE',cat:'MS2',text:'AI system metrics are documented and tracked throughout the lifecycle.',color:'#ff6b6b'},
+  {id:'MS-2.3',fn:'MEASURE',cat:'MS2',text:'AI system performance is regularly evaluated against established metrics.',color:'#ff6b6b'},
+  {id:'MS-3.1',fn:'MEASURE',cat:'MS3',text:'AI risks and benefits are evaluated by teams independent from development.',color:'#ff6b6b'},
+  {id:'MS-3.2',fn:'MEASURE',cat:'MS3',text:'Human-AI configurations are evaluated for potential failure modes and limitations.',color:'#ff6b6b'},
+  {id:'MS-4.1',fn:'MEASURE',cat:'MS4',text:'Measurement feedback is shared with organizational leadership and relevant teams.',color:'#ff6b6b'},
+  {id:'MS-4.2',fn:'MEASURE',cat:'MS4',text:'Evaluations are regularly updated to track changes in AI risk over time.',color:'#ff6b6b'},
+  {id:'MG-1.1',fn:'MANAGE',cat:'MG1',text:'Plans for managing risks through treatment and response strategies are established.',color:'#51cf66'},
+  {id:'MG-1.2',fn:'MANAGE',cat:'MG1',text:'Risk treatment is prioritized based on risk assessment outputs and risk tolerance.',color:'#51cf66'},
+  {id:'MG-1.3',fn:'MANAGE',cat:'MG1',text:'Responses to identified AI risks are developed, documented, and tested.',color:'#51cf66'},
+  {id:'MG-2.1',fn:'MANAGE',cat:'MG2',text:'Risk treatments (accept, avoid, mitigate, transfer) are implemented with documented rationale.',color:'#51cf66'},
+  {id:'MG-2.2',fn:'MANAGE',cat:'MG2',text:'Risk treatment effectiveness is monitored and verified against defined metrics.',color:'#51cf66'},
+  {id:'MG-3.1',fn:'MANAGE',cat:'MG3',text:'Responses to incidents and errors involving AI systems are documented and reviewed.',color:'#51cf66'},
+  {id:'MG-3.2',fn:'MANAGE',cat:'MG3',text:'AI risk monitoring methods are maintained, evaluated, and improved over time.',color:'#51cf66'},
+  {id:'MG-4.1',fn:'MANAGE',cat:'MG4',text:'Post-deployment and residual risks are documented and communicated to stakeholders.',color:'#51cf66'},
+  {id:'MG-4.2',fn:'MANAGE',cat:'MG4',text:'Residual risk documentation is reviewed and updated as context changes.',color:'#51cf66'},
+  {id:'MG-4.3',fn:'MANAGE',cat:'MG4',text:'Decommissioning plans are in place for AI systems that pose unacceptable risks.',color:'#51cf66'}
+];
+function filterSubcats(fn){
+  subcatFilter=fn;
+  ['ALL','GOVERN','MAP','MEASURE','MANAGE'].forEach(function(f){
+    var btn=document.getElementById('sf-'+f);
+    if(!btn)return;
+    var colors={GOVERN:'#0984e3',MAP:'#f7b731',MEASURE:'#ff6b6b',MANAGE:'#51cf66'};
+    if(f===fn){btn.className='btn';btn.style.borderColor='';btn.style.color='';}
+    else{btn.className='btn-tab';if(f!=='ALL'){btn.style.borderColor=colors[f];btn.style.color=colors[f];}}
+  });
+  if(typeof renderSubcatGrid==='function')renderSubcatGrid();
+}
+
+// ===== MATURITY DATA =====
+var maturityAnswers={};
+var MATURITY_Qs=[
+  {fn:'GOVERN',q:'Is there a named owner accountable for AI risk in your organization?'},
+  {fn:'GOVERN',q:'Are AI risk policies documented, approved, and communicated to all relevant teams?'},
+  {fn:'GOVERN',q:'Are escalation paths and human oversight procedures defined for AI failures?'},
+  {fn:'MAP',q:'Do you document intended use and foreseeable unintended use before AI deployment?'},
+  {fn:'MAP',q:'Do you assess broader societal impacts beyond immediate users?'},
+  {fn:'MAP',q:'Do you maintain a risk register for each AI system currently in production?'},
+  {fn:'MEASURE',q:'Do you track accuracy, fairness, or robustness metrics for production AI?'},
+  {fn:'MEASURE',q:'Have you conducted adversarial or robustness testing on production AI systems?'},
+  {fn:'MEASURE',q:'Do you have a scheduled re-evaluation cadence for production AI systems?'},
+  {fn:'MANAGE',q:'Do you have documented incident response plans specific to AI failures?'},
+  {fn:'MANAGE',q:'Do you track residual risks after applying mitigation measures?'},
+  {fn:'MANAGE',q:'Do you have defined criteria for pausing or shutting down an AI system?'}
+];
+function scoreMaturity(){
+  var scores={GOVERN:0,MAP:0,MEASURE:0,MANAGE:0};
+  var counts={GOVERN:3,MAP:3,MEASURE:3,MANAGE:3};
+  MATURITY_Qs.forEach(function(q,i){if(maturityAnswers[i]!==undefined)scores[q.fn]+=maturityAnswers[i];});
+  var fnColors={GOVERN:'#0984e3',MAP:'#f7b731',MEASURE:'#ff6b6b',MANAGE:'#51cf66'};
+  var results=Object.keys(scores).map(function(fn){
+    var pct=Math.round((scores[fn]/(counts[fn]*2))*100);
+    var lbl=pct>=80?'Strong':pct>=50?'Developing':'Early Stage';
+    return '<span style="color:'+fnColors[fn]+';font-weight:700">'+fn+'</span>: '+pct+'% ('+lbl+')';
+  });
+  var det=document.getElementById('maturity-detail');
+  if(det)det.innerHTML='<strong>Your Maturity Assessment:</strong><br>'+results.join(' &nbsp;&bull;&nbsp; ')+'<div style="margin-top:8px;font-size:11px;color:#8b949e">Focus on your lowest-scoring function first. Even 50% maturity across all four functions beats 100% in one.</div>';
+  if(typeof drawMaturityRadar==='function')drawMaturityRadar(scores,counts);
+}
+function updateMaturityLive(){
+  var scores={GOVERN:0,MAP:0,MEASURE:0,MANAGE:0};
+  var counts={GOVERN:3,MAP:3,MEASURE:3,MANAGE:3};
+  MATURITY_Qs.forEach(function(q,i){if(maturityAnswers[i]!==undefined)scores[q.fn]+=maturityAnswers[i];});
+  if(typeof drawMaturityRadar==='function')drawMaturityRadar(scores,counts);
+}
+
+// ===== EU AI ACT DATA =====
+var hoveredCrosswalk=null;
+var EU_CROSSWALK=[
+  {rmfFn:'GOVERN',rmfCat:'G1: Policies',euArt:'Art. 17: Quality Mgmt',euDesc:'Providers of high-risk AI must implement a quality management system covering policies and procedures for responsible AI.',align:0.85,fnColor:'#0984e3'},
+  {rmfFn:'GOVERN',rmfCat:'G2: Accountability',euArt:'Art. 9: Risk Management',euDesc:'Requires a documented risk management system with clear roles and responsibilities throughout the AI lifecycle.',align:0.95,fnColor:'#0984e3'},
+  {rmfFn:'GOVERN',rmfCat:'G6: Human Oversight',euArt:'Art. 14: Human Oversight',euDesc:'High-risk AI must allow effective human oversight, including ability to override, intervene, or halt the system.',align:1.0,fnColor:'#0984e3'},
+  {rmfFn:'MAP',rmfCat:'MAP1: Context',euArt:'Art. 9: Risk Assessment',euDesc:'Risk identification and analysis for known and foreseeable risks to health, safety, and fundamental rights.',align:0.9,fnColor:'#f7b731'},
+  {rmfFn:'MAP',rmfCat:'MAP3: Risks & Benefits',euArt:'Art. 13: Transparency',euDesc:'High-risk AI must provide information about purpose, performance metrics, limitations, and intended users.',align:0.75,fnColor:'#f7b731'},
+  {rmfFn:'MAP',rmfCat:'MAP5: Societal Impact',euArt:'Art. 43: Conformity',euDesc:'Assessment confirming high-risk AI meets requirements before market placement. Ongoing obligation.',align:0.70,fnColor:'#f7b731'},
+  {rmfFn:'MEASURE',rmfCat:'MS1: Metrics',euArt:'Art. 10: Data Governance',euDesc:'Training, validation, and testing data must meet quality criteria including examination for biases.',align:0.80,fnColor:'#ff6b6b'},
+  {rmfFn:'MEASURE',rmfCat:'MS2: Evaluation',euArt:'Art. 12: Record-keeping',euDesc:'High-risk AI must automatically log events enabling post-market monitoring and incident investigation.',align:0.85,fnColor:'#ff6b6b'},
+  {rmfFn:'MEASURE',rmfCat:'MS4: Feedback',euArt:'Art. 61: Post-market',euDesc:'Providers must proactively collect and analyze data about system performance throughout its operational lifetime.',align:0.90,fnColor:'#ff6b6b'},
+  {rmfFn:'MANAGE',rmfCat:'MG2: Response',euArt:'Art. 9: Risk Treatment',euDesc:'Risks must be eliminated or reduced to acceptable levels with appropriate risk management measures.',align:0.90,fnColor:'#51cf66'},
+  {rmfFn:'MANAGE',rmfCat:'MG3: Monitor',euArt:'Art. 62: Incidents',euDesc:'Providers must report serious incidents and malfunctions to market surveillance authorities without delay.',align:0.85,fnColor:'#51cf66'},
+  {rmfFn:'MANAGE',rmfCat:'MG4: Residual Risk',euArt:'Art. 65: Surveillance',euDesc:'Regulatory authorities conduct market surveillance checks on AI system performance post-deployment.',align:0.65,fnColor:'#51cf66'}
+];
 </script>
 <script>
 /* CANVAS CODE INJECTED HERE */

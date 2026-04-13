@@ -1175,6 +1175,412 @@ function animateLifecycle(){
   lifecycleRaf=requestAnimationFrame(animateLifecycle);
 }
 
+// ===== RISK FLOW WALKTHROUGH (canvas-risk-flow) =====
+function initRiskFlow(){
+  setFlowStep(0);
+}
+
+function drawRiskFlow(){
+  var canvas=document.getElementById('canvas-risk-flow');
+  if(!canvas)return;
+  var ctx=canvas.getContext('2d');
+  var W=700,H=290;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var positions=[
+    {fn:'MAP',color:'#f7b731',x:20,y:70},
+    {fn:'MEASURE',color:'#ff6b6b',x:193,y:70},
+    {fn:'MANAGE',color:'#51cf66',x:366,y:70},
+    {fn:'GOVERN',color:'#0984e3',x:539,y:70}
+  ];
+  var bw=153,bh=180;
+
+  // Risk banner at top
+  ctx.fillStyle='rgba(108,92,231,0.15)';
+  drawRoundedRect(ctx,20,10,W-40,34,6,'rgba(108,92,231,0.12)','rgba(108,92,231,0.4)');
+  ctx.fillStyle='rgba(255,255,255,0.7)';ctx.font='bold 11px Inter,sans-serif';
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('Risk: Algorithmic Bias in Hiring AI',W/2,27);
+
+  // Connecting arrows between boxes
+  for(var i=0;i<positions.length-1;i++){
+    var p=positions[i];var p2=positions[i+1];
+    var isActive=(riskFlowStep>i);
+    drawArrow(ctx,p.x+bw+2,p.y+bh/2,p2.x-2,p2.y+bh/2,isActive?p.color:'rgba(48,54,61,0.6)',isActive?2:1);
+    // Animated progress dot
+    if(riskFlowStep===i+1){
+      var pt=(Date.now()%1200)/1200;
+      var px2=lerp(p.x+bw,p2.x,pt);
+      ctx.beginPath();ctx.arc(px2,p.y+bh/2,4,0,Math.PI*2);
+      ctx.fillStyle=positions[i+1].color;ctx.fill();
+    }
+  }
+
+  // Draw each function box
+  positions.forEach(function(pos,i){
+    var step=RISK_FLOW_STEPS[i];
+    var isActive=(i===riskFlowStep);
+    var isPast=(i<riskFlowStep);
+    var alpha=isActive?1:isPast?0.75:0.35;
+    ctx.globalAlpha=alpha;
+
+    drawRoundedRect(ctx,pos.x,pos.y,bw,bh,10,
+      isActive?(pos.color+'1a'):'rgba(22,27,34,0.95)',
+      isActive?pos.color:isPast?(pos.color+'66'):'rgba(48,54,61,0.5)');
+
+    // Function label
+    ctx.fillStyle=pos.color;ctx.font='bold 11px Inter,sans-serif';
+    ctx.textAlign='center';ctx.textBaseline='top';
+    ctx.fillText(pos.fn,pos.x+bw/2,pos.y+10);
+
+    // Checkmark past steps
+    if(isPast){
+      ctx.fillStyle='#51cf66';ctx.font='bold 13px Inter,sans-serif';
+      ctx.textAlign='right';
+      ctx.fillText('\u2713',pos.x+bw-8,pos.y+8);
+    }
+
+    // Step number
+    ctx.fillStyle='rgba(255,255,255,0.3)';ctx.font='8px Inter,sans-serif';
+    ctx.textAlign='center';ctx.textBaseline='top';
+    ctx.fillText('Step '+(i+1)+' of 4',pos.x+bw/2,pos.y+26);
+
+    // Description text
+    ctx.fillStyle=isActive?'rgba(255,255,255,0.75)':'rgba(255,255,255,0.35)';
+    ctx.font='9px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+    wrapText(ctx,step.desc.slice(0,100),pos.x+8,pos.y+44,bw-16,13);
+
+    // Output badge
+    if(isActive||isPast){
+      drawRoundedRect(ctx,pos.x+6,pos.y+bh-34,bw-12,28,5,pos.color+'22','');
+      ctx.fillStyle=pos.color;ctx.font='8px Inter,sans-serif';
+      ctx.textAlign='left';ctx.textBaseline='top';
+      wrapText(ctx,step.action.slice(0,60),pos.x+10,pos.y+bh-30,bw-20,12);
+    }
+    ctx.globalAlpha=1;
+  });
+
+  // Title
+  ctx.fillStyle='rgba(255,255,255,0.35)';ctx.font='9px Inter,sans-serif';
+  ctx.textAlign='left';ctx.textBaseline='bottom';
+  ctx.fillText('Click buttons above to step through the risk lifecycle',16,H-4);
+
+  // Trigger repaint for animation
+  if(riskFlowStep<positions.length-1){requestAnimationFrame(drawRiskFlow);}
+}
+
+// ===== GENAI RISKS GRID (canvas-genai-grid) =====
+function initGenAIGrid(){
+  var canvas=document.getElementById('canvas-genai-grid');
+  if(!canvas)return;
+  canvas.addEventListener('click',function(e){
+    var r=canvas.getBoundingClientRect();
+    var mx=e.clientX-r.left;var my=e.clientY-r.top;
+    var rects=getGenAIRects();
+    var found=null;
+    rects.forEach(function(rc,i){if(mx>=rc.x&&mx<=rc.x+rc.w&&my>=rc.y&&my<=rc.y+rc.h)found=i;});
+    if(found!==null){
+      selectedGenAIRisk=(selectedGenAIRisk===found)?null:found;
+      drawGenAIGrid();
+      showGenAIDetail();
+    }
+  });
+  drawGenAIGrid();
+}
+
+function getGenAIRects(){
+  var cols=4,pw=162,ph=108,gx=10,gy=10,sx=10,sy=20;
+  var rects=[];
+  for(var i=0;i<12;i++){
+    var col=i%cols,row=Math.floor(i/cols);
+    rects.push({x:sx+col*(pw+gx),y:sy+row*(ph+gy),w:pw,h:ph});
+  }
+  return rects;
+}
+
+function showGenAIDetail(){
+  var det=document.getElementById('genai-detail');
+  if(!det)return;
+  if(selectedGenAIRisk===null){
+    det.innerHTML='<strong>Click a risk card</strong> to see description, severity, and mitigation strategies.';return;
+  }
+  var r=GENAI_RISKS[selectedGenAIRisk];
+  var sev='';for(var s=0;s<5;s++)sev+=(s<r.sev?'\u25c6':'\u25c7');
+  det.innerHTML='<strong style="color:'+r.color+'">'+r.name.replace(/\n/g,' ')+'</strong> <span style="color:'+r.color+';font-size:11px;letter-spacing:2px">'+sev+'</span> <span style="color:#8b949e;font-size:11px">| '+r.fn+'</span><br>'+r.desc+'<div style="margin-top:8px;padding:8px 12px;background:rgba(0,0,0,.3);border-radius:6px;font-size:12px"><strong style="color:#c9d1d9">Mitigations:</strong> '+r.mit+'</div>';
+}
+
+function drawGenAIGrid(){
+  var canvas=document.getElementById('canvas-genai-grid');
+  if(!canvas)return;
+  var ctx=canvas.getContext('2d');
+  var W=700,H=360;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var rects=getGenAIRects();
+  GENAI_RISKS.forEach(function(r,i){
+    var rc=rects[i];
+    var isSel=(selectedGenAIRisk===i);
+    drawRoundedRect(ctx,rc.x,rc.y,rc.w,rc.h,8,
+      isSel?(r.color+'22'):'rgba(22,27,34,0.9)',isSel?r.color:(r.color+'55'));
+    // Severity pips
+    for(var s=0;s<5;s++){
+      ctx.beginPath();ctx.arc(rc.x+8+s*10,rc.y+10,3,0,Math.PI*2);
+      ctx.fillStyle=s<r.sev?r.color:'rgba(255,255,255,0.12)';ctx.fill();
+    }
+    // Name
+    ctx.fillStyle=isSel?r.color:'rgba(255,255,255,0.8)';
+    ctx.font=(isSel?'bold ':'')+'10px Inter,sans-serif';
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    var parts=r.name.split('\n');
+    var midY=rc.y+rc.h*0.44;
+    parts.forEach(function(p,pi){ctx.fillText(p,rc.x+rc.w/2,midY+(pi-(parts.length-1)/2)*13);});
+    // Function tag
+    ctx.fillStyle='rgba(255,255,255,0.3)';ctx.font='8px Inter,sans-serif';
+    ctx.fillText(r.fn,rc.x+rc.w/2,rc.y+rc.h-10);
+    // Selected indicator
+    if(isSel){
+      ctx.fillStyle=r.color;ctx.font='bold 11px Inter,sans-serif';
+      ctx.fillText('\u25bc',rc.x+rc.w-10,rc.y+8);
+    }
+  });
+
+  ctx.fillStyle='rgba(255,255,255,0.4)';ctx.font='10px Inter,sans-serif';
+  ctx.textAlign='left';ctx.textBaseline='top';
+  ctx.fillText('GenAI Profile (NIST-AI-600-1) \u2014 12 Unique Risks \u2014 Click to explore',16,4);
+}
+
+// ===== SUBCATEGORY BROWSER (HTML grid) =====
+function renderSubcatGrid(){
+  var container=document.getElementById('subcat-grid');
+  if(!container)return;
+  var filtered=subcatFilter==='ALL'?SUBCATS:SUBCATS.filter(function(s){return s.fn===subcatFilter;});
+  container.innerHTML='';
+  filtered.forEach(function(s){
+    var card=document.createElement('div');
+    card.style.cssText='background:#161b22;border:1px solid '+s.color+'44;border-radius:8px;padding:12px 14px;transition:border-color .15s;';
+    card.innerHTML='<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'
+      +'<span style="background:'+s.color+'22;color:'+s.color+';padding:2px 7px;border-radius:4px;font-size:9px;font-weight:700;">'+s.id+'</span>'
+      +'<span style="font-size:9px;color:#8b949e;background:rgba(48,54,61,0.6);padding:1px 5px;border-radius:3px;">'+s.fn+'</span>'
+      +'<span style="font-size:9px;color:#8b949e;">'+s.cat+'</span>'
+      +'</div>'
+      +'<div style="font-size:11px;color:#c9d1d9;line-height:1.55">'+s.text+'</div>';
+    card.addEventListener('mouseenter',function(){card.style.borderColor=s.color;});
+    card.addEventListener('mouseleave',function(){card.style.borderColor=s.color+'44';});
+    container.appendChild(card);
+  });
+}
+
+function initSubcatBrowser(){
+  renderSubcatGrid();
+}
+
+// ===== MATURITY RADAR (canvas-maturity-radar) =====
+function initMaturityAssessment(){
+  var container=document.getElementById('maturity-questions-container');
+  if(!container)return;
+  var fnColors={GOVERN:'#0984e3',MAP:'#f7b731',MEASURE:'#ff6b6b',MANAGE:'#51cf66'};
+  var html='';
+  var currentFn='';
+  MATURITY_Qs.forEach(function(q,i){
+    if(q.fn!==currentFn){
+      if(currentFn!=='')html+='<\/div>';
+      currentFn=q.fn;
+      html+='<div style="margin-bottom:14px;">'
+        +'<div style="font-size:10px;font-weight:700;color:'+fnColors[q.fn]+';text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid '+fnColors[q.fn]+'33;">'+q.fn+'</div>';
+    }
+    html+='<div style="margin-bottom:10px;">'
+      +'<div style="font-size:11px;color:#c9d1d9;margin-bottom:5px;line-height:1.4">'+q.q+'</div>'
+      +'<div style="display:flex;gap:8px;">';
+    [{v:2,l:'Yes'},{v:1,l:'Partial'},{v:0,l:'No'}].forEach(function(opt){
+      html+='<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:10px;color:#8b949e;padding:3px 8px;border:1px solid rgba(48,54,61,0.8);border-radius:4px;">'
+        +'<input type="radio" name="mq'+i+'" value="'+opt.v+'" onchange="maturityAnswers['+i+']=parseInt(this.value);updateMaturityLive();" style="accent-color:'+fnColors[q.fn]+'">'
+        +opt.l+'<\/label>';
+    });
+    html+='<\/div><\/div>';
+  });
+  html+='<\/div>';
+  container.innerHTML=html;
+  drawMaturityRadar({GOVERN:0,MAP:0,MEASURE:0,MANAGE:0},{GOVERN:3,MAP:3,MEASURE:3,MANAGE:3});
+}
+
+function drawMaturityRadar(scores,counts){
+  var canvas=document.getElementById('canvas-maturity-radar');
+  if(!canvas)return;
+  var ctx=canvas.getContext('2d');
+  var W=320,H=300,cx=160,cy=152,maxR=98;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var fns=['GOVERN','MAP','MEASURE','MANAGE'];
+  var colors={GOVERN:'#0984e3',MAP:'#f7b731',MEASURE:'#ff6b6b',MANAGE:'#51cf66'};
+  var n=fns.length;
+
+  // Rings
+  [0.25,0.5,0.75,1.0].forEach(function(r){
+    ctx.beginPath();
+    for(var i=0;i<n;i++){
+      var a=-Math.PI/2+(i/n)*Math.PI*2;
+      var px=cx+maxR*r*Math.cos(a);var py=cy+maxR*r*Math.sin(a);
+      if(i===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);
+    }
+    ctx.closePath();
+    ctx.strokeStyle='rgba(48,54,61,'+(r===1.0?0.9:0.4)+')';ctx.lineWidth=r===1.0?1.5:1;ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,0.18)';ctx.font='8px Inter,sans-serif';
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(Math.round(r*100)+'%',cx+2,cy-maxR*r+5);
+  });
+
+  // Axes
+  for(var i=0;i<n;i++){
+    var a=-Math.PI/2+(i/n)*Math.PI*2;
+    ctx.strokeStyle='rgba(48,54,61,0.5)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+maxR*Math.cos(a),cy+maxR*Math.sin(a));ctx.stroke();
+  }
+
+  // Data polygon
+  ctx.beginPath();
+  fns.forEach(function(fn,i){
+    var a=-Math.PI/2+(i/n)*Math.PI*2;
+    var pct=(counts[fn]>0)?(scores[fn]/(counts[fn]*2)):0;
+    var r=maxR*Math.max(0,Math.min(1,pct));
+    var px=cx+r*Math.cos(a);var py=cy+r*Math.sin(a);
+    if(i===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);
+  });
+  ctx.closePath();
+  ctx.fillStyle='rgba(108,92,231,0.18)';ctx.fill();
+  ctx.strokeStyle='#6c5ce7';ctx.lineWidth=2;ctx.stroke();
+
+  // Dots + labels
+  fns.forEach(function(fn,i){
+    var a=-Math.PI/2+(i/n)*Math.PI*2;
+    var pct=(counts[fn]>0)?(scores[fn]/(counts[fn]*2)):0;
+    var r=maxR*Math.max(0,Math.min(1,pct));
+    var px=cx+r*Math.cos(a);var py=cy+r*Math.sin(a);
+    ctx.beginPath();ctx.arc(px,py,5,0,Math.PI*2);
+    ctx.fillStyle=colors[fn];ctx.fill();
+    var lblR=maxR+24;
+    var lx=cx+lblR*Math.cos(a);var ly=cy+lblR*Math.sin(a);
+    ctx.fillStyle=colors[fn];ctx.font='bold 10px Inter,sans-serif';
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(fn,lx,ly);
+    ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='9px Inter,sans-serif';
+    ctx.fillText(Math.round(pct*100)+'%',lx,ly+12);
+  });
+
+  // Center
+  ctx.fillStyle='rgba(255,255,255,0.35)';ctx.font='9px Inter,sans-serif';
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('Maturity',cx,cy-4);ctx.fillText('Radar',cx,cy+7);
+
+  ctx.fillStyle='rgba(255,255,255,0.35)';ctx.font='9px Inter,sans-serif';
+  ctx.textAlign='center';ctx.textBaseline='top';
+  ctx.fillText('Answers update live',cx,8);
+}
+
+// ===== EU AI ACT CROSSWALK (canvas-crosswalk) =====
+function initCrosswalk(){
+  var canvas=document.getElementById('canvas-crosswalk');
+  if(!canvas)return;
+  canvas.addEventListener('mousemove',function(e){
+    var r=canvas.getBoundingClientRect();
+    var my=e.clientY-r.top;
+    var rowH=22,startY=34;
+    var found=null;
+    EU_CROSSWALK.forEach(function(_,i){
+      var ry=startY+i*rowH;
+      if(my>=ry-1&&my<=ry+rowH-1)found=i;
+    });
+    if(found!==hoveredCrosswalk){
+      hoveredCrosswalk=found;drawCrosswalk();
+      if(found!==null){
+        var row=EU_CROSSWALK[found];
+        var det=document.getElementById('crosswalk-detail');
+        if(det){
+          var alignPct=Math.round(row.align*100);
+          var alignLbl=alignPct>=90?'Very Strong':alignPct>=80?'Strong':alignPct>=70?'Moderate':'Partial';
+          det.innerHTML='<strong style="color:'+row.fnColor+'">'+row.rmfFn+' \u2014 '+row.rmfCat+'</strong> \u2194 <strong style="color:#74b9ff">EU AI Act '+row.euArt+'</strong><br>'+row.euDesc+'<div style="margin-top:6px;font-size:11px;color:#8b949e">Alignment: <strong style="color:'+row.fnColor+'">'+alignLbl+' ('+alignPct+'%)</strong></div>';
+        }
+      }
+    }
+  });
+  canvas.addEventListener('mouseleave',function(){
+    hoveredCrosswalk=null;drawCrosswalk();
+    var det=document.getElementById('crosswalk-detail');
+    if(det)det.innerHTML='Hover a row to see how the RMF subcategory aligns with the EU AI Act article and where gaps remain.';
+  });
+  drawCrosswalk();
+}
+
+function drawCrosswalk(){
+  var canvas=document.getElementById('canvas-crosswalk');
+  if(!canvas)return;
+  var ctx=canvas.getContext('2d');
+  var W=700,H=320;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var rowH=22,startY=34;
+  var c1=8,w1=82;
+  var c2=c1+w1+6,w2=112;
+  var c3=c2+w2+6,w3=122;
+  var c4=c3+w3+6,w4=W-c4-12;
+
+  // Headers
+  ctx.fillStyle='rgba(255,255,255,0.45)';ctx.font='bold 9px Inter,sans-serif';
+  ctx.textAlign='left';ctx.textBaseline='middle';
+  ctx.fillText('RMF Fn',c1,18);ctx.fillText('RMF Category',c2,18);
+  ctx.fillText('EU AI Act Article',c3,18);ctx.fillText('Alignment',c4,18);
+  ctx.strokeStyle='rgba(48,54,61,0.9)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(8,27);ctx.lineTo(W-8,27);ctx.stroke();
+
+  EU_CROSSWALK.forEach(function(row,i){
+    var ry=startY+i*rowH;
+    var isHov=(hoveredCrosswalk===i);
+    if(isHov){ctx.fillStyle=row.fnColor+'16';ctx.fillRect(4,ry,W-8,rowH-1);}
+
+    // Fn badge
+    drawRoundedRect(ctx,c1,ry+3,w1,rowH-7,4,row.fnColor+'33','');
+    ctx.fillStyle=row.fnColor;ctx.font='bold 9px Inter,sans-serif';
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(row.rmfFn,c1+w1/2,ry+rowH/2);
+
+    // RMF cat
+    ctx.fillStyle=isHov?'rgba(255,255,255,0.85)':'rgba(255,255,255,0.5)';
+    ctx.font='9px Inter,sans-serif';ctx.textAlign='left';
+    ctx.fillText(row.rmfCat,c2,ry+rowH/2);
+
+    // EU article
+    ctx.fillStyle=isHov?'#74b9ff':'rgba(116,185,255,0.55)';
+    ctx.fillText(row.euArt,c3,ry+rowH/2);
+
+    // Alignment bar
+    drawRoundedRect(ctx,c4,ry+5,w4,rowH-10,3,'rgba(48,54,61,0.6)','');
+    var barColor=row.align>=0.9?'#51cf66':row.align>=0.75?'#f7b731':'#ff6b6b';
+    drawRoundedRect(ctx,c4,ry+5,w4*row.align,rowH-10,3,barColor,'');
+    ctx.fillStyle='rgba(255,255,255,0.85)';ctx.font='bold 8px Inter,sans-serif';
+    ctx.textAlign='right';
+    ctx.fillText(Math.round(row.align*100)+'%',c4+w4-4,ry+rowH/2);
+
+    // Hover tooltip line
+    if(isHov){
+      ctx.strokeStyle=row.fnColor+'44';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(4,ry+rowH-1);ctx.lineTo(W-4,ry+rowH-1);ctx.stroke();
+    }
+  });
+
+  // Legend
+  [['\u25a0 Very Strong (90%+)','#51cf66'],['\u25a0 Strong (75%+)','#f7b731'],['\u25a0 Partial (<75%)','#ff6b6b']].forEach(function(l,i){
+    ctx.fillStyle=l[1];ctx.font='9px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='bottom';
+    ctx.fillText(l[0],c4+i*95,H-4);
+  });
+
+  ctx.fillStyle='rgba(255,255,255,0.4)';ctx.font='10px Inter,sans-serif';
+  ctx.textAlign='left';ctx.textBaseline='top';
+  ctx.fillText('NIST AI RMF \u2194 EU AI Act Crosswalk \u2014 Hover a row to explore',16,4);
+}
+
 // ===== INIT ALL =====
 function doInit(){
   initRMFWheel();
@@ -1188,6 +1594,11 @@ function doInit(){
   initManagePlaybook();
   initRiskResponse();
   initLifecycleMap();
+  initRiskFlow();
+  initGenAIGrid();
+  initSubcatBrowser();
+  initMaturityAssessment();
+  initCrosswalk();
   updateNavOnScroll();
 }
 
