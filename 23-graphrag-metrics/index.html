@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GraphRAG Evaluation Metrics — Interactive Visual Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0d0f18; --surface:#161a2e; --surface2:#1e2444;
+  --border:#2a3060; --text:#e2e8f0; --muted:#8892b0; --accent:#3fb950;
+  --retrieval:#58a6ff; --generation:#e3b341; --faithfulness:#f47067;
+  --llmjudge:#bc8cff; --taskspec:#79c0ff;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh}
+
+/* SIDEBAR */
+.sidebar{width:256px;background:var(--surface);border-right:1px solid var(--border);position:fixed;top:0;left:0;height:100vh;overflow-y:auto;z-index:100}
+.sb-header{padding:20px 18px;border-bottom:1px solid var(--border)}
+.sb-back{font-size:11px;color:var(--muted);text-decoration:none;display:flex;align-items:center;gap:5px;margin-bottom:10px}
+.sb-back:hover{color:var(--text)}
+.sb-header h1{font-size:13px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px}
+.sb-header p{font-size:11px;color:var(--muted);margin-top:3px}
+.nav-group{padding:8px 0;border-bottom:1px solid var(--border)}
+.nav-group-title{padding:0 16px 5px;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-weight:600}
+.nav-link{display:flex;align-items:center;gap:9px;padding:7px 16px;cursor:pointer;border-left:3px solid transparent;transition:all .2s;text-decoration:none;color:var(--muted);font-size:12px}
+.nav-link:hover,.nav-link.active{background:rgba(63,185,80,.08);color:var(--text);border-left-color:var(--accent)}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+/* MAIN */
+.main{margin-left:256px;flex:1}
+.section{min-height:100vh;padding:52px 48px;border-bottom:1px solid var(--border)}
+@media(max-width:768px){.sidebar{display:none}.main{margin-left:0}.section{padding:32px 20px}}
+
+.section-tag{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--accent);font-weight:600;margin-bottom:8px}
+.section-title{font-size:28px;font-weight:700;margin-bottom:8px;line-height:1.2}
+.section-sub{font-size:14px;color:var(--muted);max-width:640px;line-height:1.65;margin-bottom:32px}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px}
+.card-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;color:var(--muted)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.formula{font-family:'JetBrains Mono',monospace;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:12px;margin:12px 0;color:#e2b35e;white-space:pre-wrap;overflow-x:auto}
+
+.stat-row{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:32px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 20px;flex:1;min-width:130px;border-top:3px solid}
+.stat-val{font-size:28px;font-weight:700;font-family:'JetBrains Mono'}
+.stat-lbl{font-size:11px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.5px}
+
+/* METRIC CARDS */
+.metric-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;transition:border-color .2s,transform .2s}
+.metric-card:hover{transform:translateY(-2px)}
+.mc-header{padding:14px 16px 10px;border-bottom:1px solid var(--border)}
+.mc-name{font-size:14px;font-weight:700;margin-bottom:4px}
+.mc-cat{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px}
+.mc-body{padding:12px 16px}
+.mc-desc{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:10px}
+.mc-formula{font-family:'JetBrains Mono';font-size:11px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:#e2b35e;margin-bottom:10px;overflow-x:auto}
+.mc-papers{display:flex;flex-wrap:wrap;gap:5px}
+.paper-chip{font-size:10px;padding:2px 8px;border-radius:12px;background:var(--bg);border:1px solid var(--border);color:var(--muted);text-decoration:none;transition:all .15s;cursor:pointer}
+.paper-chip:hover{border-color:var(--accent);color:var(--accent)}
+
+/* INTERACTIVE DEMOS */
+.demo-box{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:22px;margin-top:20px}
+.demo-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--accent);margin-bottom:16px}
+.sl-row{display:flex;align-items:center;gap:10px;margin:8px 0}
+.sl-lbl{font-size:12px;color:var(--muted);min-width:100px}
+.sl-val{font-family:'JetBrains Mono';font-size:12px;color:var(--accent);min-width:40px;text-align:right}
+input[type=range]{flex:1;accent-color:var(--accent);cursor:pointer}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:opacity .2s}
+.btn:hover{opacity:.85}
+.btn-sm{padding:5px 12px;font-size:11px}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}
+.btn-outline:hover{background:var(--surface2);opacity:1}
+
+/* BAR CHART */
+.bar-row{display:flex;align-items:center;gap:10px;margin:6px 0}
+.bar-lbl{font-size:11px;color:var(--muted);min-width:160px;text-align:right}
+.bar-track{flex:1;height:12px;background:var(--bg);border-radius:6px;overflow:hidden}
+.bar-fill{height:100%;border-radius:6px;transition:width 1s ease}
+.bar-val{font-size:11px;font-family:'JetBrains Mono';color:var(--text);min-width:28px}
+
+/* TABS */
+.tab-bar{display:flex;gap:2px;margin-bottom:18px;background:var(--bg);border-radius:10px;padding:3px}
+.tab{padding:7px 16px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:500;color:var(--muted);transition:all .2s;border:none;background:transparent;font-family:'Inter',sans-serif}
+.tab.active{background:var(--surface2);color:var(--text)}
+.tab-content{display:none}
+.tab-content.active{display:block}
+
+/* RECALL DEMO */
+.doc-list{display:flex;flex-direction:column;gap:6px;margin:12px 0}
+.doc-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:var(--bg);border:1px solid var(--border);cursor:pointer;transition:all .2s;font-size:12px}
+.doc-item.relevant{border-color:#3fb95066;background:rgba(63,185,80,.06)}
+.doc-item.in-k{opacity:1}
+.doc-item.out-k{opacity:.35}
+.doc-rank{font-family:'JetBrains Mono';font-size:11px;color:var(--muted);min-width:20px}
+.doc-label{flex:1}
+.rel-badge{font-size:10px;padding:1px 7px;border-radius:10px;background:rgba(63,185,80,.15);color:#3fb950;font-weight:600}
+.irrel-badge{font-size:10px;padding:1px 7px;border-radius:10px;background:rgba(136,146,176,.1);color:var(--muted)}
+.metric-display{display:flex;gap:16px;margin-top:14px;flex-wrap:wrap}
+.metric-pill{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 16px;text-align:center;flex:1;min-width:80px}
+.metric-pill-val{font-size:20px;font-weight:700;font-family:'JetBrains Mono'}
+.metric-pill-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+
+/* F1 DEMO */
+.token-wrap{display:flex;flex-wrap:wrap;gap:4px;margin:10px 0;min-height:36px;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:8px}
+.token{font-family:'JetBrains Mono';font-size:12px;padding:2px 6px;border-radius:4px;background:var(--surface2);color:var(--muted)}
+.token.match{background:rgba(63,185,80,.2);color:#3fb950;border:1px solid rgba(63,185,80,.3)}
+.token.pred-only{background:rgba(244,112,103,.15);color:#f47067}
+.f1-input{width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;font-family:'JetBrains Mono';outline:none;margin-bottom:8px}
+.f1-input:focus{border-color:var(--accent)}
+.f1-bars{margin-top:12px}
+.f1-bar-row{display:flex;align-items:center;gap:10px;margin:6px 0}
+.f1-bar-lbl{font-size:12px;color:var(--muted);min-width:90px}
+.f1-bar-track{flex:1;height:14px;background:var(--bg);border-radius:7px;overflow:hidden}
+.f1-bar-fill{height:100%;border-radius:7px;transition:width .5s ease}
+.f1-bar-val{font-size:12px;font-family:'JetBrains Mono';min-width:45px;text-align:right}
+
+/* ROUGE DEMO */
+.rouge-text{font-size:13px;line-height:2;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-family:'JetBrains Mono'}
+.ngram-match{background:rgba(227,179,65,.2);border-bottom:2px solid #e3b341;color:#e3b341;padding:0 1px}
+.ngram-miss{color:var(--muted)}
+
+/* FAITHFULNESS DEMO */
+.claim-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);margin:6px 0;cursor:pointer;transition:all .2s;font-size:12px;line-height:1.5}
+.claim-item.supported{border-color:#3fb95066;background:rgba(63,185,80,.06)}
+.claim-item.unsupported{border-color:#f4706766;background:rgba(244,112,103,.06)}
+.claim-toggle{width:18px;height:18px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;margin-top:1px;transition:all .2s}
+.claim-item.supported .claim-toggle{border-color:#3fb950;background:#3fb950;color:#000}
+.claim-item.unsupported .claim-toggle{border-color:#f47067;background:#f47067;color:#fff}
+
+/* JUDGE DEMO */
+.judge-panel{display:grid;grid-template-columns:1fr 60px 1fr;gap:12px;align-items:start}
+.answer-box{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:12px;color:var(--muted);line-height:1.6}
+.answer-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+.vs-circle{display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);font-size:11px;font-weight:700;color:var(--muted);margin:auto}
+.dim-btn{padding:6px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:11px;font-weight:600;font-family:'Inter',sans-serif;transition:all .2s}
+.dim-btn.active{background:rgba(188,140,255,.15);color:var(--llmjudge);border-color:var(--llmjudge)}
+.winner-bar{margin-top:16px}
+.winner-row{display:flex;align-items:center;gap:8px;margin:6px 0}
+.winner-lbl{font-size:11px;color:var(--muted);min-width:100px}
+.winner-track{flex:1;height:16px;background:var(--bg);border-radius:8px;overflow:hidden;position:relative}
+.winner-a{position:absolute;left:0;top:0;height:100%;border-radius:8px 0 0 8px;transition:width .6s ease;background:var(--retrieval)}
+.winner-b{position:absolute;right:0;top:0;height:100%;border-radius:0 8px 8px 0;transition:width .6s ease;background:var(--llmjudge)}
+.winner-pct{font-size:11px;font-family:'JetBrains Mono';color:var(--text);min-width:35px;text-align:right}
+
+/* HIGHLIGHT BOX */
+.highlight-box{background:rgba(63,185,80,.05);border:1px solid rgba(63,185,80,.2);border-radius:10px;padding:14px 18px;margin:14px 0}
+.highlight-box p{font-size:13px;color:var(--text);line-height:1.6}
+
+/* USAGE CHART */
+.usage-row{display:flex;align-items:center;gap:10px;margin:5px 0;cursor:pointer;padding:4px 0;border-radius:6px;transition:background .15s}
+.usage-row:hover{background:rgba(255,255,255,.02)}
+.usage-rank{font-size:10px;font-family:'JetBrains Mono';color:var(--muted);min-width:22px;text-align:right}
+.usage-name{font-size:12px;color:var(--text);min-width:190px}
+.usage-track{flex:1;height:14px;background:var(--bg);border-radius:7px;overflow:hidden}
+.usage-fill{height:100%;border-radius:7px;transition:width 1s ease}
+.usage-count{font-size:11px;font-family:'JetBrains Mono';color:var(--muted);min-width:30px}
+.usage-cat-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+.section-divider{display:flex;align-items:center;gap:12px;margin:24px 0}
+.section-divider hr{flex:1;border:none;border-top:1px solid var(--border)}
+.section-divider span{font-size:10px;color:var(--muted);white-space:nowrap}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sb-header">
+    <a class="sb-back" href="../">← Visual Summary</a>
+    <h1>GraphRAG Metrics</h1>
+    <p>63 metrics · 58 papers</p>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">Sections</div>
+    <a class="nav-link" onclick="scrollTo('overview')"><span class="dot" style="background:#3fb950"></span>Overview</a>
+    <a class="nav-link" onclick="scrollTo('retrieval')"><span class="dot" style="background:var(--retrieval)"></span>Retrieval Metrics</a>
+    <a class="nav-link" onclick="scrollTo('generation')"><span class="dot" style="background:var(--generation)"></span>Generation Metrics</a>
+    <a class="nav-link" onclick="scrollTo('faithfulness')"><span class="dot" style="background:var(--faithfulness)"></span>Faithfulness Metrics</a>
+    <a class="nav-link" onclick="scrollTo('llmjudge')"><span class="dot" style="background:var(--llmjudge)"></span>LLM-Judge Metrics</a>
+    <a class="nav-link" onclick="scrollTo('taskspec')"><span class="dot" style="background:var(--taskspec)"></span>Task-Specific Metrics</a>
+    <a class="nav-link" onclick="scrollTo('usage')"><span class="dot" style="background:#e2b35e"></span>Usage Across Papers</a>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- 1. OVERVIEW                                                     -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section class="section" id="overview">
+  <div class="section-tag">GraphRAG · Evaluation</div>
+  <div class="section-title">How Do We Measure GraphRAG?</div>
+  <div class="section-sub">A comprehensive visual guide to the 63 evaluation metrics used across 58 GraphRAG papers — from classic retrieval metrics to LLM-as-judge frameworks and task-specific scores.</div>
+
+  <div class="stat-row">
+    <div class="stat" style="border-top-color:var(--accent)"><div class="stat-val" style="color:var(--accent)">63</div><div class="stat-lbl">Unique Metrics</div></div>
+    <div class="stat" style="border-top-color:var(--retrieval)"><div class="stat-val" style="color:var(--retrieval)">58</div><div class="stat-lbl">Papers Analyzed</div></div>
+    <div class="stat" style="border-top-color:var(--generation)"><div class="stat-val" style="color:var(--generation)">5</div><div class="stat-lbl">Categories</div></div>
+    <div class="stat" style="border-top-color:var(--faithfulness)"><div class="stat-val" style="color:var(--faithfulness)">12</div><div class="stat-lbl">Benchmark Datasets</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Metrics by Category</div>
+    <div id="overview-chart"></div>
+  </div>
+
+  <div style="margin-top:20px" class="g2">
+    <div class="card">
+      <div class="card-title">Why Metrics Matter</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.7">GraphRAG systems are evaluated across multiple dimensions: <strong style="color:var(--text)">retrieval quality</strong> (did we get the right context?), <strong style="color:var(--text)">generation quality</strong> (is the answer correct?), <strong style="color:var(--text)">faithfulness</strong> (is it grounded?), and <strong style="color:var(--text)">holistic quality</strong> (LLM judge). No single metric captures all dimensions.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">Most Common Metric Combinations</div>
+      <div style="font-size:12px;color:var(--muted);line-height:2">
+        <div style="display:flex;justify-content:space-between"><span>EM + F1</span><span style="color:var(--accent);font-family:'JetBrains Mono'">~25 papers</span></div>
+        <div style="display:flex;justify-content:space-between"><span>ROUGE + BLEU</span><span style="color:var(--generation);font-family:'JetBrains Mono'">~9 papers</span></div>
+        <div style="display:flex;justify-content:space-between"><span>Comp + Div + Emp</span><span style="color:var(--llmjudge);font-family:'JetBrains Mono'">~9 papers</span></div>
+        <div style="display:flex;justify-content:space-between"><span>Hit@K + MRR</span><span style="color:var(--retrieval);font-family:'JetBrains Mono'">~6 papers</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- 2. RETRIEVAL METRICS                                            -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section class="section" id="retrieval">
+  <div class="section-tag" style="color:var(--retrieval)">Category 1</div>
+  <div class="section-title">Retrieval Metrics</div>
+  <div class="section-sub">These metrics evaluate the quality of the retrieval step — did the graph retriever fetch the right documents, triples, or subgraphs before passing context to the LLM?</div>
+
+  <!-- INTERACTIVE DEMO -->
+  <div class="demo-box">
+    <div class="demo-title">Interactive · Recall@K / Hit@K / MRR Simulator</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Toggle document relevance and adjust K to see how Recall@K, Hit@K, and MRR change live. Click any document to mark it as relevant/irrelevant.</p>
+    <div class="sl-row">
+      <span class="sl-lbl">K (top-K)</span>
+      <input type="range" min="1" max="10" value="5" id="k-slider" oninput="updateRetrieval()">
+      <span class="sl-val" id="k-val">5</span>
+    </div>
+    <div class="doc-list" id="doc-list"></div>
+    <div class="metric-display">
+      <div class="metric-pill"><div class="metric-pill-val" id="recall-val" style="color:var(--retrieval)">-</div><div class="metric-pill-lbl">Recall@K</div></div>
+      <div class="metric-pill"><div class="metric-pill-val" id="hit-val" style="color:var(--accent)">-</div><div class="metric-pill-lbl">Hit@K</div></div>
+      <div class="metric-pill"><div class="metric-pill-val" id="mrr-val" style="color:var(--generation)">-</div><div class="metric-pill-lbl">MRR</div></div>
+    </div>
+  </div>
+
+  <div class="section-divider"><hr><span>10 Retrieval Metrics</span><hr></div>
+
+  <div class="g2" style="margin-top:0" id="retrieval-cards"></div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- 3. GENERATION METRICS                                           -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section class="section" id="generation">
+  <div class="section-tag" style="color:var(--generation)">Category 2</div>
+  <div class="section-title">Generation Metrics</div>
+  <div class="section-sub">These metrics evaluate the final generated answer — measuring lexical overlap, semantic correctness, or functional accuracy against a reference answer.</div>
+
+  <!-- F1 DEMO -->
+  <div class="demo-box">
+    <div class="demo-title">Interactive · F1 Score Calculator</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Type a predicted answer and the gold answer. Watch token-level precision, recall, and F1 update in real time. Green tokens are shared; red are prediction-only.</p>
+    <div class="g2">
+      <div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">Gold Answer</div>
+        <input class="f1-input" id="gold-input" value="The GraphRAG system uses community summaries for global queries" oninput="updateF1()">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">Gold Tokens</div>
+        <div class="token-wrap" id="gold-tokens"></div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">Predicted Answer</div>
+        <input class="f1-input" id="pred-input" value="GraphRAG uses community-level summaries to answer global questions" oninput="updateF1()">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">Predicted Tokens</div>
+        <div class="token-wrap" id="pred-tokens"></div>
+      </div>
+    </div>
+    <div class="f1-bars">
+      <div class="f1-bar-row"><span class="f1-bar-lbl">Precision</span><div class="f1-bar-track"><div class="f1-bar-fill" id="prec-bar" style="background:var(--retrieval)"></div></div><span class="f1-bar-val" id="prec-val" style="color:var(--retrieval)">-</span></div>
+      <div class="f1-bar-row"><span class="f1-bar-lbl">Recall</span><div class="f1-bar-track"><div class="f1-bar-fill" id="rec-bar" style="background:var(--generation)"></div></div><span class="f1-bar-val" id="rec-val" style="color:var(--generation)">-</span></div>
+      <div class="f1-bar-row"><span class="f1-bar-lbl">F1 Score</span><div class="f1-bar-track"><div class="f1-bar-fill" id="f1-bar" style="background:var(--accent)"></div></div><span class="f1-bar-val" id="f1-val" style="color:var(--accent)">-</span></div>
+    </div>
+  </div>
+
+  <!-- ROUGE DEMO -->
+  <div class="demo-box" style="margin-top:16px">
+    <div class="demo-title">Interactive · ROUGE-N Visualizer</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Highlighted words appear in both hypothesis and reference. ROUGE measures <em>recall</em> — what fraction of reference n-grams appear in the hypothesis.</p>
+    <div class="tab-bar">
+      <button class="tab active" onclick="setRougeN(1,this)">ROUGE-1</button>
+      <button class="tab" onclick="setRougeN(2,this)">ROUGE-2</button>
+      <button class="tab" onclick="setRougeN('L',this)">ROUGE-L</button>
+    </div>
+    <div class="g2">
+      <div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">Reference (Gold)</div>
+        <div class="rouge-text" id="rouge-ref"></div>
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">Hypothesis (Generated)</div>
+        <div class="rouge-text" id="rouge-hyp"></div>
+      </div>
+    </div>
+    <div class="metric-display" style="margin-top:12px">
+      <div class="metric-pill"><div class="metric-pill-val" id="rouge-score" style="color:var(--generation)">-</div><div class="metric-pill-lbl" id="rouge-lbl">ROUGE-1</div></div>
+      <div class="metric-pill"><div class="metric-pill-val" id="rouge-p" style="color:var(--muted)">-</div><div class="metric-pill-lbl">Precision</div></div>
+      <div class="metric-pill"><div class="metric-pill-val" id="rouge-r" style="color:var(--muted)">-</div><div class="metric-pill-lbl">Recall</div></div>
+    </div>
+  </div>
+
+  <div class="section-divider"><hr><span>12 Generation Metrics</span><hr></div>
+  <div class="g2" id="generation-cards"></div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- 4. FAITHFULNESS METRICS                                         -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section class="section" id="faithfulness">
+  <div class="section-tag" style="color:var(--faithfulness)">Category 3</div>
+  <div class="section-title">Faithfulness Metrics</div>
+  <div class="section-sub">Faithfulness metrics verify whether the generated answer is grounded in the retrieved context — catching hallucinations and unsupported claims.</div>
+
+  <!-- CLAIM CHECKER DEMO -->
+  <div class="demo-box">
+    <div class="demo-title">Interactive · Faithfulness Score — Claim Checker</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Each sentence in the generated answer is decomposed into atomic claims. Click to toggle whether each claim is supported by the retrieved context.</p>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px">Retrieved Context</div>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:14px">
+      <em>"Microsoft's GraphRAG system constructs a knowledge graph from the source corpus, then generates summaries for detected communities. It uses a map-reduce approach: local answers are generated per community, then combined into a global response. The system was evaluated on Podcast and News datasets."</em>
+    </div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px">Generated Answer Claims</div>
+    <div id="claims-list"></div>
+    <div class="metric-display" style="margin-top:14px">
+      <div class="metric-pill"><div class="metric-pill-val" id="faith-score" style="color:var(--faithfulness)">-</div><div class="metric-pill-lbl">Faithfulness Score</div></div>
+      <div class="metric-pill"><div class="metric-pill-val" id="faith-supported" style="color:var(--accent)">-</div><div class="metric-pill-lbl">Supported</div></div>
+      <div class="metric-pill"><div class="metric-pill-val" id="faith-total" style="color:var(--muted)">-</div><div class="metric-pill-lbl">Total Claims</div></div>
+    </div>
+  </div>
+
+  <div class="section-divider"><hr><span>8 Faithfulness Metrics</span><hr></div>
+  <div class="g2" id="faithfulness-cards"></div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- 5. LLM-JUDGE METRICS                                            -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section class="section" id="llmjudge">
+  <div class="section-tag" style="color:var(--llmjudge)">Category 4</div>
+  <div class="section-title">LLM-as-Judge Metrics</div>
+  <div class="section-sub">When no ground-truth answer exists (e.g. global summarization questions), an LLM evaluates two answers head-to-head on qualitative dimensions. Win rate captures which method produces better responses.</div>
+
+  <!-- JUDGE DEMO -->
+  <div class="demo-box">
+    <div class="demo-title">Interactive · Pairwise LLM Judge Simulator</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Select a quality dimension and see how a simulated LLM judge allocates win rates between two answers. Run multiple rounds to see how wins accumulate.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+      <button class="dim-btn active" onclick="setDim('comprehensiveness',this)">Comprehensiveness</button>
+      <button class="dim-btn" onclick="setDim('diversity',this)">Diversity</button>
+      <button class="dim-btn" onclick="setDim('empowerment',this)">Empowerment</button>
+      <button class="dim-btn" onclick="setDim('directness',this)">Directness</button>
+    </div>
+    <div class="judge-panel">
+      <div>
+        <div class="answer-label" style="color:var(--retrieval)">Answer A · GraphRAG</div>
+        <div class="answer-box" id="judge-a"></div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:center"><div class="vs-circle">VS</div></div>
+      <div>
+        <div class="answer-label" style="color:var(--llmjudge)">Answer B · Naive RAG</div>
+        <div class="answer-box" id="judge-b"></div>
+      </div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-sm" onclick="runJudge()">Run Judge</button>
+      <button class="btn btn-sm btn-outline" onclick="resetJudge()">Reset</button>
+      <span style="font-size:11px;color:var(--muted)">Trials: <span id="judge-trials" style="color:var(--text);font-family:'JetBrains Mono'">0</span></span>
+    </div>
+    <div class="winner-bar" id="winner-bar" style="display:none">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Win Rate after <span id="wr-trials">0</span> trials</div>
+      <div class="winner-row">
+        <span class="winner-lbl" style="color:var(--retrieval)">GraphRAG (A)</span>
+        <div class="winner-track">
+          <div class="winner-a" id="wr-a"></div>
+          <div class="winner-b" id="wr-b"></div>
+        </div>
+        <span class="winner-pct" id="wr-pct-a" style="color:var(--retrieval)">-</span>
+      </div>
+    </div>
+    <div class="highlight-box" style="margin-top:14px">
+      <p><strong>Position bias mitigation:</strong> Each comparison is run twice with answers in reversed order. The final win rate is the average, preventing the LLM from systematically favouring the first position.</p>
+    </div>
+  </div>
+
+  <div class="section-divider"><hr><span>10 LLM-Judge Metrics</span><hr></div>
+  <div class="g2" id="llmjudge-cards"></div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- 6. TASK-SPECIFIC METRICS                                        -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section class="section" id="taskspec">
+  <div class="section-tag" style="color:var(--taskspec)">Category 5</div>
+  <div class="section-title">Task-Specific Metrics</div>
+  <div class="section-sub">GraphRAG is applied across diverse domains — code generation, medical QA, dialogue, KG construction, and efficiency analysis — each requiring specialized metrics.</div>
+
+  <div class="tab-bar">
+    <button class="tab active" onclick="setTaskTab('code',this)">Code</button>
+    <button class="tab" onclick="setTaskTab('medical',this)">Medical</button>
+    <button class="tab" onclick="setTaskTab('graph',this)">Graph Quality</button>
+    <button class="tab" onclick="setTaskTab('dialogue',this)">Dialogue</button>
+    <button class="tab" onclick="setTaskTab('efficiency',this)">Efficiency</button>
+    <button class="tab" onclick="setTaskTab('hallucination',this)">Hallucination</button>
+  </div>
+  <div id="taskspec-content"></div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- 7. USAGE ACROSS PAPERS                                          -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section class="section" id="usage">
+  <div class="section-tag" style="color:#e2b35e">Usage Analysis</div>
+  <div class="section-title">Most Used Metrics Across Papers</div>
+  <div class="section-sub">How often does each metric appear across the 58 analyzed papers? F1 and EM dominate for QA tasks; LLM-judge metrics are rising for open-ended generation tasks.</div>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px" id="usage-filter-bar">
+    <button class="dim-btn active" onclick="filterUsage('all',this)">All</button>
+    <button class="dim-btn" onclick="filterUsage('Retrieval',this)" style="color:var(--retrieval);border-color:var(--retrieval)">Retrieval</button>
+    <button class="dim-btn" onclick="filterUsage('Generation',this)" style="color:var(--generation);border-color:var(--generation)">Generation</button>
+    <button class="dim-btn" onclick="filterUsage('Faithfulness',this)" style="color:var(--faithfulness);border-color:var(--faithfulness)">Faithfulness</button>
+    <button class="dim-btn" onclick="filterUsage('LLM-Judge',this)" style="color:var(--llmjudge);border-color:var(--llmjudge)">LLM-Judge</button>
+    <button class="dim-btn" onclick="filterUsage('Task-Specific',this)" style="color:var(--taskspec);border-color:var(--taskspec)">Task-Specific</button>
+  </div>
+
+  <div class="card">
+    <div id="usage-chart"></div>
+  </div>
+
+  <div class="highlight-box" style="margin-top:20px">
+    <p><strong>Key takeaway:</strong> F1 Score is the most universal metric (25+ papers), but the shift to LLM-judge metrics (Comprehensiveness, Diversity, Empowerment) reflects a growing recognition that lexical overlap metrics cannot capture the quality of <em>global, sensemaking</em> answers that GraphRAG is designed for.</p>
+  </div>
+</section>
+
+</main>
+
+<script>
+/* ─── DATA ─────────────────────────────────────────────────── */
+
+const catColor = {
+  'Retrieval':'var(--retrieval)',
+  'Generation':'var(--generation)',
+  'Faithfulness':'var(--faithfulness)',
+  'LLM-Judge':'var(--llmjudge)',
+  'Task-Specific':'var(--taskspec)'
+};
+
+const usageData = [
+  {name:'F1 Score',cat:'Generation',count:25},
+  {name:'Exact Match (EM)',cat:'Generation',count:20},
+  {name:'Recall@K',cat:'Retrieval',count:15},
+  {name:'ROUGE-L',cat:'Generation',count:14},
+  {name:'Hit@K / Hits@1',cat:'Retrieval',count:13},
+  {name:'Accuracy',cat:'Generation',count:12},
+  {name:'LLM Win Rate',cat:'LLM-Judge',count:10},
+  {name:'BLEU',cat:'Generation',count:9},
+  {name:'Comprehensiveness',cat:'LLM-Judge',count:9},
+  {name:'Diversity',cat:'LLM-Judge',count:9},
+  {name:'Empowerment',cat:'LLM-Judge',count:8},
+  {name:'MRR',cat:'Retrieval',count:6},
+  {name:'BERTScore',cat:'Generation',count:6},
+  {name:'METEOR',cat:'Generation',count:4},
+  {name:'Faithfulness Score',cat:'Faithfulness',count:4},
+  {name:'RAGAS Metrics',cat:'Faithfulness',count:3},
+  {name:'Hallucination Rate',cat:'Faithfulness',count:3},
+  {name:'Efficiency / Cost',cat:'Task-Specific',count:12},
+  {name:'Pass@K (Code)',cat:'Task-Specific',count:3},
+  {name:'Edit Similarity',cat:'Task-Specific',count:2},
+];
+
+const retrievalMetrics = [
+  {name:'Recall@K',cat:'Retrieval',formula:'|Relevant ∩ Top-K| / |Relevant|',desc:'Fraction of all relevant items that appear in the top-K retrieved results. The primary retrieval metric in multi-hop QA.',papers:[{t:'HippoRAG2',u:'https://arxiv.org/abs/2502.14802'},{t:'GFM-RAG',u:'https://arxiv.org/abs/2502.01113'},{t:'KAG',u:'https://arxiv.org/abs/2409.13731'},{t:'RuleRAG',u:'https://arxiv.org/abs/2410.22353'}]},
+  {name:'Hit@K (Hits@1)',cat:'Retrieval',formula:'𝟙[correct answer ∈ Top-K]',desc:'Binary: 1 if the correct answer appears anywhere in the top-K retrieved results. Hits@1 equals exact-match for single-answer tasks.',papers:[{t:'Think-on-Graph',u:'https://arxiv.org/abs/2307.07697'},{t:'G-Retriever',u:'https://arxiv.org/abs/2402.07630'},{t:'Plan-on-Graph',u:'https://arxiv.org/abs/2410.23875'},{t:'CG-RAG',u:'https://arxiv.org/abs/2501.15067'}]},
+  {name:'MRR',cat:'Retrieval',formula:'(1/|Q|) Σ (1 / rank_i)',desc:'Mean Reciprocal Rank. Averages the reciprocal of the rank of the first relevant result across all queries. Rewards systems that rank relevant items higher.',papers:[{t:'KAG',u:'https://arxiv.org/abs/2409.13731'},{t:'GFM-RAG',u:'https://arxiv.org/abs/2502.01113'},{t:'CG-RAG',u:'https://arxiv.org/abs/2501.15067'},{t:'HybGRAG',u:'https://arxiv.org/abs/2412.16311'}]},
+  {name:'MAP@K',cat:'Retrieval',formula:'(1/|Q|) Σ AP@K(q)',desc:'Mean Average Precision at K. Averages precision at each recall point, rewarding both relevance and correct ranking order.',papers:[{t:'MultiHop-RAG',u:'https://arxiv.org/abs/2401.15391'}]},
+  {name:'Context Relevance',cat:'Retrieval',formula:'(r₁ + r₂) / 2,  r ∈ {0, 0.5, 1}',desc:'Semantic alignment between the query and retrieved graph context. Scored by an LLM judge on a 3-point scale, averaged over two annotators.',papers:[{t:'LinearRAG',u:'https://arxiv.org/abs/2510.10114'},{t:'GraphRAG-Bench',u:'https://arxiv.org/abs/2506.05690'}]},
+  {name:'Evidence Recall',cat:'Retrieval',formula:'(1/|R|) Σ 𝟙[claim c ∈ context C]',desc:'Whether the retrieved context contains all necessary claims to answer the question. For each reference claim, checks if it is entailed by retrieved context.',papers:[{t:'LinearRAG',u:'https://arxiv.org/abs/2510.10114'},{t:'GraphRAG-Bench',u:'https://arxiv.org/abs/2506.05690'}]},
+  {name:'Coverage',cat:'Retrieval',formula:'|{queries where gold ∈ context}| / |Q|',desc:'Proportion of queries where the gold answer string is contained within the retrieved context window. A proxy for retrieval correctness.',papers:[{t:'KET-RAG',u:'https://arxiv.org/abs/2502.09304'},{t:'GraphRAG-Bench',u:'https://arxiv.org/abs/2506.05690'}]},
+  {name:'Word Recall Rate',cat:'Retrieval',formula:'|W_extracted ∩ W_doc| / |W_doc|',desc:'Coverage of document words by extracted knowledge. Measures how much of the source text is preserved in the retrieval/extraction step.',papers:[{t:'KnowledGPT',u:'https://arxiv.org/abs/2308.11761'}]},
+  {name:'Faithful Reasoning Ratio',cat:'Retrieval',formula:'|correct predictions with valid KG path| / |correct|',desc:'Among correctly answered queries, the fraction where the complete reasoning path can be traced back to the knowledge graph — measuring interpretability.',papers:[{t:'Graph-constrained Reasoning',u:'https://arxiv.org/abs/2410.13080'}]},
+  {name:'Jaccard Similarity (Query Diversity)',cat:'Retrieval',formula:'|A ∩ B| / |A ∪ B|',desc:'Measures overlap between sub-queries generated across retrieval rounds. Low Jaccard = diverse retrieval; high = repetitive queries. Used to detect query collapse in iterative RAG.',papers:[{t:'You Don\'t Need Pre-built Graphs',u:'https://arxiv.org/abs/2508.06105'}]},
+];
+
+const generationMetrics = [
+  {name:'Exact Match (EM)',cat:'Generation',formula:'𝟙[normalize(ŷ) == normalize(y)]',desc:'Strictest metric: prediction must exactly match the gold answer after normalization (lowercase, remove punctuation). Common on KBQA benchmarks like WebQSP and CWQ.',papers:[{t:'LinearRAG',u:'https://arxiv.org/abs/2510.10114'},{t:'Think-on-Graph',u:'https://arxiv.org/abs/2307.07697'},{t:'GFM-RAG',u:'https://arxiv.org/abs/2502.01113'},{t:'HippoRAG2',u:'https://arxiv.org/abs/2502.14802'}]},
+  {name:'F1 Score (Token-level)',cat:'Generation',formula:'F1 = 2·P·R/(P+R)\nP = |ŷ∩y|/|ŷ|, R = |ŷ∩y|/|y|',desc:'Harmonic mean of token-level precision and recall. Partial credit for overlapping words. The most widely used metric across all GraphRAG papers.',papers:[{t:'HippoRAG2',u:'https://arxiv.org/abs/2502.14802'},{t:'Graph-constrained Reasoning',u:'https://arxiv.org/abs/2410.13080'},{t:'PIKE-RAG',u:'https://arxiv.org/abs/2501.11551'},{t:'KAG',u:'https://arxiv.org/abs/2409.13731'}]},
+  {name:'ROUGE-L',cat:'Generation',formula:'F1 = 2·P_LCS·R_LCS/(P_LCS+R_LCS)\nwhere LCS = Longest Common Subsequence',desc:'Measures longest common subsequence between hypothesis and reference. Better than ROUGE-1/2 for grammatical coherence. Dominant in summarization tasks.',papers:[{t:'ArchRAG',u:'https://arxiv.org/abs/2502.09891'},{t:'RAPTOR',u:'https://arxiv.org/abs/2401.18059'},{t:'Graph of Records',u:'https://arxiv.org/abs/2410.11001'},{t:'CRUD-RAG',u:'https://arxiv.org/abs/2401.17043'}]},
+  {name:'BLEU-4',cat:'Generation',formula:'BP · exp(Σ wₙ·log pₙ)\nBP=brevity penalty, pₙ=n-gram precision',desc:'Geometric mean of n-gram precision (1–4) with a brevity penalty. Standard for machine translation; used in GraphRAG for dialogue and structured generation tasks.',papers:[{t:'MuseGraph',u:'https://arxiv.org/abs/2403.04780'},{t:'Generative Subgraph Retrieval',u:'https://arxiv.org/abs/2410.09350'},{t:'KG-Augmented LMs',u:'https://arxiv.org/abs/2305.18846'}]},
+  {name:'METEOR',cat:'Generation',formula:'F_mean · (1 − γ·frag^β)\nwith synonym/stemming matching',desc:'Augments BLEU with synonym matching, stemming, and paraphrase support. Correlates better with human judgment than BLEU for short answers.',papers:[{t:'RAPTOR',u:'https://arxiv.org/abs/2401.18059'},{t:'ArchRAG',u:'https://arxiv.org/abs/2502.09891'},{t:'MedRAG',u:'https://arxiv.org/abs/2502.04413'}]},
+  {name:'BERTScore',cat:'Generation',formula:'P = max_{ĝⱼ} cos(hᵢ,gⱼ) [avg over ĝ]\nR = max_{hᵢ} cos(hᵢ,gⱼ) [avg over g]',desc:'Computes contextual embedding similarity (BERT) between generated and reference tokens. Captures semantic equivalence missed by lexical metrics.',papers:[{t:'MedRAG',u:'https://arxiv.org/abs/2502.04413'},{t:'CRUD-RAG',u:'https://arxiv.org/abs/2401.17043'},{t:'Inference Scaled GraphRAG',u:'https://arxiv.org/abs/2506.19967'}]},
+  {name:'Accuracy (Standard)',cat:'Generation',formula:'|correct predictions| / |total queries|',desc:'Simple proportion of correct answers. Used for multiple-choice QA (USMLE, MedMCQA, CommonsenseQA) and binary classification tasks.',papers:[{t:'RAPTOR',u:'https://arxiv.org/abs/2401.18059'},{t:'Medical Graph RAG',u:'https://arxiv.org/abs/2408.04187'},{t:'HybGRAG',u:'https://arxiv.org/abs/2412.16311'}]},
+  {name:'Substring / Contain Match',cat:'Generation',formula:'𝟙[gold ⊆ generated_text]',desc:'Softer than EM: checks if the gold answer appears as a substring anywhere in the generated response. Useful when outputs are verbose.',papers:[{t:'LinearRAG',u:'https://arxiv.org/abs/2510.10114'},{t:'You Don\'t Need Pre-built Graphs',u:'https://arxiv.org/abs/2508.06105'},{t:'Query-Centric GraphRAG',u:'https://arxiv.org/abs/2509.22009'}]},
+  {name:'RAGQuestEval (F1_QE)',cat:'Generation',formula:'Recall: frac. of GT questions answerable from generated text\nPrecision: avg token-F1 of answers',desc:'Generate-questions-then-QA pipeline. Checks if the generated text covers all key information from the reference without requiring exact phrasing.',papers:[{t:'CRUD-RAG',u:'https://arxiv.org/abs/2401.17043'},{t:'Empowering LLMs (PG-RAG)',u:'https://arxiv.org/abs/2405.16933'}]},
+  {name:'CHRF++',cat:'Generation',formula:'F-score of character n-grams + word n-grams\nweighted average',desc:'Character-level n-gram F-score, extended with word unigrams. More robust than BLEU for morphologically rich languages and short outputs.',papers:[{t:'MuseGraph',u:'https://arxiv.org/abs/2403.04780'}]},
+  {name:'LLM Score (0–100)',cat:'Generation',formula:'LLM evaluator rates answer quality 0–100\nfor long-document knowledge tasks',desc:'An LLM rates the overall quality of answers on a 0–100 scale for knowledge-intensive long-document tasks where reference answers don\'t capture full quality.',papers:[{t:'StructRAG',u:'https://arxiv.org/abs/2410.08815'}]},
+  {name:'Answer Accuracy (GraphRAG-Bench)',cat:'Generation',formula:'AC = α·FC + (1−α)·SS\nFC=claim F1, SS=embedding cosine, α=0.5',desc:'Composite metric combining factual consistency (claim-level F1) and semantic similarity (embedding cosine). Designed specifically for GraphRAG evaluation.',papers:[{t:'GraphRAG-Bench',u:'https://arxiv.org/abs/2506.05690'}]},
+];
+
+const faithfulnessMetrics = [
+  {name:'Faithfulness Score',cat:'Faithfulness',formula:'FS = |{c ∈ Ans | supported(c, Context)}| / |Ans|',desc:'Decomposes the generated answer into atomic claims; counts what fraction is supported by the retrieved context. Core metric in RAGAS and GraphRAG-Bench.',papers:[{t:'GraphRAG-Bench',u:'https://arxiv.org/abs/2506.05690'},{t:'OG-RAG',u:'https://arxiv.org/abs/2412.15235'}]},
+  {name:'RAGAS Suite',cat:'Faithfulness',formula:'Context Recall, Context Entity Recall,\nAnswer Similarity, Answer Correctness,\nAnswer Relevance',desc:'A family of reference-free RAG metrics. Each measures a different aspect: context coverage, entity coverage, semantic similarity, factual correctness, and answer focus.',papers:[{t:'OG-RAG',u:'https://arxiv.org/abs/2412.15235'}]},
+  {name:'Knowledge QA / KF1',cat:'Faithfulness',formula:'KF1 = Unigram F1(Knowledge, Response)\nKQA = 𝟙[answer_in_response]',desc:'Measures whether dialogue responses contain factually correct knowledge from the retrieved KG. KF1 is unigram overlap between retrieved knowledge and generated response.',papers:[{t:'Generative Subgraph Retrieval',u:'https://arxiv.org/abs/2410.09350'},{t:'KG-Augmented LMs',u:'https://arxiv.org/abs/2305.18846'}]},
+  {name:'Valid Nodes / Valid Edges',cat:'Faithfulness',formula:'Valid Nodes = |V̂ ∩ V_gold| / |V̂|\nValid Edges = |Ê ∩ E_gold| / |Ê|',desc:'For graph-based outputs: fraction of cited nodes/edges that actually exist in the ground-truth graph. Measures structural faithfulness rather than textual faithfulness.',papers:[{t:'G-Retriever',u:'https://arxiv.org/abs/2402.07630'},{t:'GRAG',u:'https://arxiv.org/abs/2405.16506'}]},
+  {name:'Hallucination Rate',cat:'Faithfulness',formula:'|{responses with unsupported facts}| / |total|',desc:'Proportion of responses containing facts not grounded in retrieved context. In CRAG, scored as +1 (correct), 0 (missing), −1 (hallucination) and combined.',papers:[{t:'HybGRAG',u:'https://arxiv.org/abs/2412.16311'}]},
+  {name:'Faithful Reasoning Ratio',cat:'Faithfulness',formula:'|correct & path_in_KG| / |correct predictions|',desc:'Among correctly answered questions, what fraction have reasoning steps that can be verified against the KG? Measures interpretability alongside accuracy.',papers:[{t:'Graph-constrained Reasoning',u:'https://arxiv.org/abs/2410.13080'}]},
+  {name:'Factuality Score (CoK)',cat:'Faithfulness',formula:'C_i = γ·Σfv/|T̂| + (1−γ)·fu, γ=0.5\nfv=verified triples, fu=unverified confidence',desc:'Chain-of-Knowledge reliability score combining: (1) fraction of generated triples verified against KB, (2) model confidence for unverifiable claims.',papers:[{t:'Chain-of-Knowledge',u:'https://arxiv.org/abs/2306.06427'}]},
+  {name:'Evidence Coverage',cat:'Faithfulness',formula:'Cov = |{e ∈ E | found_in(e, Generated)}| / |E|',desc:'Checks whether all necessary knowledge components from the reference appear in the generated answer. Complements faithfulness (which checks the reverse direction).',papers:[{t:'GraphRAG-Bench',u:'https://arxiv.org/abs/2506.05690'}]},
+];
+
+const llmjudgeMetrics = [
+  {name:'Comprehensiveness',cat:'LLM-Judge',formula:'LLM compares Ans_A vs Ans_B:\n"Which covers more aspects of the question?"',desc:'Measures breadth of detail — does the answer cover all relevant aspects and components? High comprehensiveness trade-offs with directness; favours GraphRAG over naive RAG.',papers:[{t:'Microsoft GraphRAG',u:'https://arxiv.org/abs/2404.16130'},{t:'LightRAG',u:'https://arxiv.org/abs/2410.05779'},{t:'PathRAG',u:'https://arxiv.org/abs/2502.14902'},{t:'StructRAG',u:'https://arxiv.org/abs/2410.08815'}]},
+  {name:'Diversity',cat:'LLM-Judge',formula:'LLM compares Ans_A vs Ans_B:\n"Which offers more varied perspectives?"',desc:'Measures richness of viewpoints — does the answer explore multiple angles or perspectives on the topic? Correlates with use of community-level summaries.',papers:[{t:'Microsoft GraphRAG',u:'https://arxiv.org/abs/2404.16130'},{t:'LightRAG',u:'https://arxiv.org/abs/2410.05779'},{t:'DynaGRAG',u:'https://arxiv.org/abs/2412.18644'}]},
+  {name:'Empowerment',cat:'LLM-Judge',formula:'LLM compares Ans_A vs Ans_B:\n"Which better helps the reader make informed judgements?"',desc:'Measures whether the answer provides enough context for the reader to reason independently. Results are often mixed across methods, unlike comprehensiveness.',papers:[{t:'Microsoft GraphRAG',u:'https://arxiv.org/abs/2404.16130'},{t:'LightRAG',u:'https://arxiv.org/abs/2410.05779'},{t:'PathRAG',u:'https://arxiv.org/abs/2502.14902'}]},
+  {name:'Directness',cat:'LLM-Judge',formula:'LLM compares Ans_A vs Ans_B:\n"Which answers the question more specifically?"',desc:'Control metric: measures conciseness and focus. Naive RAG typically wins on directness because shorter answers are more direct, while GraphRAG wins on comprehensiveness.',papers:[{t:'Microsoft GraphRAG',u:'https://arxiv.org/abs/2404.16130'},{t:'StructRAG',u:'https://arxiv.org/abs/2410.08815'}]},
+  {name:'Logicality',cat:'LLM-Judge',formula:'LLM compares Ans_A vs Ans_B:\n"Which addresses the question more logically?"',desc:'Evaluates logical coherence and reasoning chain quality. Added by PathRAG to complement comprehensiveness and diversity in assessing multi-hop reasoning.',papers:[{t:'PathRAG',u:'https://arxiv.org/abs/2502.14902'}]},
+  {name:'Relevance',cat:'LLM-Judge',formula:'LLM compares Ans_A vs Ans_B:\n"Which is more relevant to the question?"',desc:'Measures whether the answer stays on topic without including irrelevant information. Assessed in PathRAG pairwise comparisons and CG-RAG via UniEval.',papers:[{t:'PathRAG',u:'https://arxiv.org/abs/2502.14902'},{t:'CG-RAG',u:'https://arxiv.org/abs/2501.15067'},{t:'DynaGRAG',u:'https://arxiv.org/abs/2412.18644'}]},
+  {name:'Coherence',cat:'LLM-Judge',formula:'UniEval: "How coherent is the response\n with respect to the question?"',desc:'Measures internal logical consistency and flow of the generated response. Assessed using UniEval framework in dialogue and open-ended QA settings.',papers:[{t:'PathRAG',u:'https://arxiv.org/abs/2502.14902'},{t:'CG-RAG',u:'https://arxiv.org/abs/2501.15067'}]},
+  {name:'Win Rate',cat:'LLM-Judge',formula:'Win Rate_A = wins_A / (wins_A + wins_B)\nEach query compared 5× to reduce variance',desc:'Aggregate LLM-judge score: percentage of pairwise comparisons won. Run 5 times per query pair with alternating positions to mitigate position bias.',papers:[{t:'Microsoft GraphRAG',u:'https://arxiv.org/abs/2404.16130'},{t:'LightRAG',u:'https://arxiv.org/abs/2410.05779'},{t:'ArchRAG',u:'https://arxiv.org/abs/2502.09891'}]},
+  {name:'A-Score / E-Score',cat:'LLM-Judge',formula:'A-Score: correctness + coherence + comprehensiveness\nE-Score: relevance + knowledgeability + factuality',desc:'Dual LLM-judge dimensions from Query-Centric GraphRAG. A-Score evaluates answer quality; E-Score evaluates evidence quality — capturing both output and retrieval.',papers:[{t:'Query-Centric GraphRAG',u:'https://arxiv.org/abs/2509.22009'}]},
+  {name:'GPT-Accuracy',cat:'LLM-Judge',formula:'GPT-4 determines if model output\ncorrectly answers the question (binary)',desc:'Binary LLM-judge accuracy: GPT-4 determines whether the generated answer is correct, going beyond lexical matching to semantic correctness judgement.',papers:[{t:'LinearRAG',u:'https://arxiv.org/abs/2510.10114'},{t:'PIKE-RAG',u:'https://arxiv.org/abs/2501.11551'},{t:'Graph Chain-of-Thought',u:'https://arxiv.org/abs/2404.07103'}]},
+];
+
+const taskSpecData = {
+  code: [
+    {name:'Pass@K',formula:'P(at least 1 of K samples passes all unit tests)',desc:'Functional correctness metric for code generation. A sample passes if it passes all test cases. Typically Pass@1 (greedy) and Pass@10 (sampling).'},
+    {name:'Edit Similarity',formula:'ES = 1 − Lev(ŷ, y) / max(|ŷ|, |y|)',desc:'Normalized edit distance similarity. Measures how many character-level edits separate generated code from reference code.'},
+    {name:'Identifier EM / F1',formula:'ID-EM: 𝟙[identifiers(ŷ)==identifiers(y)]\nID-F1: token-F1 over identifier sets',desc:'Exact match and F1 over API names, function names, and variable identifiers. Important for repository-level code completion.'},
+    {papers:[{t:'GraphCoder',u:'https://arxiv.org/abs/2406.07003'},{t:'CodexGraph',u:'https://arxiv.org/abs/2408.03910'}]}
+  ],
+  medical: [
+    {name:'Mini-CEX (Clinical Evaluation)',formula:'Physician + GPT-4o rubric: 1–9 scale\nacross structured clinical competencies',desc:'Standardized clinical performance assessment adapted for AI diagnostic reports. Evaluates clinical reasoning quality by domain experts.'},
+    {name:'Discriminability Score',formula:'σ(e) = (n−1) / deg(e)\nn=patients sharing feature, deg=graph degree',desc:'Feature distinctiveness in the medical KG — measures how uniquely a graph node identifies individual patients for follow-up question generation.'},
+    {papers:[{t:'MedRAG',u:'https://arxiv.org/abs/2502.04413'},{t:'Medical Graph RAG',u:'https://arxiv.org/abs/2408.04187'}]}
+  ],
+  graph: [
+    {name:'Graph Quality (Node/Edge/Degree)',formula:'Avg Degree = (1/|V|)Σdeg(v)\nClust. Coeff = (1/|V|)Σ 2T(v)/(deg(v)(deg(v)−1))',desc:'Structural properties of constructed knowledge graphs: node count, edge count, average degree, and clustering coefficient measuring community tightness.'},
+    {name:'Calinski-Harabasz Index',formula:'CH = [B/(k−1)] / [W/(n−k)]\nB=between-cluster, W=within-cluster scatter',desc:'Cluster quality metric measuring separation vs cohesion in community detection. Higher CH = better-separated, more compact graph communities.'},
+    {name:'Von Neumann Entropy Gain',formula:'ΔEnt = −tr(ρ_{t+1} log ρ_{t+1}) + tr(ρ_t log ρ_t)',desc:'Structural diversity of the knowledge graph measured via spectral entropy. Used to assess how much new structural information each added batch provides.'},
+    {papers:[{t:'ArchRAG',u:'https://arxiv.org/abs/2502.09891'},{t:'Multi-Agent GraphRAG',u:'https://arxiv.org/abs/2510.09156'},{t:'GraphRAG-Bench',u:'https://arxiv.org/abs/2506.05690'}]}
+  ],
+  dialogue: [
+    {name:'Human Eval (Consistency / Informativeness / Fluency)',formula:'3-point scale: 0=bad, 1=acceptable, 2=good\nfor each dimension, averaged over annotators',desc:'Expert human evaluation of dialogue responses across three dimensions: factual consistency, informativeness, and grammatical fluency.'},
+    {name:'Knowledge F1 / KQA',formula:'KF1 = Unigram-F1(KG triples, Response)\nKQA = 𝟙[answer_in_response]',desc:'Measures grounding of dialogue responses in retrieved KG knowledge. KQA checks binary coverage; KF1 measures token overlap.'},
+    {papers:[{t:'Generative Subgraph Retrieval',u:'https://arxiv.org/abs/2410.09350'},{t:'KG-Augmented LMs',u:'https://arxiv.org/abs/2305.18846'}]}
+  ],
+  efficiency: [
+    {name:'Token Cost / LLM Calls',formula:'Total input+output tokens consumed\nNumber of LLM API calls per query',desc:'Computational cost metrics — total tokens used and number of API calls. Critical for comparing iterative retrieval methods that make many LLM calls per query.'},
+    {name:'Indexing / Query Latency',formula:'Wall-clock time for offline indexing (ms)\nWall-clock time per query (ms)',desc:'Time-based efficiency: indexing latency (one-time offline cost) and query latency (online per-query cost). GraphRAG indexing is expensive; query time varies.'},
+    {name:'USD Indexing Cost',formula:'OpenAI API cost ($) to build the index\nfor a fixed-size corpus',desc:'Dollar cost to construct the knowledge graph index using LLM calls. Key practical metric given GraphRAG requires extensive LLM-based extraction.'},
+    {papers:[{t:'LinearRAG',u:'https://arxiv.org/abs/2510.10114'},{t:'KET-RAG',u:'https://arxiv.org/abs/2502.09304'},{t:'PolyG',u:'https://arxiv.org/abs/2504.02112'},{t:'E²GraphRAG',u:'https://arxiv.org/abs/2505.24226'}]}
+  ],
+  hallucination: [
+    {name:'AUC-ROC',formula:'Area under ROC curve\nfor hallucination vs. truthful classification',desc:'Discrimination ability between hallucinated and truthful responses. Measures whether the hallucination detection model correctly ranks hallucinated responses higher risk.'},
+    {name:'Path Reliance Degree (PRD)',formula:'PRD = (1/LH|A|) Σ Σ (α_{S} − α_{S̄})\nrange [−1, +1]',desc:'Attention concentration on shortest-path KG triples vs. other tokens. Positive PRD = model attends to KG paths; negative = ignores them, indicative of hallucination.'},
+    {name:'Semantic Alignment Score (SAS)',formula:'SAS = (1/T) Σ max cos(h_t, g_i)\nrange [0, 1]',desc:'Cosine similarity between model hidden states and retrieved graph entity embeddings. Low SAS despite high token probability signals potential hallucination.'},
+    {papers:[{t:'Detecting Hallucinations in GraphRAG',u:'https://arxiv.org/abs/2512.09148'}]}
+  ]
+};
+
+/* ─── INIT ─────────────────────────────────────────────────── */
+
+function scrollTo(id){ document.getElementById(id).scrollIntoView({behavior:'smooth'}); }
+
+/* OVERVIEW CHART */
+function buildOverviewChart(){
+  const cats = [
+    {name:'Task-Specific',count:23,color:'var(--taskspec)'},
+    {name:'Generation',count:12,color:'var(--generation)'},
+    {name:'LLM-Judge',count:10,color:'var(--llmjudge)'},
+    {name:'Retrieval',count:10,color:'var(--retrieval)'},
+    {name:'Faithfulness',count:8,color:'var(--faithfulness)'},
+  ];
+  const max = 23;
+  document.getElementById('overview-chart').innerHTML = cats.map(c=>`
+    <div class="bar-row">
+      <span class="bar-lbl">${c.name}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${c.count/max*100}%;background:${c.color}" data-w="${c.count/max*100}"></div></div>
+      <span class="bar-val" style="color:${c.color}">${c.count}</span>
+    </div>`).join('');
+}
+
+/* RETRIEVAL DEMO */
+const docs = [
+  {label:'Community summary: GraphRAG uses map-reduce for global QA',rel:true},
+  {label:'Token-level F1 between predicted and gold answer strings',rel:false},
+  {label:'Microsoft Graph RAG constructs entity knowledge graphs',rel:true},
+  {label:'RAPTOR builds recursive tree-based summaries of documents',rel:false},
+  {label:'LightRAG integrates dual-level local/global graph retrieval',rel:true},
+  {label:'DistilBERT: 60% smaller BERT with 97% performance retention',rel:false},
+  {label:'Think-on-Graph iterates over KG paths using beam search',rel:true},
+  {label:'BLEU measures n-gram precision with a brevity penalty',rel:false},
+  {label:'GFM-RAG is a graph foundation model for zero-shot retrieval',rel:true},
+  {label:'Plan-on-Graph self-corrects KG traversal plans iteratively',rel:false},
+];
+
+function buildDocList(){
+  const k = +document.getElementById('k-slider').value;
+  document.getElementById('k-val').textContent = k;
+  document.getElementById('doc-list').innerHTML = docs.map((d,i)=>`
+    <div class="doc-item ${d.rel?'relevant':''} ${i<k?'in-k':'out-k'}" onclick="toggleDoc(${i})">
+      <span class="doc-rank">#${i+1}</span>
+      <span class="doc-label">${d.label}</span>
+      <span class="${d.rel?'rel-badge':'irrel-badge'}">${d.rel?'Relevant':'Irrelevant'}</span>
+    </div>`).join('');
+  computeRetrieval(k);
+}
+function toggleDoc(i){ docs[i].rel=!docs[i].rel; buildDocList(); }
+function updateRetrieval(){ buildDocList(); }
+function computeRetrieval(k){
+  const allRel = docs.filter(d=>d.rel).length;
+  const topK = docs.slice(0,k);
+  const relInK = topK.filter(d=>d.rel).length;
+  const recall = allRel>0?(relInK/allRel).toFixed(2):'N/A';
+  const hit = relInK>0?'1':'0';
+  let mrr = 0;
+  for(let i=0;i<k;i++){ if(docs[i].rel){ mrr=1/(i+1); break; } }
+  document.getElementById('recall-val').textContent = recall;
+  document.getElementById('hit-val').textContent = hit;
+  document.getElementById('mrr-val').textContent = mrr.toFixed(2);
+}
+
+/* F1 DEMO */
+function tokenize(s){ return s.toLowerCase().replace(/[^a-z0-9\s]/g,'').split(/\s+/).filter(Boolean); }
+function updateF1(){
+  const gold = tokenize(document.getElementById('gold-input').value);
+  const pred = tokenize(document.getElementById('pred-input').value);
+  const goldSet = new Set(gold); const predSet = new Set(pred);
+  const common = new Set([...pred].filter(t=>goldSet.has(t)));
+  const P = pred.length>0?common.size/pred.length:0;
+  const R = gold.length>0?common.size/gold.length:0;
+  const F = (P+R)>0?2*P*R/(P+R):0;
+  document.getElementById('gold-tokens').innerHTML = gold.map(t=>`<span class="token ${common.has(t)?'match':''}">${t}</span>`).join('');
+  document.getElementById('pred-tokens').innerHTML = pred.map(t=>`<span class="token ${common.has(t)?'match':'pred-only'}">${t}</span>`).join('');
+  const pct = v=>(v*100).toFixed(1)+'%';
+  document.getElementById('prec-bar').style.width=pct(P);
+  document.getElementById('rec-bar').style.width=pct(R);
+  document.getElementById('f1-bar').style.width=pct(F);
+  document.getElementById('prec-val').textContent=pct(P);
+  document.getElementById('rec-val').textContent=pct(R);
+  document.getElementById('f1-val').textContent=pct(F);
+}
+
+/* ROUGE DEMO */
+const rougeRef = 'The GraphRAG system uses community detection and generates local answers that are combined into a global response using map reduce';
+const rougeHyp = 'GraphRAG leverages community detection to produce local summaries and then aggregates them into a global answer via a map reduce step';
+let rougeN = 1;
+
+function getNgrams(tokens, n){
+  const grams = {};
+  for(let i=0;i<=tokens.length-n;i++){ const g=tokens.slice(i,i+n).join(' '); grams[g]=(grams[g]||0)+1; }
+  return grams;
+}
+
+function getLCS(a,b){
+  const m=a.length,n=b.length,dp=Array.from({length:m+1},()=>Array(n+1).fill(0));
+  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++) dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]+1:Math.max(dp[i-1][j],dp[i][j-1]);
+  return dp[m][n];
+}
+
+function setRougeN(n, btn){
+  rougeN=n;
+  document.querySelectorAll('.tab-bar .tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderRouge();
+}
+
+function renderRouge(){
+  const refToks = rougeRef.toLowerCase().split(/\s+/);
+  const hypToks = rougeHyp.toLowerCase().split(/\s+/);
+  let P,R,F,refHtml,hypHtml;
+  if(rougeN==='L'){
+    const lcs=getLCS(refToks,hypToks);
+    P=lcs/hypToks.length; R=lcs/refToks.length;
+    F=2*P*R/(P+R);
+    refHtml=refToks.map(t=>`<span>${t} </span>`).join('');
+    hypHtml=hypToks.map(t=>`<span>${t} </span>`).join('');
+  } else {
+    const refG=getNgrams(refToks,rougeN);
+    const hypG=getNgrams(hypToks,rougeN);
+    let overlap=0;
+    for(const [g,c] of Object.entries(hypG)) overlap+=Math.min(c,refG[g]||0);
+    P=overlap/Object.values(hypG).reduce((a,b)=>a+b,0);
+    R=overlap/Object.values(refG).reduce((a,b)=>a+b,0);
+    F=2*P*R/(P+R);
+    const matchSet=new Set(Object.keys(hypG).filter(g=>refG[g]));
+    function highlightNgrams(tokens){
+      let html='';
+      for(let i=0;i<tokens.length;i++){
+        const g=tokens.slice(i,i+rougeN).join(' ');
+        if(matchSet.has(g)) html+=`<span class="ngram-match">${tokens.slice(i,i+rougeN).join(' ')}</span> `;
+        else html+=`<span class="ngram-miss">${tokens[i]} </span>`;
+      }
+      return html;
+    }
+    refHtml=highlightNgrams(refToks);
+    hypHtml=highlightNgrams(hypToks);
+  }
+  document.getElementById('rouge-ref').innerHTML=refHtml;
+  document.getElementById('rouge-hyp').innerHTML=hypHtml;
+  document.getElementById('rouge-score').textContent=F.toFixed(3);
+  document.getElementById('rouge-p').textContent=P.toFixed(3);
+  document.getElementById('rouge-r').textContent=R.toFixed(3);
+  document.getElementById('rouge-lbl').textContent='ROUGE-'+rougeN;
+}
+
+/* FAITHFULNESS DEMO */
+const claims = [
+  {text:'Microsoft GraphRAG constructs a knowledge graph from the source corpus.',sup:true},
+  {text:'GraphRAG generates community summaries using a clustering algorithm.',sup:true},
+  {text:'The system was trained on 1 billion Wikipedia articles.',sup:false},
+  {text:'A map-reduce approach combines local answers into a global response.',sup:true},
+  {text:'GraphRAG was evaluated on Podcast and News datasets.',sup:true},
+  {text:'The system outperforms GPT-4 on all benchmarks by 40%.',sup:false},
+];
+function buildClaims(){
+  document.getElementById('claims-list').innerHTML = claims.map((c,i)=>`
+    <div class="claim-item ${c.sup?'supported':'unsupported'}" onclick="toggleClaim(${i})">
+      <div class="claim-toggle">${c.sup?'✓':'✗'}</div>
+      <div>${c.text}</div>
+    </div>`).join('');
+  const sup=claims.filter(c=>c.sup).length;
+  const tot=claims.length;
+  const fs=(sup/tot).toFixed(2);
+  document.getElementById('faith-score').textContent=fs;
+  document.getElementById('faith-supported').textContent=sup+'/'+tot;
+  document.getElementById('faith-total').textContent=tot;
+}
+function toggleClaim(i){ claims[i].sup=!claims[i].sup; buildClaims(); }
+
+/* LLM JUDGE DEMO */
+const judgeAnswers = {
+  comprehensiveness:{
+    a:'GraphRAG builds an entity knowledge graph, runs community detection to form hierarchical clusters, generates local summaries per community, and uses a map-reduce pipeline to synthesize a comprehensive global answer that covers multiple perspectives and stakeholder viewpoints.',
+    b:'GraphRAG uses a knowledge graph approach to answer questions about datasets.',
+    aWin:0.72
+  },
+  diversity:{
+    a:'The approach enables diverse answers by drawing from different community clusters — capturing scientific, economic, social, and historical perspectives that a single-document retrieval would miss.',
+    b:'GraphRAG retrieves relevant text chunks and combines them for an answer.',
+    aWin:0.68
+  },
+  empowerment:{
+    a:'Understanding that GraphRAG uses community hierarchies means readers can evaluate why certain perspectives are included and trace claims to specific community summaries.',
+    b:'GraphRAG helps answer complex questions about large datasets more accurately.',
+    aWin:0.55
+  },
+  directness:{
+    a:'GraphRAG is a system that builds a knowledge graph and uses community-level summarization to answer global sensemaking questions.',
+    b:'GraphRAG answers questions using a knowledge graph and document retrieval.',
+    aWin:0.35
+  }
+};
+let curDim='comprehensiveness', judgeWins=0, judgeTotal=0;
+function setDim(dim, btn){
+  curDim=dim; judgeWins=0; judgeTotal=0;
+  document.querySelectorAll('.dim-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  resetJudge();
+}
+function resetJudge(){
+  judgeWins=0; judgeTotal=0;
+  document.getElementById('judge-trials').textContent=0;
+  document.getElementById('winner-bar').style.display='none';
+  const d=judgeAnswers[curDim];
+  document.getElementById('judge-a').innerHTML=`<div class="answer-label" style="color:var(--retrieval)">GraphRAG Answer</div>${d.a}`;
+  document.getElementById('judge-b').innerHTML=`<div class="answer-label" style="color:var(--llmjudge)">Naive RAG Answer</div>${d.b}`;
+}
+function runJudge(){
+  const d=judgeAnswers[curDim];
+  const won = Math.random()<d.aWin;
+  if(won) judgeWins++;
+  judgeTotal++;
+  document.getElementById('judge-trials').textContent=judgeTotal;
+  const pctA=judgeWins/judgeTotal;
+  const pctB=1-pctA;
+  document.getElementById('winner-bar').style.display='block';
+  document.getElementById('wr-trials').textContent=judgeTotal;
+  document.getElementById('wr-a').style.width=(pctA*100)+'%';
+  document.getElementById('wr-b').style.width=(pctB*100)+'%';
+  document.getElementById('wr-pct-a').textContent=(pctA*100).toFixed(0)+'%';
+}
+
+/* TASK-SPEC TABS */
+function setTaskTab(tab, btn){
+  document.querySelectorAll('.tab-bar .tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTaskSpec(tab);
+}
+function renderTaskSpec(tab){
+  const data = taskSpecData[tab];
+  const metrics = data.filter(d=>d.name);
+  const cites = data.find(d=>d.papers)?.papers||[];
+  const color = 'var(--taskspec)';
+  document.getElementById('taskspec-content').innerHTML = `
+    <div class="g2" style="margin-top:0">
+      ${metrics.map(m=>`
+        <div class="metric-card" style="border-top:3px solid ${color}">
+          <div class="mc-header"><div class="mc-name" style="color:${color}">${m.name}</div><div class="mc-cat" style="color:var(--muted)">Task-Specific</div></div>
+          <div class="mc-body">
+            <div class="mc-formula">${m.formula}</div>
+            <div class="mc-desc">${m.desc}</div>
+          </div>
+        </div>`).join('')}
+    </div>
+    ${cites.length?`<div style="margin-top:12px;font-size:11px;color:var(--muted)">Papers: ${cites.map(p=>`<a class="paper-chip" href="${p.u}" target="_blank">${p.t}</a>`).join(' ')}</div>`:''}`;
+}
+
+/* METRIC CARDS BUILDER */
+function buildMetricCards(containerId, metrics){
+  const container = document.getElementById(containerId);
+  container.innerHTML = metrics.map(m=>{
+    const color = catColor[m.cat]||'var(--accent)';
+    return `<div class="metric-card" style="border-top:3px solid ${color}">
+      <div class="mc-header">
+        <div class="mc-name" style="color:${color}">${m.name}</div>
+        <div class="mc-cat" style="color:${color}">${m.cat}</div>
+      </div>
+      <div class="mc-body">
+        <div class="mc-formula">${m.formula}</div>
+        <div class="mc-desc">${m.desc}</div>
+        <div class="mc-papers">${m.papers.map(p=>`<a class="paper-chip" href="${p.u}" target="_blank">${p.t}</a>`).join('')}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* USAGE CHART */
+let usageFilter='all';
+function filterUsage(cat, btn){
+  usageFilter=cat;
+  document.querySelectorAll('#usage-filter-bar .dim-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderUsage();
+}
+function renderUsage(){
+  const filtered = usageFilter==='all'?usageData:usageData.filter(d=>d.cat===usageFilter);
+  const max = Math.max(...filtered.map(d=>d.count));
+  document.getElementById('usage-chart').innerHTML = filtered.map((d,i)=>`
+    <div class="usage-row">
+      <span class="usage-rank">${i+1}</span>
+      <span class="usage-name">${d.name}</span>
+      <span class="usage-cat-dot" style="background:${catColor[d.cat]}"></span>
+      <div class="usage-track"><div class="usage-fill" style="width:${d.count/max*100}%;background:${catColor[d.cat]}" data-w="${d.count/max*100}"></div></div>
+      <span class="usage-count" style="color:${catColor[d.cat]}">${d.count}</span>
+    </div>`).join('');
+}
+
+/* INIT ALL */
+window.addEventListener('load',()=>{
+  buildOverviewChart();
+  buildDocList();
+  updateF1();
+  renderRouge();
+  buildClaims();
+  resetJudge();
+  buildMetricCards('retrieval-cards', retrievalMetrics);
+  buildMetricCards('generation-cards', generationMetrics);
+  buildMetricCards('faithfulness-cards', faithfulnessMetrics);
+  buildMetricCards('llmjudge-cards', llmjudgeMetrics);
+  renderTaskSpec('code');
+  renderUsage();
+  // Animate bars
+  setTimeout(()=>{
+    document.querySelectorAll('[data-w]').forEach(el=>{
+      el.style.width=el.dataset.w+'%';
+    });
+  },200);
+});
+
+/* SCROLLSPY */
+window.addEventListener('scroll',()=>{
+  const ids=['overview','retrieval','generation','faithfulness','llmjudge','taskspec','usage'];
+  let cur='overview';
+  ids.forEach(id=>{
+    const el=document.getElementById(id);
+    if(el&&el.getBoundingClientRect().top<200) cur=id;
+  });
+  document.querySelectorAll('.nav-link').forEach(link=>{
+    link.classList.toggle('active',link.getAttribute('onclick')?.includes(`'${cur}'`));
+  });
+});
+</script>
+</body>
+</html>
