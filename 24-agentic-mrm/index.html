@@ -140,6 +140,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
     <span class="dot" style="background:#00b894"></span>7-Step MRM Programme</div>
   <div class="nav-link" data-sec="s-usecase" onclick="setActive(this,'s-usecase')">
     <span class="dot" style="background:#a29bfe"></span>Capability Reuse</div>
+
+  <div class="nav-group-title">Critical Analysis</div>
+  <div class="nav-link" data-sec="s-limitations" onclick="setActive(this,'s-limitations')">
+    <span class="dot" style="background:#ff6b6b"></span>13 Limitations</div>
 </nav>
 
 <!-- MAIN -->
@@ -156,6 +160,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
   <div class="pipe-step"><span class="pipe-dot" style="background:#00b894"></span>MRM Programme</div>
   <span class="pipe-arrow">&#8594;</span>
   <div class="pipe-step"><span class="pipe-dot" style="background:#a29bfe"></span>Reuse</div>
+  <span class="pipe-arrow">&#8594;</span>
+  <div class="pipe-step"><span class="pipe-dot" style="background:#ff6b6b"></span>Limitations</div>
 </div>
 
 <!-- ====== S1: OVERVIEW ====== -->
@@ -479,6 +485,37 @@ For 10 agents, 4 capabilities:
   <div class="highlight-box green" style="margin-top:16px;">
     <strong>Bottom line:</strong> The paper is the most practically-grounded bridge between AI safety research and financial services regulation published to date. It gives risk officers a vocabulary &mdash; capabilities, trajectories, tiers &mdash; and a process &mdash; the 7-step MRM programme &mdash; that maps directly to existing SR 11-7 obligations. Implementation starts with the capability inventory.
   </div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-limitations">Critical Limitations &rarr;</a>
+  </div>
+</section>
+
+<!-- ====== S7: LIMITATIONS ====== -->
+<section class="section" id="s-limitations">
+  <div class="section-tag" style="color:#ff6b6b">Critical Analysis &middot; 13 Open Problems</div>
+  <h2 class="section-title">Where the Framework Falls Short</h2>
+  <p class="section-sub">A structured audit of the paper's gaps, contradictions, and unresolved problems &mdash; organized across five categories. These are not minor implementation details; several represent fundamental incompatibilities between the framework's claims and its technical logic. Click any limitation card to expand the full argument.</p>
+
+  <div class="btn-row" id="lim-cat-btns">
+    <button class="btn-tab active" id="lcat-btn-all" onclick="filterLim('all')">All 13</button>
+    <button class="btn-tab" id="lcat-btn-taxonomy" onclick="filterLim('taxonomy')">Taxonomy Gaps</button>
+    <button class="btn-tab" id="lcat-btn-logic" onclick="filterLim('logic')">Framework Logic</button>
+    <button class="btn-tab" id="lcat-btn-sr117" onclick="filterLim('sr117')">SR 11-7 Alignment</button>
+    <button class="btn-tab" id="lcat-btn-scale" onclick="filterLim('scale')">Scalability Claims</button>
+    <button class="btn-tab" id="lcat-btn-missing" onclick="filterLim('missing')">Missing Layers</button>
+  </div>
+
+  <canvas id="canvas-limitations" width="700" height="300" style="margin-bottom:12px;cursor:pointer;"></canvas>
+  <div class="info-panel" id="lim-detail">
+    <strong>Click a limitation card</strong> to see the full argument and the question the authors cannot answer from the paper.
+  </div>
+
+  <div id="lim-accordions" style="margin-top:20px;"></div>
+
+  <div class="highlight-box red" style="margin-top:20px;">
+    <strong>The hardest problem (L13):</strong> The framework is a set of process controls, not a completeness proof. It reduces the probability of harmful trajectories &mdash; but it cannot bound the residual risk. No formal guarantee exists that a trajectory satisfying all capability constraints and trajectory templates will not produce a materially harmful outcome through emergent multi-step behavior. This is not a gap the authors can close with an addendum; it is an open research problem in AI safety.
+  </div>
 </section>
 
 </div><!-- /.main -->
@@ -512,7 +549,7 @@ mainEl.addEventListener('scroll',function(){
 });
 
 /* =========== NAV =========== */
-var sectionIds=['s-overview','s-capability','s-trajectory','s-risk-tiers','s-mrm','s-usecase'];
+var sectionIds=['s-overview','s-capability','s-trajectory','s-risk-tiers','s-mrm','s-usecase','s-limitations'];
 function setActive(el,sec){
   document.querySelectorAll('.nav-link').forEach(function(l){l.classList.remove('active');});
   el.classList.add('active');
@@ -660,6 +697,64 @@ var USE_CASES=[
    detail:'Highest regulatory exposure. C4 (submit to regulator) is irrevocable &mdash; requires dual authorization and pre-submission 2LoD review. All four capabilities reused from other agents; only the trajectory template and C4 authorization scope are new.'}
 ];
 
+var LIMITATIONS=[
+  {id:'L1',cat:'taxonomy',color:'#f7b731',label:'Memory Gap',
+   short:'C1-C4 misses persistent agent memory',
+   detail:'Agents that update their own context between sessions or modify their own instructions do not fit into C1-C4. A memory write is not a data query, computation, generation, or external execution. Persistent agents are ungoverneable under this taxonomy.',
+   question:'Where in C1-C4 does a persistent agent inter-session memory write belong? If none, the taxonomy is not exhaustive.'},
+  {id:'L2',cat:'taxonomy',color:'#f7b731',label:'Inter-Agent Trust',
+   short:'No trust boundary between Agent A and Agent B',
+   detail:'When Agent B receives output from Agent A, the runtime monitor must classify it as either C1 (trusted data) or C3 (generated content requiring verification). If C1, internal errors from Agent A propagate as verified facts. If C3, Agent B must re-verify the entire evidence chain from Agent A, collapsing the efficiency argument. The paper specifies neither.',
+   question:'When Agent B receives output from Agent A, which capability type governs that input? If C1, how are errors from Agent A detected? If C3, how does capability reuse remain efficient?'},
+  {id:'L3',cat:'logic',color:'#ff6b6b',label:'T4 Contradiction',
+   short:'T4 autonomy incompatible with C4 dual authorization',
+   detail:'T4 agents operate at millisecond timescales (HFT, real-time AML). The framework simultaneously requires dual human authorization for irrevocable C4 actions. No T4 use case can satisfy both requirements. The framework includes T4 but cannot govern it.',
+   question:'Name one T4 use case where dual human authorization for C4 is operationally compatible with millisecond latency requirements.'},
+  {id:'L4',cat:'logic',color:'#ff6b6b',label:'Reversibility Binary',
+   short:'Reversibility is time-dependent, not binary',
+   detail:'A payment instruction is reversible for minutes, then irrevocable once the counterparty acts. The framework treats reversibility as a static property set at tier assignment. It has no mechanism to handle an action that begins as reversible and becomes irrevocable due to external state changes during execution.',
+   question:'At what point in time is reversibility assessed for tier assignment? How does the runtime monitor handle a trajectory that starts as T2-reversible and becomes T3-irreversible mid-execution?'},
+  {id:'L5',cat:'logic',color:'#ff6b6b',label:'Static Tier Assignment',
+   short:'Tier checked at start; risk can escalate mid-trajectory',
+   detail:'The runtime monitor assigns tier at trajectory start based on task context. A routine C1 query may return data mid-trajectory that materially changes the risk profile &mdash; a sanctioned counterparty, a regulatory breach, an exposure limit violation. The tier-appropriate controls are not applied retroactively.',
+   question:'How does the runtime monitor handle dynamic risk escalation discovered during execution? Does the trajectory inherit the new tier retroactively, halt and restart, or continue under the original tier?'},
+  {id:'L6',cat:'sr117',color:'#e11844',label:'Conceptual Soundness',
+   short:'SR 11-7 conceptual soundness is unevaluable for LLMs',
+   detail:'SR 11-7 requires validators to establish that the model methodology is theoretically grounded and assumptions are justified. For a statistical model this means reviewing mathematical logic. For a 70B-parameter LLM, no such assessment is possible by current means. The paper claims SR 11-7 alignment without resolving this fundamental incompatibility.',
+   question:'How would a 2LoD validator establish conceptual soundness for an LLM agent under SR 11-7? Has any regulator accepted such an assessment? If not, on what basis is SR 11-7 alignment claimed?'},
+  {id:'L7',cat:'sr117',color:'#e11844',label:'Model Boundary',
+   short:'SR 11-7 monitoring requires a defined model; agents have none',
+   detail:'SR 11-7 requires ongoing monitoring relative to a validated baseline. An agentic system includes base model weights, fine-tuning, system prompt, tool definitions, and retrieval corpus &mdash; each updated on different schedules by different teams. The paper does not define which components constitute the model for SR 11-7 purposes, nor which changes trigger full re-validation.',
+   question:'Which components of an agentic system constitute the model for SR 11-7 monitoring? Does a system prompt change trigger a full M7 re-validation? A tool version patch? The paper does not specify.'},
+  {id:'L8',cat:'sr117',color:'#e11844',label:'C3 Advisory Authority',
+   short:'Advisory outputs carry institutional weight in finance',
+   detail:'The framework frames C3 (Generation) as low-risk because outputs are advisory. But in financial services, analyst recommendations carry institutional authority &mdash; an employee who ignores a system recommendation must document the override. The effective executability of C3 outputs in high-trust organizations is not governed by the framework.',
+   question:'How does the framework govern the downstream harm from a C3 output that a human follows uncritically? NIST AI RMF MAP-5 identifies this as societal-level risk. The paper does not.'},
+  {id:'L9',cat:'scale',color:'#6c5ce7',label:'Independence Assumption',
+   short:'Cost model assumes capabilities are independent',
+   detail:'The 60-70% cost reduction claim assumes validating C1 in one context transfers to another. But new trajectories combining previously-validated capabilities create emergent risks absent in any individual capability. The paper does not specify whether novel combinations require full trajectory validation or only incremental review, and on what criterion.',
+   question:'What validation is required for a new trajectory combining four previously-validated capabilities? If incremental, what is the formal criterion? If full, the cost reduction claim is overstated.'},
+  {id:'L10',cat:'scale',color:'#6c5ce7',label:'Template Coverage',
+   short:'Novel trajectories may not match any approved template',
+   detail:'The Trajectory Registry stores approved templates. Financial agents by design handle novel instruction combinations. If a trajectory does not match a template, it either cannot run (breaking real-time operations) or runs under a default template (defeating governance). The paper does not address this coverage gap.',
+   question:'What fraction of real production trajectories would match a pre-approved template exactly? How are non-matching trajectories governed without breaking real-time operations?'},
+  {id:'L11',cat:'missing',color:'#00b894',label:'No GOVERN Layer',
+   short:'Culture and board accountability entirely absent',
+   detail:'The GOVERN function in NIST AI RMF covers board-level accountability, AI risk culture, organizational commitment, and workforce competency (GV-1 through GV-6). The MRM programme in this paper is entirely operational. Without a GOVERN-equivalent, the framework risks becoming a compliance checkbox exercise with no organizational mandate behind it.',
+   question:'Which step in the 7-step MRM programme addresses board-level AI risk accountability and organizational culture? If none, how does the framework avoid becoming a purely technical compliance exercise?'},
+  {id:'L12',cat:'missing',color:'#00b894',label:'GenAI Risk Gap',
+   short:'NIST-AI-600-1 identifies 12 GenAI risks; paper addresses 1',
+   detail:'NIST-AI-600-1 (GenAI Profile, July 2024) identifies 12 unique risks including CBRN content generation, data privacy violations, value chain integration risks, homogenization of outputs, and confabulation. The C3 capability in this paper only addresses hallucination detection via citation checks. The other 11 GenAI-specific risks are entirely outside the framework.',
+   question:'Which of the 12 GenAI-specific risks in NIST-AI-600-1 does the framework address? For those it does not, what is the proposed governance mechanism?'},
+  {id:'L13',cat:'missing',color:'#00b894',label:'Unbounded Residual Risk',
+   short:'Framework reduces risk but cannot bound it',
+   detail:'The framework is a set of process controls, not a formal safety guarantee. A trajectory can satisfy every individual capability constraint and every trajectory template constraint while the sequence as a whole produces a materially harmful outcome through emergent behavior. No proof exists that the constraint system is sufficient to detect any materially harmful trajectory. The residual risk is unquantified.',
+   question:'Can you prove, or empirically demonstrate, that the trajectory constraint system is sufficient to detect any materially harmful trajectory in a financial services context? If not, how should institutions account for the unquantified residual risk?'}
+];
+
+var selectedLimitation=0;
+var activeLimCat='all';
+
 var selectedCap=0;
 var selectedTier=0;
 var selectedStep=0;
@@ -776,17 +871,67 @@ function selectUC(i){
   if(typeof drawUsecaseReuse==='function')drawUsecaseReuse();
 }
 
+/* =========== LIMITATIONS =========== */
+function filterLim(cat){
+  activeLimCat=cat;
+  ['all','taxonomy','logic','sr117','scale','missing'].forEach(function(c){
+    var b=document.getElementById('lcat-btn-'+c);
+    if(b)b.classList.toggle('active',c===cat);
+  });
+  if(typeof drawLimitations==='function')drawLimitations();
+  renderLimAccordions();
+}
+function selectLimitation(i){
+  selectedLimitation=i;
+  var lim=LIMITATIONS[i];
+  var d=document.getElementById('lim-detail');
+  if(d){
+    var catNames={taxonomy:'Taxonomy Gap',logic:'Framework Logic',sr117:'SR 11-7 Alignment',scale:'Scalability Claim',missing:'Missing Layer'};
+    d.innerHTML='<strong style="color:'+lim.color+'">'+lim.id+' &mdash; '+lim.label+'</strong>'
+      +' <span style="font-size:10px;color:'+lim.color+'66;font-weight:700;text-transform:uppercase;letter-spacing:.6px;">['+catNames[lim.cat]+']</span><br><br>'
+      +lim.detail+'<br><br>'
+      +'<span style="color:#8b949e;font-size:11px;font-style:italic;">Question the authors cannot answer: </span>'
+      +'<span style="color:#f7b731;font-size:11px;">'+lim.question+'</span>';
+  }
+  if(typeof drawLimitations==='function')drawLimitations();
+}
+function renderLimAccordions(){
+  var container=document.getElementById('lim-accordions');
+  if(!container)return;
+  var filtered=activeLimCat==='all'?LIMITATIONS:LIMITATIONS.filter(function(l){return l.cat===activeLimCat;});
+  var catNames={taxonomy:'Taxonomy Gap',logic:'Framework Logic',sr117:'SR 11-7 Alignment',scale:'Scalability Claim',missing:'Missing Layer'};
+  container.innerHTML='';
+  filtered.forEach(function(lim){
+    var div=document.createElement('div');
+    div.className='accordion-item';
+    div.style.borderColor=lim.color+'44';
+    div.innerHTML='<div class="accordion-header" onclick="toggleAcc(this)" style="border-left:3px solid '+lim.color+';">'
+      +'<span><strong style="color:'+lim.color+'">'+lim.id+'</strong> &nbsp; '+lim.label
+      +' <span style="font-size:9px;color:'+lim.color+'88;margin-left:6px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;">['+catNames[lim.cat]+']</span>'
+      +'</span><span class="accordion-chevron">&#9660;</span></div>'
+      +'<div class="accordion-body">'
+      +'<p style="margin-bottom:10px;">'+lim.detail+'</p>'
+      +'<div style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:10px 14px;font-size:11px;">'
+      +'<span style="color:#8b949e;font-weight:600;">Question the authors cannot answer from the paper:</span><br>'
+      +'<span style="color:#f7b731;">'+lim.question+'</span></div></div>';
+    container.appendChild(div);
+  });
+}
+
 /* =========== INIT =========== */
 function doInit(){
   if(typeof drawGuardrailCompare==='function'){
     drawGuardrailCompare();
     setInterval(drawGuardrailCompare,50);
   }
+  if(typeof drawLimitations==='function')drawLimitations();
   selectCap(0);
   trajReset();
   selectTier(0);
   selectStep(0);
   selectUC(0);
+  renderLimAccordions();
+  selectLimitation(0);
   updateNavOnScroll();
 }
 
@@ -1166,6 +1311,88 @@ function drawMRMPipeline(){
       var x=12+i*(stepW+4);
       if(mx>=x&&mx<=x+stepW)selectStep(i);
     }
+  };
+  c.style.cursor='pointer';
+}
+
+// ============================================================
+// SECTION 7: LIMITATIONS
+// ============================================================
+function drawLimitations(){
+  var c=document.getElementById('canvas-limitations');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  var filtered=activeLimCat==='all'?LIMITATIONS:LIMITATIONS.filter(function(l){return l.cat===activeLimCat;});
+  var n=filtered.length;
+  if(n===0)return;
+  var cols=Math.min(n,7);
+  var rows=Math.ceil(n/cols);
+  var pad=10;
+  var cardW=(W-pad*(cols+1))/cols;
+  var cardH=(H-pad*(rows+1))/rows;
+
+  filtered.forEach(function(lim,idx){
+    var col=idx%cols;
+    var row=Math.floor(idx/cols);
+    var x=pad+col*(cardW+pad);
+    var y=pad+row*(cardH+pad);
+    var origIdx=LIMITATIONS.indexOf(lim);
+    var sel=origIdx===selectedLimitation;
+
+    // Card bg
+    ctx.fillStyle=sel?lim.color+'33':'#161b22';
+    drawRoundedRect(ctx,x,y,cardW,cardH,6);ctx.fill();
+    ctx.strokeStyle=sel?lim.color:'#30363d';ctx.lineWidth=sel?2:1;
+    drawRoundedRect(ctx,x,y,cardW,cardH,6);ctx.stroke();
+
+    // Severity bar at top
+    ctx.fillStyle=lim.color+(sel?'':'66');
+    ctx.fillRect(x+2,y+2,cardW-4,3);
+
+    // ID
+    ctx.fillStyle=lim.color;ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(lim.id,x+cardW/2,y+16);
+
+    // Short label (word-wrap)
+    ctx.fillStyle=sel?'#c9d1d9':'#8b949e';ctx.font=(sel?'bold ':'')+'8px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+    var words=lim.label.split(' ');
+    var line='',ly=y+26;
+    words.forEach(function(w){
+      var t=line?line+' '+w:w;
+      if(ctx.measureText(t).width>cardW-8&&line){ctx.fillText(line,x+cardW/2,ly);line=w;ly+=10;}
+      else line=t;
+    });
+    ctx.fillText(line,x+cardW/2,ly);
+
+    // Cat dot at bottom
+    var catColors={taxonomy:'#f7b731',logic:'#ff6b6b',sr117:'#e11844',scale:'#6c5ce7',missing:'#00b894'};
+    ctx.beginPath();ctx.arc(x+cardW/2,y+cardH-8,3,0,Math.PI*2);
+    ctx.fillStyle=catColors[lim.cat]||lim.color;ctx.fill();
+  });
+
+  // Category legend
+  var cats=[{k:'taxonomy',c:'#f7b731',l:'Taxonomy'},{k:'logic',c:'#ff6b6b',l:'Logic'},{k:'sr117',c:'#e11844',l:'SR 11-7'},{k:'scale',c:'#6c5ce7',l:'Scale'},{k:'missing',c:'#00b894',l:'Missing'}];
+  var lx=W-200,ly2=H-18;
+  ctx.font='8px Inter,sans-serif';ctx.textBaseline='middle';
+  cats.forEach(function(cat,i){
+    var cx2=lx+i*40;
+    ctx.beginPath();ctx.arc(cx2,ly2,4,0,Math.PI*2);ctx.fillStyle=cat.c;ctx.fill();
+    ctx.fillStyle='#8b949e';ctx.textAlign='left';ctx.fillText(cat.l,cx2+6,ly2);
+  });
+
+  // Click handler
+  c.onclick=function(e){
+    var r=c.getBoundingClientRect();
+    var mx=e.clientX-r.left,my=e.clientY-r.top;
+    filtered.forEach(function(lim,idx){
+      var col=idx%cols,row=Math.floor(idx/cols);
+      var x=pad+col*(cardW+pad),y=pad+row*(cardH+pad);
+      if(mx>=x&&mx<=x+cardW&&my>=y&&my<=y+cardH){
+        selectLimitation(LIMITATIONS.indexOf(lim));
+      }
+    });
   };
   c.style.cursor='pointer';
 }

@@ -375,6 +375,88 @@ function drawMRMPipeline(){
 }
 
 // ============================================================
+// SECTION 7: LIMITATIONS
+// ============================================================
+function drawLimitations(){
+  var c=document.getElementById('canvas-limitations');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  var filtered=activeLimCat==='all'?LIMITATIONS:LIMITATIONS.filter(function(l){return l.cat===activeLimCat;});
+  var n=filtered.length;
+  if(n===0)return;
+  var cols=Math.min(n,7);
+  var rows=Math.ceil(n/cols);
+  var pad=10;
+  var cardW=(W-pad*(cols+1))/cols;
+  var cardH=(H-pad*(rows+1))/rows;
+
+  filtered.forEach(function(lim,idx){
+    var col=idx%cols;
+    var row=Math.floor(idx/cols);
+    var x=pad+col*(cardW+pad);
+    var y=pad+row*(cardH+pad);
+    var origIdx=LIMITATIONS.indexOf(lim);
+    var sel=origIdx===selectedLimitation;
+
+    // Card bg
+    ctx.fillStyle=sel?lim.color+'33':'#161b22';
+    drawRoundedRect(ctx,x,y,cardW,cardH,6);ctx.fill();
+    ctx.strokeStyle=sel?lim.color:'#30363d';ctx.lineWidth=sel?2:1;
+    drawRoundedRect(ctx,x,y,cardW,cardH,6);ctx.stroke();
+
+    // Severity bar at top
+    ctx.fillStyle=lim.color+(sel?'':'66');
+    ctx.fillRect(x+2,y+2,cardW-4,3);
+
+    // ID
+    ctx.fillStyle=lim.color;ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(lim.id,x+cardW/2,y+16);
+
+    // Short label (word-wrap)
+    ctx.fillStyle=sel?'#c9d1d9':'#8b949e';ctx.font=(sel?'bold ':'')+'8px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+    var words=lim.label.split(' ');
+    var line='',ly=y+26;
+    words.forEach(function(w){
+      var t=line?line+' '+w:w;
+      if(ctx.measureText(t).width>cardW-8&&line){ctx.fillText(line,x+cardW/2,ly);line=w;ly+=10;}
+      else line=t;
+    });
+    ctx.fillText(line,x+cardW/2,ly);
+
+    // Cat dot at bottom
+    var catColors={taxonomy:'#f7b731',logic:'#ff6b6b',sr117:'#e11844',scale:'#6c5ce7',missing:'#00b894'};
+    ctx.beginPath();ctx.arc(x+cardW/2,y+cardH-8,3,0,Math.PI*2);
+    ctx.fillStyle=catColors[lim.cat]||lim.color;ctx.fill();
+  });
+
+  // Category legend
+  var cats=[{k:'taxonomy',c:'#f7b731',l:'Taxonomy'},{k:'logic',c:'#ff6b6b',l:'Logic'},{k:'sr117',c:'#e11844',l:'SR 11-7'},{k:'scale',c:'#6c5ce7',l:'Scale'},{k:'missing',c:'#00b894',l:'Missing'}];
+  var lx=W-200,ly2=H-18;
+  ctx.font='8px Inter,sans-serif';ctx.textBaseline='middle';
+  cats.forEach(function(cat,i){
+    var cx2=lx+i*40;
+    ctx.beginPath();ctx.arc(cx2,ly2,4,0,Math.PI*2);ctx.fillStyle=cat.c;ctx.fill();
+    ctx.fillStyle='#8b949e';ctx.textAlign='left';ctx.fillText(cat.l,cx2+6,ly2);
+  });
+
+  // Click handler
+  c.onclick=function(e){
+    var r=c.getBoundingClientRect();
+    var mx=e.clientX-r.left,my=e.clientY-r.top;
+    filtered.forEach(function(lim,idx){
+      var col=idx%cols,row=Math.floor(idx/cols);
+      var x=pad+col*(cardW+pad),y=pad+row*(cardH+pad);
+      if(mx>=x&&mx<=x+cardW&&my>=y&&my<=y+cardH){
+        selectLimitation(LIMITATIONS.indexOf(lim));
+      }
+    });
+  };
+  c.style.cursor='pointer';
+}
+
+// ============================================================
 // SECTION 6: USECASE REUSE
 // ============================================================
 function drawUsecaseReuse(){
