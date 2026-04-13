@@ -2445,6 +2445,580 @@ function drawFrameworkMatrix(){
   ctx.fillText('Hover a cell for details',W-padR,H-2);
 }
 
+// ===== SIMULATOR (canvas-simulator) =====
+function initSimulator(){
+  var canvas=document.getElementById('canvas-simulator');
+  if(!canvas)return;
+  drawSimulator();
+}
+
+function drawSimulator(){
+  var canvas=document.getElementById('canvas-simulator');
+  if(!canvas)return;
+  var ctx=canvas.getContext('2d');
+  var W=700,H=260,padL=50,padR=20,padT=40,padB=30;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var plotW=W-padL-padR,plotH=H-padT-padB;
+  var months=12;
+
+  // System label
+  var sys=typeof SIM_SYSTEMS!=='undefined'?SIM_SYSTEMS[typeof simSelectedSystem!=='undefined'?simSelectedSystem:0]:null;
+  if(sys){ctx.fillStyle=sys.color;ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText(sys.label+' Simulation',padL,6);}
+
+  // Month axis
+  for(var m=0;m<=months;m++){
+    var gx=padL+m/months*plotW;
+    ctx.strokeStyle='#1e2530';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(gx,padT);ctx.lineTo(gx,H-padB);ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,0.4)';ctx.font='9px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+    if(m>0&&m<=months)ctx.fillText('M'+m,gx,H-padB+4);
+  }
+
+  // Score axis
+  [0,25,50,75,100].forEach(function(s){
+    var gy=padT+plotH-(s/100*plotH);
+    ctx.strokeStyle='#1e2530';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(padL,gy);ctx.lineTo(padL+plotW,gy);ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,0.35)';ctx.font='8px Inter,sans-serif';ctx.textAlign='right';ctx.textBaseline='middle';
+    ctx.fillText(s,padL-4,gy);
+  });
+
+  // Event month markers
+  var evMonths=typeof simEventMonths!=='undefined'?simEventMonths:[2,4,6,8,10];
+  evMonths.forEach(function(m){
+    var gx=padL+m/months*plotW;
+    ctx.strokeStyle='rgba(255,107,107,0.25)';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+    ctx.beginPath();ctx.moveTo(gx,padT);ctx.lineTo(gx,H-padB);ctx.stroke();
+    ctx.setLineDash([]);
+  });
+
+  // Score history line
+  var hist=typeof simHistory!=='undefined'?simHistory:[{month:0,score:100}];
+  if(hist.length>1){
+    ctx.beginPath();
+    hist.forEach(function(pt,i){
+      var hx=padL+(pt.month/months)*plotW;
+      var hy=padT+plotH-(pt.score/100*plotH);
+      if(i===0)ctx.moveTo(hx,hy);else ctx.lineTo(hx,hy);
+    });
+    ctx.strokeStyle='#6c5ce7';ctx.lineWidth=2;ctx.stroke();
+    // Dots
+    hist.forEach(function(pt){
+      var hx=padL+(pt.month/months)*plotW;
+      var hy=padT+plotH-(pt.score/100*plotH);
+      ctx.beginPath();ctx.arc(hx,hy,4,0,Math.PI*2);
+      ctx.fillStyle=pt.score>=70?'#51cf66':pt.score>=40?'#f7b731':'#ff6b6b';ctx.fill();
+    });
+  }
+
+  // Current month indicator
+  var curMonth=typeof simMonth!=='undefined'?simMonth:0;
+  if(curMonth>0){
+    var cmx=padL+(curMonth/months)*plotW;
+    ctx.strokeStyle='rgba(108,92,231,0.6)';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(cmx,padT);ctx.lineTo(cmx,H-padB);ctx.stroke();
+  }
+
+  // Current score gauge (right side)
+  var score=typeof simScore!=='undefined'?simScore:100;
+  var state=typeof simState!=='undefined'?simState:'idle';
+  var scoreColor=score>=70?'#51cf66':score>=40?'#f7b731':'#ff6b6b';
+  var gx2=padL+plotW+padR/2;
+  ctx.fillStyle=scoreColor;ctx.font='bold 20px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(score,W-12,H/2-8);
+  ctx.fillStyle='rgba(255,255,255,0.4)';ctx.font='8px Inter,sans-serif';ctx.textBaseline='top';
+  ctx.fillText('score',W-12,H/2+6);
+
+  // State label
+  var stateLabel={idle:'Select system + Start',running:'Month '+curMonth+'/12',event:'Event!',done:'Complete'}[state]||state;
+  ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='bottom';
+  ctx.fillText(stateLabel,padL,H-2);
+}
+
+// ===== PROPAGATION (canvas-propagation) =====
+var propParticles=[];
+var propRaf=null;
+
+function initPropagation(){
+  var canvas=document.getElementById('canvas-propagation');
+  if(!canvas)return;
+  drawPropagation();
+}
+
+function animatePropagation(){
+  var canvas=document.getElementById('canvas-propagation');
+  if(!canvas)return;
+  // Generate particles along edges
+  var sc=typeof selectedPropScenario!=='undefined'?selectedPropScenario:0;
+  if(typeof PROP_SCENARIOS==='undefined')return;
+  var scen=PROP_SCENARIOS[sc];
+  if(!scen)return;
+  propParticles=[];
+  // Stagger particles per edge
+  scen.edges.forEach(function(e,ei){
+    for(var p=0;p<3;p++){
+      propParticles.push({edgeIdx:ei,t:p/3,speed:0.008+Math.random()*0.005});
+    }
+  });
+  function step(){
+    propParticles.forEach(function(p){p.t+=p.speed;if(p.t>1)p.t=0;});
+    drawPropagation();
+    propRaf=requestAnimationFrame(step);
+  }
+  propRaf=requestAnimationFrame(step);
+}
+
+function drawPropagation(){
+  var canvas=document.getElementById('canvas-propagation');
+  if(!canvas||typeof PROP_SCENARIOS==='undefined')return;
+  var ctx=canvas.getContext('2d');
+  var W=700,H=320;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var sc=typeof selectedPropScenario!=='undefined'?selectedPropScenario:0;
+  var scen=PROP_SCENARIOS[sc];
+  if(!scen){ctx.fillStyle='rgba(255,255,255,0.3)';ctx.font='13px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('Select a root cause above',W/2,H/2);return;}
+
+  var nodeMap={};
+  scen.nodes.forEach(function(n){nodeMap[n.id]=n;});
+
+  // Edges
+  scen.edges.forEach(function(e,ei){
+    var from=nodeMap[e.from],to=nodeMap[e.to];
+    if(!from||!to)return;
+    var fx=from.x*W,fy=from.y*H,tx=to.x*W,ty=to.y*H;
+    ctx.strokeStyle='rgba(255,255,255,0.12)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(fx,fy);ctx.lineTo(tx,ty);ctx.stroke();
+    // Arrow tip
+    var ang=Math.atan2(ty-fy,tx-fx);var d=8;
+    ctx.fillStyle='rgba(255,255,255,0.2)';
+    ctx.beginPath();ctx.moveTo(tx,ty);
+    ctx.lineTo(tx-d*Math.cos(ang-0.4),ty-d*Math.sin(ang-0.4));
+    ctx.lineTo(tx-d*Math.cos(ang+0.4),ty-d*Math.sin(ang+0.4));
+    ctx.closePath();ctx.fill();
+  });
+
+  // Particles
+  propParticles.forEach(function(p){
+    if(p.edgeIdx>=scen.edges.length)return;
+    var e=scen.edges[p.edgeIdx];
+    var from=nodeMap[e.from],to=nodeMap[e.to];
+    if(!from||!to)return;
+    var fx=from.x*W,fy=from.y*H,tx=to.x*W,ty=to.y*H;
+    var px=lerp(fx,tx,p.t),py=lerp(fy,ty,p.t);
+    ctx.beginPath();ctx.arc(px,py,3,0,Math.PI*2);
+    ctx.fillStyle=from.color;ctx.fill();
+  });
+
+  // Nodes
+  scen.nodes.forEach(function(n){
+    var nx=n.x*W,ny=n.y*H;
+    var r=n.size||12;
+    ctx.beginPath();ctx.arc(nx,ny,r,0,Math.PI*2);
+    ctx.fillStyle=n.color+'33';ctx.fill();
+    ctx.strokeStyle=n.color;ctx.lineWidth=2;ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,0.9)';
+    ctx.font=(n.tier===0?'bold ':'')+'9px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    wrapText(ctx,n.label,nx,ny+r+8,100,10);
+  });
+
+  ctx.fillStyle='rgba(255,255,255,0.3)';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='bottom';
+  ctx.fillText('Risk Propagation: '+scen.title+' \u2014 animated particles show cascade direction',10,H-3);
+}
+
+// ===== PROGRESSION (canvas-progression) =====
+function initProgression(){
+  var canvas=document.getElementById('canvas-progression');
+  if(!canvas)return;
+  drawProgression();
+}
+
+function drawProgression(){
+  var canvas=document.getElementById('canvas-progression');
+  if(!canvas||typeof MATURITY_LEVELS==='undefined')return;
+  var ctx=canvas.getContext('2d');
+  var W=700,H=280,padL=30,padR=30,padT=60,padB=30;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var n=MATURITY_LEVELS.length;
+  var stepW=(W-padL-padR)/(n-1);
+  var lineY=padT+40;
+  var curLevel=typeof progressionLevel!=='undefined'?progressionLevel:-1;
+  var animT=typeof progressionAnimT!=='undefined'?progressionAnimT:0;
+
+  // Timeline line
+  ctx.strokeStyle='#30363d';ctx.lineWidth=3;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(padL,lineY);ctx.lineTo(W-padR,lineY);ctx.stroke();
+
+  // Filled progress line
+  if(curLevel>=0){
+    var pct=(curLevel+(animT||1))/(n-1);
+    var fillW=Math.min((W-padL-padR)*pct,W-padL-padR);
+    var lv=MATURITY_LEVELS[Math.min(curLevel,n-1)];
+    ctx.strokeStyle=lv.color;ctx.lineWidth=3;
+    ctx.beginPath();ctx.moveTo(padL,lineY);ctx.lineTo(padL+fillW,lineY);ctx.stroke();
+  }
+
+  // Level nodes
+  MATURITY_LEVELS.forEach(function(lv,i){
+    var nx=padL+i*stepW;
+    var isActive=(i<=curLevel);
+    var isCurrent=(i===curLevel);
+    var r=isCurrent?20:14;
+
+    ctx.beginPath();ctx.arc(nx,lineY,r,0,Math.PI*2);
+    ctx.fillStyle=isActive?lv.color+'44':'#1e2530';ctx.fill();
+    ctx.strokeStyle=isActive?lv.color:'#30363d';ctx.lineWidth=isCurrent?3:1.5;ctx.stroke();
+
+    ctx.fillStyle=isActive?lv.color:'rgba(255,255,255,0.3)';
+    ctx.font=(isCurrent?'bold ':'')+'12px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(lv.level,nx,lineY);
+
+    // Level name above
+    ctx.fillStyle=isActive?lv.color:'rgba(255,255,255,0.3)';
+    ctx.font=(isCurrent?'bold ':'')+'10px Inter,sans-serif';ctx.textBaseline='bottom';
+    ctx.fillText(lv.name,nx,lineY-r-4);
+
+    // Timeline label below
+    ctx.fillStyle='rgba(255,255,255,0.4)';ctx.font='8px Inter,sans-serif';ctx.textBaseline='top';
+    ctx.fillText(lv.months,nx,lineY+r+4);
+
+    // Subcategory pills below timeline
+    if(isActive){
+      var pillY=lineY+r+22;
+      var maxCols=3,col=0,row=0;
+      var subList=lv.subcats.slice(0,4);
+      subList.forEach(function(s,si){
+        var pillW=Math.min((W-padL-padR)/n-8,140);
+        var pillX=nx-pillW/2;
+        var py=pillY+row*18;
+        drawRoundedRect(ctx,pillX,py,pillW,14,4,lv.color+'22',lv.color+'66');
+        ctx.fillStyle=lv.color;ctx.font='7px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText(s.slice(0,20),nx,py+7);
+        row++;
+      });
+    }
+  });
+
+  ctx.fillStyle='rgba(255,255,255,0.3)';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+  ctx.fillText('AI RMF Maturity Progression \u2014 Click Play or a level to explore',padL,4);
+}
+
+// ===== ORG CHART (canvas-orgchart) =====
+function initOrgChart(){
+  var canvas=document.getElementById('canvas-orgchart');
+  if(!canvas)return;
+  drawOrgChart();
+  canvas.addEventListener('click',function(e){
+    var r=canvas.getBoundingClientRect();
+    var mx=e.clientX-r.left,my=e.clientY-r.top;
+    if(typeof ORGCHART_ROLES==='undefined')return;
+    ORGCHART_ROLES.forEach(function(role){
+      var nx=role.x*700,ny=role.y*340;
+      if(mx>=nx-50&&mx<=nx+50&&my>=ny-18&&my<=ny+18){
+        selectedOrgRoleId=(selectedOrgRoleId===role.id)?null:role.id;
+        drawOrgChart();
+        var det=document.getElementById('orgchart-detail');
+        if(det&&selectedOrgRoleId){
+          det.innerHTML='<strong style="color:'+role.color+'">'+role.label+'</strong><br>'+role.desc+'<br><br><strong>RMF Subcategories owned:</strong> '+role.subcats.join(' &middot; ');
+        } else if(det){
+          det.innerHTML='Click any role to see their AI risk responsibilities and which GOVERN subcategories they own.';
+        }
+      }
+    });
+  });
+  canvas.addEventListener('mousemove',function(e){
+    var r=canvas.getBoundingClientRect();
+    var mx=e.clientX-r.left,my=e.clientY-r.top;
+    if(typeof ORGCHART_ROLES==='undefined')return;
+    var newHov=null;
+    ORGCHART_ROLES.forEach(function(role){
+      var nx=role.x*700,ny=role.y*340;
+      if(mx>=nx-52&&mx<=nx+52&&my>=ny-20&&my<=ny+20)newHov=role.id;
+    });
+    if(newHov!==hoveredOrgRoleId){hoveredOrgRoleId=newHov;drawOrgChart();}
+  });
+}
+
+function drawOrgChart(){
+  var canvas=document.getElementById('canvas-orgchart');
+  if(!canvas||typeof ORGCHART_ROLES==='undefined')return;
+  var ctx=canvas.getContext('2d');
+  var W=700,H=340;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var roleMap={};
+  ORGCHART_ROLES.forEach(function(r){roleMap[r.id]=r;});
+
+  // Draw edges first
+  ORGCHART_ROLES.forEach(function(role){
+    if(!role.parent)return;
+    var par=roleMap[role.parent];if(!par)return;
+    var x1=par.x*W,y1=par.y*H+20;
+    var x2=role.x*W,y2=role.y*H-20;
+    ctx.strokeStyle='#30363d';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(x1,y1);
+    ctx.bezierCurveTo(x1,(y1+y2)/2,x2,(y1+y2)/2,x2,y2);
+    ctx.stroke();
+  });
+
+  // Draw nodes
+  ORGCHART_ROLES.forEach(function(role){
+    var nx=role.x*W,ny=role.y*H;
+    var isActive=(selectedOrgRoleId===role.id||hoveredOrgRoleId===role.id);
+    var boxW=100,boxH=36;
+    drawRoundedRect(ctx,nx-boxW/2,ny-boxH/2,boxW,boxH,8,
+      isActive?role.color+'44':'#1e2530',isActive?role.color:'#30363d');
+    ctx.fillStyle=isActive?role.color:'rgba(255,255,255,0.7)';
+    ctx.font=(isActive?'bold ':'')+'9px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    wrapText(ctx,role.label,nx,ny,boxW-10,11);
+
+    // Subcat badges on hover
+    if(isActive){
+      role.subcats.slice(0,2).forEach(function(s,si){
+        var by=ny+boxH/2+8+si*16;
+        var bw=Math.min(s.length*5.5,150);
+        drawRoundedRect(ctx,nx-bw/2,by,bw,13,4,role.color+'22',role.color+'66');
+        ctx.fillStyle=role.color;ctx.font='7px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText(s.slice(0,22),nx,by+6.5);
+      });
+    }
+  });
+
+  ctx.fillStyle='rgba(255,255,255,0.3)';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='bottom';
+  ctx.fillText('GOVERN Accountability Org Chart \u2014 click any role to see RMF responsibilities',10,H-3);
+}
+
+// ===== DEPENDENCY MAP (canvas-depmap) =====
+function initDepMap(){
+  var canvas=document.getElementById('canvas-depmap');
+  if(!canvas)return;
+  drawDepMap();
+  canvas.addEventListener('click',function(e){
+    var r=canvas.getBoundingClientRect();
+    var mx=e.clientX-r.left,my=e.clientY-r.top;
+    if(typeof DEP_NODES==='undefined')return;
+    var hit=null;
+    DEP_NODES.forEach(function(n){
+      var nx=n.x*700,ny=n.y*320;
+      if(Math.abs(mx-nx)<20&&Math.abs(my-ny)<16)hit=n.id;
+    });
+    selectedDepNodeId=(hit===selectedDepNodeId)?null:hit;
+    drawDepMap();
+    if(selectedDepNodeId){
+      var node=DEP_NODES.find(function(n){return n.id===selectedDepNodeId;});
+      if(node){
+        var upstream=DEP_EDGES.filter(function(e){return e.to===node.id;}).map(function(e){return e.from;});
+        var downstream=DEP_EDGES.filter(function(e){return e.from===node.id;}).map(function(e){return e.to;});
+        var upLabels=upstream.map(function(id){var nd=DEP_NODES.find(function(n){return n.id===id;});return nd?nd.label:'';}).filter(Boolean);
+        var downLabels=downstream.map(function(id){var nd=DEP_NODES.find(function(n){return n.id===id;});return nd?nd.label:'';}).filter(Boolean);
+        var det=document.getElementById('dep-detail');
+        if(det)det.innerHTML='<strong style="color:'+node.color+'">'+node.label+': '+node.name+'</strong><br>'
+          +(upLabels.length?'<strong>Requires:</strong> '+upLabels.join(', ')+'<br>':'<em>Foundation node &mdash; no upstream dependencies.</em><br>')
+          +(downLabels.length?'<strong>Enables:</strong> '+downLabels.join(', '):'');
+      }
+    }
+  });
+  canvas.addEventListener('mousemove',function(e){
+    var r=canvas.getBoundingClientRect();
+    var mx=e.clientX-r.left,my=e.clientY-r.top;
+    if(typeof DEP_NODES==='undefined')return;
+    var newHov=null;
+    DEP_NODES.forEach(function(n){
+      var nx=n.x*700,ny=n.y*320;
+      if(Math.abs(mx-nx)<22&&Math.abs(my-ny)<18)newHov=n.id;
+    });
+    if(newHov!==hoveredDepNodeId){hoveredDepNodeId=newHov;drawDepMap();}
+  });
+}
+
+function drawDepMap(){
+  var canvas=document.getElementById('canvas-depmap');
+  if(!canvas||typeof DEP_NODES==='undefined')return;
+  var ctx=canvas.getContext('2d');
+  var W=700,H=320;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var nodeMap={};DEP_NODES.forEach(function(n){nodeMap[n.id]=n;});
+
+  // Get highlighted nodes
+  var upstreamOf={},downstreamOf={};
+  if(selectedDepNodeId){
+    DEP_EDGES.forEach(function(e){
+      if(e.to===selectedDepNodeId)upstreamOf[e.from]=true;
+      if(e.from===selectedDepNodeId)downstreamOf[e.to]=true;
+    });
+  }
+
+  // Tier labels
+  [['GOVERN',0.08,'#0984e3'],['MAP',0.32,'#f7b731'],['MEASURE',0.58,'#ff6b6b'],['MANAGE',0.84,'#51cf66']].forEach(function(t){
+    ctx.fillStyle=t[2]+'88';ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+    ctx.fillText(t[0],t[1]*W,4);
+    ctx.strokeStyle=t[2]+'22';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(t[1]*W,16);ctx.lineTo(t[1]*W,H-10);ctx.stroke();
+    ctx.setLineDash([]);
+  });
+
+  // Edges
+  DEP_EDGES.forEach(function(e){
+    var from=nodeMap[e.from],to=nodeMap[e.to];if(!from||!to)return;
+    var isHighlighted=(selectedDepNodeId&&(upstreamOf[e.from]&&e.to===selectedDepNodeId)||(e.from===selectedDepNodeId&&downstreamOf[e.to]));
+    var fx=from.x*W,fy=from.y*H,tx=to.x*W,ty=to.y*H;
+    var col=isHighlighted?to.color:'rgba(255,255,255,0.08)';
+    ctx.strokeStyle=col;ctx.lineWidth=isHighlighted?2:1;
+    ctx.beginPath();ctx.moveTo(fx,fy);ctx.lineTo(tx,ty);ctx.stroke();
+    if(isHighlighted){
+      var ang=Math.atan2(ty-fy,tx-fx);var d=7;
+      ctx.fillStyle=to.color;
+      ctx.beginPath();ctx.moveTo(tx,ty);
+      ctx.lineTo(tx-d*Math.cos(ang-0.4),ty-d*Math.sin(ang-0.4));
+      ctx.lineTo(tx-d*Math.cos(ang+0.4),ty-d*Math.sin(ang+0.4));
+      ctx.closePath();ctx.fill();
+    }
+  });
+
+  // Nodes
+  DEP_NODES.forEach(function(n){
+    var nx=n.x*W,ny=n.y*H;
+    var isSelected=(n.id===selectedDepNodeId);
+    var isUp=upstreamOf[n.id];
+    var isDown=downstreamOf[n.id];
+    var isHov=(n.id===hoveredDepNodeId);
+    var alpha=(!selectedDepNodeId||isSelected||isUp||isDown)?1:0.3;
+
+    drawRoundedRect(ctx,nx-28,ny-14,56,28,6,
+      isSelected?n.color+'55':isUp?'#0984e355':isDown?'#51cf6622':'#1a2233',
+      isSelected?n.color:isHov?n.color:'#30363d');
+    ctx.globalAlpha=alpha;
+    ctx.fillStyle=isSelected||isUp||isDown?n.color:'rgba(255,255,255,0.6)';
+    ctx.font=(isSelected?'bold ':'')+'9px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(n.label,nx,ny-3);
+    ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='7px Inter,sans-serif';ctx.textBaseline='top';
+    ctx.fillText(n.name,nx,ny+5);
+    ctx.globalAlpha=1;
+  });
+
+  // Legend
+  [['\u25a0 Selected','#6c5ce7'],['\u25a0 Required by','#0984e3'],['\u25a0 Enabled by','#51cf66']].forEach(function(l,i){
+    ctx.fillStyle=l[1];ctx.font='8px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='bottom';
+    ctx.fillText(l[0],10+i*120,H-3);
+  });
+}
+
+// ===== REGULATORY MAP (canvas-regmap) =====
+function initRegMap(){
+  var canvas=document.getElementById('canvas-regmap');
+  if(!canvas)return;
+  drawRegMap();
+  canvas.addEventListener('mousemove',function(e){
+    var r=canvas.getBoundingClientRect();
+    var mx=e.clientX-r.left,my=e.clientY-r.top;
+    if(typeof REGULATIONS==='undefined')return;
+    var reg=REGULATIONS[typeof selectedRegIdx!=='undefined'?selectedRegIdx:0];
+    if(!reg)return;
+    var padL=130,padT=28,W=700,H=260;
+    var rowH=(H-padT-20)/reg.requirements.length;
+    var newHov=null;
+    reg.requirements.forEach(function(req,ri){
+      req.subcats.forEach(function(sc,ci){
+        var allSubcats=[];
+        reg.requirements.forEach(function(rq){allSubcats=allSubcats.concat(rq.subcats);});
+        var unique=[],seen={};
+        allSubcats.forEach(function(s){if(!seen[s]){seen[s]=true;unique.push(s);}});
+        var colW=(W-padL-10)/unique.length;
+        var scIdx=unique.indexOf(sc);
+        if(scIdx<0)return;
+        var cx=padL+scIdx*colW,cy=padT+ri*rowH;
+        if(mx>=cx&&mx<=cx+colW&&my>=cy&&my<=cy+rowH){
+          newHov={ri:ri,ci:scIdx,req:req.req,sc:sc,strength:req.strength[ci]||0};
+        }
+      });
+    });
+    if(JSON.stringify(newHov)!==JSON.stringify(hoveredRegCell)){
+      hoveredRegCell=newHov;drawRegMap();
+      if(newHov){
+        var sLabel=['No coverage','Basic alignment','Moderate alignment','Strong alignment'][newHov.strength||0];
+        var det=document.getElementById('reg-detail');
+        if(det)det.innerHTML='<strong>'+newHov.req+'</strong> &rarr; <strong style="color:'+reg.color+'">'+newHov.sc+'</strong>: '+sLabel+'. RMF work on this subcategory directly satisfies this regulatory requirement.';
+      }
+    }
+  });
+  canvas.addEventListener('mouseleave',function(){hoveredRegCell=null;drawRegMap();});
+}
+
+function drawRegMap(){
+  var canvas=document.getElementById('canvas-regmap');
+  if(!canvas||typeof REGULATIONS==='undefined')return;
+  var ctx=canvas.getContext('2d');
+  var W=700,H=260,padL=130,padT=28,padR=10,padB=20;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var reg=REGULATIONS[typeof selectedRegIdx!=='undefined'?selectedRegIdx:0];
+  if(!reg)return;
+
+  // Collect unique subcategories
+  var allSubcats=[];
+  reg.requirements.forEach(function(r){allSubcats=allSubcats.concat(r.subcats);});
+  var unique=[],seen={};
+  allSubcats.forEach(function(s){if(!seen[s]){seen[s]=true;unique.push(s);}});
+
+  var cellW=(W-padL-padR)/unique.length;
+  var rowH=(H-padT-padB)/reg.requirements.length;
+  var scoreColors=['#2d333b','#ff6b6b55','#f7b73155','#51cf6688'];
+
+  // Regulation label
+  ctx.fillStyle=reg.color;ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+  ctx.fillText(reg.label+' ('+reg.year+'): '+reg.requirements.length+' requirements mapped to '+unique.length+' RMF subcategories',10,4);
+
+  // Column headers (subcategories)
+  unique.forEach(function(sc,ci){
+    var cx=padL+ci*cellW+cellW/2;
+    ctx.save();ctx.translate(cx,padT-4);ctx.rotate(-0.4);
+    ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='bold 8px JetBrains Mono,monospace';ctx.textAlign='left';ctx.textBaseline='bottom';
+    ctx.fillText(sc,0,0);
+    ctx.restore();
+  });
+
+  // Rows
+  reg.requirements.forEach(function(req,ri){
+    var ry=padT+ri*rowH;
+    ctx.fillStyle='rgba(255,255,255,0.6)';ctx.font='9px Inter,sans-serif';ctx.textAlign='right';ctx.textBaseline='middle';
+    ctx.fillText(req.req.slice(0,22),padL-4,ry+rowH/2);
+
+    unique.forEach(function(sc,ci){
+      var cx=padL+ci*cellW;
+      var scIdx=req.subcats.indexOf(sc);
+      var strength=scIdx>=0?(req.strength[scIdx]||0):0;
+      var isHov=(hoveredRegCell&&hoveredRegCell.ri===ri&&hoveredRegCell.ci===ci);
+      drawRoundedRect(ctx,cx+2,ry+2,cellW-4,rowH-4,4,
+        isHov?reg.color+'44':(scoreColors[strength]||scoreColors[0]),
+        isHov?reg.color:'transparent');
+      if(strength>0){
+        for(var s=0;s<3;s++){
+          ctx.beginPath();ctx.arc(cx+cellW/2-8+s*8,ry+rowH/2,2.5,0,Math.PI*2);
+          ctx.fillStyle=s<strength?(strength===3?'#51cf66':strength===2?'#f7b731':'#ff6b6b'):'#2d333b';
+          ctx.fill();
+        }
+      }
+    });
+  });
+
+  // Legend
+  ['No match','Partial','Moderate','Strong'].forEach(function(lbl,i){
+    var dotColor=['#2d333b','#ff6b6b','#f7b731','#51cf66'][i];
+    ctx.beginPath();ctx.arc(padL+i*90+6,H-padB+10,4,0,Math.PI*2);ctx.fillStyle=dotColor;ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.4)';ctx.font='8px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.fillText(lbl,padL+i*90+14,H-padB+10);
+  });
+}
+
 // ===== INIT ALL =====
 function doInit(){
   initRMFWheel();
@@ -2473,6 +3047,14 @@ function doInit(){
   initIncidentTree();
   initFrameworkMatrix();
   if(typeof initGlossary==='function')initGlossary();
+  initSimulator();
+  if(typeof initDeepdive==='function')initDeepdive();
+  if(typeof policyGenerate==='function')policyGenerate();
+  initPropagation();
+  initProgression();
+  initOrgChart();
+  initDepMap();
+  initRegMap();
   updateNavOnScroll();
 }
 
