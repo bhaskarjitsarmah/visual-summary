@@ -138,6 +138,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
     <span class="dot" style="background:#ff6b6b"></span>CLP Formula</div>
   <div class="nav-link" data-sec="s-results" onclick="setActive(this,'s-results')">
     <span class="dot" style="background:#f7b731"></span>Results</div>
+
+  <div class="nav-group-title">Tools</div>
+  <div class="nav-link" data-sec="s-recommender" onclick="setActive(this,'s-recommender')">
+    <span class="dot" style="background:#00cec9"></span>Config Recommender</div>
 </nav>
 
 <!-- MAIN -->
@@ -154,6 +158,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
   <div class="pipe-step"><span class="pipe-dot" style="background:#ff6b6b"></span>CLP</div>
   <span class="pipe-arrow">&#8594;</span>
   <div class="pipe-step"><span class="pipe-dot" style="background:#f7b731"></span>Results</div>
+  <span class="pipe-arrow">&#8594;</span>
+  <div class="pipe-step"><span class="pipe-dot" style="background:#00cec9"></span>Recommender</div>
 </div>
 
 <!-- ====== S1: OVERVIEW ====== -->
@@ -192,6 +198,20 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
       <div class="card-body">The evaluation benchmark. A harder version of BrowseComp requiring multi-hop reasoning across many documents. The baseline untrained Strong config achieves 50% accuracy. Trained configs push to 60.7%.</div>
     </div>
   </div>
+
+  <h3 style="font-size:15px;font-weight:700;color:var(--text);margin:32px 0 12px;">Search Strategy in Action: Trained vs Untrained</h3>
+  <p style="font-size:13px;color:var(--muted);margin-bottom:16px;max-width:680px;">A trained planner issues exactly as many searches as needed and stops. An untrained planner keeps searching even after finding sufficient evidence. Click through each iteration to see the difference.</p>
+  <div class="btn-row">
+    <button class="btn-tab active" id="replay-mode-trained" onclick="setReplayMode('trained')">Trained Planner (~3 calls)</button>
+    <button class="btn-tab" id="replay-mode-untrained" onclick="setReplayMode('untrained')">Untrained Planner (~8 calls)</button>
+  </div>
+  <canvas id="canvas-replay" width="700" height="260" style="margin-bottom:10px;cursor:pointer;"></canvas>
+  <div class="btn-row" style="margin-bottom:8px;">
+    <button class="btn-tab" onclick="stepReplay(-1)">&#8592; Prev</button>
+    <button class="btn" onclick="stepReplay(1)">Next &#8594;</button>
+    <button class="btn-tab" onclick="resetReplay()">&#8635; Reset</button>
+  </div>
+  <div class="info-panel" id="replay-detail">Click <strong>Next</strong> to step through each search iteration.</div>
 
   <div class="section-bridge">
     <a class="section-bridge-link" href="#s-metric">CER-C Metric &rarr;</a>
@@ -289,6 +309,11 @@ Key insight: a fast tool + trained planner = steeper curve = better CER-C</div>
     <div class="accordion-body">Dense embeddings capture semantic meaning &mdash; great for paraphrases and conceptual queries. Sparse BM25 captures exact keyword matches &mdash; great for proper nouns, model names, acronyms, and rare terms. Real queries often have both aspects. Union of both retrieval sets fed into the reranker gives the reranker more signal to work with, improving final precision.</div>
   </div>
 
+  <h3 style="font-size:15px;font-weight:700;color:var(--text);margin:32px 0 12px;">Component Ablation: What Does Each Part Buy?</h3>
+  <p style="font-size:13px;color:var(--muted);margin-bottom:16px;max-width:680px;">Remove each component one at a time and watch quality drop. The reranker is irreplaceable; hybrid retrieval and high-dim embeddings each add a meaningful but smaller contribution.</p>
+  <canvas id="canvas-ablation" width="700" height="200" style="margin-bottom:12px;cursor:pointer;"></canvas>
+  <div class="info-panel" id="ablation-detail">Hover a bar to see what was removed and the quality impact.</div>
+
   <div class="section-bridge">
     <a class="section-bridge-link" href="#s-training">Planner Training &rarr;</a>
   </div>
@@ -352,6 +377,10 @@ Combined (Two-stage, Best Result)
     <div class="accordion-header" onclick="toggleAcc(this)">Why two stages rather than just one? <span class="accordion-chevron">&#9660;</span></div>
     <div class="accordion-body">Distillation alone teaches good search behavior but doesn't optimize for efficiency (tool call count). GRPO alone has sparse signal &mdash; it takes many steps to learn what a good trajectory looks like from scratch. Two-stage: distillation gives GRPO a warm start with already-reasonable search behavior, then GRPO + CLP penalty fine-tunes for efficiency. Combined, 80 total steps achieves what neither recipe could alone.</div>
   </div>
+
+  <h3 style="font-size:15px;font-weight:700;color:var(--text);margin:32px 0 12px;">Training Convergence: Accuracy Up, Tool Calls Down</h3>
+  <p style="font-size:13px;color:var(--muted);margin-bottom:16px;max-width:680px;">As training progresses, two things happen simultaneously: accuracy rises and redundant tool calls are eliminated. The dashed line marks the switch from distillation to GRPO+CLP.</p>
+  <canvas id="canvas-convergence" width="700" height="240" style="margin-bottom:12px;"></canvas>
 
   <div class="section-bridge">
     <a class="section-bridge-link" href="#s-clp">The CLP Formula &rarr;</a>
@@ -468,6 +497,58 @@ but additional searches are cheap &mdash; so the penalty should be logarithmic.<
     <div class="accordion-body">The training tasks (NQ, HotpotQA) teach the planner general search strategy: query formulation, evidence synthesis, when a document is relevant, when to refine the search. These are transferable skills. Hard multi-hop queries on BrowseComp-Plus require the same underlying behaviors, just chained more times. The CLP penalty generalizes too &mdash; the planner learns to be parsimonious with searches across all complexity levels.</div>
   </div>
 
+  <h3 style="font-size:15px;font-weight:700;color:var(--text);margin:32px 0 12px;">Benchmark Matrix: Accuracy Across All Evaluations</h3>
+  <p style="font-size:13px;color:var(--muted);margin-bottom:16px;max-width:680px;">Trained configs improve consistently across all 7 benchmarks &mdash; from simple single-hop (NQ) to adversarial multi-hop (BrowseComp-Plus). Click any cell to highlight the row.</p>
+  <canvas id="canvas-benchmark" width="700" height="300" style="margin-bottom:12px;cursor:pointer;"></canvas>
+  <div class="info-panel" id="benchmark-detail">Click a row to see accuracy details for that benchmark.</div>
+
+  <div class="section-bridge">
+    <a class="section-bridge-link" href="#s-recommender">Config Recommender &rarr;</a>
+  </div>
+
+</section>
+
+<!-- ====== S7: RECOMMENDER ====== -->
+<section class="section" id="s-recommender">
+  <div class="section-tag" style="color:#00cec9">Config Recommender</div>
+  <h2 class="section-title">What Should You Deploy?</h2>
+  <p class="section-sub">Set your priorities using the sliders. The recommender weighs latency sensitivity, quality requirements, and cost constraints to suggest the optimal config and training recipe for your use case.</p>
+
+  <div class="slider-row">
+    <span class="slider-lbl">Latency sensitivity</span>
+    <input type="range" id="sl-lat" min="1" max="10" value="5" oninput="updateRecommender()">
+    <span class="slider-val" id="val-lat">5</span>
+  </div>
+  <div class="slider-row">
+    <span class="slider-lbl">Quality requirement</span>
+    <input type="range" id="sl-qual" min="1" max="10" value="5" oninput="updateRecommender()">
+    <span class="slider-val" id="val-qual">5</span>
+  </div>
+  <div class="slider-row">
+    <span class="slider-lbl">Cost sensitivity</span>
+    <input type="range" id="sl-cost" min="1" max="10" value="5" oninput="updateRecommender()">
+    <span class="slider-val" id="val-cost">5</span>
+  </div>
+
+  <canvas id="canvas-recommender" width="700" height="300" style="margin-bottom:12px;"></canvas>
+  <div class="info-panel" id="recommender-detail" style="min-height:100px;">
+    Adjust the sliders above to get a personalized recommendation.
+  </div>
+
+  <div class="grid3" style="margin-top:20px;">
+    <div class="card">
+      <div class="card-title" style="color:#74b9ff">Fast + Trained</div>
+      <div class="card-body">Best for latency-sensitive or cost-constrained deployments. 512-dim embeddings, 2B reranker, hybrid retrieval. Trained planner closes the gap to Strong accuracy. Latency: ~13s. Cost: lowest.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#51cf66">Strong + Trained</div>
+      <div class="card-body">Best balanced choice for most production systems. 512-dim, 6B reranker, hybrid. Trained planner pushes to 57%+ accuracy. Latency: ~26s. Recommended for general RAG applications.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#a29bfe">Max + Trained</div>
+      <div class="card-body">Best for quality-first applications where latency is acceptable. 4096-dim, 6B reranker, hybrid, top-200. Trained planner achieves 60.7% on BrowseComp-Plus. Latency: ~52s. Cost: highest.</div>
+    </div>
+  </div>
 </section>
 
 </div><!-- /main -->
@@ -482,7 +563,7 @@ function pgCheck(){
 document.getElementById('pg-input').addEventListener('keydown',function(e){if(e.key==='Enter')pgCheck();});
 if(localStorage.getItem(PG_KEY)==='1'){document.getElementById('pg-gate').style.display='none';}
 
-var sectionIds=['s-overview','s-metric','s-tool','s-training','s-clp','s-results'];
+var sectionIds=['s-overview','s-metric','s-tool','s-training','s-clp','s-results','s-recommender'];
 function setActive(el,id){
   document.querySelectorAll('.nav-link').forEach(function(n){n.classList.remove('active');});
   el.classList.add('active');
@@ -515,6 +596,57 @@ function toggleAcc(header){
   var open=body.style.display==='block';
   body.style.display=open?'none':'block';
   if(chev)chev.style.transform=open?'':'rotate(180deg)';
+}
+
+// Replay state
+var replayMode='trained';
+var replayStep=0;
+var REPLAY_DATA={
+  trained:[
+    {query:'What are the top risks of running AI agents locally?',docs:['Local AI Security Survey','Agent Threat Model'],verdict:'',status:'searching'},
+    {query:'Prompt injection attacks on autonomous agents',docs:['Prompt Injection RCE Study','OWASP LLM Top 10'],verdict:'',status:'searching'},
+    {query:'Mitigations for local agent RCE vulnerabilities',docs:['Agent Sandboxing Guide'],verdict:'Sufficient evidence found.',status:'done'}
+  ],
+  untrained:[
+    {query:'AI agent risks',docs:['General AI Overview'],verdict:'',status:'searching'},
+    {query:'local AI security',docs:['Cloud AI Security'],verdict:'',status:'searching'},
+    {query:'agent vulnerabilities 2024',docs:['CVE Database Excerpt'],verdict:'',status:'searching'},
+    {query:'prompt injection definition',docs:['NLP Glossary'],verdict:'',status:'searching'},
+    {query:'RCE exploits agents',docs:['Exploit Database'],verdict:'',status:'searching'},
+    {query:'agent sandboxing methods',docs:['Sandboxing Overview'],verdict:'',status:'searching'},
+    {query:'local LLM attack surface',docs:['LLM Attack Paper','Red Team Report'],verdict:'',status:'searching'},
+    {query:'AI agent security best practices',docs:['NIST AI Guidelines'],verdict:'Sufficient evidence found.',status:'done'}
+  ]
+};
+function setReplayMode(m){
+  replayMode=m;replayStep=0;
+  document.getElementById('replay-mode-trained').classList.toggle('active',m==='trained');
+  document.getElementById('replay-mode-untrained').classList.toggle('active',m==='untrained');
+  if(typeof drawReplay==='function')drawReplay();
+  document.getElementById('replay-detail').innerHTML='Click <strong>Next</strong> to step through each search iteration.';
+}
+function stepReplay(d){
+  var data=REPLAY_DATA[replayMode];
+  replayStep=Math.max(0,Math.min(data.length-1,replayStep+d));
+  if(typeof drawReplay==='function')drawReplay();
+  var s=data[replayStep];
+  var det=document.getElementById('replay-detail');
+  if(det){
+    var pct=Math.round((replayStep+1)/data.length*100);
+    det.innerHTML='<strong>Iteration '+(replayStep+1)+' of '+data.length+'</strong> &mdash; Query: "'+s.query+'" &nbsp;|&nbsp; Retrieved: '+s.docs.join(', ')+(s.status==='done'?' &nbsp;|&nbsp; <span style="color:#51cf66">&#10003; '+s.verdict+'</span>':' &nbsp;|&nbsp; <span style="color:#f7b731">Evaluating evidence... ('+pct+'% confidence)</span>');
+  }
+}
+function resetReplay(){replayStep=0;if(typeof drawReplay==='function')drawReplay();document.getElementById('replay-detail').innerHTML='Click <strong>Next</strong> to step through each search iteration.';}
+
+// Recommender
+function updateRecommender(){
+  var lat=parseInt(document.getElementById('sl-lat').value);
+  var qual=parseInt(document.getElementById('sl-qual').value);
+  var cost=parseInt(document.getElementById('sl-cost').value);
+  document.getElementById('val-lat').textContent=lat;
+  document.getElementById('val-qual').textContent=qual;
+  document.getElementById('val-cost').textContent=cost;
+  if(typeof drawRecommender==='function')drawRecommender(lat,qual,cost);
 }
 
 // Config data

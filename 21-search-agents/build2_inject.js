@@ -788,6 +788,570 @@ function drawScatter(){
 }
 
 // ============================================================
+// SEARCH STRATEGY REPLAY
+// ============================================================
+function initReplay(){
+  drawReplay();
+}
+
+function drawReplay(){
+  var c=document.getElementById('canvas-replay');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var data=REPLAY_DATA[replayMode];
+  var total=data.length;
+  var isTrained=replayMode==='trained';
+  var accentColor=isTrained?'#51cf66':'#ff6b6b';
+
+  // Header
+  ctx.save();
+  ctx.fillStyle=accentColor;ctx.font='bold 12px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+  ctx.fillText((isTrained?'Trained':'Untrained')+' Planner — '+total+' search calls total',20,14);
+  ctx.restore();
+
+  // Timeline bar at top
+  var barX=20,barY=38,barW=W-40,barH=12;
+  ctx.save();
+  drawRoundedRect(ctx,barX,barY,barW,barH,6);
+  ctx.fillStyle='#21262d';ctx.fill();
+  var prog=(replayStep+1)/total;
+  drawRoundedRect(ctx,barX,barY,barW*prog,barH,6);
+  ctx.fillStyle=accentColor+'88';ctx.fill();
+  // Step markers
+  for(var i=0;i<total;i++){
+    var mx=barX+barW*(i+0.5)/total;
+    ctx.fillStyle=i<=replayStep?accentColor:'#30363d';
+    ctx.beginPath();ctx.arc(mx,barY+barH/2,4,0,Math.PI*2);ctx.fill();
+  }
+  ctx.restore();
+
+  // Cards for each step
+  var cardH=52,cardGap=8,startY=66;
+  var visStart=Math.max(0,replayStep-2);
+  var visEnd=Math.min(total-1,visStart+4);
+
+  for(var i=visStart;i<=visEnd;i++){
+    var s=data[i];
+    var cy=startY+(i-visStart)*(cardH+cardGap);
+    var isCurrent=i===replayStep;
+    var isPast=i<replayStep;
+    var isFuture=i>replayStep;
+
+    ctx.save();
+    drawRoundedRect(ctx,20,cy,W-40,cardH,8);
+    ctx.fillStyle=isCurrent?accentColor+'22':isPast?'#21262d':'#161b22';
+    ctx.fill();
+    ctx.strokeStyle=isCurrent?accentColor:isPast?accentColor+'44':'#30363d';
+    ctx.lineWidth=isCurrent?2:1;ctx.stroke();
+
+    // Step number
+    ctx.fillStyle=isCurrent?accentColor:isPast?accentColor+'88':'#8b949e';
+    ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+    ctx.fillText('Call '+(i+1),32,cy+10);
+
+    // Query
+    ctx.fillStyle=isFuture?'#30363d':'#c9d1d9';
+    ctx.font=(isCurrent?'bold ':'')+'11px Inter,sans-serif';
+    var q=s.query.length>55?s.query.slice(0,52)+'...':s.query;
+    ctx.fillText('"'+q+'"',100,cy+10);
+
+    // Docs retrieved
+    if(!isFuture){
+      ctx.fillStyle='#8b949e';ctx.font='10px Inter,sans-serif';
+      ctx.fillText('Retrieved: '+s.docs.join(', '),100,cy+28);
+    }
+
+    // Status badge
+    if(s.status==='done'&&i<=replayStep){
+      ctx.fillStyle='#51cf66';ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='right';
+      ctx.fillText('STOP \u2713',W-32,cy+10);
+    } else if(!isFuture){
+      ctx.fillStyle='#f7b731';ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='right';
+      ctx.fillText('SEARCH \u2192',W-32,cy+10);
+    }
+    ctx.restore();
+  }
+
+  // Summary at bottom
+  if(replayStep===total-1){
+    ctx.save();
+    ctx.fillStyle=accentColor;ctx.font='bold 12px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';
+    ctx.fillText((isTrained?'Done in '+total+' calls \u2014 efficient!':'Done in '+total+' calls \u2014 '+(total-3)+' redundant searches wasted tokens'),W/2,H-10);
+    ctx.restore();
+  }
+}
+
+// ============================================================
+// COMPONENT ABLATION
+// ============================================================
+var ablationHovered=null;
+var ABLATION_BARS=[
+  {label:'Max Config (full)',sub:'4096-dim + 6B reranker + hybrid + top-200',ndcg:0.221,color:'#51cf66',removed:'Nothing removed \u2014 this is the full Max configuration.'},
+  {label:'- High-dim embeddings',sub:'512-dim + 6B reranker + hybrid + top-50',ndcg:0.203,color:'#74b9ff',removed:'Dropping from 4096-dim to 512-dim MRL: -8% nDCG. Recall drops slightly, but the reranker compensates. The latency saving (7x faster retrieval) is often worth this trade-off.'},
+  {label:'- Hybrid retrieval',sub:'512-dim + 6B reranker + ANN-only + top-50',ndcg:0.182,color:'#f7b731',removed:'Removing BM25 (sparse retrieval): additional -11% nDCG on top of dim reduction. Exact-match queries (proper nouns, acronyms) degrade most. Hybrid adds modest latency but meaningful recall.'},
+  {label:'- 6B \u2192 2B reranker',sub:'512-dim + 2B reranker + ANN-only + top-50',ndcg:0.135,color:'#ff6b6b',removed:'Downgrading from 6B to 2B reranker: another -26% nDCG. The reranker size is critical. At this point quality is severely degraded.'},
+  {label:'- Reranker entirely',sub:'512-dim + no reranker + ANN-only + top-50',ndcg:0.089,color:'#ff4444',removed:'Removing the reranker entirely: -60% nDCG from Strong baseline. Without reranking, the pipeline returns noisy approximate results directly to the LLM. Non-negotiable for quality.'}
+];
+
+function initAblation(){
+  var c=document.getElementById('canvas-ablation');
+  if(!c)return;
+  c.addEventListener('mousemove',function(e){
+    var r=c.getBoundingClientRect();
+    var my=e.clientY-r.top;
+    var pad={t:24,b:10};var ch=c.height-pad.t-pad.b;
+    var rowH=ch/ABLATION_BARS.length;
+    var idx=Math.floor((my-pad.t)/rowH);
+    if(idx>=0&&idx<ABLATION_BARS.length){
+      if(ablationHovered!==idx){
+        ablationHovered=idx;
+        var b=ABLATION_BARS[idx];
+        var det=document.getElementById('ablation-detail');
+        if(det){
+          var drop=idx===0?'Baseline':'-'+(((0.221-b.ndcg)/0.221)*100).toFixed(0)+'% from Max';
+          det.innerHTML='<strong>'+b.label+'</strong> &mdash; nDCG@5: <span style="color:'+b.color+'">'+b.ndcg.toFixed(3)+'</span> ('+drop+')<br><span style="color:var(--muted);font-size:12px;">'+b.removed+'</span>';
+        }
+        drawAblation();
+      }
+    } else if(ablationHovered!==null){ablationHovered=null;drawAblation();}
+  });
+  c.addEventListener('mouseleave',function(){ablationHovered=null;drawAblation();});
+  drawAblation();
+}
+
+function drawAblation(){
+  var c=document.getElementById('canvas-ablation');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var pad={l:190,r:80,t:24,b:10};
+  var cw=W-pad.l-pad.r,ch=H-pad.t-pad.b;
+  var rowH=ch/ABLATION_BARS.length;
+  var maxNDCG=0.25;
+
+  ABLATION_BARS.forEach(function(b,i){
+    var y=pad.t+i*rowH;
+    var bh=rowH*0.55;
+    var by=y+(rowH-bh)/2;
+    var bw=cw*(b.ndcg/maxNDCG);
+    var hov=ablationHovered===i;
+
+    // Row bg
+    if(hov){ctx.save();ctx.fillStyle=b.color+'11';ctx.fillRect(0,y,W,rowH);ctx.restore();}
+
+    // Label
+    ctx.save();
+    ctx.fillStyle=hov?b.color:'#c9d1d9';ctx.font=(hov?'bold ':'')+'10px Inter,sans-serif';
+    ctx.textAlign='right';ctx.textBaseline='middle';
+    ctx.fillText(b.label,pad.l-8,by+bh/2-6);
+    ctx.fillStyle='#8b949e';ctx.font='9px Inter,sans-serif';
+    ctx.fillText(b.sub,pad.l-8,by+bh/2+7);
+    ctx.restore();
+
+    // Bar
+    ctx.save();
+    drawRoundedRect(ctx,pad.l,by,bw,bh,4);
+    ctx.fillStyle=hov?b.color:b.color+'55';ctx.fill();
+    ctx.strokeStyle=b.color;ctx.lineWidth=hov?2:1;ctx.stroke();
+
+    // Value
+    ctx.fillStyle=b.color;ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.fillText(b.ndcg.toFixed(3),pad.l+bw+6,by+bh/2);
+
+    // Drop label
+    if(i>0){
+      var drop=((0.221-b.ndcg)/0.221*100).toFixed(0);
+      ctx.fillStyle='#ff6b6b88';ctx.font='9px Inter,sans-serif';
+      ctx.fillText('-'+drop+'%',pad.l+bw+48,by+bh/2);
+    }
+    ctx.restore();
+  });
+
+  // Axis label
+  ctx.save();ctx.fillStyle='#8b949e';ctx.font='10px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+  ctx.fillText('nDCG@5',pad.l+cw/2,H-8);ctx.restore();
+}
+
+// ============================================================
+// TRAINING CONVERGENCE
+// ============================================================
+var convergenceAF=null;
+var convergenceT=0;
+var convergenceAnimDone=false;
+
+function initConvergence(){
+  convergenceT=0;convergenceAnimDone=false;
+  var obs=new IntersectionObserver(function(entries){
+    entries.forEach(function(e){if(e.isIntersecting&&!convergenceAnimDone)animateConvergence();});
+  },{threshold:0.3});
+  var c=document.getElementById('canvas-convergence');
+  if(c)obs.observe(c);
+}
+
+function animateConvergence(){
+  convergenceT=Math.min(convergenceT+0.015,1);
+  drawConvergence(convergenceT);
+  if(convergenceT<1)requestAnimationFrame(animateConvergence);
+  else convergenceAnimDone=true;
+}
+
+function drawConvergence(t){
+  t=t||1;
+  var c=document.getElementById('canvas-convergence');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  var pad={l:56,r:56,t:30,b:44};
+  var cw=W-pad.l-pad.r,ch=H-pad.t-pad.b;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var totalSteps=80;
+  var switchStep=50; // distillation ends, GRPO starts
+
+  // Accuracy data: starts ~35%, rises to ~57% (Strong trained)
+  // Tool calls: starts ~8, drops to ~3
+  function accAt(step){
+    if(step<=switchStep){return 35+15*(step/switchStep);}
+    return 50+7*((step-switchStep)/(totalSteps-switchStep));
+  }
+  function tcAt(step){
+    if(step<=switchStep){return 8-3*(step/switchStep);}
+    return 5-2*((step-switchStep)/(totalSteps-switchStep));
+  }
+
+  // Grid
+  ctx.save();ctx.strokeStyle='#21262d';ctx.lineWidth=1;
+  for(var i=0;i<=4;i++){
+    var gy=pad.t+ch*i/4;
+    ctx.beginPath();ctx.moveTo(pad.l,gy);ctx.lineTo(pad.l+cw,gy);ctx.stroke();
+  }
+  ctx.restore();
+
+  // Switch marker (step 50)
+  var switchX=pad.l+cw*(switchStep/totalSteps);
+  ctx.save();ctx.strokeStyle='#8b949e';ctx.lineWidth=1.5;ctx.setLineDash([5,4]);
+  ctx.beginPath();ctx.moveTo(switchX,pad.t);ctx.lineTo(switchX,pad.t+ch);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='#8b949e';ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+  ctx.fillText('Switch to GRPO+CLP',switchX,pad.t+2);
+  ctx.fillText('(step 50)',switchX,pad.t+13);
+  ctx.restore();
+
+  // Phase labels
+  ctx.save();
+  ctx.fillStyle='#a29bfe';ctx.font='9px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';
+  ctx.fillText('Distillation (50 steps)',pad.l+(switchX-pad.l)/2,pad.t-4);
+  ctx.fillStyle='#74b9ff';
+  ctx.fillText('GRPO + CLP (30 steps)',switchX+(pad.l+cw-switchX)/2,pad.t-4);
+  ctx.restore();
+
+  var drawSteps=Math.round(t*totalSteps);
+
+  // Draw accuracy line (left axis, 0-100%)
+  ctx.save();ctx.strokeStyle='#51cf66';ctx.lineWidth=2.5;ctx.lineJoin='round';
+  ctx.beginPath();
+  for(var s=0;s<=drawSteps;s++){
+    var x=pad.l+cw*(s/totalSteps);
+    var acc=accAt(s);
+    var y=pad.t+ch*(1-acc/80);
+    if(s===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+  }
+  ctx.stroke();ctx.restore();
+
+  // Draw tool-calls line (right axis, 0-10)
+  ctx.save();ctx.strokeStyle='#f7b731';ctx.lineWidth=2.5;ctx.lineJoin='round';
+  ctx.beginPath();
+  for(var s=0;s<=drawSteps;s++){
+    var x=pad.l+cw*(s/totalSteps);
+    var tc=tcAt(s);
+    var y=pad.t+ch*(1-tc/10);
+    if(s===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+  }
+  ctx.stroke();ctx.restore();
+
+  // End labels
+  if(drawSteps===totalSteps){
+    ctx.save();
+    ctx.fillStyle='#51cf66';ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.fillText('Accuracy \u2192 57%',pad.l+cw+4,pad.t+ch*(1-57/80));
+    ctx.fillStyle='#f7b731';
+    ctx.fillText('Tool calls \u2192 ~3',pad.l+cw+4,pad.t+ch*(1-3/10));
+    ctx.restore();
+  }
+
+  // X axis
+  ctx.save();ctx.fillStyle='#8b949e';ctx.font='10px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+  [0,20,40,50,60,80].forEach(function(s){
+    ctx.fillText(''+s,pad.l+cw*(s/totalSteps),pad.t+ch+6);
+  });
+  ctx.fillText('Training steps',pad.l+cw/2,H-12);
+  ctx.restore();
+
+  // Left Y axis label (accuracy)
+  ctx.save();ctx.translate(14,pad.t+ch/2);ctx.rotate(-Math.PI/2);
+  ctx.fillStyle='#51cf66';ctx.font='10px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('Accuracy (%)',0,0);ctx.restore();
+
+  // Right Y axis label (tool calls)
+  ctx.save();ctx.translate(W-10,pad.t+ch/2);ctx.rotate(Math.PI/2);
+  ctx.fillStyle='#f7b731';ctx.font='10px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('Tool calls',0,0);ctx.restore();
+
+  // Y axis ticks left
+  ctx.save();ctx.fillStyle='#51cf66';ctx.font='9px Inter,sans-serif';ctx.textAlign='right';ctx.textBaseline='middle';
+  [0,20,40,60,80].forEach(function(v){ctx.fillText(v+'%',pad.l-4,pad.t+ch*(1-v/80));});
+  ctx.restore();
+
+  // Y axis ticks right
+  ctx.save();ctx.fillStyle='#f7b731';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
+  [0,2,4,6,8,10].forEach(function(v){ctx.fillText(v,pad.l+cw+4,pad.t+ch*(1-v/10));});
+  ctx.restore();
+}
+
+// ============================================================
+// BENCHMARK MATRIX
+// ============================================================
+var benchmarkHoveredRow=null;
+var BENCHMARKS=[
+  {name:'NQ',type:'1-hop',vals:[72,81,74,84,76,86]},
+  {name:'TriviaQA',type:'factoid',vals:[68,77,70,80,72,82]},
+  {name:'HotpotQA',type:'2-hop',vals:[55,66,58,70,60,72]},
+  {name:'2WikiMultihop',type:'multi-hop',vals:[48,60,51,63,53,65]},
+  {name:'MuSiQue',type:'compositional',vals:[38,50,41,53,44,56]},
+  {name:'Bamboogle',type:'adversarial',vals:[42,54,46,58,48,61]},
+  {name:'BrowseComp+',type:'hardest',vals:[35,50,50,57,54,61]}
+];
+var BENCH_COLS=['Fast\nUntrained','Fast\nTrained','Strong\nUntrained','Strong\nTrained','Max\nUntrained','Max\nTrained'];
+var BENCH_COLORS=['#74b9ff','#74b9ff','#51cf66','#51cf66','#a29bfe','#a29bfe'];
+
+function initBenchmark(){
+  var c=document.getElementById('canvas-benchmark');
+  if(!c)return;
+  c.addEventListener('mousemove',function(e){
+    var r=c.getBoundingClientRect();
+    var my=e.clientY-r.top;
+    var pad={t:40,b:24,l:100,r:20};
+    var ch=c.height-pad.t-pad.b;
+    var rowH=ch/BENCHMARKS.length;
+    var idx=Math.floor((my-pad.t)/rowH);
+    if(idx>=0&&idx<BENCHMARKS.length){
+      if(benchmarkHoveredRow!==idx){
+        benchmarkHoveredRow=idx;
+        var b=BENCHMARKS[idx];
+        var det=document.getElementById('benchmark-detail');
+        if(det){
+          var parts=BENCH_COLS.map(function(col,i){
+            return '<span style="color:'+BENCH_COLORS[i]+'">'+col.replace('\\n',' ')+': '+b.vals[i]+'%</span>';
+          });
+          det.innerHTML='<strong>'+b.name+' ('+b.type+')</strong> &mdash; '+parts.join(' &nbsp;|&nbsp; ');
+        }
+        drawBenchmark();
+      }
+    } else if(benchmarkHoveredRow!==null){benchmarkHoveredRow=null;drawBenchmark();}
+  });
+  c.addEventListener('mouseleave',function(){benchmarkHoveredRow=null;drawBenchmark();});
+  drawBenchmark();
+}
+
+function drawBenchmark(){
+  var c=document.getElementById('canvas-benchmark');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  var pad={t:44,b:24,l:100,r:20};
+  var cw=W-pad.l-pad.r,ch=H-pad.t-pad.b;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var nRows=BENCHMARKS.length,nCols=BENCH_COLS.length;
+  var cellW=cw/nCols,cellH=ch/nRows;
+
+  // Column headers
+  ctx.save();
+  BENCH_COLS.forEach(function(col,ci){
+    var cx=pad.l+ci*cellW+cellW/2;
+    var lines=col.split('\\n');
+    ctx.fillStyle=BENCH_COLORS[ci];ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';
+    ctx.fillText(lines[0],cx,pad.t-14);
+    ctx.fillStyle=ci%2===1?BENCH_COLORS[ci]:'#8b949e';
+    ctx.font='8px Inter,sans-serif';
+    ctx.fillText(lines[1]||'',cx,pad.t-4);
+    // Trained indicator
+    if(ci%2===1){
+      ctx.fillStyle=BENCH_COLORS[ci]+'44';
+      ctx.fillRect(pad.l+ci*cellW+2,pad.t,cellW-4,ch);
+    }
+  });
+  ctx.restore();
+
+  // Rows
+  BENCHMARKS.forEach(function(bm,ri){
+    var ry=pad.t+ri*cellH;
+    var hov=benchmarkHoveredRow===ri;
+
+    // Row highlight
+    if(hov){ctx.save();ctx.fillStyle='rgba(255,255,255,0.04)';ctx.fillRect(0,ry,W,cellH);ctx.restore();}
+
+    // Row label
+    ctx.save();
+    ctx.fillStyle=hov?'#c9d1d9':'#8b949e';ctx.font=(hov?'bold ':'')+'11px Inter,sans-serif';ctx.textAlign='right';ctx.textBaseline='middle';
+    ctx.fillText(bm.name,pad.l-8,ry+cellH/2-5);
+    ctx.fillStyle='#444d56';ctx.font='8px Inter,sans-serif';
+    ctx.fillText(bm.type,pad.l-8,ry+cellH/2+7);
+    ctx.restore();
+
+    // Grid line
+    ctx.save();ctx.strokeStyle='#21262d';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(pad.l,ry);ctx.lineTo(pad.l+cw,ry);ctx.stroke();
+    ctx.restore();
+
+    // Cells
+    bm.vals.forEach(function(v,ci){
+      var cx=pad.l+ci*cellW;
+      var norm=(v-30)/(90-30);
+      var alpha=0.15+norm*0.7;
+      ctx.save();
+      drawRoundedRect(ctx,cx+3,ry+4,cellW-6,cellH-8,4);
+      ctx.fillStyle=BENCH_COLORS[ci].replace('#','rgba(').replace(/([0-9a-f]{2})/gi,function(m){return parseInt(m,16)+',';}).slice(0,-1)+alpha+')';
+      // Simpler approach
+      ctx.fillStyle=BENCH_COLORS[ci];ctx.globalAlpha=alpha;
+      ctx.fill();ctx.globalAlpha=1;
+      ctx.fillStyle=norm>0.5?'#c9d1d9':'#8b949e';
+      ctx.font=(hov?'bold ':'')+'11px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(v+'%',cx+cellW/2,ry+cellH/2);
+
+      // Delta badge for trained cols
+      if(ci%2===1){
+        var delta=v-bm.vals[ci-1];
+        ctx.fillStyle='#51cf66';ctx.font='bold 8px Inter,sans-serif';ctx.textAlign='center';
+        ctx.fillText('+'+delta,cx+cellW/2,ry+cellH/2+12);
+      }
+      ctx.restore();
+    });
+  });
+
+  // Bottom border
+  ctx.save();ctx.strokeStyle='#30363d';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(pad.l,pad.t+ch);ctx.lineTo(pad.l+cw,pad.t+ch);ctx.stroke();
+  ctx.restore();
+}
+
+// ============================================================
+// CONFIG RECOMMENDER
+// ============================================================
+function initRecommender(){
+  updateRecommender();
+}
+
+function drawRecommender(lat,qual,cost){
+  lat=lat||5;qual=qual||5;cost=cost||5;
+  var c=document.getElementById('canvas-recommender');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  // Compute scores for each option
+  // Options: Fast-Untrained, Fast-Trained, Strong-Untrained, Strong-Trained, Max-Untrained, Max-Trained
+  // Criteria scores (1-10 scale, higher = better on that dimension)
+  var options=[
+    {label:'Fast',sub:'Untrained',trained:false,
+     latScore:10,qualScore:4,costScore:10,acc:35.2,latency:13,color:'#74b9ff'},
+    {label:'Fast',sub:'+ Trained',trained:true,
+     latScore:10,qualScore:7,costScore:9,acc:50.1,latency:13,color:'#74b9ff'},
+    {label:'Strong',sub:'Untrained',trained:false,
+     latScore:6,qualScore:7,costScore:6,acc:50.0,latency:26,color:'#51cf66'},
+    {label:'Strong',sub:'+ Trained',trained:true,
+     latScore:6,qualScore:9,costScore:5,acc:57.2,latency:26,color:'#51cf66'},
+    {label:'Max',sub:'Untrained',trained:false,
+     latScore:2,qualScore:8,costScore:2,acc:54.3,latency:52,color:'#a29bfe'},
+    {label:'Max',sub:'+ Trained',trained:true,
+     latScore:2,qualScore:10,costScore:1,acc:60.7,latency:52,color:'#a29bfe'}
+  ];
+
+  // Score each option based on sliders (invert cost: high cost-sensitivity penalizes expensive)
+  options.forEach(function(o){
+    o.score=(lat/10)*o.latScore+(qual/10)*o.qualScore+((11-cost)/10)*o.costScore;
+    o.score=o.score/3; // normalize to ~10
+  });
+  var maxScore=Math.max.apply(null,options.map(function(o){return o.score;}));
+  var bestIdx=options.findIndex(function(o){return o.score===maxScore;});
+
+  // Bar chart
+  var barW=80,barGap=16,chartH=160,chartY=H-chartH-50,chartX=(W-(options.length*(barW+barGap)-barGap))/2;
+
+  options.forEach(function(o,i){
+    var x=chartX+i*(barW+barGap);
+    var bh=(o.score/10)*chartH;
+    var by=chartY+chartH-bh;
+    var isBest=i===bestIdx;
+
+    ctx.save();
+    // Glow for best
+    if(isBest){
+      ctx.shadowColor=o.color;ctx.shadowBlur=16;
+    }
+    drawRoundedRect(ctx,x,by,barW,bh,6);
+    ctx.fillStyle=isBest?o.color:o.color+'44';ctx.fill();
+    ctx.strokeStyle=o.color;ctx.lineWidth=isBest?2.5:1;ctx.stroke();
+    ctx.shadowBlur=0;
+
+    // Score label inside bar
+    if(bh>24){
+      ctx.fillStyle=isBest?'#0d1117':'#c9d1d9';
+      ctx.font='bold 14px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+      ctx.fillText(o.score.toFixed(1),x+barW/2,by+8);
+    }
+
+    // Config label
+    ctx.fillStyle=isBest?o.color:'#8b949e';
+    ctx.font=(isBest?'bold ':'')+'11px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+    ctx.fillText(o.label,x+barW/2,chartY+chartH+6);
+    ctx.fillStyle=o.trained?o.color+'cc':'#444d56';
+    ctx.font='9px Inter,sans-serif';
+    ctx.fillText(o.sub,x+barW/2,chartY+chartH+19);
+
+    // Best badge
+    if(isBest){
+      drawRoundedRect(ctx,x,by-26,barW,20,6);
+      ctx.fillStyle=o.color;ctx.fill();
+      ctx.fillStyle='#0d1117';ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('\u2605 RECOMMENDED',x+barW/2,by-16);
+    }
+    ctx.restore();
+  });
+
+  // Title
+  ctx.save();ctx.fillStyle='#c9d1d9';ctx.font='bold 13px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+  ctx.fillText('Fit score by priority weights (higher = better match)',W/2,12);ctx.restore();
+
+  // Update detail panel
+  var best=options[bestIdx];
+  var det=document.getElementById('recommender-detail');
+  if(det){
+    det.innerHTML='<strong style="color:'+best.color+'">\u2605 '+best.label+' config '+best.sub+'</strong> recommended based on your priorities.<br><br>'+
+      'Accuracy: <span style="color:#51cf66">'+best.acc+'%</span> &nbsp;|&nbsp; '+
+      'Latency: <span style="color:#f7b731">'+best.latency+'s</span> &nbsp;|&nbsp; '+
+      'Fit score: <span style="color:'+best.color+'">'+best.score.toFixed(1)+'/10</span><br><br>'+
+      '<span style="color:var(--muted);font-size:12px;">'+
+      (lat>=7?'High latency sensitivity: Fast config keeps you under 15s. ':'')+
+      (qual>=7?'High quality requirement: trained config adds +15% accuracy. ':'')+
+      (cost>=7?'Cost-conscious: Fast+Trained gives Strong-quality at lower infrastructure cost.':'')+
+      (lat<4&&qual<4&&cost<4?'Balanced priorities: Strong+Trained is the most common production choice.':'')+
+      '</span>';
+  }
+}
+
+// ============================================================
 // INIT
 // ============================================================
 function doInit(){
@@ -797,6 +1361,11 @@ function doInit(){
   initTraining();
   initPenalty();
   initScatter();
+  initReplay();
+  initAblation();
+  initConvergence();
+  initBenchmark();
+  initRecommender();
   updateNavOnScroll();
 }
 
