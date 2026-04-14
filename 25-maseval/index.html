@@ -1,0 +1,1579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Multi-Agent System Evaluation — MASEval Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#c9d1d9;--muted:#8b949e;
+  --accent:#7c3aed;--accent2:#a78bfa;--accent3:#ddd6fe;
+  --c-overview:#f7b731;--c-topology:#0ea5e9;--c-dimensions:#a78bfa;
+  --c-benchmarks:#10b981;--c-framework:#f97316;--c-errors:#ef4444;--c-lifecycle:#7c3aed;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+.sidebar{width:240px;min-width:240px;height:100vh;position:sticky;top:0;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:0 0 40px;flex-shrink:0;}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.sidebar-logo-title{font-size:13px;font-weight:700;color:var(--accent2);}
+.sidebar-logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.nav-group-title{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;padding:10px 16px 4px;}
+.nav-link{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;}
+.nav-link:hover,.nav-link.active{color:var(--text);background:rgba(124,58,237,.08);}
+.nav-link.active{color:var(--accent2);}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.main{flex:1;overflow-y:auto;height:100vh;scroll-behavior:smooth;}
+.pipeline-map{position:sticky;top:0;z-index:50;background:rgba(13,17,23,.96);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+.pipe-step{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);padding:2px 6px;border-radius:4px;cursor:pointer;transition:color .15s;}
+.pipe-step:hover{color:var(--text);}
+.pipe-dot{width:6px;height:6px;border-radius:50%;}
+.pipe-arrow{color:var(--border);font-size:12px;}
+.section{min-height:100vh;padding:60px 48px 80px;border-bottom:1px solid var(--border);}
+.section-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;}
+.section-title{font-size:28px;font-weight:800;color:var(--text);margin-bottom:8px;line-height:1.25;}
+.section-sub{font-size:14px;color:var(--muted);margin-bottom:28px;max-width:680px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:16px;}
+.card-title{font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px;}
+.card-body{font-size:13px;color:var(--muted);line-height:1.6;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;}
+canvas{display:block;border-radius:10px;background:var(--surface);border:1px solid var(--border);}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s;}
+.btn:hover{opacity:.85;}
+.btn-tab{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+.formula{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-family:'JetBrains Mono','Courier New',monospace;font-size:11px;color:#a78bfa;line-height:1.8;margin-bottom:16px;white-space:pre;overflow-x:auto;}
+.stats-row{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:28px;}
+.stat{text-align:center;}
+.stat-val{font-size:28px;font-weight:800;color:var(--accent2);}
+.stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;}
+.section-bridge{margin-top:48px;padding-top:28px;border-top:1px solid var(--border);text-align:right;}
+.section-bridge-link{font-size:12px;color:var(--accent2);font-weight:600;border:1px solid var(--accent2);border-radius:6px;padding:6px 14px;transition:all .15s;cursor:pointer;}
+.section-bridge-link:hover{background:rgba(124,58,237,.1);}
+.accordion-item{border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+.accordion-header{padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;background:var(--surface);}
+.accordion-header:hover{background:#1c2128;}
+.accordion-chevron{transition:transform .2s;font-size:10px;color:var(--muted);}
+.accordion-item.open .accordion-chevron{transform:rotate(90deg);}
+.accordion-body{padding:14px 16px;font-size:12px;color:var(--muted);display:none;border-top:1px solid var(--border);line-height:1.7;}
+.accordion-item.open .accordion-body{display:block;}
+#pg-gate{position:fixed;inset:0;background:linear-gradient(135deg,#0d1117 0%,#161b22 50%,#0d1117 100%);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.pg-box{background:#161b22;border:1px solid #30363d;border-radius:16px;padding:40px 48px;max-width:440px;width:100%;text-align:center;box-shadow:0 0 40px rgba(124,58,237,.12);}
+.pg-icon{font-size:2.5rem;margin-bottom:16px;}
+.pg-title{font-size:1.3rem;font-weight:800;color:#c9d1d9;margin-bottom:6px;}
+.pg-subtitle{font-size:13px;font-weight:600;color:#a78bfa;margin-bottom:6px;}
+.pg-sub{font-size:11px;color:#8b949e;margin-bottom:24px;}
+.pg-input{width:100%;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:10px 14px;color:#c9d1d9;font-size:14px;outline:none;text-align:center;}
+.pg-input:focus{border-color:#7c3aed;}
+.pg-btn{margin-top:12px;width:100%;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;}
+.pg-err{color:#ff6b6b;font-size:11px;margin-top:8px;min-height:16px;}
+.pg-join{margin-top:16px;font-size:11px;color:#8b949e;}
+.pg-join a{color:#a78bfa;text-decoration:underline;}
+.highlight-box{border-left:3px solid var(--accent);padding:12px 16px;background:rgba(124,58,237,.06);border-radius:0 8px 8px 0;margin-bottom:16px;font-size:13px;color:var(--muted);}
+.highlight-box.amber{border-color:#f7b731;background:rgba(247,183,49,.06);}
+.highlight-box.green{border-color:#10b981;background:rgba(16,185,129,.06);}
+.highlight-box.red{border-color:#ef4444;background:rgba(239,68,68,.06);}
+.highlight-box.orange{border-color:#f97316;background:rgba(249,115,22,.06);}
+.info-panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-top:12px;font-size:13px;color:var(--muted);min-height:90px;}
+.info-panel strong{color:var(--text);}
+.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-right:4px;margin-bottom:4px;}
+.badge-blue{background:rgba(14,165,233,.2);color:#38bdf8;}
+.badge-green{background:rgba(16,185,129,.2);color:#10b981;}
+.badge-amber{background:rgba(247,183,49,.2);color:#f7b731;}
+.badge-violet{background:rgba(167,139,250,.2);color:#a78bfa;}
+.badge-red{background:rgba(239,68,68,.2);color:#ef4444;}
+.badge-orange{background:rgba(249,115,22,.2);color:#f97316;}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;background:var(--border);border-radius:4px;outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;}
+.slider-row{display:flex;gap:12px;align-items:center;margin-bottom:14px;}
+.slider-lbl{font-size:11px;color:var(--muted);min-width:150px;}
+.slider-val{font-size:12px;font-weight:700;color:var(--accent2);min-width:36px;text-align:right;}
+#scroll-progress{position:fixed;top:0;left:0;height:2px;background:var(--accent);z-index:9998;width:0;transition:width .1s;}
+/* Benchmark cards */
+.bm-card{background:var(--surface);border:2px solid var(--border);border-radius:10px;padding:16px 18px;cursor:pointer;transition:all .2s;}
+.bm-card:hover{border-color:var(--accent2);}
+.bm-card.active{border-color:var(--accent);background:rgba(124,58,237,.06);}
+.bm-header{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+.bm-label{font-size:16px;font-weight:800;}
+.bm-full{font-size:10px;color:var(--muted);font-weight:600;}
+.bm-expand{display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
+.bm-card.active .bm-expand{display:block;}
+.diff-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.diff-lbl{font-size:10px;color:var(--muted);min-width:110px;}
+.diff-bar-track{flex:1;height:8px;background:var(--bg);border-radius:4px;overflow:hidden;}
+.diff-bar-fill{height:100%;border-radius:4px;width:0;transition:width .8s ease;}
+.diff-pct{font-size:10px;color:var(--muted);min-width:30px;text-align:right;}
+/* Error attribution bar */
+.attr-bar{display:flex;height:22px;border-radius:6px;overflow:hidden;margin:10px 0;}
+.attr-seg{display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;transition:width .4s ease;white-space:nowrap;overflow:hidden;}
+/* Phase buttons */
+.phase-btn-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+.phase-btn{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;}
+.phase-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+/* Fail inject buttons */
+.fail-btn{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;}
+.fail-btn:hover,.fail-btn.active{background:rgba(239,68,68,.25);border-color:#ef4444;}
+/* Score mini bar */
+.score-bar-wrap{margin-top:8px;}
+.score-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.score-bar-lbl{font-size:10px;color:var(--muted);min-width:90px;}
+.score-bar-track{flex:1;height:6px;background:var(--bg);border-radius:3px;overflow:hidden;}
+.score-bar-fill{height:100%;border-radius:3px;transition:width .6s ease;}
+.score-bar-val{font-size:10px;font-weight:700;min-width:36px;text-align:right;}
+</style>
+</head>
+<body>
+
+<div id="pg-gate">
+  <div class="pg-box">
+    <div class="pg-icon">&#129302;</div>
+    <div class="pg-title">Multi-Agent System Evaluation</div>
+    <div class="pg-subtitle">MASEval Framework &mdash; Visual Interactive Guide</div>
+    <div class="pg-sub">This post is for paid subscribers of Visual Summary</div>
+    <input class="pg-input" id="pg-input" type="password" placeholder="Enter password" autocomplete="off" onkeydown="if(event.key==='Enter')pgCheck()">
+    <button class="pg-btn" onclick="pgCheck()">Unlock</button>
+    <div class="pg-err" id="pg-err"></div>
+    <div class="pg-join">Not a subscriber yet? <a href="https://visualsummary.substack.com" target="_blank">Join Visual Summary &rarr;</a></div>
+  </div>
+</div>
+
+<div id="scroll-progress"></div>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-title">Visual AI Papers</div>
+    <div class="sidebar-logo-sub">Post 25 &middot; MAS Evaluation</div>
+  </div>
+
+  <div class="nav-group-title">The Problem</div>
+  <div class="nav-link" onclick="scrollTo('s-overview')">
+    <span class="dot" style="background:var(--c-overview)"></span>The Evaluation Gap
+  </div>
+
+  <div class="nav-group-title">System Design</div>
+  <div class="nav-link" onclick="scrollTo('s-topologies')">
+    <span class="dot" style="background:var(--c-topology)"></span>System Architectures
+  </div>
+  <div class="nav-link" onclick="scrollTo('s-dimensions')">
+    <span class="dot" style="background:var(--c-dimensions)"></span>What We Measure
+  </div>
+
+  <div class="nav-group-title">Evaluation</div>
+  <div class="nav-link" onclick="scrollTo('s-benchmarks')">
+    <span class="dot" style="background:var(--c-benchmarks)"></span>Testing Grounds
+  </div>
+  <div class="nav-link" onclick="scrollTo('s-framework')">
+    <span class="dot" style="background:var(--c-framework)"></span>Framework vs. Model
+  </div>
+
+  <div class="nav-group-title">Failures &amp; Tools</div>
+  <div class="nav-link" onclick="scrollTo('s-errors')">
+    <span class="dot" style="background:var(--c-errors)"></span>Failure Anatomy
+  </div>
+  <div class="nav-link" onclick="scrollTo('s-lifecycle')">
+    <span class="dot" style="background:var(--c-lifecycle)"></span>Evaluation Lifecycle
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="main" id="main-scroll">
+
+  <!-- Pipeline map -->
+  <div class="pipeline-map">
+    <div class="pipe-step" onclick="scrollTo('s-overview')"><span class="pipe-dot" style="background:var(--c-overview)"></span>Gap</div>
+    <span class="pipe-arrow">→</span>
+    <div class="pipe-step" onclick="scrollTo('s-topologies')"><span class="pipe-dot" style="background:var(--c-topology)"></span>Topologies</div>
+    <span class="pipe-arrow">→</span>
+    <div class="pipe-step" onclick="scrollTo('s-dimensions')"><span class="pipe-dot" style="background:var(--c-dimensions)"></span>Dimensions</div>
+    <span class="pipe-arrow">→</span>
+    <div class="pipe-step" onclick="scrollTo('s-benchmarks')"><span class="pipe-dot" style="background:var(--c-benchmarks)"></span>Benchmarks</div>
+    <span class="pipe-arrow">→</span>
+    <div class="pipe-step" onclick="scrollTo('s-framework')"><span class="pipe-dot" style="background:var(--c-framework)"></span>Frameworks</div>
+    <span class="pipe-arrow">→</span>
+    <div class="pipe-step" onclick="scrollTo('s-errors')"><span class="pipe-dot" style="background:var(--c-errors)"></span>Errors</div>
+    <span class="pipe-arrow">→</span>
+    <div class="pipe-step" onclick="scrollTo('s-lifecycle')"><span class="pipe-dot" style="background:var(--c-lifecycle)"></span>Lifecycle</div>
+  </div>
+
+  <!-- =========================================================
+       S1: THE EVALUATION GAP
+       ========================================================= -->
+  <section class="section" id="s-overview">
+    <div class="section-tag" style="color:var(--c-overview)">Multi-Agent Systems &middot; Evaluation</div>
+    <h1 class="section-title">The Evaluation Gap</h1>
+    <p class="section-sub">Single-model benchmarks miss everything that matters in multi-agent systems. The unit of analysis must shift from the model to the entire system: topology, orchestration logic, error handling, and framework choice all shape real-world performance.</p>
+
+    <div class="stats-row">
+      <div class="stat"><div class="stat-val" style="color:var(--c-framework)">6</div><div class="stat-lbl">Frameworks Evaluated</div></div>
+      <div class="stat"><div class="stat-val" style="color:var(--c-topology)">4</div><div class="stat-lbl">Topology Patterns</div></div>
+      <div class="stat"><div class="stat-val" style="color:var(--c-benchmarks)">3</div><div class="stat-lbl">Key Benchmarks</div></div>
+      <div class="stat"><div class="stat-val" style="color:var(--c-lifecycle)">5</div><div class="stat-lbl">Evaluation Phases</div></div>
+    </div>
+
+    <canvas id="canvas-overview" width="760" height="260" style="margin-bottom:24px;max-width:100%;"></canvas>
+
+    <div class="grid3" style="margin-bottom:24px;">
+      <div class="card">
+        <div class="card-title" style="color:var(--c-framework)">The Model Fallacy</div>
+        <div class="card-body">Swapping GPT-4o for a weaker model in AutoGen may cost less than switching to a better-architected framework with the same model. System design decisions compound.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-topology)">What MASEval Measures</div>
+        <div class="card-body">Full-system evaluation across four dimensions: task performance, communication efficiency, error resilience, and resource efficiency — simultaneously, not sequentially.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-benchmarks)">Why GAIA / Tau / MMLU</div>
+        <div class="card-body">Multi-step reasoning (GAIA), tool orchestration & policy compliance (Tau-bench), and broad knowledge (MMLU) each stress-test a different dimension of MAS capability.</div>
+      </div>
+    </div>
+
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAcc(this)">Why is MAS evaluation harder than single-model evaluation?<span class="accordion-chevron">›</span></div>
+      <div class="accordion-body">Single-model evaluation treats the LLM as a black box: input → output → score. Multi-agent systems introduce emergent behaviour that cannot be predicted from individual agent performance. A system with three strong individual agents may fail catastrophically because of poor orchestration. A weaker model in a better-designed topology may outperform a frontier model in a rigid pipeline. Additionally, errors compound: a 10% failure rate per step across a 4-agent chain produces ~34% task failure rate — a non-linearity absent in single-step evaluation.</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAcc(this)">What is the MASEval benchmark suite?<span class="accordion-chevron">›</span></div>
+      <div class="accordion-body">MASEval is a framework-agnostic evaluation library that wraps popular agent frameworks (AutoGen, LangGraph, LlamaIndex, CAMEL, smolagents, Claude Agent SDK) behind a common interface called <strong>AgentAdapter</strong>. It runs identical benchmark tasks through each system, collects structured traces (messages, tool calls, token counts), and computes system-level metrics. The result: apples-to-apples comparisons across entire architectures, not just models. It is published under MIT license at parameterlab.github.io/MASEval.</div>
+    </div>
+
+    <div class="section-bridge">
+      <span class="section-bridge-link" onclick="scrollTo('s-topologies')">System Architectures →</span>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       S2: SYSTEM ARCHITECTURES
+       ========================================================= -->
+  <section class="section" id="s-topologies">
+    <div class="section-tag" style="color:var(--c-topology)">System Design &middot; Topology Patterns</div>
+    <h1 class="section-title">System Architectures</h1>
+    <p class="section-sub">The topology of a multi-agent system determines how agents coordinate, how information flows, and critically — how failures cascade. Click each pattern to explore its structure, coordination mode, and GAIA performance.</p>
+
+    <div class="btn-row">
+      <button class="btn-tab active" id="topo-btn-0" onclick="selectTopology(0)">Sequential</button>
+      <button class="btn-tab" id="topo-btn-1" onclick="selectTopology(1)">Hierarchical</button>
+      <button class="btn-tab" id="topo-btn-2" onclick="selectTopology(2)">Parallel</button>
+      <button class="btn-tab" id="topo-btn-3" onclick="selectTopology(3)">Mesh</button>
+    </div>
+
+    <canvas id="canvas-topology" width="760" height="320" style="margin-bottom:12px;max-width:100%;cursor:default;"></canvas>
+
+    <div class="info-panel" id="topo-info-panel">Select a topology above to see its properties.</div>
+
+    <div class="grid4" style="margin-top:20px;">
+      <div class="card" style="border-color:rgba(14,165,233,.3)">
+        <div class="card-title" style="color:#0ea5e9;font-size:10px;">Sequential · GAIA</div>
+        <div style="font-size:22px;font-weight:800;color:#0ea5e9;">38.2%</div>
+        <div style="font-size:10px;color:var(--muted);">Chain pipeline</div>
+      </div>
+      <div class="card" style="border-color:rgba(167,139,250,.3)">
+        <div class="card-title" style="color:#a78bfa;font-size:10px;">Hierarchical · GAIA</div>
+        <div style="font-size:22px;font-weight:800;color:#a78bfa;">51.7%</div>
+        <div style="font-size:10px;color:var(--muted);">Manager + workers</div>
+      </div>
+      <div class="card" style="border-color:rgba(16,185,129,.3)">
+        <div class="card-title" style="color:#10b981;font-size:10px;">Parallel · GAIA</div>
+        <div style="font-size:22px;font-weight:800;color:#10b981;">46.3%</div>
+        <div style="font-size:10px;color:var(--muted);">Fan-out + aggregator</div>
+      </div>
+      <div class="card" style="border-color:rgba(249,115,22,.3)">
+        <div class="card-title" style="color:#f97316;font-size:10px;">Mesh · GAIA</div>
+        <div style="font-size:22px;font-weight:800;color:#f97316;">44.8%</div>
+        <div style="font-size:10px;color:var(--muted);">Peer-to-peer</div>
+      </div>
+    </div>
+
+    <div class="section-bridge">
+      <span class="section-bridge-link" onclick="scrollTo('s-dimensions')">What We Measure →</span>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       S3: WHAT WE MEASURE
+       ========================================================= -->
+  <section class="section" id="s-dimensions">
+    <div class="section-tag" style="color:var(--c-dimensions)">Evaluation &middot; Measurement Dimensions</div>
+    <h1 class="section-title">What We Measure</h1>
+    <p class="section-sub">MASEval evaluates systems across four orthogonal dimensions. Drag the sliders to define your ideal system profile. Select a reference framework to see how real systems compare.</p>
+
+    <div style="display:flex;gap:32px;flex-wrap:wrap;align-items:flex-start;">
+      <div style="flex:0 0 auto;">
+        <canvas id="canvas-radar" width="400" height="380"></canvas>
+      </div>
+      <div style="flex:1;min-width:220px;">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px;">Your Target Profile</div>
+        <div class="slider-row">
+          <span class="slider-lbl" style="color:#f7b731;">&#9679; Task Performance</span>
+          <input type="range" id="sl-perf" min="0" max="100" value="75" oninput="updateRadar()">
+          <span class="slider-val" id="sv-perf">75</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-lbl" style="color:#0ea5e9;">&#9679; Communication Eff.</span>
+          <input type="range" id="sl-comm" min="0" max="100" value="65" oninput="updateRadar()">
+          <span class="slider-val" id="sv-comm">65</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-lbl" style="color:#ef4444;">&#9679; Error Resilience</span>
+          <input type="range" id="sl-err" min="0" max="100" value="70" oninput="updateRadar()">
+          <span class="slider-val" id="sv-err">70</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-lbl" style="color:#10b981;">&#9679; Resource Efficiency</span>
+          <input type="range" id="sl-res" min="0" max="100" value="60" oninput="updateRadar()">
+          <span class="slider-val" id="sv-res">60</span>
+        </div>
+
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-top:18px;margin-bottom:10px;">Reference Framework</div>
+        <div class="btn-row" style="margin-bottom:16px;">
+          <button class="btn-tab active" id="ref-btn-autogen" onclick="setRadarRef('autogen')">AutoGen</button>
+          <button class="btn-tab" id="ref-btn-langgraph" onclick="setRadarRef('langgraph')">LangGraph</button>
+          <button class="btn-tab" id="ref-btn-claudesdk" onclick="setRadarRef('claudesdk')">Claude SDK</button>
+          <button class="btn-tab" id="ref-btn-smolagents" onclick="setRadarRef('smolagents')">smolagents</button>
+        </div>
+
+        <div class="card" style="margin-bottom:0;">
+          <div class="card-title">Radar Legend</div>
+          <div class="card-body" style="font-size:11px;">
+            <div style="margin-bottom:4px;"><span style="color:#a78bfa;font-weight:700;">— Violet polygon</span> = Your target profile</div>
+            <div style="margin-bottom:4px;"><span style="color:#f7b731;font-weight:700;">— Amber polygon</span> = Reference framework</div>
+            <div>Drag sliders to position your ideal operating point. Overlap with reference indicates framework fit.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid2" style="margin-top:20px;">
+      <div class="card">
+        <div class="card-title" style="color:var(--c-dimensions)">Task Performance</div>
+        <div class="card-body">Measured by <strong>GSR (Goal Success Rate)</strong> from GAIA — the percentage of tasks where the agent system correctly completes the full multi-step goal. Also includes tool-call success rate from Tau-bench and accuracy from MMLU.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-errors)">Error Attribution</div>
+        <div class="card-body">MASEval classifies failures into three categories: <strong>Agent Error</strong> (the agent produced wrong output), <strong>Environment Error</strong> (tool/API failure outside agent control), and <strong>User Error</strong> (malformed input or invalid goal). Attribution shapes corrective action.</div>
+      </div>
+    </div>
+
+    <div class="section-bridge">
+      <span class="section-bridge-link" onclick="scrollTo('s-benchmarks')">Testing Grounds →</span>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       S4: TESTING GROUNDS
+       ========================================================= -->
+  <section class="section" id="s-benchmarks">
+    <div class="section-tag" style="color:var(--c-benchmarks)">Evaluation &middot; Benchmarks</div>
+    <h1 class="section-title">Testing Grounds</h1>
+    <p class="section-sub">MASEval evaluates systems on three benchmark families, each designed to stress-test a different set of MAS capabilities. Click a benchmark to explore what it tests and how topologies perform.</p>
+
+    <div class="grid3" style="margin-bottom:16px;" id="bm-grid">
+      <div class="bm-card active" id="bm-0" onclick="selectBenchmark(0)">
+        <div class="bm-header">
+          <span class="bm-label" style="color:#10b981;">GAIA</span>
+          <span class="bm-full">General AI Assistants</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);">466 tasks · GSR metric · Multi-step web + tool tasks</div>
+        <div class="bm-expand" id="bm-expand-0"></div>
+      </div>
+      <div class="bm-card" id="bm-1" onclick="selectBenchmark(1)">
+        <div class="bm-header">
+          <span class="bm-label" style="color:#0ea5e9;">Tau-bench</span>
+          <span class="bm-full">Tool Augmented Understanding</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);">120 tasks · Completion + policy rate · Domain workflows</div>
+        <div class="bm-expand" id="bm-expand-1"></div>
+      </div>
+      <div class="bm-card" id="bm-2" onclick="selectBenchmark(2)">
+        <div class="bm-header">
+          <span class="bm-label" style="color:#f97316;">MMLU</span>
+          <span class="bm-full">Massive Multitask Language Understanding</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);">14,042 tasks · Accuracy · Broad domain knowledge</div>
+        <div class="bm-expand" id="bm-expand-2"></div>
+      </div>
+    </div>
+
+    <div class="info-panel" id="bm-info-panel">Select a benchmark above to see MAS relevance and topology scores.</div>
+
+    <div class="grid2" style="margin-top:20px;">
+      <div class="card">
+        <div class="card-title" style="color:var(--c-benchmarks)">Why Three Benchmarks?</div>
+        <div class="card-body">Each benchmark isolates a distinct axis of MAS performance. GAIA tests end-to-end task completion under tool uncertainty. Tau-bench tests compliance under constrained workflows. MMLU tests knowledge routing across specialized agents. Together they triangulate a system's true capability profile.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-topology)">Topology Performance Gap</div>
+        <div class="card-body">Hierarchical topologies consistently outperform sequential across all three benchmarks. The orchestrator's ability to delegate and retry subtasks independently produces a <strong>13.5 percentage-point</strong> GAIA GSR improvement over naive sequential pipelines.</div>
+      </div>
+    </div>
+
+    <div class="section-bridge">
+      <span class="section-bridge-link" onclick="scrollTo('s-framework')">Framework vs. Model →</span>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       S5: FRAMEWORK VS. MODEL
+       ========================================================= -->
+  <section class="section" id="s-framework">
+    <div class="section-tag" style="color:var(--c-framework)">Evaluation &middot; Key Finding</div>
+    <h1 class="section-title">Framework vs. Model</h1>
+    <p class="section-sub">The MASEval paper's headline finding: framework choice matters as much as model choice. Toggle between views and metrics to explore why architectural decisions are as consequential as foundation model selection.</p>
+
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+      <div>
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;">Group By</div>
+        <div class="btn-row" style="margin-bottom:0;">
+          <button class="btn-tab active" id="fw-btn-framework" onclick="setFrameworkView('framework')">By Framework</button>
+          <button class="btn-tab" id="fw-btn-model" onclick="setFrameworkView('model')">By Model</button>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;">Metric</div>
+        <div class="btn-row" style="margin-bottom:0;">
+          <button class="btn-tab active" id="metric-btn-gsr" onclick="setMetricView('gsr')">GAIA GSR %</button>
+          <button class="btn-tab" id="metric-btn-tokens" onclick="setMetricView('tokens')">Token Cost (k)</button>
+        </div>
+      </div>
+    </div>
+
+    <canvas id="canvas-barrace" width="760" height="360" style="margin-bottom:16px;max-width:100%;"></canvas>
+
+    <div class="highlight-box orange">
+      <strong style="color:#f97316;">Framework ≈ Model in impact.</strong> The performance spread across frameworks (44.6% → 53.2% GAIA GSR) nearly equals the spread across frontier models (49.7% → 55.4%). Engineers optimizing only model selection are leaving half the performance gains on the table.
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title" style="color:var(--c-framework)">Why Frameworks Diverge</div>
+        <div class="card-body">Frameworks differ in how they handle retries, tool call batching, inter-agent context passing, and error recovery. These implementation choices accumulate across a multi-step task, producing system-level performance gaps invisible in single-agent benchmarks.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-benchmarks)">Token Cost Trade-off</div>
+        <div class="card-body">Higher-performing frameworks often use more tokens through richer context passing and verification steps. smolagents is the most token-efficient (55.3k avg) while CAMEL has the highest consumption (90.1k). The right choice depends on your cost/performance operating point.</div>
+      </div>
+    </div>
+
+    <div class="section-bridge">
+      <span class="section-bridge-link" onclick="scrollTo('s-errors')">Failure Anatomy →</span>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       S6: FAILURE ANATOMY
+       ========================================================= -->
+  <section class="section" id="s-errors">
+    <div class="section-tag" style="color:var(--c-errors)">Systems &middot; Error Propagation</div>
+    <h1 class="section-title">Failure Anatomy</h1>
+    <p class="section-sub">How failures cascade (or isolate) depends entirely on topology. Select a topology, then inject a failure into any agent to watch how errors propagate through the system and observe the attribution breakdown.</p>
+
+    <div class="btn-row">
+      <button class="btn-tab active" id="casc-btn-0" onclick="selectCascadeTopology(0)">Sequential</button>
+      <button class="btn-tab" id="casc-btn-1" onclick="selectCascadeTopology(1)">Hierarchical</button>
+      <button class="btn-tab" id="casc-btn-2" onclick="selectCascadeTopology(2)">Parallel</button>
+      <button class="btn-tab" id="casc-btn-3" onclick="selectCascadeTopology(3)">Mesh</button>
+    </div>
+
+    <div id="fail-btn-row" class="btn-row"></div>
+
+    <canvas id="canvas-cascade" width="760" height="320" style="margin-bottom:12px;max-width:100%;"></canvas>
+
+    <div style="margin-bottom:8px;">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;">Error Attribution Breakdown</div>
+      <div class="attr-bar" id="attr-bar">
+        <div class="attr-seg" id="attr-agent" style="background:#ef4444;width:65%;">Agent 65%</div>
+        <div class="attr-seg" id="attr-env" style="background:#f97316;width:25%;">Env 25%</div>
+        <div class="attr-seg" id="attr-user" style="background:#f7b731;width:10%;">User 10%</div>
+      </div>
+      <div style="display:flex;gap:16px;margin-top:4px;">
+        <span style="font-size:10px;color:#ef4444;font-weight:600;">&#9632; Agent Error</span>
+        <span style="font-size:10px;color:#f97316;font-weight:600;">&#9632; Env Error</span>
+        <span style="font-size:10px;color:#f7b731;font-weight:600;">&#9632; User Error</span>
+      </div>
+    </div>
+
+    <div class="info-panel" id="cascade-info">Select a topology and inject a failure to see propagation behaviour.</div>
+
+    <div class="grid2" style="margin-top:20px;">
+      <div class="card">
+        <div class="card-title" style="color:var(--c-errors)">Sequential Cascade</div>
+        <div class="card-body">A failure at step 2 of a 4-agent chain blocks all 3 downstream agents. Error rate compounds: each 10% agent failure probability produces ~34% system failure in a 4-step pipeline. Sequential topologies require robust individual agents.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-benchmarks)">Parallel Isolation</div>
+        <div class="card-body">A failure in Worker-2 of a parallel topology only affects that worker's contribution. Workers 1 and 3 complete normally; the aggregator can proceed with partial results. This makes parallel architectures inherently more resilient to single-agent failures.</div>
+      </div>
+    </div>
+
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAcc(this)">What is the difference between agent, environment, and user errors?<span class="accordion-chevron">›</span></div>
+      <div class="accordion-body"><strong>Agent Error:</strong> The agent produced incorrect output, got stuck in a loop, or failed to use a tool correctly. Corrected by improving agent instructions, adding verification steps, or switching frameworks.<br><br><strong>Environment Error:</strong> A tool API returned an error, a file was inaccessible, or a network timeout occurred — outside the agent's control. Corrected by improving tool wrappers, adding retry logic, or handling environment-side failures.<br><br><strong>User Error:</strong> The input task was malformed, contradictory, or impossible. Corrected at the input validation layer before the agent system is invoked.</div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAcc(this)">How does error attribution guide framework selection?<span class="accordion-chevron">›</span></div>
+      <div class="accordion-body">If your dominant error type is <strong>Agent Error</strong>, prioritise frameworks with built-in reflection and retry mechanisms (LangGraph's conditional edges, AutoGen's critique loops). If <strong>Environment Error</strong> dominates, prioritise frameworks with robust tool-call error handling and fallback paths. Misattributing agent errors as environment errors leads to investing in the wrong layer of the stack.</div>
+    </div>
+
+    <div class="section-bridge">
+      <span class="section-bridge-link" onclick="scrollTo('s-lifecycle')">Evaluation Lifecycle →</span>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       S7: EVALUATION LIFECYCLE
+       ========================================================= -->
+  <section class="section" id="s-lifecycle">
+    <div class="section-tag" style="color:var(--c-lifecycle)">MASEval Tool &middot; How It Works</div>
+    <h1 class="section-title">Evaluation Lifecycle</h1>
+    <p class="section-sub">MASEval structures every evaluation run into five reproducible phases. Click each phase to understand what happens, what is collected, and how it maps to the evaluation dimensions.</p>
+
+    <canvas id="canvas-lifecycle" width="760" height="100" style="margin-bottom:14px;max-width:100%;cursor:pointer;"></canvas>
+
+    <div class="phase-btn-row" id="phase-btn-row">
+      <button class="phase-btn active" onclick="selectPhase(0)">⚙ Setup</button>
+      <button class="phase-btn" onclick="selectPhase(1)">▶ Execute</button>
+      <button class="phase-btn" onclick="selectPhase(2)">📊 Collect</button>
+      <button class="phase-btn" onclick="selectPhase(3)">🎯 Evaluate</button>
+      <button class="phase-btn" onclick="selectPhase(4)">📋 Report</button>
+    </div>
+
+    <div class="info-panel" id="phase-info-panel" style="min-height:120px;"></div>
+
+    <div class="formula" id="phase-code-block"></div>
+
+    <div class="grid3" style="margin-top:4px;">
+      <div class="card">
+        <div class="card-title" style="color:var(--c-benchmarks)">Open Source</div>
+        <div class="card-body">MASEval is published under MIT license at <strong>parameterlab.github.io/MASEval</strong>. All experiments in the paper are fully reproducible using the provided harness configurations and seed values.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-topology)">Framework-Agnostic</div>
+        <div class="card-body">Adding a new framework requires implementing just two methods: <code style="color:var(--accent2);font-family:'JetBrains Mono',monospace;font-size:11px;">_run_agent()</code> and <code style="color:var(--accent2);font-family:'JetBrains Mono',monospace;font-size:11px;">get_messages()</code>. The adapter pattern keeps evaluation logic decoupled from framework internals.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-framework)">CI/CD Ready</div>
+        <div class="card-body">Reports export as structured JSON, enabling integration with CI/CD pipelines. Run MASEval on every architecture change to catch system-level regressions before they reach production.</div>
+      </div>
+    </div>
+
+    <div style="margin-top:40px;padding:20px;background:var(--surface);border:1px solid var(--border);border-radius:12px;text-align:center;">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:8px;">Paper: MASEval — A Framework for Multi-Agent System Evaluation</div>
+      <div style="font-size:11px;color:var(--muted);">ParameterLab · arxiv.org/abs/2603.08835 · MIT License</div>
+      <div style="margin-top:12px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+        <span class="badge badge-violet">Multi-Agent Systems</span>
+        <span class="badge badge-green">GAIA Benchmark</span>
+        <span class="badge badge-blue">Framework Evaluation</span>
+        <span class="badge badge-amber">Reproducible Research</span>
+      </div>
+    </div>
+  </section>
+
+</div><!-- /main -->
+
+<script>
+/* ===== PASSWORD GATE ===== */
+var PG_PASSWORD = 'visual2025';
+var PG_KEY = 'pg_unlocked_25';
+function pgCheck() {
+  var v = document.getElementById('pg-input').value.trim();
+  if (v === PG_PASSWORD) {
+    localStorage.setItem(PG_KEY, '1');
+    document.getElementById('pg-gate').style.display = 'none';
+    doInit();
+  } else {
+    document.getElementById('pg-err').textContent = 'Incorrect password. Try again.';
+  }
+}
+
+/* ===== UTILITIES ===== */
+function lerp(a, b, t) { return a + (b - a) * t; }
+function easeInOut(t) { return t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t+2,2)/2; }
+function hexToRgb(hex) {
+  var r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return {r,g,b};
+}
+function rgba(hex, a) {
+  var c = hexToRgb(hex); return 'rgba('+c.r+','+c.g+','+c.b+','+a+')';
+}
+function drawRoundedRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y); ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w, y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r, y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x, y+r); ctx.arcTo(x,y,x+r,y,r);
+  ctx.closePath();
+}
+function drawArrow(ctx, x1, y1, x2, y2, color, lw, alpha) {
+  alpha = alpha || 1;
+  var a = Math.atan2(y2-y1, x2-x1);
+  var dx = x2 - x1, dy = y2 - y1;
+  var len = Math.sqrt(dx*dx+dy*dy);
+  var ex = x1 + Math.cos(a)*(len-12);
+  var ey = y1 + Math.sin(a)*(len-12);
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = color; ctx.lineWidth = lw || 1.5;
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(ex, ey); ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - 10*Math.cos(a-0.35), y2 - 10*Math.sin(a-0.35));
+  ctx.lineTo(x2 - 10*Math.cos(a+0.35), y2 - 10*Math.sin(a+0.35));
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+/* ===== SCROLL & NAV ===== */
+var SECTION_IDS = ['s-overview','s-topologies','s-dimensions','s-benchmarks','s-framework','s-errors','s-lifecycle'];
+function scrollTo(id) {
+  var el = document.getElementById(id);
+  if (el) el.scrollIntoView({behavior:'smooth'});
+}
+function updateNavOnScroll() {
+  var mainEl = document.getElementById('main-scroll');
+  var scrollTop = mainEl.scrollTop;
+  var sp = document.getElementById('scroll-progress');
+  var pct = scrollTop / (mainEl.scrollHeight - mainEl.clientHeight) * 100;
+  sp.style.width = Math.min(100, pct) + '%';
+  var cur = SECTION_IDS[0];
+  SECTION_IDS.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el && el.offsetTop - mainEl.scrollTop < 200) cur = id;
+  });
+  document.querySelectorAll('.nav-link').forEach(function(link) {
+    var txt = link.textContent.trim().toLowerCase();
+    var sectionMap = {
+      'the evaluation gap':'s-overview','system architectures':'s-topologies',
+      'what we measure':'s-dimensions','testing grounds':'s-benchmarks',
+      'framework vs. model':'s-framework','failure anatomy':'s-errors',
+      'evaluation lifecycle':'s-lifecycle'
+    };
+    var isActive = false;
+    Object.keys(sectionMap).forEach(function(k) {
+      if (txt === k && sectionMap[k] === cur) isActive = true;
+    });
+    link.classList.toggle('active', isActive);
+  });
+}
+
+/* ===== ACCORDION ===== */
+function toggleAcc(header) {
+  var item = header.parentElement;
+  item.classList.toggle('open');
+}
+
+/* ===== DATA ===== */
+var TOPOLOGIES = [
+  {id:'sequential',label:'Sequential',color:'#0ea5e9',
+   agents:['Planner','Researcher','Analyst','Writer'],
+   desc:'<strong>Sequential topology</strong> chains agents in a fixed linear order — each agent depends on the output of the previous one. This is the simplest architecture but carries the highest failure risk: a single failed agent blocks all downstream processing.',
+   coordination:'Pass-forward only (one-directional)',
+   errorMode:'CASCADE — all downstream agents blocked',
+   overhead:'Low',gsr:38.2},
+  {id:'hierarchical',label:'Hierarchical',color:'#a78bfa',
+   agents:['Orchestrator','SubAgent-A','SubAgent-B','SubAgent-C'],
+   desc:'<strong>Hierarchical topology</strong> uses a central orchestrator to delegate tasks to specialised sub-agents. The orchestrator synthesises results and can retry individual sub-tasks independently. This is the highest-performing topology on GAIA.',
+   coordination:'Top-down delegation + synthesis',
+   errorMode:'PARTIAL — failure isolated to sub-task',
+   overhead:'Medium',gsr:51.7},
+  {id:'parallel',label:'Parallel',color:'#10b981',
+   agents:['Worker-1','Worker-2','Aggregator','Worker-3'],
+   desc:'<strong>Parallel topology</strong> runs multiple agents simultaneously on independent sub-tasks, with an aggregator collecting results. Failures in individual workers are naturally isolated — the aggregator proceeds with available outputs.',
+   coordination:'Independent execution + aggregate',
+   errorMode:'ISOLATED — other workers unaffected',
+   overhead:'Medium-High',gsr:46.3},
+  {id:'mesh',label:'Mesh',color:'#f97316',
+   agents:['Agent-A','Agent-B','Agent-C','Agent-D'],
+   desc:'<strong>Mesh topology</strong> enables fully peer-to-peer communication — any agent can message any other. This offers maximum flexibility for collaborative reasoning and debate frameworks, but introduces the highest coordination overhead.',
+   coordination:'Fully peer-to-peer (bidirectional)',
+   errorMode:'COMPLEX — topology-dependent propagation',
+   overhead:'High',gsr:44.8}
+];
+
+var BENCHMARKS = [
+  {id:'gaia',label:'GAIA',color:'#10b981',
+   fullName:'General AI Assistants Benchmark',
+   tasks:466,metric:'GSR (Goal Success Rate)',
+   difficulty:[
+     {level:'Level 1 — Simple',pct:30,desc:'Single-step tool lookup'},
+     {level:'Level 2 — Moderate',pct:45,desc:'Multi-step, 2–5 tool calls'},
+     {level:'Level 3 — Hard',pct:25,desc:'Complex multi-hop planning'}
+   ],
+   caps:['Web search','File reading','Code execution','Multi-hop reasoning'],
+   relevance:'Primary MASEval benchmark. Tests end-to-end task completion across all topology types. GSR rewards only fully-correct task completion — partial answers score zero.',
+   scores:{Sequential:38.2,Hierarchical:51.7,Parallel:46.3,Mesh:44.8}},
+  {id:'tau',label:'Tau-bench',color:'#0ea5e9',
+   fullName:'Tool Augmented Understanding Benchmark',
+   tasks:120,metric:'Task completion rate + policy violation rate',
+   difficulty:[
+     {level:'Retail domain',pct:50,desc:'Customer service workflows with tool calls'},
+     {level:'Airline domain',pct:50,desc:'Booking, rebooking, cancellation flows'}
+   ],
+   caps:['Tool orchestration','State tracking','Policy compliance','Error recovery'],
+   relevance:'Tests communication efficiency and error handling. Unique because agents must follow domain policies — pure task completion without policy compliance fails the benchmark.',
+   scores:{Sequential:42.1,Hierarchical:58.3,Parallel:53.7,Mesh:41.2}},
+  {id:'mmlu',label:'MMLU',color:'#f97316',
+   fullName:'Massive Multitask Language Understanding',
+   tasks:14042,metric:'Accuracy (0-shot)',
+   difficulty:[
+     {level:'STEM (38%)',pct:38,desc:'Math, physics, medicine'},
+     {level:'Humanities (26%)',pct:26,desc:'History, philosophy, law'},
+     {level:'Social Sciences (20%)',pct:20,desc:'Economics, psychology'},
+     {level:'Other (16%)',pct:16,desc:'Business, health, misc'}
+   ],
+   caps:['Domain knowledge','Factual recall','Multi-domain coverage','Reasoning'],
+   relevance:'Tests knowledge routing in specialised-agent topologies. Hierarchical MAS with domain-specific sub-agents typically outperform single-agent baselines by routing questions to the most relevant specialist.',
+   scores:{Sequential:71.4,Hierarchical:76.2,Parallel:74.8,Mesh:72.9}}
+];
+
+var FRAMEWORK_DATA = [
+  {id:'autogen',   label:'AutoGen',         color:'#0ea5e9',gsr:51.7,tokens:82.4},
+  {id:'langgraph', label:'LangGraph',        color:'#a78bfa',gsr:48.9,tokens:71.2},
+  {id:'claudesdk', label:'Claude Agent SDK', color:'#7c3aed',gsr:53.2,tokens:68.9},
+  {id:'smolagents',label:'smolagents',       color:'#10b981',gsr:44.6,tokens:55.3},
+  {id:'camel',     label:'CAMEL',            color:'#f97316',gsr:41.3,tokens:90.1},
+  {id:'llamaindex',label:'LlamaIndex',       color:'#ef4444',gsr:46.1,tokens:63.7}
+];
+var MODEL_DATA = [
+  {id:'gpt4o',    label:'GPT-4o',           color:'#10b981',gsr:53.1,tokens:78.3},
+  {id:'claude35', label:'Claude 3.5 Sonnet',color:'#7c3aed',gsr:55.4,tokens:72.1},
+  {id:'gemini',   label:'Gemini 1.5 Pro',   color:'#f97316',gsr:49.7,tokens:69.4}
+];
+
+var ERROR_ATTR = {
+  0:{agent:65,env:25,user:10,note:'Sequential topologies cascade all failures downstream — most attributed to the failing agent.'},
+  1:{agent:45,env:30,user:25,note:'Hierarchical systems distribute error responsibility — orchestrator errors surface as user-visible failures.'},
+  2:{agent:30,env:45,user:25,note:'Parallel isolation exposes more environment errors — individual worker failures are attributed to their tool calls.'},
+  3:{agent:50,env:35,user:15,note:'Mesh systems show complex error patterns — peer communication failures are split between agent and environment attribution.'}
+};
+
+var DIMENSION_DATA = {
+  autogen:   {perf:68,comm:72,err:61,res:55},
+  langgraph: {perf:73,comm:65,err:74,res:63},
+  claudesdk: {perf:71,comm:80,err:69,res:70},
+  smolagents:{perf:62,comm:70,err:58,res:75}
+};
+
+var LIFECYCLE_PHASES = [
+  {label:'Setup',color:'#0ea5e9',icon:'⚙',
+   desc:'Configure the multi-agent system under test: define topology, assign agents to their framework, select target benchmarks, and set reproducibility seeds.',
+   details:['Choose topology (Sequential/Hierarchical/Parallel/Mesh)','Assign a framework (AutoGen, LangGraph, Claude SDK, etc.)','Select benchmarks: GAIA, Tau-bench, MMLU','Define agent specialisations and tool access permissions'],
+   code:'from maseval import MASEval\n\neval = MASEval(\n    topology="hierarchical",\n    framework="autogen",\n    benchmarks=["gaia", "tau"],\n    agents=4,\n    seed=42\n)'},
+  {label:'Execute',color:'#a78bfa',icon:'▶',
+   desc:'Run all benchmark tasks through the configured system. MASEval instruments every inter-agent message, tool call, and LLM API request in real time.',
+   details:['Executes all benchmark tasks with full instrumentation','Captures every inter-agent message (content + token count)','Records all tool call successes, failures, and retries','Tags each LLM call with agent ID and topology level'],
+   code:'results = eval.run(\n    tasks="gaia-level2",\n    log_level="verbose",\n    timeout_per_task=120\n)\n\nprint(f"Completed: {results.n_completed} tasks")'},
+  {label:'Collect',color:'#10b981',icon:'📊',
+   desc:'Aggregate raw execution logs into structured evaluation artefacts: message traces, error logs, token usage reports, and per-task completion records.',
+   details:['Structured JSON traces per task and per agent','Error log with three-category attribution (agent/env/user)','Token usage breakdown by agent, phase, and topology level','Task completion status + raw GSR computation'],
+   code:'traces = results.collect()\n\nprint(traces.token_usage)   # Per-agent token breakdown\nprint(traces.error_log)     # Attributed failures\nprint(traces.messages)      # Full inter-agent trace'},
+  {label:'Evaluate',color:'#f97316',icon:'🎯',
+   desc:'Score the system across all four evaluation dimensions. Compute GSR for GAIA, task completion and policy compliance for Tau-bench, and accuracy for MMLU.',
+   details:['GSR computed per benchmark (GAIA primary metric)','Communication efficiency = total tokens / tasks completed','Error resilience = % tasks recovered after first-agent failure','Resource efficiency = cost-per-task-success'],
+   code:'metrics = eval.evaluate(\n    traces=traces,\n    dimensions=["performance","efficiency","resilience","resources"],\n    compare_against="autogen"  # baseline\n)\n\nprint(metrics.radar_scores)'},
+  {label:'Report',color:'#7c3aed',icon:'📋',
+   desc:'Generate a structured evaluation report with radar charts, framework comparison tables, error attribution breakdowns, and architecture recommendations.',
+   details:['HTML report with radar chart + bar charts','Cross-framework comparison table (for multiple runs)','Ranked recommendations: best topology + framework combos','Exportable JSON for CI/CD pipeline integration'],
+   code:'eval.report(\n    metrics=metrics,\n    output="html",\n    include=["radar","errors","cost","comparison"],\n    save_to="./maseval-report.html"\n)'}
+];
+
+/* ===== STATE ===== */
+var selectedTopology = 0;
+var selectedBenchmark = 0;
+var frameworkView = 'framework';
+var metricView = 'gsr';
+var cascadeTopology = 0;
+var cascadeFailNode = -1;
+var selectedPhase = 0;
+var radarRef = 'autogen';
+var overviewT = 0;
+var topoAnimT = 0;
+var barAnimT = 0;
+var barAnimTarget = 0;
+var barAnimValues = [];
+var cascadeAnimT = 0;
+var cascadeAnimRunning = false;
+
+/* ===== SECTION 1: OVERVIEW CANVAS ===== */
+function drawOverview() {
+  var canvas = document.getElementById('canvas-overview');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#161b22';
+  drawRoundedRect(ctx, 0, 0, W, H, 10);
+  ctx.fill();
+
+  overviewT += 0.008;
+  var PW = W / 3, PAD = 20;
+
+  var panels = [
+    {title:'LLM Model',sub:'Single inference',color:'#8b949e',nodes:[{x:0.5,y:0.42}],edges:[]},
+    {title:'Agent',sub:'Tools + memory',color:'#a78bfa',nodes:[{x:0.5,y:0.38},{x:0.25,y:0.65},{x:0.5,y:0.65},{x:0.75,y:0.65}],edges:[[0,1],[0,2],[0,3]]},
+    {title:'Multi-Agent System',sub:'4 topologies · 6 frameworks',color:'#7c3aed',nodes:[{x:0.25,y:0.3},{x:0.75,y:0.3},{x:0.25,y:0.7},{x:0.75,y:0.7}],edges:[[0,1],[0,2],[1,3],[2,3],[0,3],[1,2]]}
+  ];
+
+  panels.forEach(function(p, pi) {
+    var ox = pi * PW + PAD;
+    var pw = PW - PAD * 2;
+    // Panel background
+    var isActive = pi === 2;
+    var glowAlpha = isActive ? (0.08 + 0.04 * Math.sin(overviewT * 2)) : 0.03;
+    ctx.save();
+    drawRoundedRect(ctx, ox, PAD, pw, H - PAD*2, 8);
+    ctx.fillStyle = isActive ? rgba(p.color, glowAlpha) : rgba('#30363d', 0.3);
+    ctx.fill();
+    ctx.strokeStyle = isActive ? rgba(p.color, 0.4 + 0.15*Math.sin(overviewT*2)) : '#30363d';
+    ctx.lineWidth = isActive ? 1.5 : 1;
+    ctx.stroke();
+    ctx.restore();
+
+    // Title
+    ctx.font = 'bold 12px Inter,sans-serif';
+    ctx.fillStyle = p.color;
+    ctx.textAlign = 'center';
+    ctx.fillText(p.title, ox + pw/2, PAD + 22);
+    ctx.font = '10px Inter,sans-serif';
+    ctx.fillStyle = '#8b949e';
+    ctx.fillText(p.sub, ox + pw/2, PAD + 36);
+
+    // Draw edges
+    p.edges.forEach(function(e) {
+      var n1 = p.nodes[e[0]], n2 = p.nodes[e[1]];
+      var x1 = ox + n1.x * pw, y1 = PAD + 40 + n1.y * (H - PAD*2 - 40);
+      var x2 = ox + n2.x * pw, y2 = PAD + 40 + n2.y * (H - PAD*2 - 40);
+      ctx.strokeStyle = rgba(p.color, 0.2);
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    });
+
+    // Draw nodes
+    p.nodes.forEach(function(n, ni) {
+      var nx = ox + n.x * pw, ny = PAD + 40 + n.y * (H - PAD*2 - 40);
+      var r = (ni === 0 && pi > 0) ? 14 : 10;
+      var pulse = isActive ? (0.85 + 0.15 * Math.sin(overviewT*2 + ni)) : 0.7;
+      ctx.beginPath(); ctx.arc(nx, ny, r, 0, Math.PI*2);
+      ctx.fillStyle = rgba(p.color, 0.15);
+      ctx.fill();
+      ctx.strokeStyle = rgba(p.color, pulse);
+      ctx.lineWidth = 1.5; ctx.stroke();
+      // Icon dot
+      ctx.beginPath(); ctx.arc(nx, ny, 3, 0, Math.PI*2);
+      ctx.fillStyle = p.color; ctx.fill();
+    });
+
+    // Animated message particle (for panels 1 and 2)
+    if (pi > 0 && p.edges.length > 0) {
+      var eidx = Math.floor(overviewT / 0.5) % p.edges.length;
+      var edgeT = (overviewT % 0.5) / 0.5;
+      var e = p.edges[eidx % p.edges.length];
+      var n1 = p.nodes[e[0]], n2 = p.nodes[e[1]];
+      var px2 = lerp(ox+n1.x*pw, ox+n2.x*pw, edgeT);
+      var py2 = lerp(PAD+40+n1.y*(H-PAD*2-40), PAD+40+n2.y*(H-PAD*2-40), edgeT);
+      ctx.beginPath(); ctx.arc(px2, py2, 4, 0, Math.PI*2);
+      ctx.fillStyle = p.color; ctx.fill();
+      ctx.beginPath(); ctx.arc(px2, py2, 7, 0, Math.PI*2);
+      ctx.fillStyle = rgba(p.color, 0.25); ctx.fill();
+    }
+  });
+
+  // Arrows between panels
+  ['','→'].forEach(function(_, ai) {
+    if (ai === 0) return;
+    var x = PW - PAD;
+    var y = H / 2;
+    drawArrow(ctx, PW - 8, y, PW + 8, y, '#30363d', 1.5, 0.6);
+  });
+  // Draw connecting arrows between panels
+  for (var i = 0; i < 2; i++) {
+    var x1 = (i+1) * PW - PAD, y1 = H/2;
+    var x2 = (i+1) * PW + PAD, y2 = H/2;
+    var arrowColor = i === 1 ? '#7c3aed' : '#8b949e';
+    drawArrow(ctx, x1, y1, x2, y2, arrowColor, 2, 0.7);
+    ctx.font = 'bold 9px Inter';
+    ctx.fillStyle = arrowColor;
+    ctx.textAlign = 'center';
+    ctx.fillText(i===0?'add tools\n& memory':'coordinate\n& evaluate', (i+1)*PW, y1+20);
+  }
+}
+
+/* ===== TOPOLOGY NODE POSITIONS ===== */
+function getTopologyNodes(topoIdx, cx, cy, radius) {
+  if (topoIdx === 0) { // Sequential
+    var agents = TOPOLOGIES[0].agents;
+    return agents.map(function(a,i) {
+      return {x: cx - radius*1.5 + i*(radius), y: cy, label:a};
+    });
+  }
+  if (topoIdx === 1) { // Hierarchical
+    return [
+      {x:cx, y:cy-radius*0.7, label:'Orchestrator'},
+      {x:cx-radius*1.1, y:cy+radius*0.6, label:'SubAgent-A'},
+      {x:cx, y:cy+radius*0.6, label:'SubAgent-B'},
+      {x:cx+radius*1.1, y:cy+radius*0.6, label:'SubAgent-C'}
+    ];
+  }
+  if (topoIdx === 2) { // Parallel
+    return [
+      {x:cx-radius*1.1, y:cy-radius*0.5, label:'Worker-1'},
+      {x:cx, y:cy-radius*0.5, label:'Worker-2'},
+      {x:cx+radius*1.1, y:cy-radius*0.5, label:'Worker-3'},
+      {x:cx, y:cy+radius*0.7, label:'Aggregator'}
+    ];
+  }
+  // Mesh
+  var r2 = radius * 0.9;
+  return [
+    {x:cx, y:cy-r2, label:'Agent-A'},
+    {x:cx+r2*0.95, y:cy+r2*0.35, label:'Agent-B'},
+    {x:cx+r2*0.58, y:cy+r2*1.05, label:'Agent-C'},
+    {x:cx-r2*0.58, y:cy+r2*1.05, label:'Agent-D'},
+    {x:cx-r2*0.95, y:cy+r2*0.35, label:'Agent-E'}
+  ].slice(0,4);
+}
+
+function getTopologyEdges(topoIdx) {
+  if (topoIdx === 0) return [[0,1],[1,2],[2,3]];
+  if (topoIdx === 1) return [[0,1],[0,2],[0,3]];
+  if (topoIdx === 2) return [[0,3],[1,3],[2,3]];
+  return [[0,1],[1,2],[2,3],[3,0],[0,2],[1,3]];
+}
+
+/* ===== SECTION 2: TOPOLOGY CANVAS ===== */
+var topoAnimRaf = null;
+function selectTopology(idx) {
+  selectedTopology = idx;
+  for (var i = 0; i < 4; i++) {
+    var btn = document.getElementById('topo-btn-'+i);
+    if (btn) btn.classList.toggle('active', i === idx);
+  }
+  var t = TOPOLOGIES[idx];
+  document.getElementById('topo-info-panel').innerHTML =
+    t.desc + '<br><br>' +
+    '<span style="color:var(--text);font-weight:600;">Coordination:</span> ' + t.coordination + ' &nbsp;|&nbsp; ' +
+    '<span style="color:var(--text);font-weight:600;">Error mode:</span> ' + t.errorMode + ' &nbsp;|&nbsp; ' +
+    '<span style="color:var(--text);font-weight:600;">Overhead:</span> ' + t.overhead + ' &nbsp;|&nbsp; ' +
+    '<span style="color:var(--text);font-weight:600;">GAIA GSR:</span> <span style="color:'+t.color+';font-weight:700;">'+t.gsr+'%</span>';
+}
+
+function drawTopology() {
+  var canvas = document.getElementById('canvas-topology');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = '#161b22';
+  drawRoundedRect(ctx,0,0,W,H,10); ctx.fill();
+
+  var t = TOPOLOGIES[selectedTopology];
+  var cx = W/2, cy = H/2 - 10, radius = 90;
+  var nodes = getTopologyNodes(selectedTopology, cx, cy, radius);
+  var edges = getTopologyEdges(selectedTopology);
+
+  // Draw edges
+  edges.forEach(function(e) {
+    var n1 = nodes[e[0]], n2 = nodes[e[1]];
+    drawArrow(ctx, n1.x, n1.y, n2.x, n2.y, rgba(t.color, 0.35), 1.5);
+  });
+
+  // Animated particle on edges
+  if (edges.length > 0) {
+    var eidx = Math.floor(topoAnimT * 2) % edges.length;
+    var pt = (topoAnimT * 2) % 1;
+    var e = edges[eidx];
+    var n1 = nodes[e[0]], n2 = nodes[e[1]];
+    var px = lerp(n1.x, n2.x, easeInOut(pt));
+    var py = lerp(n1.y, n2.y, easeInOut(pt));
+    ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI*2);
+    ctx.fillStyle = t.color; ctx.fill();
+    ctx.beginPath(); ctx.arc(px, py, 9, 0, Math.PI*2);
+    ctx.fillStyle = rgba(t.color, 0.2); ctx.fill();
+  }
+
+  // Draw nodes
+  nodes.forEach(function(n, ni) {
+    var r = 28;
+    ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, Math.PI*2);
+    ctx.fillStyle = rgba(t.color, 0.12); ctx.fill();
+    ctx.strokeStyle = rgba(t.color, 0.7); ctx.lineWidth = 2; ctx.stroke();
+    ctx.font = 'bold 11px Inter,sans-serif';
+    ctx.fillStyle = t.color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(n.label.length > 8 ? n.label.slice(0,7)+'…' : n.label, n.x, n.y);
+    ctx.textBaseline = 'alphabetic';
+  });
+
+  // Label
+  ctx.font = 'bold 13px Inter,sans-serif';
+  ctx.fillStyle = t.color;
+  ctx.textAlign = 'center';
+  ctx.fillText(t.label + ' Topology', W/2, H - 18);
+}
+
+function animateTopo() {
+  topoAnimT += 0.012;
+  if (topoAnimT > 100) topoAnimT = 0;
+  drawTopology();
+  topoAnimRaf = requestAnimationFrame(animateTopo);
+}
+
+/* ===== SECTION 3: RADAR CHART ===== */
+function getRadarValues() {
+  return {
+    perf: +document.getElementById('sl-perf').value,
+    comm: +document.getElementById('sl-comm').value,
+    err:  +document.getElementById('sl-err').value,
+    res:  +document.getElementById('sl-res').value
+  };
+}
+
+function updateRadar() {
+  var vals = getRadarValues();
+  document.getElementById('sv-perf').textContent = vals.perf;
+  document.getElementById('sv-comm').textContent = vals.comm;
+  document.getElementById('sv-err').textContent  = vals.err;
+  document.getElementById('sv-res').textContent  = vals.res;
+  drawRadar();
+}
+
+function setRadarRef(key) {
+  radarRef = key;
+  ['autogen','langgraph','claudesdk','smolagents'].forEach(function(k) {
+    var btn = document.getElementById('ref-btn-'+k);
+    if (btn) btn.classList.toggle('active', k === key);
+  });
+  drawRadar();
+}
+
+function drawRadar() {
+  var canvas = document.getElementById('canvas-radar');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = '#161b22';
+  drawRoundedRect(ctx,0,0,W,H,10); ctx.fill();
+
+  var cx = W/2, cy = H/2 + 10, R = 130;
+  var axes = ['Task\nPerformance','Communication\nEfficiency','Error\nResilience','Resource\nEfficiency'];
+  var axisColors = ['#f7b731','#0ea5e9','#ef4444','#10b981'];
+  var N = axes.length;
+  var angles = axes.map(function(_,i) { return (Math.PI * 2 * i / N) - Math.PI/2; });
+
+  // Grid rings
+  [0.25,0.5,0.75,1].forEach(function(f) {
+    ctx.beginPath();
+    angles.forEach(function(a,i) {
+      var px = cx + Math.cos(a)*R*f, py = cy + Math.sin(a)*R*f;
+      if (i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    });
+    ctx.closePath();
+    ctx.strokeStyle = rgba('#30363d', 0.8);
+    ctx.lineWidth = 1; ctx.stroke();
+    // Ring label
+    ctx.font = '9px Inter';
+    ctx.fillStyle = '#484f58';
+    ctx.textAlign = 'left';
+    ctx.fillText(Math.round(f*100), cx + 4, cy - R*f + 3);
+  });
+
+  // Axes
+  angles.forEach(function(a, i) {
+    var px = cx + Math.cos(a)*R, py = cy + Math.sin(a)*R;
+    ctx.strokeStyle = rgba(axisColors[i], 0.35);
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(px,py); ctx.stroke();
+    // Axis labels
+    var lx = cx + Math.cos(a)*(R+24), ly = cy + Math.sin(a)*(R+24);
+    ctx.font = 'bold 10px Inter';
+    ctx.fillStyle = axisColors[i];
+    ctx.textAlign = Math.abs(Math.cos(a)) < 0.1 ? 'center' : (Math.cos(a) < 0 ? 'right' : 'left');
+    var lines = axes[i].split('\n');
+    lines.forEach(function(line, li) {
+      ctx.fillText(line, lx, ly + li*13 - (lines.length-1)*6);
+    });
+  });
+
+  // Reference framework polygon (amber)
+  var refData = DIMENSION_DATA[radarRef];
+  var refVals = [refData.perf, refData.comm, refData.err, refData.res];
+  ctx.beginPath();
+  angles.forEach(function(a,i) {
+    var r = (refVals[i]/100) * R;
+    var px = cx + Math.cos(a)*r, py = cy + Math.sin(a)*r;
+    if (i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+  });
+  ctx.closePath();
+  ctx.fillStyle = rgba('#f7b731', 0.12);
+  ctx.fill();
+  ctx.strokeStyle = rgba('#f7b731', 0.6);
+  ctx.lineWidth = 1.5; ctx.stroke();
+
+  // User polygon (violet)
+  var userVals = getRadarValues();
+  var uArr = [userVals.perf, userVals.comm, userVals.err, userVals.res];
+  ctx.beginPath();
+  angles.forEach(function(a,i) {
+    var r = (uArr[i]/100) * R;
+    var px = cx + Math.cos(a)*r, py = cy + Math.sin(a)*r;
+    if (i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+  });
+  ctx.closePath();
+  ctx.fillStyle = rgba('#7c3aed', 0.18);
+  ctx.fill();
+  ctx.strokeStyle = '#a78bfa';
+  ctx.lineWidth = 2; ctx.stroke();
+  // Dots on vertices
+  angles.forEach(function(a,i) {
+    var r = (uArr[i]/100) * R;
+    var px = cx + Math.cos(a)*r, py = cy + Math.sin(a)*r;
+    ctx.beginPath(); ctx.arc(px,py,4,0,Math.PI*2);
+    ctx.fillStyle = '#a78bfa'; ctx.fill();
+  });
+
+  // Center dot
+  ctx.beginPath(); ctx.arc(cx,cy,3,0,Math.PI*2);
+  ctx.fillStyle = '#30363d'; ctx.fill();
+}
+
+/* ===== SECTION 4: BENCHMARKS ===== */
+function selectBenchmark(idx) {
+  selectedBenchmark = idx;
+  for (var i = 0; i < 3; i++) {
+    var card = document.getElementById('bm-'+i);
+    if (card) card.classList.toggle('active', i === idx);
+  }
+  renderBenchmarkExpand(idx);
+  var bm = BENCHMARKS[idx];
+  document.getElementById('bm-info-panel').innerHTML =
+    '<strong>MAS Relevance:</strong> ' + bm.relevance + '<br><br>' +
+    '<strong>Topology Scores ('+bm.metric+'):</strong> ' +
+    Object.keys(bm.scores).map(function(k) {
+      return '<span style="color:var(--text);font-weight:700;">'+k+'</span>: <span style="color:#a78bfa;font-weight:700;">'+bm.scores[k]+'%</span>';
+    }).join(' &nbsp;·&nbsp; ');
+}
+
+function renderBenchmarkExpand(idx) {
+  var bm = BENCHMARKS[idx];
+  var html = '<div style="margin-bottom:10px;">';
+  bm.difficulty.forEach(function(d) {
+    html += '<div class="diff-row"><span class="diff-lbl">'+d.level+'</span>';
+    html += '<div class="diff-bar-track"><div class="diff-bar-fill" style="background:'+bm.color+';width:0" data-target="'+d.pct+'"></div></div>';
+    html += '<span class="diff-pct">'+d.pct+'%</span></div>';
+  });
+  html += '</div>';
+  html += '<div style="margin-bottom:8px;">';
+  bm.caps.forEach(function(c) {
+    html += '<span class="badge" style="background:'+rgba(bm.color,0.15)+';color:'+bm.color+'">'+c+'</span>';
+  });
+  html += '</div>';
+  html += '<div style="font-size:11px;color:var(--muted);">Tasks: <strong style="color:var(--text)">'+bm.tasks.toLocaleString()+'</strong> &nbsp;·&nbsp; Metric: <strong style="color:var(--text)">'+bm.metric+'</strong></div>';
+
+  document.getElementById('bm-expand-'+idx).innerHTML = html;
+  // Animate bars
+  setTimeout(function() {
+    document.querySelectorAll('#bm-expand-'+idx+' .diff-bar-fill').forEach(function(el) {
+      el.style.width = el.dataset.target + '%';
+    });
+  }, 50);
+}
+
+/* ===== SECTION 5: BAR CHART ===== */
+function setFrameworkView(v) {
+  frameworkView = v;
+  document.getElementById('fw-btn-framework').classList.toggle('active', v==='framework');
+  document.getElementById('fw-btn-model').classList.toggle('active', v==='model');
+  startBarAnim();
+}
+
+function setMetricView(v) {
+  metricView = v;
+  document.getElementById('metric-btn-gsr').classList.toggle('active', v==='gsr');
+  document.getElementById('metric-btn-tokens').classList.toggle('active', v==='tokens');
+  startBarAnim();
+}
+
+var barAnimRaf = null;
+var barAnimStart2 = null;
+var barAnimDuration = 600;
+
+function startBarAnim() {
+  var data = frameworkView === 'framework' ? FRAMEWORK_DATA : MODEL_DATA;
+  var key = metricView === 'gsr' ? 'gsr' : 'tokens';
+  barAnimTarget = data.map(function(d){ return d[key]; });
+  barAnimValues = barAnimTarget.map(function(){ return 0; });
+  barAnimStart2 = null;
+  if (barAnimRaf) cancelAnimationFrame(barAnimRaf);
+  function frame(ts) {
+    if (!barAnimStart2) barAnimStart2 = ts;
+    var t = Math.min(1, (ts - barAnimStart2) / barAnimDuration);
+    var et = easeInOut(t);
+    barAnimValues = barAnimTarget.map(function(v){ return v * et; });
+    drawBarChart();
+    if (t < 1) barAnimRaf = requestAnimationFrame(frame);
+  }
+  barAnimRaf = requestAnimationFrame(frame);
+}
+
+function drawBarChart() {
+  var canvas = document.getElementById('canvas-barrace');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = '#161b22';
+  drawRoundedRect(ctx,0,0,W,H,10); ctx.fill();
+
+  var data = frameworkView === 'framework' ? FRAMEWORK_DATA : MODEL_DATA;
+  var key = metricView === 'gsr' ? 'gsr' : 'tokens';
+  var maxVal = metricView === 'gsr' ? 60 : 100;
+  var unitLabel = metricView === 'gsr' ? '% GSR' : 'k tokens';
+
+  // Sort by value descending
+  var sorted = data.map(function(d,i) { return {d:d,val:barAnimValues[i]||0,real:d[key]}; });
+  sorted.sort(function(a,b){ return b.real - a.real; });
+
+  var PAD_L = 140, PAD_R = 80, PAD_T = 40, ROW_H = 44;
+  var barW = W - PAD_L - PAD_R;
+
+  // Title
+  ctx.font = 'bold 12px Inter';
+  ctx.fillStyle = '#8b949e';
+  ctx.textAlign = 'left';
+  ctx.fillText((frameworkView==='framework'?'Framework':'Model') + ' comparison — ' + (metricView==='gsr'?'GAIA GSR %':'Token consumption (k)'), PAD_L, 22);
+
+  sorted.forEach(function(item, i) {
+    var y = PAD_T + i * ROW_H;
+    var bh = ROW_H - 12;
+    var bw = (item.val / maxVal) * barW;
+
+    // Label
+    ctx.font = 'bold 11px Inter';
+    ctx.fillStyle = '#c9d1d9';
+    ctx.textAlign = 'right';
+    ctx.fillText(item.d.label, PAD_L - 10, y + bh/2 + 4);
+
+    // Bar track
+    ctx.fillStyle = '#0d1117';
+    drawRoundedRect(ctx, PAD_L, y, barW, bh, 4);
+    ctx.fill();
+
+    // Bar fill
+    if (bw > 0) {
+      ctx.fillStyle = item.d.color;
+      drawRoundedRect(ctx, PAD_L, y, Math.max(bw,4), bh, 4);
+      ctx.fill();
+      // Subtle glow
+      ctx.fillStyle = rgba(item.d.color, 0.15);
+      drawRoundedRect(ctx, PAD_L, y, Math.max(bw,4), bh, 4);
+      ctx.fill();
+    }
+
+    // Value label
+    ctx.font = 'bold 11px Inter';
+    ctx.fillStyle = item.d.color;
+    ctx.textAlign = 'left';
+    ctx.fillText(item.real.toFixed(1) + unitLabel, PAD_L + barW + 8, y + bh/2 + 4);
+  });
+}
+
+/* ===== SECTION 6: CASCADE ===== */
+function selectCascadeTopology(idx) {
+  cascadeTopology = idx;
+  cascadeFailNode = -1;
+  cascadeAnimRunning = false;
+  for (var i = 0; i < 4; i++) {
+    var btn = document.getElementById('casc-btn-'+i);
+    if (btn) btn.classList.toggle('active', i===idx);
+  }
+  renderFailButtons();
+  updateAttrBar(idx);
+  document.getElementById('cascade-info').textContent = 'Select a topology and inject a failure to see propagation behaviour.';
+  drawCascade();
+}
+
+function renderFailButtons() {
+  var row = document.getElementById('fail-btn-row');
+  if (!row) return;
+  var agents = TOPOLOGIES[cascadeTopology].agents;
+  row.innerHTML = '<span style="font-size:11px;color:var(--muted);margin-right:6px;">Inject failure at:</span>';
+  agents.forEach(function(a,i) {
+    var btn = document.createElement('button');
+    btn.className = 'fail-btn';
+    btn.textContent = a;
+    btn.onclick = (function(idx){ return function(){ injectFailure(idx); }; })(i);
+    btn.id = 'fail-node-btn-'+i;
+    row.appendChild(btn);
+  });
+  var resetBtn = document.createElement('button');
+  resetBtn.className = 'btn-tab';
+  resetBtn.textContent = 'Reset';
+  resetBtn.onclick = function() {
+    cascadeFailNode = -1;
+    cascadeAnimRunning = false;
+    cascadeAnimT = 0;
+    document.querySelectorAll('.fail-btn').forEach(function(b){ b.classList.remove('active'); });
+    document.getElementById('cascade-info').textContent = 'Select a topology and inject a failure to see propagation behaviour.';
+    drawCascade();
+  };
+  row.appendChild(resetBtn);
+}
+
+function injectFailure(nodeIdx) {
+  cascadeFailNode = nodeIdx;
+  cascadeAnimT = 0;
+  cascadeAnimRunning = true;
+  document.querySelectorAll('.fail-btn').forEach(function(b,i){ b.classList.toggle('active', i===nodeIdx); });
+  var t = TOPOLOGIES[cascadeTopology];
+  var agents = t.agents;
+  var affected = getAffectedNodes(cascadeTopology, nodeIdx);
+  var infoMsg = '<strong>Failure injected at: ' + agents[nodeIdx] + '</strong><br>';
+  if (affected.length === 0) {
+    infoMsg += 'No downstream agents affected — failure is <span style="color:#10b981">isolated</span>.';
+  } else {
+    infoMsg += 'Affected agents: ' + affected.map(function(i){ return '<span style="color:#ef4444">'+agents[i]+'</span>'; }).join(', ') + '<br>';
+    infoMsg += 'Error mode: <strong style="color:#ef4444">' + t.errorMode + '</strong>';
+  }
+  document.getElementById('cascade-info').innerHTML = infoMsg;
+  animateCascade();
+}
+
+function getAffectedNodes(topoIdx, failIdx) {
+  if (topoIdx === 0) { // Sequential: all downstream
+    var n = TOPOLOGIES[0].agents.length;
+    var result = [];
+    for (var i = failIdx + 1; i < n; i++) result.push(i);
+    return result;
+  }
+  if (topoIdx === 1) { // Hierarchical
+    if (failIdx === 0) return [1,2,3]; // Orchestrator fails → all blocked
+    return []; // Sub-agent fails → only its task
+  }
+  if (topoIdx === 2) { // Parallel: only aggregator if worker fails
+    if (failIdx < 3) return []; // Worker isolation
+    return []; // Aggregator partial
+  }
+  // Mesh: all connected
+  var n2 = TOPOLOGIES[3].agents.length;
+  var result2 = [];
+  for (var j = 0; j < n2; j++) if (j !== failIdx) result2.push(j);
+  return result2;
+}
+
+var cascadeRaf = null;
+function animateCascade() {
+  if (!cascadeAnimRunning) return;
+  cascadeAnimT = Math.min(cascadeAnimT + 0.03, 1);
+  drawCascade();
+  if (cascadeAnimT < 1) cascadeRaf = requestAnimationFrame(animateCascade);
+}
+
+function drawCascade() {
+  var canvas = document.getElementById('canvas-cascade');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = '#161b22';
+  drawRoundedRect(ctx,0,0,W,H,10); ctx.fill();
+
+  var t = TOPOLOGIES[cascadeTopology];
+  var cx = W/2, cy = H/2 - 10, radius = 80;
+  var nodes = getTopologyNodes(cascadeTopology, cx, cy, radius);
+  var edges = getTopologyEdges(cascadeTopology);
+  var affected = cascadeFailNode >= 0 ? getAffectedNodes(cascadeTopology, cascadeFailNode) : [];
+  var affectedSet = {};
+  affected.forEach(function(i){ affectedSet[i] = true; });
+
+  // Draw edges
+  edges.forEach(function(e) {
+    var n1 = nodes[e[0]], n2 = nodes[e[1]];
+    var isFailEdge = (e[0] === cascadeFailNode && affectedSet[e[1]]) || (e[1] === cascadeFailNode && affectedSet[e[0]]);
+    // For mesh, check both directions
+    if (cascadeTopology === 3 && cascadeFailNode >= 0) {
+      isFailEdge = (e[0] === cascadeFailNode || e[1] === cascadeFailNode);
+    }
+    var color = isFailEdge ? rgba('#ef4444', 0.5 + 0.3 * cascadeAnimT) : rgba(t.color, 0.25);
+    var lw = isFailEdge ? 2 : 1.5;
+    drawArrow(ctx, n1.x, n1.y, n2.x, n2.y, color, lw);
+  });
+
+  // Draw nodes
+  nodes.forEach(function(n, ni) {
+    var isFailed = ni === cascadeFailNode;
+    var isAffected = affectedSet[ni];
+    var color = isFailed ? '#ef4444' : (isAffected ? rgba('#ef4444', 0.6) : t.color);
+    var pulseR = isFailed ? (28 + 4 * Math.sin(cascadeAnimT * Math.PI * 6)) : 28;
+
+    if (isFailed) {
+      // Glow
+      var glowAlpha = 0.15 + 0.1 * Math.sin(cascadeAnimT * Math.PI * 6);
+      ctx.beginPath(); ctx.arc(n.x, n.y, pulseR + 10, 0, Math.PI*2);
+      ctx.fillStyle = rgba('#ef4444', glowAlpha); ctx.fill();
+    }
+
+    ctx.beginPath(); ctx.arc(n.x, n.y, pulseR, 0, Math.PI*2);
+    ctx.fillStyle = isFailed ? rgba('#ef4444', 0.2) : (isAffected ? rgba('#ef4444', 0.08) : rgba(t.color, 0.12));
+    ctx.fill();
+    ctx.strokeStyle = color; ctx.lineWidth = isFailed ? 2.5 : 1.5; ctx.stroke();
+
+    ctx.font = 'bold 10px Inter,sans-serif';
+    ctx.fillStyle = color;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(n.label.length > 8 ? n.label.slice(0,7)+'…' : n.label, n.x, n.y);
+    ctx.textBaseline = 'alphabetic';
+
+    if (isFailed) {
+      ctx.font = 'bold 9px Inter';
+      ctx.fillStyle = '#ef4444';
+      ctx.textAlign = 'center';
+      ctx.fillText('✗ FAIL', n.x, n.y - pulseR - 8);
+    }
+    if (isAffected && cascadeAnimT > 0.3) {
+      ctx.font = '9px Inter';
+      ctx.fillStyle = rgba('#ef4444', cascadeAnimT);
+      ctx.textAlign = 'center';
+      ctx.fillText('⚠ blocked', n.x, n.y - 30 - 8);
+    }
+  });
+
+  // Label
+  ctx.font = 'bold 12px Inter';
+  ctx.fillStyle = t.color;
+  ctx.textAlign = 'center';
+  ctx.fillText(t.label + ' — Failure Propagation', W/2, H - 16);
+}
+
+function updateAttrBar(topoIdx) {
+  var attr = ERROR_ATTR[topoIdx];
+  document.getElementById('attr-agent').style.width = attr.agent + '%';
+  document.getElementById('attr-agent').textContent = attr.agent > 8 ? 'Agent '+attr.agent+'%' : '';
+  document.getElementById('attr-env').style.width = attr.env + '%';
+  document.getElementById('attr-env').textContent = attr.env > 8 ? 'Env '+attr.env+'%' : '';
+  document.getElementById('attr-user').style.width = attr.user + '%';
+  document.getElementById('attr-user').textContent = attr.user > 8 ? 'User '+attr.user+'%' : '';
+}
+
+/* ===== SECTION 7: LIFECYCLE CANVAS ===== */
+function selectPhase(idx) {
+  selectedPhase = idx;
+  var btns = document.querySelectorAll('.phase-btn');
+  btns.forEach(function(b,i){ b.classList.toggle('active', i===idx); });
+  drawLifecycle();
+  renderPhaseInfo(idx);
+}
+
+function drawLifecycle() {
+  var canvas = document.getElementById('canvas-lifecycle');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = '#161b22';
+  drawRoundedRect(ctx,0,0,W,H,10); ctx.fill();
+
+  var N = LIFECYCLE_PHASES.length;
+  var bw = (W - 40 - (N-1)*16) / N;
+  var PAD = 12;
+
+  LIFECYCLE_PHASES.forEach(function(p, i) {
+    var x = 20 + i*(bw+16);
+    var y = 12, h = H - 24;
+    var isActive = i === selectedPhase;
+
+    drawRoundedRect(ctx, x, y, bw, h, 6);
+    ctx.fillStyle = isActive ? rgba(p.color, 0.18) : rgba(p.color, 0.04);
+    ctx.fill();
+    ctx.strokeStyle = isActive ? p.color : rgba(p.color, 0.3);
+    ctx.lineWidth = isActive ? 2 : 1; ctx.stroke();
+
+    ctx.font = (isActive ? 'bold' : '') + ' 11px Inter';
+    ctx.fillStyle = isActive ? p.color : '#8b949e';
+    ctx.textAlign = 'center';
+    ctx.fillText(p.icon + ' ' + p.label, x + bw/2, y + h/2 + 4);
+
+    // Arrow between phases
+    if (i < N-1) {
+      var ax = x + bw + 3, ay = H/2;
+      ctx.fillStyle = '#30363d';
+      ctx.font = '12px Inter'; ctx.textAlign = 'left';
+      ctx.fillText('→', ax, ay+4);
+    }
+  });
+}
+
+canvas_lifecycle_click = function(e) {
+  var canvas = document.getElementById('canvas-lifecycle');
+  if (!canvas) return;
+  var rect = canvas.getBoundingClientRect();
+  var mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+  var N = LIFECYCLE_PHASES.length;
+  var bw = (canvas.width - 40 - (N-1)*16) / N;
+  for (var i = 0; i < N; i++) {
+    var x = 20 + i*(bw+16);
+    if (mx >= x && mx <= x+bw) { selectPhase(i); break; }
+  }
+};
+
+function renderPhaseInfo(idx) {
+  var p = LIFECYCLE_PHASES[idx];
+  var html = '<strong style="color:'+p.color+';">'+p.icon+' '+p.label+'</strong> — '+p.desc+'<br><br>';
+  html += '<ul style="margin-left:16px;font-size:12px;">';
+  p.details.forEach(function(d){ html += '<li style="margin-bottom:4px;">'+d+'</li>'; });
+  html += '</ul>';
+  document.getElementById('phase-info-panel').innerHTML = html;
+  document.getElementById('phase-code-block').textContent = p.code;
+}
+
+/* ===== INIT ===== */
+function doInit() {
+  // Section 1
+  setInterval(drawOverview, 33);
+
+  // Section 2
+  selectTopology(0);
+  animateTopo();
+
+  // Section 3
+  updateRadar();
+
+  // Section 4
+  selectBenchmark(0);
+
+  // Section 5
+  startBarAnim();
+
+  // Section 6
+  selectCascadeTopology(0);
+
+  // Section 7
+  selectPhase(0);
+  var lc = document.getElementById('canvas-lifecycle');
+  if (lc) lc.addEventListener('click', canvas_lifecycle_click);
+
+  // Scroll
+  var mainEl = document.getElementById('main-scroll');
+  mainEl.addEventListener('scroll', updateNavOnScroll);
+}
+
+// Check if already unlocked
+if (localStorage.getItem(PG_KEY) === '1') {
+  document.getElementById('pg-gate').style.display = 'none';
+  window.addEventListener('load', doInit);
+} else {
+  window.addEventListener('load', function() {
+    // Just draw the progress bar placeholder
+    document.getElementById('scroll-progress').style.width = '0';
+  });
+}
+</script>
+</body>
+</html>
