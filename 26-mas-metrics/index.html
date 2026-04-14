@@ -691,6 +691,12 @@ GSM8K: same accuracy ≠ same quality
     <button class="imp-filter-btn" data-imp="2" onclick="setImpFilter(2,this)" style="border-color:#f97316;">● Emerging</button>
     <button class="imp-filter-btn" data-imp="1" onclick="setImpFilter(1,this)" style="border-color:#8b949e;">● Niche</button>
   </div>
+  <div class="imp-filter-row">
+    <span style="font-size:10px;color:var(--muted);font-weight:600;">Level:</span>
+    <button class="imp-filter-btn traj-filter-btn active" onclick="setTrajFilter('all',this)">All</button>
+    <button class="imp-filter-btn traj-filter-btn" onclick="setTrajFilter('traj',this)" style="border-color:#06b6d4;">⟳ Trajectory-Level</button>
+    <button class="imp-filter-btn traj-filter-btn" onclick="setTrajFilter('outcome',this)" style="border-color:#a78bfa;">◎ Outcome-Level</button>
+  </div>
 
   <div style="overflow-x:auto;">
     <table class="explorer-table" id="explorer-table">
@@ -733,6 +739,7 @@ GSM8K: same accuracy ≠ same quality
 // ===== STATE VARS (must be before IIFE so doInit/renderTable see correct values) =====
 var currentCatFilter='all';
 var currentImpFilter=0;
+var currentTrajFilter='all';
 var currentSort={key:'importance',dir:-1};
 
 // ===== PASSWORD GATE =====
@@ -1220,6 +1227,27 @@ function switchDomain(d,btn){
   btn.classList.add('active');
 }
 
+// ===== TRAJECTORY-LEVEL METRIC SET =====
+// Trajectory-level: require observing the full execution sequence (intermediate steps,
+// per-action events, reasoning chains) — not just the final task outcome.
+var TRAJ_METRICS=new Set([
+  // Communication sequence metrics
+  'IDS','UPR','TES','ITES','IC','RC','AF','CORE','PC','NCCG',
+  // Coordination event metrics (track behavior over execution)
+  'ANU','Conformity Rate','Independence Rate','CoM Rate','CSS','TUE',
+  'S_J','S_R','S_D','S_self','S_collab','CoS','MCR','DoLI','NSR',
+  // Safety events during execution (accumulate over run)
+  'OER','AD','ERS','PDR','FPR','ECS','JDR','PNA','FTR','DR','RR','HPR','PLR',
+  // Planning & reasoning sequence
+  'CheckPoint','Progress Rate','StepR','ARL','CoT Match Rate','MRA','LHC',
+  // Framework: drift / transparency over time
+  'Goal-Drift','T','M_comp',
+  // Operational: per-step timing & budget
+  'TTFT','TPOT','TBU',
+  // Tool use: per-call accuracy at each invocation point
+  'TSA','TPA','TCR',
+]);
+
 // ===== EXPLORER =====
 function setCatFilter(cat,btn){
   currentCatFilter=cat;
@@ -1246,6 +1274,17 @@ function sortMetrics(key){
   renderTable();
 }
 function filterMetrics(){renderTable();}
+function setTrajFilter(val,btn){
+  currentTrajFilter=val;
+  document.querySelectorAll('.traj-filter-btn').forEach(function(b){
+    b.classList.remove('active');b.style.background='';b.style.color='';
+  });
+  btn.classList.add('active');
+  var colors={traj:'#06b6d4',outcome:'#a78bfa'};
+  if(colors[val]){btn.style.background=colors[val];btn.style.color='#fff';}
+  else{btn.style.background='#444';btn.style.color='#fff';}
+  renderTable();
+}
 
 var IMP_LABELS=['','Niche','Emerging','Medium','High','Critical'];
 var IMP_COLORS=['','#8b949e','#f97316','#f7b731','#3b82f6','#14b8a6'];
@@ -1280,7 +1319,10 @@ function renderTable(){
         (m.source||'').toLowerCase().includes(q)||
         (m.impact||'').toLowerCase().includes(q)
       );
-      return catOk&&impOk&&qOk;
+      var trajOk=currentTrajFilter==='all'||
+        (currentTrajFilter==='traj'&&TRAJ_METRICS.has(m.abbr))||
+        (currentTrajFilter==='outcome'&&!TRAJ_METRICS.has(m.abbr));
+      return catOk&&impOk&&trajOk&&qOk;
     });
     filtered.sort(function(a,b){
       if(currentSort.key==='importance'){
