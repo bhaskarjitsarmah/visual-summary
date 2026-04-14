@@ -1,0 +1,986 @@
+\documentclass[11pt,a4paper]{article}
+
+% ── Packages ──────────────────────────────────────────────────────────────
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{natbib}
+\usepackage{microtype}
+\usepackage{caption}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!60!black,
+  citecolor=teal!70!black,
+  urlcolor=blue!60!black
+}
+
+% ── Custom commands ────────────────────────────────────────────────────────
+\newcommand{\metricname}[1]{\textbf{#1}}
+\newcommand{\abbr}[1]{\texttt{#1}}
+\newcommand{\arxiv}[1]{\href{https://arxiv.org/abs/#1}{arXiv:#1}}
+
+% ── Title ──────────────────────────────────────────────────────────────────
+\title{%
+  \textbf{A Comprehensive Survey of Evaluation Metrics for}\\
+  \textbf{LLM-based Multi-Agent Systems}\\[6pt]
+  \large Taxonomy, Classification, and Practical Guidance
+}
+
+\author{%
+  [Author Name(s)]\\
+  [Institution(s)]\\
+  \texttt{[email@institution.edu]}
+}
+
+\date{\today}
+
+% ==========================================================================
+\begin{document}
+\maketitle
+
+% ── Abstract ───────────────────────────────────────────────────────────────
+\begin{abstract}
+The rapid deployment of Large Language Model (LLM)-based multi-agent systems (MAS)
+in research and industry has exposed a critical gap: evaluation methodologies designed
+for single-agent systems fail to capture the emergent, collective behaviours that arise
+when multiple agents interact. This survey consolidates \textbf{95 evaluation metrics}
+drawn from 61 primary research papers, organising them into a nine-category taxonomy
+spanning Task Performance, Communication Quality, Coordination and Collaboration,
+Safety and Trust, Planning and Reasoning, Medical/Domain-Specific, Framework and
+Governance, Operational Infrastructure, and Tool Use. We additionally introduce a
+principled classification of metrics into \emph{trajectory-level} (54 metrics requiring
+observation of the full execution sequence) and \emph{outcome-level} (41 metrics
+requiring only the final output). For each metric we report the formal definition,
+value range, directionality, source benchmark or paper, and a practitioner importance
+rating on a five-point scale. We conclude by identifying the most significant open
+challenges in MAS evaluation: the absence of standardised privacy leakage metrics,
+the under-measurement of hallucination propagation across agent boundaries,
+coordination deadlock quantification, and run-to-run reproducibility. This survey
+serves as a reference guide for researchers designing MAS evaluation protocols
+and practitioners selecting metrics for production deployments.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+% ==========================================================================
+\section{Introduction}
+\label{sec:intro}
+
+Multi-agent systems built on large language models are increasingly deployed across
+high-stakes domains including software engineering \citep{swe_bench2024}, scientific
+research, healthcare \citep{medaide2024}, and enterprise automation. Unlike classical
+MAS, LLM-based agents can coordinate via natural language, use external tools, plan
+over long horizons, and adapt their behaviour dynamically. These capabilities introduce
+evaluation challenges that go well beyond measuring whether a single agent produces the
+correct final output.
+
+Three properties make LLM-MAS evaluation qualitatively different from single-agent
+evaluation:
+
+\begin{enumerate}[leftmargin=*, label=\textbf{\arabic*.}]
+  \item \textbf{Emergence.} System-level behaviours—including coordinated bias
+    amplification \citep{emergent_bias2024} and hallucination propagation across agent
+    boundaries—cannot be predicted from the individual agent scores.
+  \item \textbf{Trajectory dependence.} The quality of a MAS run often depends not on
+    whether a task was ultimately completed, but on \emph{how} it was completed: the
+    communication efficiency, the division of labour, the recovery strategy after
+    failures, and the safety of intermediate steps.
+  \item \textbf{Framework sensitivity.} Empirical studies show that the choice of
+    orchestration framework (e.g., AutoGen \citep{autogen2023}, LangGraph, Claude SDK)
+    alone causes performance ranges comparable to differences between frontier
+    models \citep{maseval2025}.
+\end{enumerate}
+
+Despite these challenges, no comprehensive reference consolidates the full landscape
+of proposed metrics. Individual papers introduce metrics for narrow settings, making it
+difficult for practitioners to select appropriate evaluation protocols. This survey fills
+that gap.
+
+\paragraph{Contributions.}
+\begin{itemize}
+  \item A unified taxonomy of 95 metrics across 9 categories, with formal definitions,
+    value ranges, and directionality for each.
+  \item A novel trajectory-level versus outcome-level classification that guides metric
+    selection based on what aspects of system behaviour are being studied.
+  \item A practitioner importance rating (1--5) grounded in deployment frequency and
+    regulatory relevance.
+  \item An analysis of open evaluation gaps: unmeasured metrics, reproducibility
+    concerns, and emergent MAS-specific phenomena.
+\end{itemize}
+
+% ==========================================================================
+\section{Background and Related Work}
+\label{sec:background}
+
+\subsection{LLM Agent Evaluation Surveys}
+
+Recent surveys have catalogued evaluation approaches for individual LLM agents.
+\citet{llm_eval_survey2025} organise evaluation along two dimensions: what to evaluate
+(behaviour, capabilities, reliability, safety) and how to evaluate (interaction modes,
+benchmarks, metric computation). \citet{agent_eval_survey2025} survey evaluation
+frameworks for tool-using agents with a focus on robustness and safety. Our work
+differs in scope: we focus exclusively on \emph{multi-agent} systems and cover both
+research and production-grade operational metrics.
+
+\subsection{Key Benchmarks}
+
+Several benchmarks have driven MAS evaluation:
+
+\begin{itemize}
+  \item \textbf{GAIA} \citep{gaia2023}: 466 general-assistant tasks graded by Goal
+    Success Rate (GSR). The de-facto standard for comparing MAS framework performance.
+  \item \textbf{$\tau$-bench} \citep{tbench2024}: 120 tool-agent-user interaction tasks
+    graded by \abbr{pass@k} and \abbr{pass\^{}k}, distinguishing lenient from strict
+    reliability.
+  \item \textbf{MMLU} \citep{mmlu2020}: 14,042 tasks measuring task accuracy across
+    57 academic subjects; widely used as a capability baseline.
+  \item \textbf{MultiAgentBench (MARBLE)} \citep{marble2025}: Evaluates collaboration
+    and competition across diverse agent topologies with milestone-based KPIs.
+  \item \textbf{AgentBoard} \citep{agentboard2024}: Multi-turn evaluation with
+    fine-grained progress tracking across 9 agent task categories.
+  \item \textbf{SWE-bench} \citep{swe_bench2024}: 500 human-verified GitHub issues;
+    the primary benchmark for code-generation MAS.
+\end{itemize}
+
+\subsection{Agent Frameworks Under Evaluation}
+
+Empirical comparisons in \citet{maseval2025} cover AutoGen \citep{autogen2023},
+LangGraph, Claude SDK, smolagents, CAMEL \citep{camel2023}, and LlamaIndex.
+The GAIA GSR scores for these frameworks range from 44.6\% to 53.2\%, a spread nearly
+equal to the 49.7\%--55.4\% range observed across frontier models
+(GPT-4o, Claude 3.5 Sonnet, Gemini 1.5 Pro).
+
+% ==========================================================================
+\section{Metric Taxonomy}
+\label{sec:taxonomy}
+
+We organise 95 metrics into the taxonomy shown in Table~\ref{tab:taxonomy_summary}.
+The nine categories reflect distinct aspects of MAS behaviour, from end-to-end task
+outcomes to per-token operational costs.
+
+\begin{table}[h!]
+  \centering
+  \caption{Summary of the 95-metric taxonomy.}
+  \label{tab:taxonomy_summary}
+  \begin{tabular}{llcc}
+    \toprule
+    \textbf{Category} & \textbf{Focus} & \textbf{Count} & \textbf{Traj.} \\
+    \midrule
+    Task Performance         & End-to-end task outcomes            & 14 & 2  \\
+    Communication Quality    & Inter-agent message efficiency       & 10 & 10 \\
+    Coordination             & Role allocation, game-theoretic      & 20 & 15 \\
+    Safety \& Trust          & Attacks, alignment, reliability      & 23 & 13 \\
+    Planning \& Reasoning    & Intermediate steps, memory           &  7 &  7 \\
+    Medical / Domain         & Domain-specific output quality       &  5 &  0 \\
+    Framework \& Governance  & Systemic and fairness properties     &  7 &  3 \\
+    Operational              & Latency, cost, reproducibility       &  6 &  4 \\
+    Tool Use                 & Per-call tool accuracy               &  3 &  3 \\
+    \midrule
+    \textbf{Total}           &                                     & \textbf{95} & \textbf{54} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\noindent\textbf{Trajectory-level vs.\ outcome-level.} A metric is
+\emph{trajectory-level} if it requires observing the full execution sequence of agent
+actions—i.e., it cannot be computed from only the final output. \emph{Outcome-level}
+metrics require only the final result. Of the 95 metrics, 54 are trajectory-level and
+41 are outcome-level.
+
+% ==========================================================================
+\section{Task Performance Metrics}
+\label{sec:task}
+
+Task performance metrics quantify whether agents complete assigned goals, with varying
+degrees of credit for partial progress.
+
+\subsection{Goal Success Rate (GSR)}
+
+\begin{equation}
+  \text{GSR} = \frac{\text{Completed Tasks}}{\text{Total Tasks}} \times 100\%
+\end{equation}
+
+GSR is the universal MAS leaderboard metric \citep{maseval2025,gaia2023}. Framework
+choice alone causes an 8.6 percentage-point GSR range on GAIA. \textbf{Importance: 5
+(Critical)}.
+
+\subsection{pass@k and pass\^{}k}
+
+Introduced in $\tau$-bench \citep{tbench2024}, these two metrics measure fundamentally
+different reliability properties:
+
+\begin{align}
+  \text{pass@}k &= 1 - \frac{\binom{n-c}{k}}{\binom{n}{k}} \quad
+    \text{(probability that at least one of } k \text{ trials succeeds)} \\[4pt]
+  \text{pass}^k &= \left(\frac{c}{n}\right)^k \quad
+    \text{(probability that all } k \text{ trials succeed)}
+\end{align}
+
+\noindent where $n$ is the total number of trials and $c$ is the number of successes.
+\abbr{pass\^{}k} drops exponentially with $k$ and is the strict reliability metric
+favoured for production evaluation.
+
+\subsection{Partial Goal Success Rate (pGSR)}
+
+\begin{equation}
+  \text{pGSR} = \frac{\sum_{i} w_i \cdot s_i}{\sum_{i} w_i}
+\end{equation}
+
+pGSR awards partial credit for sub-goal completion, making it more informative than
+binary GSR for long-horizon tasks \citep{maseval2025}.
+
+\subsection{Additional Task Metrics}
+
+Table~\ref{tab:task_metrics} summarises the remaining task performance metrics.
+
+\begin{table}[h!]
+  \centering
+  \caption{Additional task performance metrics.}
+  \label{tab:task_metrics}
+  \small
+  \begin{tabular}{lllc}
+    \toprule
+    \textbf{Abbr.} & \textbf{Name} & \textbf{Source} & \textbf{Range} \\
+    \midrule
+    Sub.R    & Subgoal Success Rate      & \citet{comm_verify2025}  & 0--100\%  \\
+    Sup-GSR  & Supervisor GSR            & \citet{aws_bedrock2024}  & 0--100\%  \\
+    Sys-GSR  & System-side GSR           & \citet{aws_bedrock2024}  & 0--100\%  \\
+    BCS      & Behavior Competency Score & \citet{crew_wildfire2025}& 0--1      \\
+    WR       & Win Rate                  & \citet{magic2023}        & 0--100\%  \\
+    KPI      & Key Performance Indicator & \citet{marble2025}       & task-def. \\
+    PassRate & Pass Rate                 & \citet{mobile_bench2024} & 0--100\%  \\
+    SuccR    & Success Rate              & \citet{safe_beal2025}    & 0--100\%  \\
+    SafeR@S  & Safety Rate at Success    & \citet{safe_beal2025}    & 0--100\%  \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% ==========================================================================
+\section{Communication Quality Metrics}
+\label{sec:comm}
+
+Communication metrics evaluate the efficiency and quality of information exchange
+between agents. All are trajectory-level: they require the full message trace.
+
+\subsection{Information Divergence Score (IDS)}
+
+\begin{equation}
+  \text{IDS} = \frac{\sum_{(i,j)} w_{ij}\cdot(1 - \text{SS}_{\text{total}}[i,j])}
+                    {\sum_{(i,j)} w_{ij}}
+\end{equation}
+
+where $w_{ij} = \max(S_{ij}, S_{ji}) + \max(T_{ij}, T_{ji})$ and
+$\text{SS}_{\text{total}} = 0.5 \cdot \text{SS}_{\text{syn}} + 0.5 \cdot
+\text{SS}_{\text{sem}}$ (syntactic and semantic similarity). Introduced in
+GEMMAS \citep{gemmas2025}, IDS revealed a 12.8\% divergence gap between two systems
+with near-identical GSM8K accuracy, demonstrating that outcome metrics can mask
+communication quality differences.
+
+\subsection{Unnecessary Path Ratio (UPR)}
+
+\begin{equation}
+  \text{UPR} = 1 - \frac{|P_{\text{necessary}}|}{|P_{\text{all}}|}
+\end{equation}
+
+UPR quantifies redundant reasoning paths in the agent communication DAG. On GSM8K,
+\citet{gemmas2025} found an 80\% UPR gap between two systems with otherwise similar
+accuracy, illustrating how outcome metrics obscure efficiency differences.
+
+\subsection{Team Execution Score (TES)}
+
+\begin{equation}
+  \text{TES}(\bar{h}_k) = \max_j \left\{
+    \frac{(1+\beta^2) \cdot D_{\max}^j(\bar{h}_k, \bar{g}_k^j)}{m_k + \beta^2 n_k}
+  \right\}
+\end{equation}
+
+where $\bar{h}_k$ is the agent history for subtask $k$, $\bar{g}_k^j$ is the $j$-th
+ground-truth trajectory, $m_k$ counts false-positive actions, and $n_k$ counts
+false-negative actions. \citet{collab_overcooked2025} found that LLMs degrade sharply
+at complexity level 4+, particularly in initiating capability (IC) versus responding
+capability (RC).
+
+\subsection{Additional Communication Metrics}
+
+\begin{table}[h!]
+  \centering
+  \caption{Additional communication quality metrics.}
+  \label{tab:comm_metrics}
+  \small
+  \begin{tabular}{lllc}
+    \toprule
+    \textbf{Abbr.} & \textbf{Name} & \textbf{Source} & \textbf{Range} \\
+    \midrule
+    IC   & Initiating Capability          & \citet{collab_overcooked2025} & 0--100\% \\
+    RC   & Responding Capability          & \citet{collab_overcooked2025} & 0--100\% \\
+    ITES & Incremental Team Exec.\ Score  & \citet{collab_overcooked2025} & 0--1     \\
+    PC   & Progress Completeness          & \citet{collab_overcooked2025} & 0--1     \\
+    AF   & Alignment Factor               & \citet{c2c2025}               & 0--1     \\
+    CORE & Conv.\ Robustness Eval.\ Score & CORE (2025)                   & 0--1     \\
+    NCCG & Norm.\ Cumulative Common Ground& \citet{collab_deliberate2025} & 0--1     \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\noindent The Alignment Factor (AF) from the C2C framework \citep{c2c2025} is
+noteworthy: systems optimising AF reduced task completion time by approximately 40\%
+with acceptable cost increases across teams of 5--17 agents.
+
+% ==========================================================================
+\section{Coordination and Collaboration Metrics}
+\label{sec:coord}
+
+Coordination metrics evaluate how effectively agents allocate roles, synchronise
+actions, and resolve conflicts.
+
+\subsection{Average Normalised Utility (ANU)}
+
+ANU \citep[COLLAB;][]{marble2025} measures the aggregate utility of coordination
+actions normalised by the theoretical maximum. It captures whether agents coordinate
+to increase the total value produced, not merely to complete tasks.
+
+\subsection{Milestone Completion Rate (MCR)}
+
+\begin{equation}
+  \text{MCR} = \frac{\text{Milestones Completed}}{\text{Total Milestones}} \times 100\%
+\end{equation}
+
+Introduced in MultiAgentBench \citep{marble2025}, MCR awards partial credit that binary
+GSR does not. A cognitive planning strategy increased MCR by 3 percentage points, while
+GSR remained unchanged—demonstrating that MCR reveals information that outcome metrics
+miss.
+
+\subsection{Division of Labor Index (DoLI)}
+
+\begin{equation}
+  \text{DoLI} = 1 - \frac{H(\text{task distribution})}{\log N_{\text{agents}}}
+\end{equation}
+
+where $H$ is Shannon entropy over the task assignment distribution. DoLI = 1 indicates
+perfect specialisation; DoLI = 0 indicates all agents perform identical work.
+\citet{llm_eval_survey2025} identify DoLI as ``almost never measured'' despite being
+fundamental to MAS efficiency.
+
+\subsection{Social Welfare Score (SWS)}
+
+\begin{equation}
+  \text{SWS} = \sum_{i=1}^{N} R_i
+\end{equation}
+
+where $R_i$ is the cumulative reward of agent $i$. SWS is a game-theoretic metric that
+captures whether the MAS achieves collectively optimal outcomes versus individually
+rational but collectively suboptimal Nash equilibria \citep{game_theoretic_mas2025}.
+
+\subsection{MAgIC Social Behaviour Metrics}
+
+The MAgIC benchmark \citep{magic2023} decomposes agent social behaviour across five
+dimensions measured during game-theoretic interactions:
+
+\begin{equation}
+  \{S_J,\, S_R,\, S_D,\, S_{\text{self}},\, S_{\text{collab}}\}
+\end{equation}
+
+covering Judgment, Reasoning, Deception, Self-Awareness, and Cooperation respectively.
+
+\subsection{Additional Coordination Metrics}
+
+\begin{table}[h!]
+  \centering
+  \caption{Coordination and collaboration metrics.}
+  \label{tab:coord_metrics}
+  \small
+  \begin{tabular}{lllc}
+    \toprule
+    \textbf{Abbr.} & \textbf{Name} & \textbf{Source} & \textbf{Range} \\
+    \midrule
+    CS               & Coordination Score          & \citet{marble2025}          & 0--1      \\
+    Elo              & Elo Rating                  & \citet{magic2023}           & open      \\
+    FASR             & False Agent Switch Rate     & \citet{aws_bedrock2024}     & 0--100\%  \\
+    Conformity Rate  & Conformity Rate             & \citet{benchform2025}       & 0--100\%  \\
+    Independence Rate& Independence Rate           & \citet{benchform2025}       & 0--100\%  \\
+    CoM Rate         & Change-of-Mind Rate         & \citet{collab_deliberate2025}& 0--100\% \\
+    CSS              & Component Synergy Score     & \citet{trism2025}           & 0--1      \\
+    TUE              & Tool Utilisation Efficacy   & \citet{trism2025}           & 0--1      \\
+    CoS              & Collaboration Score         & MindAgent                   & 0--1      \\
+    CompS            & Competition Score           & \citet{marble2025}          & 0--1      \\
+    NSR              & Negotiation Success Rate    & \citet{marble2025}          & 0--100\%  \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% ==========================================================================
+\section{Safety and Trust Metrics}
+\label{sec:safety}
+
+Safety metrics form the largest category (23 metrics), reflecting the diverse threat
+surface of deployed MAS.
+
+\subsection{Attack Success Rate (ASR)}
+
+\begin{equation}
+  \text{ASR} = \frac{\text{Successful Attacks}}{\text{Total Attack Attempts}} \times 100\%
+\end{equation}
+
+ASR is the universal adversarial safety metric \citep{tamas2025}. It is the complement
+of the defender's success rate and is used across Agent SafetyBench and AutoDefense.
+\textbf{Importance: 5 (Critical)}.
+
+\subsection{Over-Exposure Rate (OER) and Alignment Dispersion (AD)}
+
+From the Trust-Vulnerability Paradox study \citep{trust_vuln2025}, OER measures the
+fraction of runs in which agents disclose more information than authorised. AD measures
+the statistical dispersion of safety scores across runs:
+
+\begin{equation}
+  \text{AD} = \text{Var}\!\left(\text{safety\_score}\right) \text{ across N runs}
+\end{equation}
+
+A high AD score with acceptable mean safety is particularly dangerous in production:
+the system is \emph{unpredictably} safe.
+
+\subsection{Effective Robustness Score (ERS)}
+
+\begin{equation}
+  \text{ERS} = \frac{\text{Tasks completed safely under adversarial conditions}}
+                    {\text{Total tasks}} \times 100\%
+\end{equation}
+
+\citet{tamas2025} show that ERS and ASR can diverge significantly: a system may
+successfully defend against attacks (low ASR) while still failing to complete tasks
+safely (low ERS).
+
+\subsection{Over-Refuse Rate (ORR)}
+
+\begin{equation}
+  \text{ORR}(D_{\text{borderline}}, \pi) = \frac{1}{N}\sum_{i=1}^{N}
+  \mathbf{1}[\text{benign prompt}_i \text{ refused}] \times 100\%
+\end{equation}
+
+ORR from WaltzRL \citep{waltzrl2025} measures the safety-helpfulness trade-off. Overly
+cautious agents reduce task utility; ORR and ASR together define the Pareto frontier.
+
+\subsection{PII Leakage Rate (PLR)}
+
+\begin{equation}
+  \text{PLR} = \frac{\text{Leaked PII instances}}
+                    {\text{Total sensitive instances}} \times 100\%
+\end{equation}
+
+AgentLeak \citep{agentleak2025} is the first full-stack MAS privacy benchmark (1,000
+scenarios; healthcare, finance, legal, corporate). A critical MAS-specific finding:
+multi-agent configurations \emph{reduce} per-channel output leakage (27.2\% vs. 43.2\%
+single-agent) but \emph{increase} total system exposure to 68.9\% because internal
+agent-to-agent channels are unmonitored.
+
+\subsection{Hallucination Propagation Rate (HPR)}
+
+\begin{equation}
+  \text{HPR} = \frac{\text{Outputs containing upstream hallucination}}
+                    {\text{Total outputs}} \times 100\%
+\end{equation}
+
+HPR is a uniquely MAS metric \citep{cleanlab2025}: a single hallucinating agent in a
+sequential topology contaminates all downstream consumers. No single-agent metric can
+detect this phenomenon. Trust scoring reduces hallucination-propagated errors by 55.8\%
+in ReAct-type agents.
+
+\subsection{Ethical Cooperation Score (ECS)}
+
+\begin{equation}
+  \text{ECS} = C \times A \times I \times F
+\end{equation}
+
+where $C$, $A$, $I$, $F$ are Cooperation, Autonomy, Integrity, and Fairness scores.
+The multiplicative form from CMAG \citep{cmag2025} ensures that any single dimension
+approaching zero collapses the overall score, penalising manipulative behaviour.
+
+\subsection{Additional Safety Metrics}
+
+\begin{table}[h!]
+  \centering
+  \caption{Additional safety and trust metrics.}
+  \label{tab:safety_metrics}
+  \small
+  \begin{tabular}{lllc}
+    \toprule
+    \textbf{Abbr.} & \textbf{Name} & \textbf{Source} & \textbf{Range} \\
+    \midrule
+    PDR      & Process Danger Rate          & \citet{psysafe2024}      & 0--100\% \\
+    ASV      & Avg. Safety Violations       & \citet{safer_robotics2025}& 0--1    \\
+    Robustness & Robustness Score           & \citet{maseval2025}      & 0--1     \\
+    FPR      & False Positive Rate          & \citet{guardians2025}    & 0--100\% \\
+    JDR      & Joint Danger Rate            & \citet{psysafe2024}      & 0--100\% \\
+    PNA      & Performance under No Attack  & \citet{tamas2025}        & 0--100\% \\
+    SafeR    & Safety Rate                  & \citet{safe_beal2025}    & 0--100\% \\
+    APDR     & Avg. Performance Drop Rate   & \citet{pptcr2024}        & 0--100\% \\
+    FTR      & Feedback Trigger Rate        & \citet{waltzrl2025}      & 0--100\% \\
+    Autonomy & Autonomy Score               & \citet{cmag2025}         & 0--1     \\
+    DR       & Deadlock Rate                & \citet{llm_eval_survey2025}& 0--100\%\\
+    TAR      & Task Abandonment Rate        & \citet{llm_eval_survey2025}& 0--100\%\\
+    RR       & Recovery Rate                & \citet{llm_eval_survey2025}& 0--100\%\\
+    HR       & Hallucination Rate           & \citet{cleanlab2025}     & 0--100\% \\
+    ECE      & Expected Calibration Error   & \citet{cleanlab2025}     & 0--1     \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% ==========================================================================
+\section{Planning and Reasoning Metrics}
+\label{sec:planning}
+
+All seven planning metrics are trajectory-level, requiring observation of intermediate
+reasoning and action steps.
+
+\subsection{CheckPoint Score and Progress Rate}
+
+CheckPoint \citep{mobile_bench2024} measures intermediate goal completion during
+execution. Progress Rate \citep{agentboard2024} provides a fine-grained view of
+sub-goal achievement at each step:
+
+\begin{equation}
+  \text{Progress Rate} = \frac{\text{Sub-goals achieved at step } t}
+                               {\text{Total sub-goals}} \times 100\%
+\end{equation}
+
+\subsection{Step Ratio (StepR)}
+
+\begin{equation}
+  \text{StepR} = \frac{\text{Executed steps}}{\text{Optimal solution steps}}
+\end{equation}
+
+StepR from \citet{comm_verify2025} measures planning efficiency. Values greater than 1
+indicate unnecessary steps; values less than 1 indicate incomplete execution.
+
+\subsection{Memory and Long-horizon Metrics}
+
+\metricname{Memory Recall Accuracy (MRA)} measures how accurately agents retrieve
+relevant prior context across multi-turn interactions \citep{llm_eval_survey2025}.
+Typical LLMs achieve MRA $\approx 92\%$ over the last 5 turns but only $\approx 41\%$
+over 50+ turns without external memory augmentation.
+
+\metricname{Long-Horizon Coherence (LHC)} measures consistency of stated facts,
+intent, and behaviour across 10+ agent steps:
+
+\begin{equation}
+  \text{LHC} = 1 - \text{contradiction\_rate}(\text{steps}_{1..N})
+\end{equation}
+
+\subsection{Reasoning Chain Metrics}
+
+Average Reasoning Length (ARL) and CoT Match Rate from Structured Agent Distillation
+\citep{structured_distill2025} measure the length and step-by-step fidelity of
+chain-of-thought reasoning chains against ground-truth trajectories.
+
+% ==========================================================================
+\section{Medical and Domain-Specific Metrics}
+\label{sec:medical}
+
+Five metrics address domain-specific output quality in medical and clinical MAS:
+
+\begin{itemize}
+  \item \metricname{AUROC} and \metricname{AUPRC}: Standard classification quality
+    metrics applied to clinical decision tasks in MedAgentBoard.
+  \item \metricname{ROUGE-L}: Longest common subsequence-based recall for clinical
+    text generation.
+  \item \metricname{BLEU}: N-gram precision for medical report generation
+    \citep{medaide2024}.
+  \item \metricname{SARI}: System output against references and input; specialised for
+    text simplification tasks in patient-facing MAS.
+\end{itemize}
+
+% ==========================================================================
+\section{Framework and Governance Metrics}
+\label{sec:framework}
+
+\subsection{Bias Amplification Factor (BAF)}
+
+\begin{equation}
+  \text{BAF} = \frac{\text{bias\_score}(\text{MAS output})}
+                    {\text{bias\_score}(\text{single agent})}
+\end{equation}
+
+\citet{emergent_bias2024} demonstrate that a MAS can exhibit group-preference bias even
+when no individual agent exhibits prior bias—a purely emergent phenomenon. BAF $> 1$
+indicates MAS-amplified bias; BAF $< 1$ indicates MAS-corrected bias. EU AI Act and
+US SR 11-7 require bias audits for high-stakes deployments.
+
+\subsection{Agent Scaling Efficiency (ASE)}
+
+\begin{equation}
+  \text{ASE}_{\text{norm}} = \frac{\text{performance}_N}{N \times \text{performance}_1}
+\end{equation}
+
+where $N$ is agent count. Most MAS show $\text{ASE}_{\text{norm}} \approx 0.3$--$0.6$
+beyond 4 agents, reflecting quadratic growth in coordination overhead (the Metcalfe
+penalty). ASE drives capacity planning decisions.
+
+\subsection{Trustworthiness Index (T) and Composite Metric ($M_{\text{comp}}$)}
+
+From TRiSM \citep{trism2025}, $T$ aggregates trust signals across agent interactions,
+while $M_{\text{comp}}$ provides a five-axis composite covering capability, robustness,
+safety, human-centredness, and economic sustainability.
+
+% ==========================================================================
+\section{Operational and Infrastructure Metrics}
+\label{sec:ops}
+
+Operational metrics bridge the gap between research evaluation and production
+deployment. All were absent from MAS research until 2025.
+
+\subsection{Latency: TTFT and TPOT}
+
+\begin{align}
+  \text{TTFT} &= t_{\text{first token}} - t_{\text{request received}} \quad\text{(ms)} \\
+  \text{TPOT} &= \frac{t_{\text{last token}} - t_{\text{first token}}}
+                       {\text{output tokens} - 1} \quad\text{(ms/token)}
+\end{align}
+
+MLPerf 2025 production SLAs: TTFT $\leq 500$\,ms and TPOT $\leq 30$\,ms for
+interactive agents \citep{nvidia_nim2025}. In a multi-agent pipeline, TTFT and TPOT
+apply at each agent boundary; errors compound across hops.
+
+\subsection{Cost Per Task (CPT)}
+
+\begin{equation}
+  \text{CPT} = \frac{\text{input\_tokens} \times p_{\text{in}} +
+                     \text{output\_tokens} \times p_{\text{out}}}
+                    {\text{Successful Tasks}} \quad\text{(USD)}
+\end{equation}
+
+CPT is the primary ROI metric for enterprise MAS deployment. GPT-4o MAS pipelines
+can cost 5--50$\times$ more per task than single-agent baselines, and framework choice
+alone causes 2--4$\times$ CPT variation \citep{galileo_benchmarks2025}.
+
+\subsection{Goodput}
+
+\begin{equation}
+  \text{Goodput} = \frac{\text{Requests meeting SLA}}{\text{Total requests}} \times 100\%
+\end{equation}
+
+The 2025 consensus metric replacing raw throughput \citep{databricks_inference2025}:
+a system at 1,000\,req/s with 60\% goodput is worse than 500\,req/s at 95\% goodput.
+
+\subsection{Run-to-Run Variance (RunVar)}
+
+\begin{equation}
+  \text{RunVar} = \sigma^2(\text{GSR across } N \text{ identical runs})
+\end{equation}
+
+MAESTRO \citep{maestro2025} identified MAS architecture (not model temperature) as the
+dominant driver of run-to-run variance. A system with GSR $= 0.70 \pm 0.30$ is
+substantially less reliable than one with GSR $= 0.60 \pm 0.05$.
+
+% ==========================================================================
+\section{Tool Use Metrics}
+\label{sec:tool}
+
+Tool use metrics decompose end-to-end tool call quality into three orthogonal signals:
+
+\begin{align}
+  \text{TSA} &= \frac{\text{Correctly selected tools}}{\text{Total tool calls}} \times 100\%
+              \quad\text{(Tool Selection Accuracy)} \\[4pt]
+  \text{TPA} &= \frac{\text{Correct parameters}}{\text{Expected parameters}} \times 100\%
+              \quad\text{(Tool Parameter Accuracy)} \\[4pt]
+  \text{TCR} &= \frac{\text{Successful executions}}{\text{Total tool invocations}} \times 100\%
+              \quad\text{(Tool Call Success Rate)}
+\end{align}
+
+\citet{llm_eval_survey2025} report that GPT-4o achieves TSA $\approx 95\%$ on simple
+APIs but only $\approx 78\%$ on complex multi-tool workflows where options overlap
+semantically. Crucially, high TSA does not imply high TPA: GPT-4o achieves TSA $\approx
+95\%$ but TPA $\approx 82\%$, indicating that parameter specification is a distinct
+failure mode from tool selection.
+
+% ==========================================================================
+\section{Trajectory-Level vs.\ Outcome-Level Classification}
+\label{sec:trajectory}
+
+We propose a principled classification that distinguishes how much of the execution
+trace is required to compute a metric.
+
+\begin{description}
+  \item[Outcome-level (41 metrics)] Computable from a single input--output pair.
+    Includes all final task success measures (GSR, Accuracy, ASR, pass@k) and
+    aggregate quality scores (AUROC, BLEU, ROUGE-L). These are simpler to compute
+    but miss all within-run dynamics.
+
+  \item[Trajectory-level (54 metrics)] Require the full execution sequence of agent
+    states, actions, and communications. Include all communication metrics (IDS, UPR,
+    TES, IC, RC, ITES, PC, AF, CORE, NCCG), all planning metrics (Progress Rate,
+    StepR, CheckPoint, ARL, CoT Match Rate, MRA, LHC), per-call tool metrics (TSA,
+    TPA, TCR), per-step operational metrics (TTFT, TPOT, TBU), and event-accumulation
+    safety metrics (OER, ERS, PDR, FPR, HPR, DR, PLR).
+\end{description}
+
+Table~\ref{tab:trajectory_examples} illustrates this distinction with representative
+examples.
+
+\begin{table}[h!]
+  \centering
+  \caption{Representative trajectory-level and outcome-level metric pairs.}
+  \label{tab:trajectory_examples}
+  \begin{tabular}{lll}
+    \toprule
+    \textbf{Aspect} & \textbf{Outcome-level} & \textbf{Trajectory-level} \\
+    \midrule
+    Task completion   & GSR                & Progress Rate, MCR     \\
+    Communication     & --                 & IDS, UPR, TES          \\
+    Safety            & ASR                & OER, HPR, DR, PLR      \\
+    Planning          & --                 & StepR, ARL, LHC        \\
+    Tool use          & --                 & TSA, TPA, TCR          \\
+    Latency           & --                 & TTFT, TPOT             \\
+    Bias              & BAF                & --                     \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% ==========================================================================
+\section{Practitioner Importance Ratings}
+\label{sec:importance}
+
+We rate each metric's real-world importance on a five-point scale:
+
+\begin{itemize}
+  \item \textbf{5 -- Critical}: Industry-standard leaderboard metric; required for
+    any publication or deployment. (GSR, Accuracy, ASR)
+  \item \textbf{4 -- High}: Widely adopted in production-grade evaluations;
+    expected in enterprise deployment reports. (26 metrics)
+  \item \textbf{3 -- Medium}: Research standard; important for academic rigour.
+    (47 metrics)
+  \item \textbf{2 -- Emerging}: Novel (2024--25); important future direction but
+    not yet standardised. (16 metrics)
+  \item \textbf{1 -- Niche}: Highly specialised; relevant only for specific settings.
+\end{itemize}
+
+Table~\ref{tab:full_metrics} (Appendix~\ref{app:full_table}) provides the complete
+95-metric reference with importance ratings, formulae, and citation keys.
+
+% ==========================================================================
+\section{Open Challenges and Research Gaps}
+\label{sec:gaps}
+
+Our survey reveals several significant evaluation gaps.
+
+\subsection{Unmeasured MAS-Specific Phenomena}
+
+\paragraph{Hallucination propagation.}
+HPR has no existing benchmark implementation. The 2025 Cleanlab study \citep{cleanlab2025}
+provides the first empirical evidence of cross-agent contamination, but no standardised
+dataset or tool exists for measuring HPR.
+
+\paragraph{Deadlock detection.}
+DR is identified by \citet{llm_eval_survey2025} as ``almost never measured'' despite
+being a production failure mode. Detecting deadlocks requires tracing agent wait
+dependencies across a run—a capability absent from most evaluation frameworks.
+
+\paragraph{Privacy through internal channels.}
+\citet{agentleak2025} demonstrate that MAS internal channels are the primary PII
+exposure vector, yet no standard evaluation protocol addresses this.
+
+\subsection{Reproducibility}
+
+\citet{maestro2025} show that MAS architecture is the dominant driver of run-to-run
+variance. Academic papers rarely report RunVar or confidence intervals over multiple
+runs, making results difficult to compare or reproduce.
+
+\subsection{Framework vs.\ Model Attribution}
+
+\citet{maseval2025} show that the GSR range across frameworks (44.6\%--53.2\%) nearly
+equals the range across frontier models (49.7\%--55.4\%). Standard benchmark reporting
+conflates these two sources of variance; disentangling them requires factorial designs.
+
+\subsection{Scalability Evaluation}
+
+ASE measurements in the literature show most MAS achieve $\text{ASE}_{\text{norm}}
+\approx 0.3$--$0.6$ beyond 4 agents, yet optimal agent count is almost never reported
+as part of benchmark results.
+
+% ==========================================================================
+\section{Recommended Practitioner Metric Stacks}
+\label{sec:stacks}
+
+Based on importance ratings and coverage analysis, we recommend the following
+evaluation stacks:
+
+\paragraph{Minimum viable stack (4 metrics).}
+GSR + ASR + CPT + RunVar. Covers task success, safety, cost, and reliability.
+
+\paragraph{Research standard stack (8 metrics).}
+GSR + pass\^{}k + pGSR + ASR + ERS + OER + IDS + Progress Rate. Adds reliability,
+partial credit, dual safety dimensions, and communication quality.
+
+\paragraph{Production-grade stack (12 metrics).}
+All of the above, plus: ORR + HR + TSA + TCR + TTFT + CPT. Adds
+safety-helpfulness balance, hallucination, tool use quality, and operational SLAs.
+
+\paragraph{Comprehensive evaluation (18+ metrics).}
+Add MCR, DoLI, HPR, PLR, RunVar, BAF, ECE for full coverage of coordination,
+privacy, calibration, and fairness.
+
+% ==========================================================================
+\section{Conclusion}
+\label{sec:conclusion}
+
+This survey consolidates 95 evaluation metrics for LLM-based multi-agent systems,
+drawn from 61 primary research papers published between 2023 and 2025. Our nine-category
+taxonomy and trajectory/outcome classification provide a structured framework for metric
+selection. The three Critical-importance metrics (GSR, Accuracy, ASR) provide a
+baseline; the 26 High-importance metrics form a production-grade evaluation stack. Key
+open challenges—hallucination propagation, privacy leakage through internal channels,
+deadlock detection, and reproducibility—represent the highest-priority research
+directions for the field.
+
+As LLM-MAS move from research settings to regulated deployment contexts (EU AI Act,
+HIPAA, SR 11-7), the demand for standardised, auditable evaluation protocols will
+intensify. We hope this survey accelerates convergence on such protocols.
+
+% ==========================================================================
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+% ==========================================================================
+\appendix
+\section{Complete Metric Reference Table}
+\label{app:full_table}
+
+\begin{longtable}{p{1.8cm}p{3.5cm}p{1.2cm}p{1.8cm}p{1.0cm}c}
+  \caption{All 95 evaluation metrics with category, source, range, directionality, and importance.}
+  \label{tab:full_metrics} \\
+  \toprule
+  \textbf{Abbr.} & \textbf{Name} & \textbf{Cat.} & \textbf{Source} & \textbf{Range} & \textbf{Imp.} \\
+  \midrule
+  \endfirsthead
+  \multicolumn{6}{c}{\textit{Table~\ref{tab:full_metrics} continued}} \\
+  \toprule
+  \textbf{Abbr.} & \textbf{Name} & \textbf{Cat.} & \textbf{Source} & \textbf{Range} & \textbf{Imp.} \\
+  \midrule
+  \endhead
+  \bottomrule
+  \endlastfoot
+  % ── Task Performance ──
+  GSR            & Goal Success Rate              & Task    & MASEval           & 0--100\%   & 5 \\
+  Accuracy       & Task Accuracy                  & Task    & MMLU              & 0--100\%   & 5 \\
+  pass@k         & pass@k (lenient)               & Task    & $\tau$-bench      & 0--100\%   & 4 \\
+  pass\^{}k      & pass\^{}k (strict)             & Task    & $\tau$-bench      & 0--100\%   & 4 \\
+  pGSR           & Partial GSR                    & Task    & MASEval           & 0--100\%   & 4 \\
+  Sub.R          & Subgoal Success Rate           & Task    & CommVerify        & 0--100\%   & 4 \\
+  Sup-GSR        & Supervisor GSR                 & Task    & AWS Bedrock       & 0--100\%   & 4 \\
+  Sys-GSR        & System-side GSR                & Task    & AWS Bedrock       & 0--100\%   & 4 \\
+  BCS            & Behavior Competency Score      & Task    & CREW-Wildfire     & 0--1       & 3 \\
+  WR             & Win Rate                       & Task    & MAgIC             & 0--100\%   & 3 \\
+  KPI            & Key Performance Indicator      & Task    & MARBLE            & task-def.  & 3 \\
+  PassRate       & Pass Rate                      & Task    & Mobile-Bench      & 0--100\%   & 3 \\
+  SuccR          & Success Rate                   & Task    & Safe-BeAl         & 0--100\%   & 3 \\
+  SafeR@S        & Safety Rate at Success         & Task    & Safe-BeAl         & 0--100\%   & 3 \\
+  \midrule
+  % ── Communication ──
+  IDS            & Information Divergence Score   & Comm.   & GEMMAS            & 0--1       & 3 \\
+  UPR            & Unnecessary Path Ratio         & Comm.   & GEMMAS            & 0--1       & 3 \\
+  TES            & Team Execution Score           & Comm.   & Collab-OC         & 0--1       & 3 \\
+  IC             & Initiating Capability          & Comm.   & Collab-OC         & 0--100\%   & 3 \\
+  RC             & Responding Capability          & Comm.   & Collab-OC         & 0--100\%   & 3 \\
+  AF             & Alignment Factor               & Comm.   & C2C               & 0--1       & 2 \\
+  CORE           & Conv.\ Robustness Eval.        & Comm.   & CORE              & 0--1       & 2 \\
+  ITES           & Incr.\ Team Exec.\ Score       & Comm.   & Collab-OC         & 0--1       & 2 \\
+  PC             & Progress Completeness          & Comm.   & Collab-OC         & 0--1       & 2 \\
+  NCCG           & Norm.\ Cumul.\ Common Ground   & Comm.   & Collab+Del.       & 0--1       & 2 \\
+  \midrule
+  % ── Coordination ──
+  ANU            & Avg.\ Normalised Utility       & Coord.  & COLLAB            & 0--1       & 3 \\
+  CS             & Coordination Score             & Coord.  & MARBLE            & 0--1       & 3 \\
+  Elo            & Elo Rating                     & Coord.  & MAgIC             & open       & 4 \\
+  FASR           & False Agent Switch Rate        & Coord.  & AWS Bedrock       & 0--100\%   & 3 \\
+  Conformity     & Conformity Rate                & Coord.  & BenchForm         & 0--100\%   & 3 \\
+  Independence   & Independence Rate              & Coord.  & BenchForm         & 0--100\%   & 3 \\
+  CoM Rate       & Change-of-Mind Rate            & Coord.  & Collab+Del.       & 0--100\%   & 3 \\
+  CSS            & Component Synergy Score        & Coord.  & TRiSM             & 0--1       & 2 \\
+  TUE            & Tool Utilisation Efficacy      & Coord.  & TRiSM             & 0--1       & 3 \\
+  S\_J           & Judgment (MAgIC)               & Coord.  & MAgIC             & 0--1       & 2 \\
+  S\_R           & Reasoning (MAgIC)              & Coord.  & MAgIC             & 0--1       & 3 \\
+  S\_D           & Deception (MAgIC)              & Coord.  & MAgIC             & 0--1       & 2 \\
+  S\_self        & Self-Awareness (MAgIC)         & Coord.  & MAgIC             & 0--1       & 2 \\
+  S\_collab      & Cooperation (MAgIC)            & Coord.  & MAgIC             & 0--1       & 3 \\
+  CoS            & Collaboration Score            & Coord.  & MindAgent         & 0--1       & 2 \\
+  MCR            & Milestone Completion Rate      & Coord.  & MARBLE            & 0--100\%   & 4 \\
+  CompS          & Competition Score              & Coord.  & MARBLE            & 0--1       & 3 \\
+  DoLI           & Division of Labor Index        & Coord.  & Survey            & 0--1       & 3 \\
+  NSR            & Negotiation Success Rate       & Coord.  & MARBLE            & 0--100\%   & 2 \\
+  SWS            & Social Welfare Score           & Coord.  & Game-Theory MAS   & $>0$       & 3 \\
+  \midrule
+  % ── Safety ──
+  ASR            & Attack Success Rate            & Safety  & TAMAS             & 0--100\%   & 5 \\
+  OER            & Over-Exposure Rate             & Safety  & Trust-Vuln.       & 0--100\%   & 4 \\
+  AD             & Alignment Dispersion           & Safety  & Trust-Vuln.       & $\geq 0$   & 4 \\
+  ERS            & Effective Robustness Score     & Safety  & TAMAS             & 0--100\%   & 4 \\
+  ORR            & Over-Refuse Rate               & Safety  & WaltzRL           & 0--100\%   & 4 \\
+  PDR            & Process Danger Rate            & Safety  & PsySafe           & 0--100\%   & 4 \\
+  ASV            & Avg.\ Safety Violations        & Safety  & SAFER             & 0--1       & 4 \\
+  Robustness     & Robustness Score               & Safety  & MASEval           & 0--1       & 4 \\
+  FPR            & False Positive Rate            & Safety  & Guardians         & 0--100\%   & 4 \\
+  ECS            & Ethical Cooperation Score      & Safety  & CMAG              & 0--1       & 3 \\
+  JDR            & Joint Danger Rate              & Safety  & PsySafe           & 0--100\%   & 3 \\
+  PNA            & Perf.\ under No Attack         & Safety  & TAMAS             & 0--100\%   & 3 \\
+  SafeR          & Safety Rate                    & Safety  & Safe-BeAl         & 0--100\%   & 3 \\
+  APDR           & Avg.\ Performance Drop Rate    & Safety  & PPTC-R            & 0--100\%   & 3 \\
+  FTR            & Feedback Trigger Rate          & Safety  & WaltzRL           & 0--100\%   & 3 \\
+  Autonomy       & Autonomy Score                 & Safety  & CMAG              & 0--1       & 2 \\
+  DR             & Deadlock Rate                  & Safety  & Survey            & 0--100\%   & 3 \\
+  TAR            & Task Abandonment Rate          & Safety  & Survey            & 0--100\%   & 3 \\
+  RR             & Recovery Rate                  & Safety  & Survey            & 0--100\%   & 3 \\
+  HR             & Hallucination Rate             & Safety  & Cleanlab          & 0--100\%   & 4 \\
+  HPR            & Hallucin.\ Propagation Rate    & Safety  & Cleanlab          & 0--100\%   & 3 \\
+  ECE            & Expected Calibration Error     & Safety  & Cleanlab          & 0--1       & 3 \\
+  PLR            & PII Leakage Rate               & Safety  & AgentLeak         & 0--100\%   & 4 \\
+  \midrule
+  % ── Planning ──
+  CheckPoint     & CheckPoint Score               & Plan.   & Mobile-Bench      & 0--1       & 4 \\
+  Progress Rate  & Fine-Grained Progress Rate     & Plan.   & AgentBoard        & 0--100\%   & 4 \\
+  StepR          & Step Ratio                     & Plan.   & CommVerify        & $>0$       & 3 \\
+  ARL            & Avg.\ Reasoning Length         & Plan.   & Struct.\ Distill. & steps      & 3 \\
+  CoT Match Rate & CoT Match Rate                 & Plan.   & Struct.\ Distill. & 0--100\%   & 3 \\
+  MRA            & Memory Recall Accuracy         & Plan.   & Survey            & 0--100\%   & 3 \\
+  LHC            & Long-Horizon Coherence         & Plan.   & Survey            & 0--1       & 2 \\
+  \midrule
+  % ── Medical ──
+  AUROC          & Area Under ROC Curve           & Med.    & MedAgentBoard     & 0--1       & 4 \\
+  AUPRC          & Area Under PR Curve            & Med.    & MedAgentBoard     & 0--1       & 4 \\
+  ROUGE-L        & ROUGE-L (LCS)                  & Med.    & MedAgentBoard     & 0--1       & 4 \\
+  BLEU           & BLEU Score                     & Med.    & MedAide           & 0--1       & 3 \\
+  SARI           & SARI Score                     & Med.    & MedAgentBoard     & 0--1       & 3 \\
+  \midrule
+  % ── Framework ──
+  T              & Trustworthiness Index          & FW      & TRiSM             & 0--1       & 3 \\
+  M\_comp        & Composite Eval.\ Metric        & FW      & TRiSM             & 0--1       & 2 \\
+  NDCG@8         & NDCG at 8                      & FW      & ARCANE            & 0--1       & 3 \\
+  Goal-Drift     & Goal-Drift Score               & FW      & Shukla 2025       & 0--1       & 2 \\
+  Harm-Reduction & Harm Reduction Index           & FW      & Shukla 2025       & 0--1       & 2 \\
+  BAF            & Bias Amplification Factor      & FW      & EmergBias         & $>0$       & 3 \\
+  ASE            & Agent Scaling Efficiency       & FW      & Survey            & $>0$       & 3 \\
+  \midrule
+  % ── Operational ──
+  TTFT           & Time to First Token            & Ops.    & NVIDIA/MLPerf     & ms$\downarrow$ & 4 \\
+  TPOT           & Time Per Output Token          & Ops.    & NVIDIA/MLPerf     & ms$\downarrow$ & 3 \\
+  CPT            & Cost Per Task                  & Ops.    & Industry          & USD$\downarrow$ & 4 \\
+  TBU            & Token Budget Utilisation       & Ops.    & Survey            & 0--100\%   & 3 \\
+  Goodput        & Goodput                        & Ops.    & Databricks        & 0--100\%   & 3 \\
+  RunVar         & Run-to-Run Variance            & Ops.    & MAESTRO           & $\sigma^2\downarrow$ & 3 \\
+  \midrule
+  % ── Tool Use ──
+  TSA            & Tool Selection Accuracy        & Tool    & Survey            & 0--100\%   & 4 \\
+  TPA            & Tool Parameter Accuracy        & Tool    & Survey            & 0--100\%   & 3 \\
+  TCR            & Tool Call Success Rate         & Tool    & Survey            & 0--100\%   & 4 \\
+\end{longtable}
+
+\end{document}
