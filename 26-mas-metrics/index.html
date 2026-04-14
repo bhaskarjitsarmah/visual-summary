@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Evaluation Metrics for LLM Multi-Agent Systems</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#c9d1d9;--muted:#8b949e;
+  --accent:#0d9488;--accent2:#14b8a6;--accent3:#ccfbf1;
+  --c-overview:#f7b731;--c-task:#3b82f6;--c-comm:#a78bfa;
+  --c-coord:#10b981;--c-safety:#ef4444;--c-planning:#f97316;
+  --c-domain:#8b5cf6;--c-framework:#0d9488;--c-explorer:#ec4899;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+.sidebar{width:240px;min-width:240px;height:100vh;position:sticky;top:0;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:0 0 40px;flex-shrink:0;}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.sidebar-logo-title{font-size:13px;font-weight:700;color:var(--accent2);}
+.sidebar-logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.nav-group-title{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;padding:10px 16px 4px;}
+.nav-link{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;}
+.nav-link:hover,.nav-link.active{color:var(--text);background:rgba(13,148,136,.08);}
+.nav-link.active{color:var(--accent2);}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.main{flex:1;overflow-y:auto;height:100vh;scroll-behavior:smooth;}
+.pipeline-map{position:sticky;top:0;z-index:50;background:rgba(13,17,23,.96);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+.pipe-step{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);padding:2px 6px;border-radius:4px;cursor:pointer;transition:color .15s;}
+.pipe-step:hover{color:var(--text);}
+.pipe-dot{width:6px;height:6px;border-radius:50%;}
+.pipe-arrow{color:var(--border);font-size:12px;}
+.section{min-height:100vh;padding:60px 48px 80px;border-bottom:1px solid var(--border);}
+.section-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;}
+.section-title{font-size:28px;font-weight:800;color:var(--text);margin-bottom:8px;line-height:1.25;}
+.section-sub{font-size:14px;color:var(--muted);margin-bottom:28px;max-width:680px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:16px;}
+.card-title{font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px;}
+.card-body{font-size:13px;color:var(--muted);line-height:1.6;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;}
+canvas{display:block;border-radius:10px;background:var(--surface);border:1px solid var(--border);}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s;}
+.btn:hover{opacity:.85;}
+.btn-tab{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+.formula{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-family:'JetBrains Mono','Courier New',monospace;font-size:11px;color:#a78bfa;line-height:1.8;margin-bottom:16px;white-space:pre;overflow-x:auto;}
+.stats-row{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:28px;}
+.stat{text-align:center;}
+.stat-val{font-size:28px;font-weight:800;color:var(--accent2);}
+.stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;}
+.section-bridge{margin-top:48px;padding-top:28px;border-top:1px solid var(--border);text-align:right;}
+.section-bridge-link{font-size:12px;color:var(--accent2);font-weight:600;border:1px solid var(--accent2);border-radius:6px;padding:6px 14px;transition:all .15s;cursor:pointer;}
+.section-bridge-link:hover{background:rgba(13,148,136,.1);}
+.accordion-item{border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+.accordion-header{padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;background:var(--surface);}
+.accordion-header:hover{background:#1c2128;}
+.accordion-chevron{transition:transform .2s;font-size:10px;color:var(--muted);}
+.accordion-item.open .accordion-chevron{transform:rotate(90deg);}
+.accordion-body{padding:14px 16px;font-size:12px;color:var(--muted);display:none;border-top:1px solid var(--border);line-height:1.7;}
+.accordion-item.open .accordion-body{display:block;}
+#pg-gate{position:fixed;inset:0;background:linear-gradient(135deg,#0d1117 0%,#161b22 50%,#0d1117 100%);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.pg-box{background:#161b22;border:1px solid #30363d;border-radius:16px;padding:40px 48px;max-width:440px;width:100%;text-align:center;box-shadow:0 0 40px rgba(13,148,136,.12);}
+.pg-icon{font-size:2.5rem;margin-bottom:16px;}
+.pg-title{font-size:1.3rem;font-weight:800;color:#c9d1d9;margin-bottom:6px;}
+.pg-subtitle{font-size:13px;font-weight:600;color:#14b8a6;margin-bottom:6px;}
+.pg-sub{font-size:11px;color:#8b949e;margin-bottom:24px;}
+.pg-input{width:100%;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:10px 14px;color:#c9d1d9;font-size:14px;outline:none;text-align:center;}
+.pg-input:focus{border-color:#0d9488;}
+.pg-btn{margin-top:12px;width:100%;background:linear-gradient(135deg,#0d9488,#065f46);color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;}
+.pg-err{color:#ff6b6b;font-size:11px;margin-top:8px;min-height:16px;}
+.highlight-box{border-left:3px solid var(--accent);padding:12px 16px;background:rgba(13,148,136,.06);border-radius:0 8px 8px 0;margin-bottom:16px;font-size:13px;color:var(--muted);}
+.highlight-box.amber{border-color:#f7b731;background:rgba(247,183,49,.06);}
+.highlight-box.green{border-color:#10b981;background:rgba(16,185,129,.06);}
+.highlight-box.red{border-color:#ef4444;background:rgba(239,68,68,.06);}
+.highlight-box.blue{border-color:#3b82f6;background:rgba(59,130,246,.06);}
+.metric-pill{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;margin:4px;}
+.metric-pill:hover{border-color:var(--accent2);color:var(--accent2);}
+.metric-pill.active{background:rgba(13,148,136,.15);border-color:var(--accent2);color:var(--accent2);}
+.metric-detail{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-top:16px;min-height:120px;transition:all .3s;}
+.metric-detail-name{font-size:18px;font-weight:800;margin-bottom:4px;}
+.metric-detail-full{font-size:12px;color:var(--accent2);margin-bottom:12px;}
+.metric-detail-desc{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:12px;}
+.badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-right:6px;}
+.badge-task{background:rgba(59,130,246,.15);color:#60a5fa;}
+.badge-comm{background:rgba(167,139,250,.15);color:#c4b5fd;}
+.badge-coord{background:rgba(16,185,129,.15);color:#6ee7b7;}
+.badge-safety{background:rgba(239,68,68,.15);color:#fca5a5;}
+.badge-planning{background:rgba(249,115,22,.15);color:#fdba74;}
+.badge-medical{background:rgba(139,92,246,.15);color:#c4b5fd;}
+.badge-framework{background:rgba(13,148,136,.15);color:#5eead4;}
+/* Explorer table */
+.explorer-search{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;outline:none;margin-bottom:12px;}
+.explorer-search:focus{border-color:var(--accent);}
+.explorer-filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+.filter-btn{font-size:10px;font-weight:700;padding:4px 10px;border-radius:12px;border:1px solid var(--border);cursor:pointer;transition:all .15s;background:var(--surface);color:var(--muted);}
+.filter-btn.active{color:#fff;}
+.filter-btn[data-cat="all"].active{background:#555;border-color:#777;}
+.filter-btn[data-cat="task"].active{background:#1d4ed8;border-color:#3b82f6;color:#fff;}
+.filter-btn[data-cat="comm"].active{background:#6d28d9;border-color:#a78bfa;color:#fff;}
+.filter-btn[data-cat="coord"].active{background:#065f46;border-color:#10b981;color:#fff;}
+.filter-btn[data-cat="safety"].active{background:#991b1b;border-color:#ef4444;color:#fff;}
+.filter-btn[data-cat="planning"].active{background:#9a3412;border-color:#f97316;color:#fff;}
+.filter-btn[data-cat="medical"].active{background:#4c1d95;border-color:#8b5cf6;color:#fff;}
+.filter-btn[data-cat="framework"].active{background:#134e4a;border-color:#0d9488;color:#fff;}
+.explorer-table{width:100%;border-collapse:collapse;font-size:12px;}
+.explorer-table th{text-align:left;padding:8px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);border-bottom:2px solid var(--border);cursor:pointer;user-select:none;}
+.explorer-table th:hover{color:var(--text);}
+.explorer-table td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top;}
+.explorer-table tr:hover td{background:rgba(255,255,255,.02);}
+.explorer-table .metric-name{font-weight:700;color:var(--accent2);font-size:13px;}
+.explorer-table .metric-abbr{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);}
+.progress-bar-bg{background:#21262d;border-radius:4px;height:6px;overflow:hidden;margin-top:4px;}
+.progress-bar-fill{height:100%;border-radius:4px;transition:width .8s ease;}
+#scroll-prog{position:fixed;top:0;left:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));z-index:9998;transition:width .1s;}
+</style>
+</head>
+<body>
+
+<div id="scroll-prog" style="width:0%"></div>
+
+<!-- PASSWORD GATE -->
+<div id="pg-gate">
+  <div class="pg-box">
+    <div class="pg-icon">📊</div>
+    <div class="pg-title">MAS Eval Metrics</div>
+    <div class="pg-subtitle">Post 26 · Evaluation</div>
+    <div class="pg-sub">Evaluation metrics for LLM multi-agent systems — extracted from 130+ research papers</div>
+    <input class="pg-input" id="pg-inp" type="password" placeholder="Enter access password" autocomplete="off">
+    <button class="pg-btn" onclick="pgTry()">Unlock Visual</button>
+    <div class="pg-err" id="pg-err"></div>
+    <div style="margin-top:16px;font-size:11px;color:#8b949e;">Not a subscriber? <a href="https://bhaskarjitsarmah.substack.com" style="color:#14b8a6;text-decoration:underline;">Join the newsletter →</a></div>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-title">MAS Eval Metrics</div>
+    <div class="sidebar-logo-sub">Post 26 · 35+ metrics from 130+ papers</div>
+  </div>
+  <div class="nav-group-title">Overview</div>
+  <div class="nav-link active" onclick="scrollTo('s-overview')"><span class="dot" style="background:var(--c-overview)"></span>The Measurement Gap</div>
+  <div class="nav-group-title">Metric Categories</div>
+  <div class="nav-link" onclick="scrollTo('s-task')"><span class="dot" style="background:var(--c-task)"></span>Task Performance</div>
+  <div class="nav-link" onclick="scrollTo('s-comm')"><span class="dot" style="background:var(--c-comm)"></span>Communication Quality</div>
+  <div class="nav-link" onclick="scrollTo('s-coord')"><span class="dot" style="background:var(--c-coord)"></span>Coordination Metrics</div>
+  <div class="nav-link" onclick="scrollTo('s-safety')"><span class="dot" style="background:var(--c-safety)"></span>Safety & Trust</div>
+  <div class="nav-link" onclick="scrollTo('s-planning')"><span class="dot" style="background:var(--c-planning)"></span>Planning & Progress</div>
+  <div class="nav-group-title">Advanced</div>
+  <div class="nav-link" onclick="scrollTo('s-domain')"><span class="dot" style="background:var(--c-domain)"></span>Domain-Specific</div>
+  <div class="nav-link" onclick="scrollTo('s-framework')"><span class="dot" style="background:var(--c-framework)"></span>Multi-Dimensional</div>
+  <div class="nav-link" onclick="scrollTo('s-explorer')"><span class="dot" style="background:var(--c-explorer)"></span>Metric Explorer</div>
+</nav>
+
+<!-- MAIN -->
+<div class="main" id="main-scroll">
+
+<!-- PIPELINE MAP -->
+<div class="pipeline-map">
+  <div class="pipe-step" onclick="scrollTo('s-overview')"><div class="pipe-dot" style="background:var(--c-overview)"></div>Overview</div>
+  <span class="pipe-arrow">›</span>
+  <div class="pipe-step" onclick="scrollTo('s-task')"><div class="pipe-dot" style="background:var(--c-task)"></div>Task</div>
+  <span class="pipe-arrow">›</span>
+  <div class="pipe-step" onclick="scrollTo('s-comm')"><div class="pipe-dot" style="background:var(--c-comm)"></div>Comm</div>
+  <span class="pipe-arrow">›</span>
+  <div class="pipe-step" onclick="scrollTo('s-coord')"><div class="pipe-dot" style="background:var(--c-coord)"></div>Coord</div>
+  <span class="pipe-arrow">›</span>
+  <div class="pipe-step" onclick="scrollTo('s-safety')"><div class="pipe-dot" style="background:var(--c-safety)"></div>Safety</div>
+  <span class="pipe-arrow">›</span>
+  <div class="pipe-step" onclick="scrollTo('s-planning')"><div class="pipe-dot" style="background:var(--c-planning)"></div>Planning</div>
+  <span class="pipe-arrow">›</span>
+  <div class="pipe-step" onclick="scrollTo('s-domain')"><div class="pipe-dot" style="background:var(--c-domain)"></div>Domain</div>
+  <span class="pipe-arrow">›</span>
+  <div class="pipe-step" onclick="scrollTo('s-framework')"><div class="pipe-dot" style="background:var(--c-framework)"></div>Framework</div>
+  <span class="pipe-arrow">›</span>
+  <div class="pipe-step" onclick="scrollTo('s-explorer')"><div class="pipe-dot" style="background:var(--c-explorer)"></div>Explorer</div>
+</div>
+
+<!-- ============================================================ S1: OVERVIEW ============================================================ -->
+<section class="section" id="s-overview">
+  <div class="section-tag" style="color:var(--c-overview)">Post 26 · Evaluation</div>
+  <div class="section-title">The Measurement Gap in Multi-Agent AI</div>
+  <div class="section-sub">Single-model benchmarks break down when applied to systems where multiple agents coordinate, communicate, and fail together. 130+ research papers reveal a rich taxonomy of specialized metrics — most unknown to practitioners.</div>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val" style="color:var(--c-overview)">35+</div><div class="stat-lbl">Unique Metrics</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--c-task)">130+</div><div class="stat-lbl">Papers Surveyed</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--c-comm)">8</div><div class="stat-lbl">Metric Categories</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--c-coord)">7</div><div class="stat-lbl">Benchmark Suites</div></div>
+  </div>
+
+  <canvas id="canvas-overview" width="700" height="220" style="margin-bottom:24px;max-width:100%;"></canvas>
+
+  <div class="highlight-box amber">
+    <strong>The core insight:</strong> A 2.1% accuracy difference between two MAS systems can mask a 12.8% difference in information diversity (IDS) and an 80% difference in redundant reasoning paths (UPR). Outcome metrics alone are insufficient — process metrics are essential. <em>(GEMMAS, 2025)</em>
+  </div>
+
+  <div class="grid3" style="margin-bottom:24px;">
+    <div class="card">
+      <div class="card-title" style="color:var(--c-task)">Why Task Metrics Fail</div>
+      <div class="card-body">GSR and accuracy measure final outcomes but ignore how agents coordinated to reach them. A system that succeeds through chaotic, expensive communication is scored identically to an efficient one.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--c-comm)">Process-Level Metrics</div>
+      <div class="card-body">IDS, UPR, TES, IC, RC and CORE measure the quality of inter-agent communication — the hidden layer that determines whether multi-agent collaboration actually adds value over a single model.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--c-safety)">Safety in MAS is Emergent</div>
+      <div class="card-body">Trust paradox (TVP): increasing inter-agent trust improves task success but amplifies OER and AD — information over-exposure and authorization drift. Single-agent safety metrics don't capture this.</div>
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAccordion(this)">Why single-model metrics are insufficient for MAS <span class="accordion-chevron">›</span></div>
+    <div class="accordion-body">In single-agent evaluation, success means the model produced the right output. In multi-agent systems, success requires: (1) correct task outcome, (2) efficient communication, (3) appropriate coordination among roles, (4) safe information handling, and (5) robust planning through failures. Each dimension needs its own metric family. The AgentBoard benchmark introduced fine-grained progress metrics precisely because binary success/failure was masking meaningful differences between agents that partially complete tasks vs. those that fail immediately.</div>
+  </div>
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAccordion(this)">How these metrics were extracted from 130+ papers <span class="accordion-chevron">›</span></div>
+    <div class="accordion-body">The metrics catalogued here were extracted from a systematic review of 130+ papers on LLM-based multi-agent systems, spanning 2023–2026. Papers were filtered by relevance to MAS evaluation (relevance score ≥ 22/100), and the "Evaluation Metrics and Frameworks" column of each paper was analyzed. Papers from GEMMAS, Collab-Overcooked, Safe-BeAl, TRiSM, COLLAB, MedAgentBoard, the Trust-Vulnerability Paradox study, TAMAS, CMAG, BenchForm, Mobile-Bench, and AgentBoard contributed the most novel metrics. Many metrics (IDS, UPR, OER, AD, ECS, CSS, TUE) were introduced specifically to address gaps in existing evaluation frameworks.</div>
+  </div>
+
+  <div class="section-bridge"><span class="section-bridge-link" onclick="scrollTo('s-task')">Task Performance Metrics →</span></div>
+</section>
+
+<!-- ============================================================ S2: TASK PERFORMANCE ============================================================ -->
+<section class="section" id="s-task">
+  <div class="section-tag" style="color:var(--c-task)">Category 1</div>
+  <div class="section-title">Task Performance Metrics</div>
+  <div class="section-sub">The foundational layer — measuring whether agents accomplish their goals. These metrics form the baseline, but their inadequacy for MAS motivated the creation of all subsequent metric categories.</div>
+
+  <div class="btn-row">
+    <button class="btn-tab active" onclick="selectTaskMetric('gsr',this)">GSR</button>
+    <button class="btn-tab" onclick="selectTaskMetric('accuracy',this)">Accuracy</button>
+    <button class="btn-tab" onclick="selectTaskMetric('passrate',this)">PassRate</button>
+    <button class="btn-tab" onclick="selectTaskMetric('succr',this)">SuccR</button>
+    <button class="btn-tab" onclick="selectTaskMetric('safers',this)">SafeR@S</button>
+  </div>
+
+  <div class="metric-detail" id="task-metric-detail">
+    <div class="metric-detail-name" id="tm-name">GSR</div>
+    <div class="metric-detail-full" id="tm-full">Goal Success Rate</div>
+    <div id="tm-badge"><span class="badge badge-task">Task</span></div>
+    <div class="metric-detail-desc" id="tm-desc">Primary end-to-end metric measuring whether the agent achieved the stated goal. Used across GAIA (466 tasks), Tau-bench (120 tasks), and AgentBench. The MASEval framework found that framework choice alone (AutoGen vs Claude SDK) causes a 8.6 percentage point GSR range — nearly equal to the model-choice gap across frontier LLMs.</div>
+    <div class="formula" id="tm-formula">GSR = Completed Tasks / Total Tasks × 100%
+
+Example values (GAIA benchmark):
+  Claude SDK:     53.2%
+  AutoGen:        51.7%
+  LangGraph:      48.9%
+  LlamaIndex:     46.1%
+  smolagents:     44.6%</div>
+  </div>
+
+  <canvas id="canvas-task" width="700" height="200" style="margin-top:24px;margin-bottom:24px;max-width:100%;"></canvas>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title" style="color:var(--c-task)">Benchmark Context</div>
+      <div class="card-body">
+        <strong>GAIA (466 tasks):</strong> Real-world generalist tasks. Primary metric: GSR.<br><br>
+        <strong>Tau-bench (120 tasks):</strong> Policy compliance in tool-use scenarios.<br><br>
+        <strong>MMLU (14,042 tasks):</strong> Knowledge accuracy across domains.<br><br>
+        <strong>AgentBoard:</strong> Fine-grained progress across 9 environments.
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--c-task)">The Limitation</div>
+      <div class="card-body">Task metrics treat a system as a black box. Two systems with identical GSR can differ by: 10× in token cost, 80% in path redundancy (UPR), and 12.8% in information diversity (IDS). The AgentBoard paper introduced progress rate precisely to surface these differences — binary success hides partial progress that matters for long-horizon tasks.</div>
+    </div>
+  </div>
+
+  <div class="section-bridge"><span class="section-bridge-link" onclick="scrollTo('s-comm')">Communication Quality Metrics →</span></div>
+</section>
+
+<!-- ============================================================ S3: COMMUNICATION ============================================================ -->
+<section class="section" id="s-comm">
+  <div class="section-tag" style="color:var(--c-comm)">Category 2</div>
+  <div class="section-title">Communication Quality Metrics</div>
+  <div class="section-sub">The hidden layer of MAS evaluation. These metrics assess the quality, diversity, and efficiency of inter-agent message exchange — the dimension where MAS either adds value or creates expensive redundancy.</div>
+
+  <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:24px;">
+    <div style="flex:1;min-width:280px;">
+      <div style="margin-bottom:12px;font-size:13px;font-weight:600;">Click a metric to explore:</div>
+      <div>
+        <span class="metric-pill active" onclick="selectCommMetric('ids',this)">IDS</span>
+        <span class="metric-pill" onclick="selectCommMetric('upr',this)">UPR</span>
+        <span class="metric-pill" onclick="selectCommMetric('core',this)">CORE</span>
+        <span class="metric-pill" onclick="selectCommMetric('af',this)">AF</span>
+        <span class="metric-pill" onclick="selectCommMetric('tes',this)">TES</span>
+        <span class="metric-pill" onclick="selectCommMetric('ites',this)">ITES</span>
+        <span class="metric-pill" onclick="selectCommMetric('pc',this)">PC</span>
+        <span class="metric-pill" onclick="selectCommMetric('ic',this)">IC</span>
+        <span class="metric-pill" onclick="selectCommMetric('rc',this)">RC</span>
+      </div>
+      <div class="metric-detail" id="comm-metric-detail" style="margin-top:16px;">
+        <div class="metric-detail-name" id="cm-name">IDS</div>
+        <div class="metric-detail-full" id="cm-full">Information Diversity Score</div>
+        <div class="metric-detail-desc" id="cm-desc">Measures semantic variation in messages exchanged between agents using cluster entropy. Low IDS = agents echo each other. High IDS = rich, diverse information flow. Key finding: two systems with only 2.1% accuracy gap showed 12.8% IDS difference.</div>
+        <div class="formula" id="cm-formula">IDS = cluster_entropy(inter_agent_messages)
+
+Source: GEMMAS (Graph-based Evaluation
+  Metrics for Multi-Agent Systems, 2025)
+
+GSM8K experiment: same accuracy ≠ same quality
+  System A: accuracy 87.3%, IDS 0.71
+  System B: accuracy 89.4%, IDS 0.84   ← 12.8% gap</div>
+      </div>
+    </div>
+    <div style="flex:1;min-width:280px;">
+      <canvas id="canvas-comm" width="340" height="300" style="width:100%;"></canvas>
+    </div>
+  </div>
+
+  <div class="highlight-box" style="border-color:var(--c-comm);background:rgba(167,139,250,.06);">
+    <strong>Key insight from GEMMAS:</strong> Outcome-only metrics are insufficient for evaluating multi-agent performance. A system with 80% higher Unnecessary Path Ratio (UPR) than another — meaning 80% more redundant reasoning — can achieve identical accuracy. This redundancy directly translates to higher computational costs and latency.
+  </div>
+
+  <div class="grid3" style="margin-top:20px;">
+    <div class="card">
+      <div class="card-title" style="color:var(--c-comm)">GEMMAS Framework</div>
+      <div class="card-body">Introduced IDS and UPR by modeling agent interactions as a directed acyclic graph (DAG). Evaluated across 5 benchmarks. Enables process-level diagnostics invisible to outcome metrics.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--c-comm)">Collab-Overcooked</div>
+      <div class="card-body">Introduced TES, ITES, PC, IC, RC across 30 tasks in 6 complexity levels. Finding: LLMs excel at goal interpretation but struggle with active collaboration and continuous adaptation as complexity increases.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--c-comm)">C2C Framework (AF)</div>
+      <div class="card-body">Alignment Factor measures how well agent task understanding is aligned through communication. Systems optimizing AF reduced task completion time by ~40% with acceptable communication costs across 5–17 agents.</div>
+    </div>
+  </div>
+
+  <div class="section-bridge"><span class="section-bridge-link" onclick="scrollTo('s-coord')">Coordination Metrics →</span></div>
+</section>
+
+<!-- ============================================================ S4: COORDINATION ============================================================ -->
+<section class="section" id="s-coord">
+  <div class="section-tag" style="color:var(--c-coord)">Category 3</div>
+  <div class="section-title">Coordination Quality Metrics</div>
+  <div class="section-sub">Beyond communication, these metrics measure how well agents actually coordinate — from game-theoretic utility to tool-use efficiency and the emergence of groupthink.</div>
+
+  <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:24px;">
+    <div style="flex:1;min-width:300px;">
+      <canvas id="canvas-radar" width="380" height="320" style="width:100%;"></canvas>
+      <div class="btn-row" style="justify-content:center;margin-top:12px;">
+        <button class="btn-tab active" id="radar-btn-gpt4" onclick="setRadarModel('gpt4',this)">GPT-4o</button>
+        <button class="btn-tab" id="radar-btn-claude" onclick="setRadarModel('claude',this)">Claude 3.5</button>
+        <button class="btn-tab" id="radar-btn-gemini" onclick="setRadarModel('gemini',this)">Gemini 1.5</button>
+      </div>
+    </div>
+    <div style="flex:1;min-width:280px;">
+      <div class="card" style="margin-bottom:12px;">
+        <div class="card-title" style="color:var(--c-coord)">ANU — Average Normalized Utility</div>
+        <div class="card-body">From the COLLAB benchmark (adapts DCOPs). Measures how close LLM agent coordination is to the provably optimal solution from symbolic DCOP solvers.<br><br><strong>Finding:</strong> LLMs underperform symbolic solvers but are competitive in sparse constraint regimes. Instruction modality matters — image-based instructions sometimes yield better results than text.</div>
+      </div>
+      <div class="card" style="margin-bottom:12px;">
+        <div class="card-title" style="color:var(--c-coord)">CSS & TUE — From TRiSM</div>
+        <div class="card-body"><strong>Component Synergy Score (CSS):</strong> Quantifies quality of inter-agent collaboration as a composite score.<br><br><strong>Tool Utilization Efficacy (TUE):</strong> Evaluates whether agents use the right tools at the right time — not just whether they use tools at all.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-coord)">Conformity & Independence</div>
+        <div class="card-body">From BenchForm benchmark. <strong>Conformity Rate:</strong> how often agents abandon correct answers under group pressure. <strong>Independence Rate:</strong> inverse. Critical for multi-agent debate systems to avoid groupthink.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="highlight-box green">
+    <strong>Game-theoretic metrics:</strong> Elo ratings and Bradley-Terry models from 7 primary game-theoretic benchmarks (identified from 573 papers). LLMs show susceptibility to emotional biases that cause unexpected drops in cooperation rates — cooperation is not stable across model sizes and alignment strategies.
+  </div>
+
+  <div class="section-bridge"><span class="section-bridge-link" onclick="scrollTo('s-safety')">Safety & Trust Metrics →</span></div>
+</section>
+
+<!-- ============================================================ S5: SAFETY ============================================================ -->
+<section class="section" id="s-safety">
+  <div class="section-tag" style="color:var(--c-safety)">Category 4</div>
+  <div class="section-title">Safety & Trust Metrics</div>
+  <div class="section-sub">Multi-agent safety is fundamentally different from single-model safety. Trust between agents creates new attack surfaces — the Trust-Vulnerability Paradox shows that improving coordination and improving security are often in direct conflict.</div>
+
+  <canvas id="canvas-safety" width="700" height="200" style="margin-bottom:24px;max-width:100%;"></canvas>
+
+  <div class="grid2" style="margin-bottom:20px;">
+    <div class="card">
+      <div class="card-title" style="color:var(--c-safety)">OER — Over-Exposure Rate</div>
+      <div class="card-body">
+        <strong>Formula:</strong> Information exposures beyond MNI / Total interactions<br><br>
+        Measures boundary violations — when agents share more than the Minimum Necessary Information (MNI) baseline requires. <strong>Key finding:</strong> higher inter-agent trust consistently increases OER even as it improves task success. Defenses: Sensitive Information Repartitioning reduces OER by 15–30%.
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--c-safety)">AD — Authorization Drift</div>
+      <div class="card-body">
+        <strong>Formula:</strong> Δ(authorization scope) / Δ(trust level)<br><br>
+        Captures how sensitively authorization scope changes with trust level. High AD means small trust increases lead to disproportionate permission escalation. The TVP study found heterogeneous trust-to-risk mappings across different frameworks — AutoGen vs CrewAI had different AD profiles.
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--c-safety)">ERS — Effective Robustness Score</div>
+      <div class="card-body">
+        <strong>Formula:</strong> task_effectiveness × (1 − ASR)<br><br>
+        Introduced in TAMAS benchmark (300 adversarial instances, 6 attack types, 211 tools). Measures the safety-effectiveness tradeoff. Multi-agent systems scored significantly lower ERS than single-agent baselines under adversarial conditions.
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--c-safety)">ECS — Ethical Cooperation Score</div>
+      <div class="card-body">
+        <strong>Formula:</strong> cooperation × autonomy × integrity × fairness<br><br>
+        From Constitutional Multi-Agent Governance (CMAG). Penalizes cooperation achieved through manipulation. Unconstrained optimization gets 0.873 cooperation but ECS of 0.645 — CMAG achieves 0.741 ECS with only modest cooperation reduction. Hub-periphery exposure disparities reduced by 60%.
+      </div>
+    </div>
+  </div>
+
+  <div class="highlight-box red">
+    <strong>The Trust-Vulnerability Paradox (TVP):</strong> Increasing inter-agent trust to enhance coordination simultaneously expands risks of over-exposure and over-authorization. This was formalized using MNI as safety baseline across 3 macro scenes and 19 sub-scenes, with results consistent across multiple model backends and orchestration frameworks.
+  </div>
+
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAccordion(this)">SafeR, SuccR, and SafeR@S — the embodied safety triad <span class="accordion-chevron">›</span></div>
+    <div class="accordion-body">Introduced in Safe-BeAl for LLM-based embodied agents performing daily tasks (cooking, cleaning, organizing). <strong>SafeR</strong> = proportion of scripts classified as safe. <strong>SuccR</strong> = proportion completing the task. <strong>SafeR@S</strong> = proportion that are safe among those that succeed. Safe-BeAl improved SafeR by 8.55–15.22% while preserving SuccR, demonstrating that safety and task completion can be jointly optimized. LLM agents without alignment exhibit unsafe behaviors even without adversarial inputs — purely from hallucinations and misalignment with physical-world knowledge.</div>
+  </div>
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAccordion(this)">ASR and FPR in adversarial MAS evaluation <span class="accordion-chevron">›</span></div>
+    <div class="accordion-body"><strong>Attack Success Rate (ASR)</strong> measures vulnerability to adversarial inputs (prompt injection, jailbreaking, AiTM attacks). The Guardians study found ASR increases with prompt length even with 94% detection accuracy at baseline. <strong>False Positive Rate (FPR)</strong> is critical to avoid over-refusal — the WaltzRL system reduced unsafe responses from 39.0% to 4.6% and over-refusals from 45.3% to 9.9% simultaneously by using a two-agent RL framework where a feedback agent improves responses rather than discarding them. AgentMonitor achieved a 6.2% reduction in harmful content and 1.8% increase in helpful content, a dual optimization that single metrics can't capture.</div>
+  </div>
+
+  <div class="section-bridge"><span class="section-bridge-link" onclick="scrollTo('s-planning')">Planning & Progress Metrics →</span></div>
+</section>
+
+<!-- ============================================================ S6: PLANNING ============================================================ -->
+<section class="section" id="s-planning">
+  <div class="section-tag" style="color:var(--c-planning)">Category 5</div>
+  <div class="section-title">Planning & Progress Metrics</div>
+  <div class="section-sub">Long-horizon task evaluation requires metrics that capture intermediate progress, not just final outcomes. These metrics distinguish agents that fail immediately from those that make meaningful partial progress.</div>
+
+  <canvas id="canvas-planning" width="700" height="180" style="margin-bottom:24px;max-width:100%;"></canvas>
+
+  <div class="grid2" style="margin-bottom:20px;">
+    <div class="card">
+      <div class="card-title" style="color:var(--c-planning)">CheckPoint — Mobile-Bench</div>
+      <div class="card-body">
+        Category-based metric assessing whether mobile agents reach essential decision points during planning. Introduced alongside PassRate in Mobile-Bench (832 data entries, 103 APIs, 200+ multi-APP tasks).<br><br>
+        <strong>Why it matters:</strong> An agent can fail PassRate (final task success) while still correctly navigating early checkpoints — sequential errors mean later checkpoints often fail even if early planning was correct.
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--c-planning)">Progress Rate — AgentBoard</div>
+      <div class="card-body">
+        Fine-grained progress metric from the NeurIPS 2024 AgentBoard benchmark. Captures incremental advancement across 9 environments including web navigation, household tasks, and scientific discovery.<br><br>
+        <strong>Key finding:</strong> Using only final success rates (like task success rate), researchers were missing meaningful differences between agents. Progress Rate revealed that some "failing" agents were completing 70-80% of tasks.
+      </div>
+    </div>
+  </div>
+
+  <div class="highlight-box" style="border-color:var(--c-planning);background:rgba(249,115,22,.06);">
+    <strong>Three task complexity tiers (Mobile-Bench):</strong> SAST (Single App, Single Task), SAMT (Single App, Multi Task), MAMT (Multi App, Multi Task). CheckPoint performance degrades rapidly in MAMT — multi-app coordination failures cascade through planning checkpoints, revealing where LLM mobile agents break down.
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="color:var(--c-planning)">Planning Evaluation Hierarchy</div>
+    <div class="card-body" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+      <div>
+        <strong style="color:var(--text);">Milestone Completion</strong><br>
+        High-level: did the agent achieve major intermediate goals? Used in GAIA and AgentBoard. Binary per milestone.
+      </div>
+      <div>
+        <strong style="color:var(--text);">CheckPoint Score</strong><br>
+        Mid-level: did the agent correctly navigate decision points during execution? Category-based, continuous score.
+      </div>
+      <div>
+        <strong style="color:var(--text);">ITES (Incremental TES)</strong><br>
+        Micro-level: what was the contribution of each individual action to overall progress? Per-step attribution.
+      </div>
+    </div>
+  </div>
+
+  <div class="section-bridge"><span class="section-bridge-link" onclick="scrollTo('s-domain')">Domain-Specific Metrics →</span></div>
+</section>
+
+<!-- ============================================================ S7: DOMAIN-SPECIFIC ============================================================ -->
+<section class="section" id="s-domain">
+  <div class="section-tag" style="color:var(--c-domain)">Category 6</div>
+  <div class="section-title">Domain-Specific Metrics</div>
+  <div class="section-sub">Multi-agent systems in healthcare, game theory, and creative generation require metrics tailored to domain constraints. Generic task metrics cannot capture clinical correctness, strategic equilibria, or creative novelty.</div>
+
+  <div class="btn-row" id="domain-tabs">
+    <button class="btn-tab active" onclick="switchDomain('medical',this)">Medical / Healthcare</button>
+    <button class="btn-tab" onclick="switchDomain('game',this)">Game-Theoretic</button>
+    <button class="btn-tab" onclick="switchDomain('creative',this)">Creative Generation</button>
+    <button class="btn-tab" onclick="switchDomain('social',this)">Social Simulation</button>
+  </div>
+
+  <div id="domain-panel-medical">
+    <div class="highlight-box" style="border-color:var(--c-domain);background:rgba(139,92,246,.06);">
+      <strong>MedAgentBoard finding:</strong> Multi-agent collaboration benefits specific scenarios (clinical workflow automation: +task completeness) but does not consistently outperform advanced single LLMs or specialized conventional methods. The evaluation suite uses 4 metric families across 4 task types.
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title" style="color:var(--c-domain)">AUROC & AUPRC — EHR Tasks</div>
+        <div class="card-body">
+          <strong>AUROC:</strong> P(score_pos &gt; score_neg) — gold standard for EHR predictive tasks (mortality, readmission).<br><br>
+          <strong>AUPRC:</strong> Preferred for imbalanced clinical datasets where positive events (ICU readmissions, mortality) are rare. AUPRC is more sensitive to performance on the minority class that matters most clinically.
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-domain)">ROUGE-L & SARI — Lay Summaries</div>
+        <div class="card-body">
+          <strong>ROUGE-L:</strong> Longest common subsequence overlap between generated and reference medical summaries. Measures content coverage.<br><br>
+          <strong>SARI:</strong> System output Against References and Input — averages add/keep/delete F1 scores. Captures simplification quality beyond n-gram overlap. Used for lay medical text generation where both accuracy and readability matter.
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-domain)">LLM-as-Judge (Free-form QA)</div>
+        <div class="card-body">For open-ended medical QA, MedAgentBoard uses LLM-as-a-judge scoring assessing: semantic correctness, clinical relevance, and factual consistency. Human expert panels additionally judge correctness, completeness, accuracy, and coherence for clinical workflow automation tasks.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-domain)">Discordance & Undertriage Rates</div>
+        <div class="card-body">For clinical triage MAS: <strong>discordance rate</strong> measures disagreement between agent recommendation and clinical gold standard. <strong>Undertriage rate</strong> measures dangerous under-prioritization. These domain-specific safety metrics are absent from general MAS benchmarks.</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="domain-panel-game" style="display:none;">
+    <div class="highlight-box" style="border-color:var(--c-domain);background:rgba(139,92,246,.06);">
+      <strong>From 573 papers, 7 primary game-theoretic benchmarks were identified</strong> measuring LLM strategic capabilities across cooperative, adversarial, and policy-oriented contexts. A key limitation: lack of standardized metrics across benchmarks makes cross-study comparisons unreliable.
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title" style="color:var(--c-domain)">Elo & Bradley-Terry Models</div>
+        <div class="card-body">Classic rating systems adapted for LLM agent competitions. Elo updates: R_new = R_old + K×(Score − Expected). Bradley-Terry provides a probabilistic model for pairwise comparisons. Used across multi-agent competitions, board games, negotiation settings. GPT-4 achieves 72.5 on GAMA-Bench; GPT-3.5 shows marked improvements across 3 iterations.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-domain)">Cooperation & Defection Rates</div>
+        <div class="card-body">In iterated Prisoner's Dilemma and Stag Hunt games: <strong>cooperation rate</strong> measures how often agents choose mutually beneficial strategies. A 1-word "cheap talk" channel increased cooperation from 0% to 48.3% in 4-player Stag Hunt. <strong>Defection rate</strong> tracks self-interested choices that harm group welfare.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-domain)">Theory of Mind (ToM) Accuracy</div>
+        <div class="card-body">Measures how well agents infer partner beliefs and intentions. CoordiLang/LLM-Coordination benchmarks separate 1st-order ToM (interpreting others' intent) from 2nd-order ToM (predicting others' interpretations). Finding: 1st-order ToM correlates more strongly with coordination success.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-domain)">Conformity Rate & Independence Rate</div>
+        <div class="card-body">BenchForm benchmark: agents given correct answers then pressured by fake group consensus. <strong>Conformity Rate</strong> = how often agents abandon correct answers. <strong>Independence Rate</strong> = inverse. LLMs show substantial conformity that degrades multi-agent debate quality — especially damaging in sequential interaction protocols.</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="domain-panel-creative" style="display:none;">
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title" style="color:var(--c-domain)">Objective Metrics (Text)</div>
+        <div class="card-body"><strong>Distinct-n:</strong> n-gram diversity in generated text.<br><strong>Self-BLEU:</strong> inter-output similarity (lower = more diverse).<br><strong>Semantic Entropy:</strong> diversity in semantic space via SBERT embeddings.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-domain)">Objective Metrics (Image)</div>
+        <div class="card-body"><strong>FID (Fréchet Inception Distance):</strong> Distribution distance between generated and real images.<br><strong>TIE (Truncated Inception Entropy):</strong> Entropy of the inception score distribution.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-domain)">TTCT — Torrance Tests</div>
+        <div class="card-body">Subjective creativity evaluation: Fluency (# valid ideas), Flexibility (# categories), Originality (uniqueness), Elaboration (detail level). Adapted from human creativity assessment for evaluating LLM-MAS creative output.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-domain)">LLM-as-Judge (Creative)</div>
+        <div class="card-body">Insightfulness, Interestingness, Boden's Criteria (combinational/exploratory/transformational), Creative Product Semantic Scale (CPSS). Multi-agent creative systems rely heavily on subjective evaluation — a key limitation identified in the creativity survey.</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="domain-panel-social" style="display:none;">
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title" style="color:var(--c-domain)">Cooperation in Social Dilemmas</div>
+        <div class="card-body">GovSim platform: only 2/15 LLMs achieved sustainable outcomes in resource-sharing games. Key metric: <strong>sustainability rate</strong> — whether agents maintain shared resources across generations. Communication removes the ability to coordinate, causing resource overuse.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-domain)">Trust & Emotion Metrics</div>
+        <div class="card-body">EAI framework: emotions significantly alter ethical decision-making. LLMs diverge from human emotional responses, causing unexpected drops in cooperation rates under positive emotional influence. Metrics: <strong>cooperation rate</strong>, <strong>payoff distribution</strong>, emotional bias scores.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-bridge"><span class="section-bridge-link" onclick="scrollTo('s-framework')">Multi-Dimensional Frameworks →</span></div>
+</section>
+
+<!-- ============================================================ S8: FRAMEWORK ============================================================ -->
+<section class="section" id="s-framework">
+  <div class="section-tag" style="color:var(--c-framework)">Category 7</div>
+  <div class="section-title">Multi-Dimensional Evaluation Frameworks</div>
+  <div class="section-sub">Beyond individual metrics, researchers have proposed holistic frameworks that evaluate agentic AI across multiple axes simultaneously — recognizing that no single metric captures system quality.</div>
+
+  <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:24px;">
+    <div style="flex:1;min-width:300px;">
+      <canvas id="canvas-framework" width="380" height="320" style="width:100%;"></canvas>
+      <div class="btn-row" style="justify-content:center;margin-top:12px;">
+        <button class="btn-tab active" onclick="setFwAxis('all',this)">All Axes</button>
+        <button class="btn-tab" onclick="setFwAxis('capability',this)">Capability</button>
+        <button class="btn-tab" onclick="setFwAxis('safety',this)">Safety</button>
+        <button class="btn-tab" onclick="setFwAxis('human',this)">Human-Centered</button>
+      </div>
+    </div>
+    <div style="flex:1;min-width:280px;">
+      <div class="card" style="margin-bottom:12px;">
+        <div class="card-title" style="color:var(--c-framework)">5-Axis Balanced Framework (Shukla 2025)</div>
+        <div class="card-body">
+          Axis 1: <strong>Capability & Efficiency</strong> — task success, latency, token cost<br>
+          Axis 2: <strong>Robustness & Adaptability</strong> — failure recovery, distribution shift<br>
+          Axis 3: <strong>Safety & Ethics</strong> — OER, AD, ECS, harm indices<br>
+          Axis 4: <strong>Human-Centered Interaction</strong> — trust, transparency, explainability<br>
+          Axis 5: <strong>Economic & Sustainability</strong> — cost, environmental impact<br><br>
+          Industry deployments show 20–60% productivity gains but routinely omit Axes 3–5.
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:12px;">
+        <div class="card-title" style="color:var(--c-framework)">Goal-Drift Score</div>
+        <div class="card-body">Novel indicator measuring deviation from the original user intent over long-horizon tasks. An agent that starts pursuing an aligned goal but gradually drifts toward misaligned objectives as context accumulates scores higher on traditional metrics but lower on goal-drift.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-framework)">Harm-Reduction Index</div>
+        <div class="card-body">Measures reduction in harmful outcomes relative to a baseline: (Baseline_harm − Agent_harm) / Baseline_harm. Requires defining a baseline system and harm taxonomy. Part of the 5-axis framework's safety dimension — currently absent from most MAS evaluation pipelines.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title" style="color:var(--c-framework)">Two-Dimensional Taxonomy (Mohammadi et al.)</div>
+      <div class="card-body">Dimension 1: <strong>Evaluation Objectives</strong> — what to evaluate (behavior, capabilities, reliability, safety). Dimension 2: <strong>Evaluation Process</strong> — how to evaluate (interaction modes, benchmarks, metric computation, tooling). Highlights enterprise gaps: role-based access, dynamic long-horizon interactions, compliance.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--c-framework)">Three-Tier Value Framework</div>
+      <div class="card-body">From application-driven value alignment survey: <strong>Macro level</strong> (societal values), <strong>Meso level</strong> (organizational policies), <strong>Micro level</strong> (agent behavior). Evaluation datasets and methods are mapped to each tier, enabling alignment-aware evaluation that connects individual agent metrics to societal outcomes.</div>
+    </div>
+  </div>
+
+  <div class="section-bridge"><span class="section-bridge-link" onclick="scrollTo('s-explorer')">Interactive Metric Explorer →</span></div>
+</section>
+
+<!-- ============================================================ S9: EXPLORER ============================================================ -->
+<section class="section" id="s-explorer">
+  <div class="section-tag" style="color:var(--c-explorer)">Reference</div>
+  <div class="section-title">Interactive Metric Explorer</div>
+  <div class="section-sub">Search, filter, and sort all 35+ metrics extracted from 130+ papers. Click column headers to sort.</div>
+
+  <input class="explorer-search" id="explorer-search" placeholder="Search metrics by name, abbreviation, or description..." oninput="filterMetrics()">
+
+  <div class="explorer-filters" id="explorer-filters">
+    <button class="filter-btn active" data-cat="all" onclick="setCatFilter('all',this)">All (35)</button>
+    <button class="filter-btn" data-cat="task" onclick="setCatFilter('task',this)">Task Performance</button>
+    <button class="filter-btn" data-cat="comm" onclick="setCatFilter('comm',this)">Communication</button>
+    <button class="filter-btn" data-cat="coord" onclick="setCatFilter('coord',this)">Coordination</button>
+    <button class="filter-btn" data-cat="safety" onclick="setCatFilter('safety',this)">Safety & Trust</button>
+    <button class="filter-btn" data-cat="planning" onclick="setCatFilter('planning',this)">Planning</button>
+    <button class="filter-btn" data-cat="medical" onclick="setCatFilter('medical',this)">Medical</button>
+    <button class="filter-btn" data-cat="framework" onclick="setCatFilter('framework',this)">Framework</button>
+  </div>
+
+  <div style="overflow-x:auto;">
+    <table class="explorer-table" id="explorer-table">
+      <thead>
+        <tr>
+          <th onclick="sortMetrics('abbr')">Abbr. ⇅</th>
+          <th onclick="sortMetrics('name')">Full Name ⇅</th>
+          <th onclick="sortMetrics('cat')">Category ⇅</th>
+          <th>Formula</th>
+          <th onclick="sortMetrics('source')">Source ⇅</th>
+          <th>Range</th>
+        </tr>
+      </thead>
+      <tbody id="explorer-tbody"></tbody>
+    </table>
+  </div>
+
+  <div style="margin-top:40px;padding-top:28px;border-top:1px solid var(--border);">
+    <div class="grid3">
+      <div class="card">
+        <div class="card-title" style="color:var(--c-explorer)">Most Cited Metrics</div>
+        <div class="card-body">GSR and Accuracy appear in 80%+ of papers. IDS, UPR, OER, AD, ECS, CSS, TUE are newly introduced (2024–2025) specifically for MAS. CheckPoint and Progress Rate are increasingly adopted for planning evaluation.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-explorer)">Biggest Gaps</div>
+        <div class="card-body">Economic sustainability (Axis 5 of the balanced framework) is almost never measured in practice. Goal-Drift and Harm-Reduction indices are conceptually defined but lack standardized implementations. Cross-framework comparison remains difficult without unified benchmarks.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-explorer)">Recommended Stack</div>
+        <div class="card-body">For a practical MAS evaluation: GSR (task) + IDS+UPR (communication) + ANU (coordination) + OER+ERS (safety) + CheckPoint (planning). This 6-metric stack covers all dimensions without excessive measurement overhead.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div><!-- end main -->
+
+<script>
+// ===== PASSWORD GATE =====
+(function(){
+  if(localStorage.getItem('pg_unlocked_26')==='1'){
+    document.getElementById('pg-gate').style.display='none';
+    doInit();
+  }
+  document.getElementById('pg-inp').addEventListener('keydown',function(e){if(e.key==='Enter')pgTry();});
+})();
+function pgTry(){
+  var v=document.getElementById('pg-inp').value.trim();
+  if(v==='visual2025'){
+    localStorage.setItem('pg_unlocked_26','1');
+    document.getElementById('pg-gate').style.display='none';
+    doInit();
+  } else {
+    document.getElementById('pg-err').textContent='Incorrect password. Try visual2025';
+  }
+}
+
+// ===== SCROLL PROGRESS =====
+document.getElementById('main-scroll').addEventListener('scroll',function(){
+  var el=this;
+  var prog=el.scrollTop/(el.scrollHeight-el.clientHeight)*100;
+  document.getElementById('scroll-prog').style.width=prog+'%';
+  updateNav();
+});
+
+// ===== NAV SCROLLSPY =====
+var SECTION_IDS=['s-overview','s-task','s-comm','s-coord','s-safety','s-planning','s-domain','s-framework','s-explorer'];
+function updateNav(){
+  var ms=document.getElementById('main-scroll');
+  var st=ms.scrollTop+120;
+  var active='s-overview';
+  SECTION_IDS.forEach(function(id){
+    var el=document.getElementById(id);
+    if(el&&el.offsetTop<=st)active=id;
+  });
+  document.querySelectorAll('.nav-link').forEach(function(nl,i){
+    nl.classList.toggle('active',SECTION_IDS[i]===active);
+  });
+}
+function scrollTo(id){
+  var el=document.getElementById(id);
+  if(el)document.getElementById('main-scroll').scrollTo({top:el.offsetTop-44,behavior:'smooth'});
+}
+
+// ===== ACCORDION =====
+function toggleAccordion(h){
+  var item=h.parentElement;
+  item.classList.toggle('open');
+}
+
+// ===== METRIC DATA =====
+var ALL_METRICS=[
+  {abbr:'GSR',name:'Goal Success Rate',cat:'task',formula:'Completed Tasks / Total Tasks × 100%',source:'GAIA, AgentBench, MASEval',range:'0–100%',higher:true,desc:'Primary end-to-end MAS task metric. Framework choice alone causes 8.6pp GSR range.'},
+  {abbr:'Accuracy',name:'Task Accuracy',cat:'task',formula:'Correct Outputs / Total Outputs',source:'MMLU, MedAgentBoard, LLMArena',range:'0–100%',higher:true,desc:'Standard metric for deterministic-answer tasks. Most appropriate for multiple-choice QA.'},
+  {abbr:'PassRate',name:'Pass Rate',cat:'task',formula:'Queries Completed within Step Limit / Total',source:'Mobile-Bench',range:'0–100%',higher:true,desc:'Measures successful query completion within step budget. Paired with CheckPoint.'},
+  {abbr:'SuccR',name:'Success Rate',cat:'task',formula:'Scripts Completing Task / Total Scripts',source:'Safe-BeAl',range:'0–100%',higher:true,desc:'Task completion for embodied agents. Paired with SafeR to measure both goals.'},
+  {abbr:'SafeR@S',name:'Safety Rate at Success',cat:'task',formula:'Safe Successful Scripts / Total Successful',source:'Safe-BeAl',range:'0–100%',higher:true,desc:'Conditional safety: of scripts that succeed, how many are also safe?'},
+  {abbr:'IDS',name:'Information Diversity Score',cat:'comm',formula:'cluster_entropy(inter_agent_messages)',source:'GEMMAS (2025)',range:'0–1',higher:true,desc:'Semantic variation in agent messages. 2.1% accuracy gap masked 12.8% IDS difference.'},
+  {abbr:'UPR',name:'Unnecessary Path Ratio',cat:'comm',formula:'Redundant Reasoning Paths / Total Paths',source:'GEMMAS (2025)',range:'0–1',higher:false,desc:'Quantifies redundant reasoning. 80% UPR gap found between systems with identical accuracy.'},
+  {abbr:'CORE',name:'Conversational Robustness Evaluation Score',cat:'comm',formula:'f(cluster entropy, lexical repetition, semantic similarity)',source:'CORE paper (2025)',range:'0–1',higher:true,desc:'Integrates 3 linguistic signals. Cooperative settings show steeper Zipf distributions.'},
+  {abbr:'AF',name:'Alignment Factor',cat:'comm',formula:'Agent task alignment → communication efficiency',source:'C2C framework',range:'0–1',higher:true,desc:'Optimizing AF reduced task completion time by ~40% across 5–17 agents.'},
+  {abbr:'TES',name:'Trajectory Efficiency Score',cat:'comm',formula:'Rational sequence score × (1 − redundancy penalty)',source:'Collab-Overcooked',range:'0–1',higher:true,desc:'Compares collaboration trajectories for rationality and efficiency.'},
+  {abbr:'ITES',name:'Incremental Trajectory Efficiency Score',cat:'comm',formula:'Per-action task-progress contribution',source:'Collab-Overcooked',range:'0–1',higher:true,desc:'Fine-grained per-step attribution of collaborative contribution.'},
+  {abbr:'PC',name:'Progress Completeness',cat:'comm',formula:'Aggregate task progress − redundancy penalty',source:'Collab-Overcooked',range:'0–1',higher:true,desc:'Global task progress across all agents, penalizing redundant work.'},
+  {abbr:'IC',name:'Initiating Capability',cat:'comm',formula:'Correct initiations / Total initiation attempts',source:'Collab-Overcooked',range:'0–100%',higher:true,desc:'Evaluates whether agents correctly identify when/how to initiate collaboration.'},
+  {abbr:'RC',name:'Responding Capability',cat:'comm',formula:'Correct responses / Total collaboration requests',source:'Collab-Overcooked',range:'0–100%',higher:true,desc:'Assesses correct reactive coordination when collaboration is requested.'},
+  {abbr:'ANU',name:'Average Normalized Utility',cat:'coord',formula:'Agent utility / Optimal DCOP solver utility',source:'COLLAB benchmark',range:'0–1',higher:true,desc:'LLMs underperform symbolic solvers but are competitive in sparse regimes.'},
+  {abbr:'CSS',name:'Component Synergy Score',cat:'coord',formula:'Composite inter-agent collaboration quality',source:'TRiSM for Agentic AI',range:'0–1',higher:true,desc:'Quantifies emergent synergy beyond individual agent performance.'},
+  {abbr:'TUE',name:'Tool Utilization Efficacy',cat:'coord',formula:'Effective tool invocations / Total × utility weights',source:'TRiSM for Agentic AI',range:'0–1',higher:true,desc:'Measures right-tool-right-time usage vs excessive/irrelevant tool calls.'},
+  {abbr:'Elo',name:'Elo Rating',cat:'coord',formula:'R_new = R_old + K × (Score − Expected)',source:'7 game-theoretic benchmarks',range:'Relative',higher:true,desc:'Classic rating adapted for LLM competitions. GPT-4 achieves 72.5 on GAMA-Bench.'},
+  {abbr:'Conformity Rate',name:'Conformity Rate',cat:'coord',formula:'Changed answers under peer pressure / Total',source:'BenchForm benchmark',range:'0–100%',higher:false,desc:'How often agents abandon correct answers under group pressure.'},
+  {abbr:'Independence Rate',name:'Independence Rate',cat:'coord',formula:'Maintained correct answers under pressure / Total',source:'BenchForm benchmark',range:'0–100%',higher:true,desc:'Inverse of conformity. Critical for multi-agent debate quality.'},
+  {abbr:'CoS',name:'Collaboration Score',cat:'coord',formula:'Collaborative efficiency in joint task execution',source:'MindAgent (CuisineWorld)',range:'Normalized',higher:true,desc:'Auto-metric for calculating collaboration efficiency in gaming interactions.'},
+  {abbr:'OER',name:'Over-Exposure Rate',cat:'safety',formula:'Exposures > MNI baseline / Total interactions',source:'Trust-Vulnerability Paradox',range:'0–100%',higher:false,desc:'Detects boundary violations. Higher trust → higher OER, even with better task success.'},
+  {abbr:'AD',name:'Authorization Drift',cat:'safety',formula:'Δ(authorization scope) / Δ(trust level)',source:'Trust-Vulnerability Paradox',range:'0–1',higher:false,desc:'How sensitively authorization expands with trust. High AD = security vulnerability.'},
+  {abbr:'ASR',name:'Attack Success Rate',cat:'safety',formula:'Successful attacks / Total attack attempts',source:'TAMAS, Agent SafetyBench',range:'0–100%',higher:false,desc:'Vulnerability to adversarial inputs. Increases with prompt length even with detection.'},
+  {abbr:'FPR',name:'False Positive Rate',cat:'safety',formula:'FP / (FP + TN)',source:'AgentMonitor',range:'0–100%',higher:false,desc:'Rate of incorrectly flagging safe content. Must balance with ASR reduction.'},
+  {abbr:'ERS',name:'Effective Robustness Score',cat:'safety',formula:'task_effectiveness × (1 − ASR)',source:'TAMAS benchmark',range:'0–1',higher:true,desc:'Safety-effectiveness tradeoff. MAS score significantly lower ERS than single-agent under attack.'},
+  {abbr:'ECS',name:'Ethical Cooperation Score',cat:'safety',formula:'cooperation × autonomy × integrity × fairness',source:'CMAG framework',range:'0–1',higher:true,desc:'Penalizes manipulation-based cooperation. CMAG 14.9% ECS improvement over unconstrained.'},
+  {abbr:'SafeR',name:'Safety Rate',cat:'safety',formula:'Safe scripts / Total scripts',source:'Safe-BeAl',range:'0–100%',higher:true,desc:'Improved 8.55–15.22% with Safe-BeAl while preserving task success rate.'},
+  {abbr:'CheckPoint',name:'CheckPoint Score',cat:'planning',formula:'Essential milestones reached / Total checkpoints',source:'Mobile-Bench (832 tasks)',range:'0–1',higher:true,desc:'Process quality metric for mobile agents. Reveals where sequential planning breaks.'},
+  {abbr:'Progress Rate',name:'Fine-Grained Progress Rate',cat:'planning',formula:'Sub-goals achieved / Total sub-goals',source:'AgentBoard (NeurIPS 2024)',range:'0–1',higher:true,desc:'Reveals "failing" agents completing 70-80% of tasks — invisible to binary success.'},
+  {abbr:'AUROC',name:'Area Under ROC Curve',cat:'medical',formula:'P(pos score > neg score) over all pairs',source:'MedAgentBoard (EHR)',range:'0.5–1.0',higher:true,desc:'Gold standard for EHR predictive tasks. MAS does not consistently outperform single LLMs.'},
+  {abbr:'AUPRC',name:'Area Under PR Curve',cat:'medical',formula:'Area under precision-recall curve',source:'MedAgentBoard (EHR)',range:'0–1',higher:true,desc:'Preferred for imbalanced clinical datasets (rare positive events).'},
+  {abbr:'ROUGE-L',name:'ROUGE Longest Common Subsequence',cat:'medical',formula:'LCS(generated, reference) / reference_length',source:'MedAgentBoard',range:'0–100',higher:true,desc:'Content overlap for medical lay summary generation.'},
+  {abbr:'SARI',name:'System Output Against References',cat:'medical',formula:'Avg(add F1, keep F1, delete F1)',source:'MedAgentBoard (simplification)',range:'0–100',higher:true,desc:'Simplification quality beyond n-gram overlap. Evaluates add/keep/delete operations.'},
+  {abbr:'Goal-Drift',name:'Goal-Drift Score',cat:'framework',formula:'Deviation(current_goal, original_goal) over horizon',source:'Balanced Framework (Shukla 2025)',range:'0–1',higher:false,desc:'Novel: measures how much agent goals drift from user intent over long tasks.'},
+  {abbr:'Harm-Reduction',name:'Harm Reduction Index',cat:'framework',formula:'(Baseline_harm − Agent_harm) / Baseline_harm',source:'Balanced Framework',range:'0–1',higher:true,desc:'Part of 5-axis framework. Almost never measured in current MAS deployments.'},
+];
+
+var catColors={task:'#3b82f6',comm:'#a78bfa',coord:'#10b981',safety:'#ef4444',planning:'#f97316',medical:'#8b5cf6',framework:'#0d9488'};
+var catLabels={task:'Task',comm:'Communication',coord:'Coordination',safety:'Safety',planning:'Planning',medical:'Medical',framework:'Framework'};
+
+// ===== TASK METRIC DETAIL =====
+var TASK_DATA={
+  gsr:{name:'GSR',full:'Goal Success Rate',desc:'Primary end-to-end metric measuring whether the agent achieved the stated goal. Used across GAIA (466 tasks), Tau-bench (120 tasks), and AgentBench. The MASEval framework found that framework choice alone causes a 8.6pp GSR range — nearly equal to the model-choice gap across frontier LLMs.',formula:'GSR = Completed Tasks / Total Tasks × 100%\n\nExample values (GAIA benchmark):\n  Claude SDK:     53.2%\n  AutoGen:        51.7%\n  LangGraph:      48.9%\n  LlamaIndex:     46.1%\n  smolagents:     44.6%'},
+  accuracy:{name:'Accuracy',full:'Task Accuracy',desc:'Standard classification accuracy for tasks with deterministic answers. Most appropriate for multiple-choice QA and structured prediction. MMLU uses accuracy across 14,042 questions spanning 57 domains. MedAgentBoard uses accuracy for multiple-choice medical QA.',formula:'Accuracy = Correct Outputs / Total Outputs × 100%\n\nMedAgentBoard (MedQA benchmark):\n  Multi-agent:    67.3%\n  GPT-4o single:  69.1%   ← single model wins\n  Specialized:    71.8%\nFinding: MAS does not consistently outperform'},
+  passrate:{name:'PassRate',full:'Pass Rate',desc:'Measures successful query completion within a predefined step budget. Introduced in Mobile-Bench (832 data entries, 103 collected APIs) alongside CheckPoint for mobile agent evaluation. PassRate evaluates whether agents can complete tasks within realistic operation constraints.',formula:'PassRate = Queries Completed within Step Limit / Total\n\nMobile-Bench complexity tiers:\n  SAST (Single App, Single Task):   High\n  SAMT (Single App, Multi Task):    Medium\n  MAMT (Multi App, Multi Task):     Low   ← drops significantly'},
+  succr:{name:'SuccR',full:'Success Rate',desc:'Proportion of generated action scripts that fully achieve the task goal. Paired with SafeR to measure both task completion and safety simultaneously. Safe-BeAl improved SafeR by 8.55–15.22% while preserving SuccR, demonstrating joint optimization.',formula:'SuccR = Scripts Successfully Completing Task / Total\n\nSafe-BeAl results:\n  Baseline SuccR:    78.4%\n  Safe-BeAl SuccR:   78.1%  ← minimal change\n  Baseline SafeR:    61.2%\n  Safe-BeAl SafeR:   72.8%  ← +15.2% improvement'},
+  safers:{name:'SafeR@S',full:'Safety Rate at Success',desc:'Conditional safety metric: of scripts that succeed, what fraction are also safe? Reveals whether task success comes at the cost of safety compromise. A system with high SuccR but low SafeR@S is completing tasks through unsafe means.',formula:'SafeR@S = Safe Scripts among Successful / Total Successful\n\nInterpretation:\n  High SuccR + High SafeR@S → ideal system\n  High SuccR + Low  SafeR@S → "succeeding unsafely"\n  Low  SuccR + High SafeR@S → "safely failing"'},
+};
+
+function selectTaskMetric(key,btn){
+  document.querySelectorAll('#s-task .btn-tab').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  var d=TASK_DATA[key];
+  document.getElementById('tm-name').textContent=d.name;
+  document.getElementById('tm-full').textContent=d.full;
+  document.getElementById('tm-desc').textContent=d.desc;
+  document.getElementById('tm-formula').textContent=d.formula;
+  drawTaskCanvas();
+}
+
+// ===== COMM METRIC DETAIL =====
+var COMM_DATA={
+  ids:{name:'IDS',full:'Information Diversity Score',desc:'Measures semantic variation in messages exchanged between agents using cluster entropy. Low IDS = agents echo each other. High IDS = rich, diverse information flow. Key finding: two systems with only 2.1% accuracy gap showed 12.8% IDS difference on GSM8K.',formula:'IDS = cluster_entropy(inter_agent_messages)\n\nSource: GEMMAS (Graph-based Evaluation\n  Metrics for Multi-Agent Systems, 2025)\n\nGSM8K experiment: same accuracy ≠ same quality\n  System A: accuracy 87.3%, IDS 0.71\n  System B: accuracy 89.4%, IDS 0.84   ← 12.8% gap'},
+  upr:{name:'UPR',full:'Unnecessary Path Ratio',desc:'Quantifies what fraction of agent reasoning steps are redundant — messages that add no new information. An 80% UPR difference found between systems with similar accuracy on GSM8K. Lower is better. Direct cost impact: high UPR = high token consumption.',formula:'UPR = Redundant Reasoning Paths / Total Paths\n\nGSM8K experiment:\n  System A: accuracy 87.3%, UPR 0.23\n  System B: accuracy 89.4%, UPR 0.41   ← 80% gap!\n\nLower UPR = more efficient collaboration'},
+  core:{name:'CORE',full:'Conversational Robustness Evaluation Score',desc:'Integrates cluster entropy, lexical repetition, and semantic similarity to measure dialog quality in multi-agent LLM systems across game-theoretic settings. Grounded in Zipf\'s and Heaps\' Laws to characterize word frequency distributions.',formula:'CORE = f(cluster_entropy, lexical_repetition,\n              semantic_similarity)\n\nFindings by game type:\n  Cooperative:  steeper Zipf, higher Heaps exponent\n  Competitive:  lower Zipf, constrained vocabulary\n  Neutral:      intermediate patterns'},
+  af:{name:'AF',full:'Alignment Factor',desc:'Novel metric from the Communication to Completion (C2C) framework. Measures how well agent task understanding is aligned through targeted communication. Systems optimizing AF reduced task completion time by ~40% with acceptable costs across teams of 5–17 agents.',formula:'AF = f(agent task alignment → work efficiency)\n\nC2C results (coding workflows, 3 complexity tiers):\n  No communication baseline:  100% time\n  Fixed steps communication:   85% time\n  C2C with AF optimization:    60% time  ← -40%\n  All tasks completed successfully'},
+  tes:{name:'TES',full:'Trajectory Efficiency Score',desc:'Compares two collaboration trajectories, assessing rationally planned action sequences by sequence order and redundancy punishment. Introduced in Collab-Overcooked (30 tasks, 6 complexity levels, 13 LLMs tested).',formula:'TES = sequence_rationality_score ×\n       (1 − redundancy_penalty)\n\nCollab-Overcooked findings:\n  LLMs: strong goal interpretation\n  LLMs: weak active collaboration\n  TES degrades as complexity increases\n  Human vs LLM gap: ~40% at level 6'},
+  ites:{name:'ITES',full:'Incremental Trajectory Efficiency Score',desc:'Fine-grained version of TES — measures the marginal contribution of each individual agent action to overall task progress. Enables per-step attribution analysis, showing which specific collaborative actions drive progress vs. which are wasted.',formula:'ITES(action_t) = ΔProgress(t) / ideal_contribution\n\nUsage: per-step diagnostic\n  High ITES: action significantly advanced task\n  Low  ITES: action was redundant or counterproductive\n  Sum of ITES ≈ TES for full trajectory'},
+  pc:{name:'PC',full:'Progress Completeness',desc:'Measures global task progress across all agents, penalizing redundant efforts. Captures both completeness and efficiency of the collaborative process. Differs from individual completion by accounting for duplicate work between agents.',formula:'PC = Σ(agent_progress) − redundancy_penalty\n\nCaptures: completeness + efficiency\nPenalizes: duplicate work between agents\nDiffers from GSR: partial credit for partial success\nDiffers from TES: focuses on outcome not trajectory'},
+  ic:{name:'IC',full:'Initiating Capability',desc:'Evaluates whether an LLM agent correctly identifies when and how to initiate collaboration with teammates. Reveals proactive coordination ability — a key gap found in LLMs which are strong at reacting but weak at proactively starting collaboration.',formula:'IC = Correct Collaboration Initiations /\n      Total Initiation Attempts\n\nCollab-Overcooked finding:\n  LLMs exhibit "significant shortcomings\n  in active collaboration" (IC metric)\n  IC degrades rapidly at complexity level 4+'},
+  rc:{name:'RC',full:'Responding Capability',desc:'Assesses whether an agent correctly responds when another agent initiates collaboration. Tests reactive coordination ability. LLMs generally score higher on RC than IC — they are better at responding to collaboration than initiating it.',formula:'RC = Correct Responses to Collaboration /\n      Total Collaboration Requests\n\nRC vs IC comparison:\n  RC > IC across all tested LLMs\n  Both degrade with complexity\n  Gap widens at higher complexity levels\n  (proactive worse than reactive)'},
+};
+
+function selectCommMetric(key,pill){
+  document.querySelectorAll('#s-comm .metric-pill').forEach(function(p){p.classList.remove('active');});
+  pill.classList.add('active');
+  var d=COMM_DATA[key];
+  document.getElementById('cm-name').textContent=d.name;
+  document.getElementById('cm-full').textContent=d.full;
+  document.getElementById('cm-desc').textContent=d.desc;
+  document.getElementById('cm-formula').textContent=d.formula;
+  drawCommCanvas(key);
+}
+
+// ===== RADAR DATA =====
+var RADAR_MODELS={
+  gpt4:{label:'GPT-4o',color:'#3b82f6',vals:[0.85,0.78,0.80,0.72,0.68]},
+  claude:{label:'Claude 3.5 Sonnet',color:'#14b8a6',vals:[0.88,0.82,0.83,0.75,0.71]},
+  gemini:{label:'Gemini 1.5 Pro',color:'#f97316',vals:[0.80,0.74,0.77,0.68,0.65]},
+};
+var RADAR_LABELS=['Task (GSR)','Comm (IDS)','Coordination','Safety (ERS)','Planning'];
+var curRadarModel='gpt4';
+function setRadarModel(m,btn){
+  curRadarModel=m;
+  document.querySelectorAll('#s-coord .btn-tab').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  drawRadar();
+}
+
+// ===== FRAMEWORK AXIS =====
+var FW_SCENARIOS={
+  all:{label:'All Axes',vals:[0.72,0.65,0.58,0.70,0.55]},
+  capability:{label:'Strong Capability',vals:[0.90,0.72,0.45,0.60,0.48]},
+  safety:{label:'Safety-Focused',vals:[0.65,0.70,0.88,0.75,0.62]},
+  human:{label:'Human-Centered',vals:[0.70,0.68,0.72,0.92,0.68]},
+};
+var FW_LABELS=['Capability','Robustness','Safety & Ethics','Human-Centered','Economic'];
+var curFwAxis='all';
+function setFwAxis(k,btn){
+  curFwAxis=k;
+  document.querySelectorAll('#s-framework .btn-tab').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  drawFrameworkRadar();
+}
+
+// ===== DOMAIN TABS =====
+function switchDomain(d,btn){
+  ['medical','game','creative','social'].forEach(function(k){
+    document.getElementById('domain-panel-'+k).style.display=k===d?'':'none';
+  });
+  document.querySelectorAll('#domain-tabs .btn-tab').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+}
+
+// ===== EXPLORER =====
+var currentCatFilter='all';
+var currentSort={key:'cat',dir:1};
+
+function setCatFilter(cat,btn){
+  currentCatFilter=cat;
+  document.querySelectorAll('.filter-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  renderTable();
+}
+function sortMetrics(key){
+  if(currentSort.key===key)currentSort.dir*=-1;
+  else{currentSort.key=key;currentSort.dir=1;}
+  renderTable();
+}
+function filterMetrics(){renderTable();}
+
+function renderTable(){
+  var q=document.getElementById('explorer-search').value.toLowerCase();
+  var filtered=ALL_METRICS.filter(function(m){
+    var catOk=currentCatFilter==='all'||m.cat===currentCatFilter;
+    var qOk=!q||(m.abbr.toLowerCase().includes(q)||m.name.toLowerCase().includes(q)||m.desc.toLowerCase().includes(q)||m.source.toLowerCase().includes(q));
+    return catOk&&qOk;
+  });
+  filtered.sort(function(a,b){
+    var av=a[currentSort.key]||'',bv=b[currentSort.key]||'';
+    return av<bv?-currentSort.dir:av>bv?currentSort.dir:0;
+  });
+  var tbody=document.getElementById('explorer-tbody');
+  tbody.innerHTML=filtered.map(function(m){
+    var cc=catColors[m.cat]||'#888';
+    var cl=catLabels[m.cat]||m.cat;
+    var dir=m.higher?'↑ higher better':'↓ lower better';
+    return '<tr>'+
+      '<td><span style="font-family:\'JetBrains Mono\',monospace;font-weight:700;font-size:12px;color:'+cc+'">'+m.abbr+'</span></td>'+
+      '<td><div style="font-weight:600;font-size:12px;">'+m.name+'</div><div style="font-size:10px;color:var(--muted);margin-top:2px;">'+m.desc.substring(0,80)+'...</div></td>'+
+      '<td><span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:'+cc+'22;color:'+cc+'">'+cl+'</span></td>'+
+      '<td style="font-family:\'JetBrains Mono\',monospace;font-size:10px;color:var(--muted);max-width:200px;word-break:break-word;">'+m.formula+'</td>'+
+      '<td style="font-size:11px;color:var(--muted);">'+m.source+'</td>'+
+      '<td style="font-size:10px;"><div>'+m.range+'</div><div style="color:'+cc+';font-size:9px;margin-top:2px;">'+dir+'</div></td>'+
+    '</tr>';
+  }).join('');
+}
+
+// ===== CANVAS DRAWS =====
+function lerp(a,b,t){return a+(b-a)*t;}
+function easeOut(t){return 1-(1-t)*(1-t);}
+
+// Overview canvas — 3-stage evolution
+var ovTimer=null,ovPhase=0,ovT=0;
+function drawOverview(){
+  var c=document.getElementById('canvas-overview');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';
+  ctx.fillRect(0,0,W,H);
+
+  var stages=[
+    {label:'Single Model',sub:'Task → Output',color:'#3b82f6',metrics:'1 metric\n(Accuracy)'},
+    {label:'Single Agent',sub:'Plan → Act → Output',color:'#a78bfa',metrics:'3 metrics\n(GSR, Steps, Cost)'},
+    {label:'Multi-Agent System',sub:'Coord → Comm → Act',color:'#14b8a6',metrics:'35+ metrics\n(All categories)'},
+  ];
+
+  var boxW=180,boxH=110,gap=40;
+  var totalW=stages.length*boxW+(stages.length-1)*gap;
+  var startX=(W-totalW)/2;
+  var cy=H/2;
+
+  ovT=(ovT+0.008)%1;
+
+  stages.forEach(function(s,i){
+    var x=startX+i*(boxW+gap);
+    var glow=i===2?0.3+0.15*Math.sin(ovT*Math.PI*2):0.1;
+    ctx.save();
+    ctx.shadowColor=s.color;
+    ctx.shadowBlur=20*glow;
+    // box
+    ctx.fillStyle='#1c2128';
+    ctx.strokeStyle=s.color;
+    ctx.lineWidth=i===2?2:1;
+    ctx.beginPath();
+    ctx.roundRect(x,cy-boxH/2,boxW,boxH,10);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+    // label
+    ctx.fillStyle=s.color;
+    ctx.font='bold 12px Inter';
+    ctx.textAlign='center';
+    ctx.fillText(s.label,x+boxW/2,cy-boxH/2+22);
+    ctx.fillStyle='#8b949e';
+    ctx.font='10px Inter';
+    ctx.fillText(s.sub,x+boxW/2,cy-boxH/2+38);
+    // metrics
+    ctx.fillStyle='#c9d1d9';
+    ctx.font='bold 11px Inter';
+    s.metrics.split('\n').forEach(function(line,li){
+      ctx.fillText(line,x+boxW/2,cy+10+li*16);
+    });
+    // arrow
+    if(i<stages.length-1){
+      var ax=x+boxW+8,ay=cy;
+      ctx.fillStyle='#30363d';
+      ctx.beginPath();
+      ctx.moveTo(ax,ay);ctx.lineTo(ax+gap-16,ay-6);ctx.lineTo(ax+gap-16,ay+6);ctx.closePath();
+      ctx.fill();
+    }
+  });
+
+  // Particle on MAS box
+  var p3x=startX+2*(boxW+gap);
+  var pt=ovT;
+  var px=p3x+20+boxW*0.6*Math.sin(pt*Math.PI*2);
+  var py=cy+30*Math.cos(pt*Math.PI*3);
+  ctx.fillStyle='rgba(20,184,166,0.7)';
+  ctx.beginPath();ctx.arc(px,py,3,0,Math.PI*2);ctx.fill();
+}
+
+// Task canvas — animated bar chart
+var taskAnimT=0,taskAnimDir=1,taskAnimFrame=null;
+function drawTaskCanvas(){
+  var c=document.getElementById('canvas-task');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var data=[
+    {label:'Claude SDK',val:53.2,color:'#14b8a6'},
+    {label:'GPT-4o',val:55.4,color:'#3b82f6'},
+    {label:'AutoGen',val:51.7,color:'#a78bfa'},
+    {label:'LangGraph',val:48.9,color:'#f97316'},
+    {label:'smolagents',val:44.6,color:'#ef4444'},
+    {label:'Gemini 1.5',val:49.7,color:'#8b5cf6'},
+  ];
+
+  var pad={l:80,r:40,t:20,b:40};
+  var chartH=H-pad.t-pad.b;
+  var barH=Math.floor(chartH/data.length)-6;
+  var maxVal=60,t=easeOut(Math.min(taskAnimT,1));
+
+  data.forEach(function(d,i){
+    var y=pad.t+i*(barH+6);
+    var barW=((W-pad.l-pad.r)*(d.val/maxVal))*t;
+    ctx.fillStyle=d.color+'33';
+    ctx.fillRect(pad.l,y,W-pad.l-pad.r,barH);
+    ctx.fillStyle=d.color;
+    ctx.fillRect(pad.l,y,barW,barH);
+    ctx.fillStyle='#8b949e';
+    ctx.font='11px Inter';
+    ctx.textAlign='right';
+    ctx.fillText(d.label,pad.l-8,y+barH/2+4);
+    if(t>0.8){
+      ctx.fillStyle='#c9d1d9';
+      ctx.font='bold 11px Inter';
+      ctx.textAlign='left';
+      ctx.fillText(d.val+'%',pad.l+barW+6,y+barH/2+4);
+    }
+  });
+
+  // x axis label
+  ctx.fillStyle='#8b949e';ctx.font='10px Inter';ctx.textAlign='center';
+  ctx.fillText('GAIA Goal Success Rate (%)',W/2,H-8);
+
+  if(taskAnimT<1){
+    taskAnimT+=0.04;
+    requestAnimationFrame(drawTaskCanvas);
+  }
+}
+
+// Comm canvas — agent network
+var commParticles=[];
+function drawCommCanvas(metric){
+  var c=document.getElementById('canvas-comm');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var agents=[
+    {x:W*0.5,y:50,label:'A1',color:'#14b8a6'},
+    {x:W*0.15,y:150,label:'A2',color:'#3b82f6'},
+    {x:W*0.85,y:150,label:'A3',color:'#a78bfa'},
+    {x:W*0.5,y:250,label:'A4',color:'#f97316'},
+  ];
+  var edges=[[0,1],[0,2],[1,3],[2,3],[0,3]];
+
+  // draw edges
+  edges.forEach(function(e){
+    var a=agents[e[0]],b=agents[e[1]];
+    var active=metric==='ids'||metric==='upr'||metric==='core';
+    ctx.strokeStyle=active?'rgba(20,184,166,0.3)':'rgba(48,54,61,0.8)';
+    ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+  });
+
+  // particles
+  if(commParticles.length<8&&(metric==='ids'||metric==='tes'||metric==='ic'||metric==='rc')){
+    var e=edges[Math.floor(Math.random()*edges.length)];
+    commParticles.push({from:agents[e[0]],to:agents[e[1]],t:0,speed:0.02+Math.random()*0.02,color:agents[e[0]].color});
+  }
+  commParticles=commParticles.filter(function(p){return p.t<1;});
+  commParticles.forEach(function(p){
+    p.t+=p.speed;
+    var px=lerp(p.from.x,p.to.x,p.t);
+    var py=lerp(p.from.y,p.to.y,p.t);
+    ctx.fillStyle=p.color;
+    ctx.beginPath();ctx.arc(px,py,4,0,Math.PI*2);ctx.fill();
+  });
+
+  // draw nodes
+  agents.forEach(function(a){
+    ctx.fillStyle=a.color+'33';
+    ctx.strokeStyle=a.color;
+    ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(a.x,a.y,20,0,Math.PI*2);ctx.fill();ctx.stroke();
+    ctx.fillStyle=a.color;ctx.font='bold 12px Inter';ctx.textAlign='center';
+    ctx.fillText(a.label,a.x,a.y+4);
+  });
+
+  // metric label
+  var ml={ids:'IDS: 0.84 ↑',upr:'UPR: 0.23 ↓',core:'CORE: 0.76',af:'AF: 0.91',tes:'TES: 0.73',ites:'ITES: 0.65',pc:'PC: 0.68',ic:'IC: 71%',rc:'RC: 82%'};
+  ctx.fillStyle='#14b8a6';ctx.font='bold 14px Inter';ctx.textAlign='center';
+  ctx.fillText(ml[metric]||'',W/2,H-15);
+}
+
+// Safety canvas — gauges
+function drawSafetyCanvas(){
+  var c=document.getElementById('canvas-safety');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var gauges=[
+    {label:'OER (Low Trust)',val:0.12,color:'#10b981',x:80},
+    {label:'OER (High Trust)',val:0.41,color:'#ef4444',x:220},
+    {label:'AD Score',val:0.35,color:'#f97316',x:360},
+    {label:'ERS (MAS)',val:0.48,color:'#3b82f6',x:500},
+    {label:'ECS (CMAG)',val:0.74,color:'#14b8a6',x:630},
+  ];
+
+  gauges.forEach(function(g){
+    var r=60,cy=H/2+10;
+    // arc background
+    ctx.strokeStyle='#21262d';ctx.lineWidth=10;
+    ctx.beginPath();ctx.arc(g.x,cy,r,Math.PI,2*Math.PI);ctx.stroke();
+    // arc fill
+    var fillAngle=Math.PI+g.val*Math.PI;
+    ctx.strokeStyle=g.color;ctx.lineWidth=10;
+    ctx.beginPath();ctx.arc(g.x,cy,r,Math.PI,fillAngle);ctx.stroke();
+    // value
+    ctx.fillStyle=g.color;ctx.font='bold 16px Inter';ctx.textAlign='center';
+    ctx.fillText((g.val*100).toFixed(0)+'%',g.x,cy+8);
+    // label
+    ctx.fillStyle='#8b949e';ctx.font='10px Inter';
+    ctx.fillText(g.label,g.x,cy+r-10);
+  });
+
+  // trust arrow annotation
+  ctx.fillStyle='rgba(239,68,68,0.15)';
+  ctx.beginPath();ctx.roundRect(140,10,150,30,6);ctx.fill();
+  ctx.fillStyle='#ef4444';ctx.font='11px Inter';ctx.textAlign='center';
+  ctx.fillText('Trust ↑ → OER ↑',215,30);
+}
+
+// Planning canvas — milestone timeline
+var planAnimT=0;
+function drawPlanningCanvas(){
+  var c=document.getElementById('canvas-planning');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  planAnimT=Math.min(planAnimT+0.015,1);
+
+  var milestones=[
+    {label:'Start',x:60,done:true},
+    {label:'Step 1\n(App open)',x:170,done:true},
+    {label:'Step 2\n(Navigate)',x:290,done:true},
+    {label:'Step 3\n(Input)',x:410,done:planAnimT>0.6},
+    {label:'Step 4\n(Submit)',x:530,done:planAnimT>0.85},
+    {label:'Goal',x:640,done:planAnimT>=1},
+  ];
+
+  var cy=H/2;
+  // baseline
+  ctx.strokeStyle='#30363d';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(40,cy);ctx.lineTo(W-40,cy);ctx.stroke();
+
+  milestones.forEach(function(m,i){
+    if(i<milestones.length-1){
+      var nm=milestones[i+1];
+      ctx.strokeStyle=nm.done?'#10b981':'#30363d';
+      ctx.lineWidth=3;
+      ctx.beginPath();ctx.moveTo(m.x,cy);ctx.lineTo(nm.x,cy);ctx.stroke();
+    }
+    ctx.fillStyle=m.done?'#10b981':'#21262d';
+    ctx.strokeStyle=m.done?'#10b981':'#30363d';
+    ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(m.x,cy,12,0,Math.PI*2);ctx.fill();ctx.stroke();
+    if(m.done){
+      ctx.fillStyle='#fff';ctx.font='bold 10px Inter';ctx.textAlign='center';
+      ctx.fillText('✓',m.x,cy+4);
+    }
+    ctx.fillStyle=m.done?'#c9d1d9':'#8b949e';ctx.font='10px Inter';ctx.textAlign='center';
+    m.label.split('\n').forEach(function(ln,li){ctx.fillText(ln,m.x,cy+28+li*14);});
+  });
+
+  // CheckPoint score
+  var doneCount=milestones.filter(function(m){return m.done;}).length;
+  ctx.fillStyle='#f97316';ctx.font='bold 13px Inter';ctx.textAlign='left';
+  ctx.fillText('CheckPoint: '+(doneCount-1)+'/'+(milestones.length-1),10,20);
+  ctx.fillStyle='#8b949e';ctx.font='10px Inter';
+  ctx.fillText('Progress Rate: '+(Math.round(planAnimT*100))+'%',10,36);
+
+  if(planAnimT<1)requestAnimationFrame(drawPlanningCanvas);
+}
+
+// Radar — coordination
+function drawSpider(ctx,cx,cy,r,labels,vals,color,fill){
+  var n=labels.length;
+  // grid
+  [0.25,0.5,0.75,1].forEach(function(scale){
+    ctx.strokeStyle='rgba(48,54,61,0.5)';ctx.lineWidth=1;
+    ctx.beginPath();
+    for(var i=0;i<n;i++){
+      var a=-Math.PI/2+i*2*Math.PI/n;
+      var x=cx+r*scale*Math.cos(a),y=cy+r*scale*Math.sin(a);
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    }
+    ctx.closePath();ctx.stroke();
+  });
+  // axes
+  for(var i=0;i<n;i++){
+    var a=-Math.PI/2+i*2*Math.PI/n;
+    ctx.strokeStyle='#30363d';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+r*Math.cos(a),cy+r*Math.sin(a));ctx.stroke();
+    // label
+    var lx=cx+(r+22)*Math.cos(a),ly=cy+(r+22)*Math.sin(a);
+    ctx.fillStyle='#8b949e';ctx.font='10px Inter';ctx.textAlign='center';
+    ctx.fillText(labels[i],lx,ly+4);
+  }
+  // polygon
+  ctx.fillStyle=color+'33';ctx.strokeStyle=color;ctx.lineWidth=2;
+  ctx.beginPath();
+  for(var i=0;i<n;i++){
+    var a=-Math.PI/2+i*2*Math.PI/n;
+    var v=vals[i];
+    var x=cx+r*v*Math.cos(a),y=cy+r*v*Math.sin(a);
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.closePath();ctx.fill();ctx.stroke();
+  // dots
+  for(var i=0;i<n;i++){
+    var a=-Math.PI/2+i*2*Math.PI/n;
+    var x=cx+r*vals[i]*Math.cos(a),y=cy+r*vals[i]*Math.sin(a);
+    ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill();
+  }
+}
+
+function drawRadar(){
+  var c=document.getElementById('canvas-radar');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+  var m=RADAR_MODELS[curRadarModel];
+  drawSpider(ctx,W/2,H/2-10,110,RADAR_LABELS,m.vals,m.color,true);
+  ctx.fillStyle=m.color;ctx.font='bold 13px Inter';ctx.textAlign='center';
+  ctx.fillText(m.label,W/2,H-15);
+}
+
+function drawFrameworkRadar(){
+  var c=document.getElementById('canvas-framework');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+  var sc=FW_SCENARIOS[curFwAxis];
+  drawSpider(ctx,W/2,H/2-10,120,FW_LABELS,sc.vals,'#14b8a6',true);
+  ctx.fillStyle='#14b8a6';ctx.font='bold 12px Inter';ctx.textAlign='center';
+  ctx.fillText(sc.label,W/2,H-15);
+}
+
+// ===== INIT =====
+var commAnimId=null;
+function startCommAnim(){
+  function loop(){
+    drawCommCanvas(currentCommMetric);
+    commAnimId=requestAnimationFrame(loop);
+  }
+  if(commAnimId)cancelAnimationFrame(commAnimId);
+  loop();
+}
+var currentCommMetric='ids';
+var origSelectComm=selectCommMetric;
+selectCommMetric=function(key,pill){
+  currentCommMetric=key;
+  origSelectComm(key,pill);
+};
+
+function doInit(){
+  // start overview animation
+  setInterval(drawOverview,33);
+  // task canvas
+  taskAnimT=0;
+  drawTaskCanvas();
+  // comm canvas
+  startCommAnim();
+  // safety canvas
+  drawSafetyCanvas();
+  // planning canvas
+  drawPlanningCanvas();
+  // radar charts
+  drawRadar();
+  drawFrameworkRadar();
+  // explorer table
+  renderTable();
+}
+</script>
+</body>
+</html>
