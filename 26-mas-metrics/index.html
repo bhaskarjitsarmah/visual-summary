@@ -117,6 +117,23 @@ canvas{display:block;border-radius:10px;background:var(--surface);border:1px sol
 .progress-bar-bg{background:#21262d;border-radius:4px;height:6px;overflow:hidden;margin-top:4px;}
 .progress-bar-fill{height:100%;border-radius:4px;transition:width .8s ease;}
 #scroll-prog{position:fixed;top:0;left:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));z-index:9998;transition:width .1s;}
+/* Importance indicators */
+.imp-bar{display:flex;gap:2px;margin-bottom:3px;}
+.imp-seg{width:10px;height:6px;border-radius:2px;background:#21262d;}
+.imp-seg.on-5{background:#14b8a6;}
+.imp-seg.on-4{background:#3b82f6;}
+.imp-seg.on-3{background:#f7b731;}
+.imp-seg.on-2{background:#f97316;}
+.imp-seg.on-1{background:#8b949e;}
+.imp-label-5{color:#14b8a6;font-size:9px;font-weight:700;}
+.imp-label-4{color:#3b82f6;font-size:9px;font-weight:700;}
+.imp-label-3{color:#f7b731;font-size:9px;font-weight:700;}
+.imp-label-2{color:#f97316;font-size:9px;font-weight:700;}
+.imp-label-1{color:#8b949e;font-size:9px;font-weight:700;}
+.imp-note{font-size:9px;color:var(--muted);line-height:1.4;margin-top:3px;max-width:160px;}
+.imp-filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center;}
+.imp-filter-btn{font-size:10px;font-weight:700;padding:3px 9px;border-radius:10px;border:1px solid var(--border);cursor:pointer;background:var(--surface);color:var(--muted);transition:all .15s;}
+.imp-filter-btn.active{color:#fff;}
 </style>
 </head>
 <body>
@@ -129,7 +146,7 @@ canvas{display:block;border-radius:10px;background:var(--surface);border:1px sol
     <div class="pg-icon">📊</div>
     <div class="pg-title">MAS Eval Metrics</div>
     <div class="pg-subtitle">Post 26 · Evaluation</div>
-    <div class="pg-sub">Evaluation metrics for LLM multi-agent systems — extracted from 130+ research papers</div>
+    <div class="pg-sub">70 evaluation metrics for LLM multi-agent systems — verified from 61 directly-read papers. Includes real-world importance ratings.</div>
     <input class="pg-input" id="pg-inp" type="password" placeholder="Enter access password" autocomplete="off">
     <button class="pg-btn" onclick="pgTry()">Unlock Visual</button>
     <div class="pg-err" id="pg-err"></div>
@@ -141,7 +158,7 @@ canvas{display:block;border-radius:10px;background:var(--surface);border:1px sol
 <nav class="sidebar">
   <div class="sidebar-logo">
     <div class="sidebar-logo-title">MAS Eval Metrics</div>
-    <div class="sidebar-logo-sub">Post 26 · 35+ metrics from 130+ papers</div>
+    <div class="sidebar-logo-sub">Post 26 · 70 metrics · 61 papers read</div>
   </div>
   <div class="nav-group-title">Overview</div>
   <div class="nav-link active" onclick="scrollTo('s-overview')"><span class="dot" style="background:var(--c-overview)"></span>The Measurement Gap</div>
@@ -188,16 +205,16 @@ canvas{display:block;border-radius:10px;background:var(--surface);border:1px sol
   <div class="section-sub">Single-model benchmarks break down when applied to systems where multiple agents coordinate, communicate, and fail together. 130+ research papers reveal a rich taxonomy of specialized metrics — most unknown to practitioners.</div>
 
   <div class="stats-row">
-    <div class="stat"><div class="stat-val" style="color:var(--c-overview)">35+</div><div class="stat-lbl">Unique Metrics</div></div>
-    <div class="stat"><div class="stat-val" style="color:var(--c-task)">130+</div><div class="stat-lbl">Papers Surveyed</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--c-overview)">70</div><div class="stat-lbl">Unique Metrics</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--c-task)">61</div><div class="stat-lbl">Papers Read</div></div>
     <div class="stat"><div class="stat-val" style="color:var(--c-comm)">8</div><div class="stat-lbl">Metric Categories</div></div>
-    <div class="stat"><div class="stat-val" style="color:var(--c-coord)">7</div><div class="stat-lbl">Benchmark Suites</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--c-coord)">23</div><div class="stat-lbl">Critical/High Impact</div></div>
   </div>
 
   <canvas id="canvas-overview" width="700" height="220" style="margin-bottom:24px;max-width:100%;"></canvas>
 
   <div class="highlight-box amber">
-    <strong>The core insight:</strong> A 2.1% accuracy difference between two MAS systems can mask a 12.8% difference in information diversity (IDS) and an 80% difference in redundant reasoning paths (UPR). Outcome metrics alone are insufficient — process metrics are essential. <em>(GEMMAS, 2025)</em>
+    <strong>The core insight:</strong> A 2.1% accuracy difference between two MAS systems can mask a 12.8% difference in information divergence (IDS) and an 80% difference in unnecessary path ratio (UPR). Outcome metrics alone are insufficient — process metrics are essential. <em>(GEMMAS, arxiv:2507.13190)</em>
   </div>
 
   <div class="grid3" style="margin-bottom:24px;">
@@ -221,7 +238,7 @@ canvas{display:block;border-radius:10px;background:var(--surface);border:1px sol
   </div>
   <div class="accordion-item">
     <div class="accordion-header" onclick="toggleAccordion(this)">How these metrics were extracted from 130+ papers <span class="accordion-chevron">›</span></div>
-    <div class="accordion-body">The metrics catalogued here were extracted from a systematic review of 130+ papers on LLM-based multi-agent systems, spanning 2023–2026. Papers were filtered by relevance to MAS evaluation (relevance score ≥ 22/100), and the "Evaluation Metrics and Frameworks" column of each paper was analyzed. Papers from GEMMAS, Collab-Overcooked, Safe-BeAl, TRiSM, COLLAB, MedAgentBoard, the Trust-Vulnerability Paradox study, TAMAS, CMAG, BenchForm, Mobile-Bench, and AgentBoard contributed the most novel metrics. Many metrics (IDS, UPR, OER, AD, ECS, CSS, TUE) were introduced specifically to address gaps in existing evaluation frameworks.</div>
+    <div class="accordion-body">The metrics catalogued here were extracted from a systematic review of 130+ papers on LLM-based multi-agent systems, spanning 2023–2026. For this visual, 9 papers were read in full to verify formulas directly: GEMMAS (arxiv:2507.13190), Collab-Overcooked (arxiv:2502.20073), Trust-Vulnerability Paradox (arxiv:2510.18563), COLLAB (Mahmud et al., NeurIPS 2025), CoordiLang (coordination benchmarks), τ-bench (Yao et al., 2024), and survey papers by Farooq et al., Mohammadi et al., and Shah et al. Metrics IDS, UPR, OER, AD, ANU, TES, ITES, PC, IC, RC, pass^k all have formulas confirmed directly from primary sources.</div>
   </div>
 
   <div class="section-bridge"><span class="section-bridge-link" onclick="scrollTo('s-task')">Task Performance Metrics →</span></div>
@@ -237,6 +254,7 @@ canvas{display:block;border-radius:10px;background:var(--surface);border:1px sol
     <button class="btn-tab active" onclick="selectTaskMetric('gsr',this)">GSR</button>
     <button class="btn-tab" onclick="selectTaskMetric('accuracy',this)">Accuracy</button>
     <button class="btn-tab" onclick="selectTaskMetric('passrate',this)">PassRate</button>
+    <button class="btn-tab" onclick="selectTaskMetric('passk',this)">pass@k / pass^k</button>
     <button class="btn-tab" onclick="selectTaskMetric('succr',this)">SuccR</button>
     <button class="btn-tab" onclick="selectTaskMetric('safers',this)">SafeR@S</button>
   </div>
@@ -299,16 +317,19 @@ Example values (GAIA benchmark):
       </div>
       <div class="metric-detail" id="comm-metric-detail" style="margin-top:16px;">
         <div class="metric-detail-name" id="cm-name">IDS</div>
-        <div class="metric-detail-full" id="cm-full">Information Diversity Score</div>
-        <div class="metric-detail-desc" id="cm-desc">Measures semantic variation in messages exchanged between agents using cluster entropy. Low IDS = agents echo each other. High IDS = rich, diverse information flow. Key finding: two systems with only 2.1% accuracy gap showed 12.8% IDS difference.</div>
-        <div class="formula" id="cm-formula">IDS = cluster_entropy(inter_agent_messages)
+        <div class="metric-detail-full" id="cm-full">Information Divergence Score</div>
+        <div class="metric-detail-desc" id="cm-desc">Measures semantic divergence in agent messages using weighted pairwise similarity. Low IDS = agents echo each other. High IDS = rich, diverse information flow. Key finding: 2.1% accuracy gap masked 12.8% IDS difference on GSM8K.</div>
+        <div class="formula" id="cm-formula">IDS = Σ(i,j) w_ij·(1−SS_total[i,j]) / Σ(i,j) w_ij
 
-Source: GEMMAS (Graph-based Evaluation
-  Metrics for Multi-Agent Systems, 2025)
+where:
+  w_ij = max(S_ij,S_ji) + max(T_ij,T_ji)
+  SS_total = 0.5·SS_syn + 0.5·SS_sem
 
-GSM8K experiment: same accuracy ≠ same quality
+Source: GEMMAS (arxiv:2507.13190)
+
+GSM8K: same accuracy ≠ same quality
   System A: accuracy 87.3%, IDS 0.71
-  System B: accuracy 89.4%, IDS 0.84   ← 12.8% gap</div>
+  System B: accuracy 89.4%, IDS 0.84  ← 12.8% richer</div>
       </div>
     </div>
     <div style="flex:1;min-width:280px;">
@@ -317,7 +338,7 @@ GSM8K experiment: same accuracy ≠ same quality
   </div>
 
   <div class="highlight-box" style="border-color:var(--c-comm);background:rgba(167,139,250,.06);">
-    <strong>Key insight from GEMMAS:</strong> Outcome-only metrics are insufficient for evaluating multi-agent performance. A system with 80% higher Unnecessary Path Ratio (UPR) than another — meaning 80% more redundant reasoning — can achieve identical accuracy. This redundancy directly translates to higher computational costs and latency.
+    <strong>Key insight from GEMMAS (arxiv:2507.13190):</strong> Outcome-only metrics are insufficient. A system with 80% higher UPR (UPR = 1 − |P_necessary|/|P_all|) — meaning 80% more redundant reasoning paths — can achieve identical accuracy. This redundancy directly translates to higher computational costs and latency. IDS and UPR together expose the hidden inefficiency that GSR cannot see.
   </div>
 
   <div class="grid3" style="margin-top:20px;">
@@ -356,7 +377,7 @@ GSM8K experiment: same accuracy ≠ same quality
     <div style="flex:1;min-width:280px;">
       <div class="card" style="margin-bottom:12px;">
         <div class="card-title" style="color:var(--c-coord)">ANU — Average Normalized Utility</div>
-        <div class="card-body">From the COLLAB benchmark (adapts DCOPs). Measures how close LLM agent coordination is to the provably optimal solution from symbolic DCOP solvers.<br><br><strong>Finding:</strong> LLMs underperform symbolic solvers but are competitive in sparse constraint regimes. Instruction modality matters — image-based instructions sometimes yield better results than text.</div>
+        <div class="card-body">From the COLLAB benchmark (Mahmud et al., NeurIPS 2025) which adapts Distributed Constraint Optimization Problems (DCOPs).<br><br><strong>Formula:</strong> ANU = (U_achieved − U_min) / (U_max − U_min)<br><br>Normalizes achieved utility against optimal DCOP solver bounds. <strong>Finding:</strong> LLMs underperform symbolic solvers but are competitive in sparse constraint regimes. Instruction modality matters — image-based instructions sometimes outperform text.</div>
       </div>
       <div class="card" style="margin-bottom:12px;">
         <div class="card-title" style="color:var(--c-coord)">CSS & TUE — From TRiSM</div>
@@ -370,7 +391,7 @@ GSM8K experiment: same accuracy ≠ same quality
   </div>
 
   <div class="highlight-box green">
-    <strong>Game-theoretic metrics:</strong> Elo ratings and Bradley-Terry models from 7 primary game-theoretic benchmarks (identified from 573 papers). LLMs show susceptibility to emotional biases that cause unexpected drops in cooperation rates — cooperation is not stable across model sizes and alignment strategies.
+    <strong>Coordination finding (COLLAB):</strong> ANU = (U_achieved − U_min) / (U_max − U_min). LLMs are competitive with symbolic DCOP solvers in sparse constraint regimes, but instruction modality matters. <strong>CoordiLang:</strong> LLMs' zero-shot coordination drop (3.7%) is far smaller than RL agents' (16.2%) — language is a powerful coordination substrate. MultiAgentBench (Shah et al.): graph topology outperforms other topologies; cognitive planning prompting adds +3% across tasks.
   </div>
 
   <div class="section-bridge"><span class="section-bridge-link" onclick="scrollTo('s-safety')">Safety & Trust Metrics →</span></div>
@@ -388,15 +409,16 @@ GSM8K experiment: same accuracy ≠ same quality
     <div class="card">
       <div class="card-title" style="color:var(--c-safety)">OER — Over-Exposure Rate</div>
       <div class="card-body">
-        <strong>Formula:</strong> Information exposures beyond MNI / Total interactions<br><br>
-        Measures boundary violations — when agents share more than the Minimum Necessary Information (MNI) baseline requires. <strong>Key finding:</strong> higher inter-agent trust consistently increases OER even as it improves task success. Defenses: Sensitive Information Repartitioning reduces OER by 15–30%.
+        <strong>Formula:</strong> OER(S,τ) = (1/|G(S,τ)|) × Σ_{ℓ∈G(S,τ)} 𝟙(Oₗ∖A* ≠ ∅)<br><br>
+        Counts task instances where agent outputs exceed Minimum Necessary Information set A*. Evaluated per system S and task type τ across instance set G. <strong>Key finding:</strong> higher inter-agent trust consistently increases OER even as it improves task success — the Trust-Vulnerability Paradox.
       </div>
     </div>
     <div class="card">
-      <div class="card-title" style="color:var(--c-safety)">AD — Authorization Drift</div>
+      <div class="card-title" style="color:var(--c-safety)">AD — Alignment Dispersion</div>
       <div class="card-body">
-        <strong>Formula:</strong> Δ(authorization scope) / Δ(trust level)<br><br>
-        Captures how sensitively authorization scope changes with trust level. High AD means small trust increases lead to disproportionate permission escalation. The TVP study found heterogeneous trust-to-risk mappings across different frameworks — AutoGen vs CrewAI had different AD profiles.
+        <strong>Formula:</strong> AD(S) = Σ_τ w_τ·(OER(S,τ) − OER̄(S))²<br>
+        where OER̄(S) = Σ_τ w_τ·OER(S,τ) (weighted mean)<br><br>
+        Measures the <em>variance</em> of OER across task types τ, weighted by task frequency w_τ. High AD means the system's exposure control is inconsistent — safe in some task contexts, unsafe in others. A more robust measure than OER alone.
       </div>
     </div>
     <div class="card">
@@ -416,7 +438,7 @@ GSM8K experiment: same accuracy ≠ same quality
   </div>
 
   <div class="highlight-box red">
-    <strong>The Trust-Vulnerability Paradox (TVP):</strong> Increasing inter-agent trust to enhance coordination simultaneously expands risks of over-exposure and over-authorization. This was formalized using MNI as safety baseline across 3 macro scenes and 19 sub-scenes, with results consistent across multiple model backends and orchestration frameworks.
+    <strong>The Trust-Vulnerability Paradox (TVP, arxiv:2510.18563):</strong> Increasing inter-agent trust enhances coordination but expands OER(S,τ) — exposures beyond the Minimum Necessary Information set A*. Formalized across 3 macro scenes and 19 sub-scenes. AD(S) = Σ_τ w_τ·(OER(S,τ)−OER̄(S))² measures whether this over-exposure is consistent or task-dependent. High AD means the system is unpredictably risky.
   </div>
 
   <div class="accordion-item">
@@ -425,7 +447,7 @@ GSM8K experiment: same accuracy ≠ same quality
   </div>
   <div class="accordion-item">
     <div class="accordion-header" onclick="toggleAccordion(this)">ASR and FPR in adversarial MAS evaluation <span class="accordion-chevron">›</span></div>
-    <div class="accordion-body"><strong>Attack Success Rate (ASR)</strong> measures vulnerability to adversarial inputs (prompt injection, jailbreaking, AiTM attacks). The Guardians study found ASR increases with prompt length even with 94% detection accuracy at baseline. <strong>False Positive Rate (FPR)</strong> is critical to avoid over-refusal — the WaltzRL system reduced unsafe responses from 39.0% to 4.6% and over-refusals from 45.3% to 9.9% simultaneously by using a two-agent RL framework where a feedback agent improves responses rather than discarding them. AgentMonitor achieved a 6.2% reduction in harmful content and 1.8% increase in helpful content, a dual optimization that single metrics can't capture.</div>
+    <div class="accordion-body"><strong>Attack Success Rate (ASR)</strong> measures vulnerability to adversarial inputs (prompt injection, jailbreaking, AiTM attacks). <strong>Key data from Wang et al. (IEEE 2025):</strong> AutoDefense reduced ASR from 55.74% to 7.95% — an 85.7% relative reduction — by using a multi-agent defense pipeline where a defense agent screens LLM outputs before delivery. AgentMonitor (Wang et al.) achieved −6.2% harmful content and +1.8% helpful content simultaneously — a dual optimization proving that safety and helpfulness are not in conflict when measured separately. <strong>False Positive Rate (FPR)</strong> is critical to avoid over-refusal: WaltzRL reduced unsafe responses from 39.0% to 4.6% and over-refusals from 45.3% to 9.9% simultaneously using a two-agent RL feedback loop.</div>
   </div>
 
   <div class="section-bridge"><span class="section-bridge-link" onclick="scrollTo('s-planning')">Planning & Progress Metrics →</span></div>
@@ -526,7 +548,7 @@ GSM8K experiment: same accuracy ≠ same quality
 
   <div id="domain-panel-game" style="display:none;">
     <div class="highlight-box" style="border-color:var(--c-domain);background:rgba(139,92,246,.06);">
-      <strong>From 573 papers, 7 primary game-theoretic benchmarks were identified</strong> measuring LLM strategic capabilities across cooperative, adversarial, and policy-oriented contexts. A key limitation: lack of standardized metrics across benchmarks makes cross-study comparisons unreliable.
+      <strong>CoordiLang finding (zero-shot coordination):</strong> LLMs show only a 3.7% cross-play performance drop vs. 16.2% for RL agents — confirming that language-based coordination transfers far better to novel partners. GPT-4-X achieved 85.0% cross-play vs. PPO's 70.2%. Game-theoretic metrics from 7 primary benchmarks across 573 papers; a key gap remains: lack of standardized protocols makes cross-study comparison unreliable.
     </div>
     <div class="grid2">
       <div class="card">
@@ -538,8 +560,8 @@ GSM8K experiment: same accuracy ≠ same quality
         <div class="card-body">In iterated Prisoner's Dilemma and Stag Hunt games: <strong>cooperation rate</strong> measures how often agents choose mutually beneficial strategies. A 1-word "cheap talk" channel increased cooperation from 0% to 48.3% in 4-player Stag Hunt. <strong>Defection rate</strong> tracks self-interested choices that harm group welfare.</div>
       </div>
       <div class="card">
-        <div class="card-title" style="color:var(--c-domain)">Theory of Mind (ToM) Accuracy</div>
-        <div class="card-body">Measures how well agents infer partner beliefs and intentions. CoordiLang/LLM-Coordination benchmarks separate 1st-order ToM (interpreting others' intent) from 2nd-order ToM (predicting others' interpretations). Finding: 1st-order ToM correlates more strongly with coordination success.</div>
+        <div class="card-title" style="color:var(--c-domain)">Zero-Shot Coordination (ZSC)</div>
+        <div class="card-body">From CoordiLang benchmark. Measures how well agents coordinate without prior practice. <strong>Key finding:</strong> LLMs show only 3.7% cross-play performance drop vs. 16.2% for RL agents — LLMs are substantially better at zero-shot coordination through language. GPT-4-X cross-play: 85.0% vs PPO cross-play: 70.2%. Language enables compositional strategies unavailable to RL.</div>
       </div>
       <div class="card">
         <div class="card-title" style="color:var(--c-domain)">Conformity Rate & Independence Rate</div>
@@ -642,12 +664,12 @@ GSM8K experiment: same accuracy ≠ same quality
 <section class="section" id="s-explorer">
   <div class="section-tag" style="color:var(--c-explorer)">Reference</div>
   <div class="section-title">Interactive Metric Explorer</div>
-  <div class="section-sub">Search, filter, and sort all 35+ metrics extracted from 130+ papers. Click column headers to sort.</div>
+  <div class="section-sub">Search, filter, and sort all 70 metrics — verified from 61 papers. Each metric includes a real-world importance rating (1–5) and practitioner impact note. Filter by importance level to focus on Critical or High-impact metrics only. Click column headers to sort.</div>
 
-  <input class="explorer-search" id="explorer-search" placeholder="Search metrics by name, abbreviation, or description..." oninput="filterMetrics()">
+  <input class="explorer-search" id="explorer-search" placeholder="Search metrics by name, abbreviation, description, or source paper..." oninput="filterMetrics()">
 
   <div class="explorer-filters" id="explorer-filters">
-    <button class="filter-btn active" data-cat="all" onclick="setCatFilter('all',this)">All (35)</button>
+    <button class="filter-btn active" data-cat="all" onclick="setCatFilter('all',this)">All (70)</button>
     <button class="filter-btn" data-cat="task" onclick="setCatFilter('task',this)">Task Performance</button>
     <button class="filter-btn" data-cat="comm" onclick="setCatFilter('comm',this)">Communication</button>
     <button class="filter-btn" data-cat="coord" onclick="setCatFilter('coord',this)">Coordination</button>
@@ -655,6 +677,15 @@ GSM8K experiment: same accuracy ≠ same quality
     <button class="filter-btn" data-cat="planning" onclick="setCatFilter('planning',this)">Planning</button>
     <button class="filter-btn" data-cat="medical" onclick="setCatFilter('medical',this)">Medical</button>
     <button class="filter-btn" data-cat="framework" onclick="setCatFilter('framework',this)">Framework</button>
+  </div>
+  <div class="imp-filter-row">
+    <span style="font-size:10px;color:var(--muted);font-weight:600;">Importance:</span>
+    <button class="imp-filter-btn active" data-imp="0" onclick="setImpFilter(0,this)">All</button>
+    <button class="imp-filter-btn" data-imp="5" onclick="setImpFilter(5,this)" style="border-color:#14b8a6;">● Critical</button>
+    <button class="imp-filter-btn" data-imp="4" onclick="setImpFilter(4,this)" style="border-color:#3b82f6;">● High</button>
+    <button class="imp-filter-btn" data-imp="3" onclick="setImpFilter(3,this)" style="border-color:#f7b731;">● Medium</button>
+    <button class="imp-filter-btn" data-imp="2" onclick="setImpFilter(2,this)" style="border-color:#f97316;">● Emerging</button>
+    <button class="imp-filter-btn" data-imp="1" onclick="setImpFilter(1,this)" style="border-color:#8b949e;">● Niche</button>
   </div>
 
   <div style="overflow-x:auto;">
@@ -667,6 +698,7 @@ GSM8K experiment: same accuracy ≠ same quality
           <th>Formula</th>
           <th onclick="sortMetrics('source')">Source ⇅</th>
           <th>Range</th>
+          <th onclick="sortMetrics('importance')">Importance ⇅</th>
         </tr>
       </thead>
       <tbody id="explorer-tbody"></tbody>
@@ -676,16 +708,16 @@ GSM8K experiment: same accuracy ≠ same quality
   <div style="margin-top:40px;padding-top:28px;border-top:1px solid var(--border);">
     <div class="grid3">
       <div class="card">
-        <div class="card-title" style="color:var(--c-explorer)">Most Cited Metrics</div>
-        <div class="card-body">GSR and Accuracy appear in 80%+ of papers. IDS, UPR, OER, AD, ECS, CSS, TUE are newly introduced (2024–2025) specifically for MAS. CheckPoint and Progress Rate are increasingly adopted for planning evaluation.</div>
+        <div class="card-title" style="color:var(--c-explorer)">Critical + High Importance (23 metrics)</div>
+        <div class="card-body"><strong>Critical (3):</strong> GSR, Accuracy, ASR — universal leaderboard and security standards.<br><strong>High (20):</strong> pass@k, pass^k, pGSR, Sub.R, Sup-GSR, Sys-GSR, Elo, OER, AD, ERS, ORR, PDR, ASV, Robustness, FPR, CheckPoint, Progress Rate, AUROC, AUPRC, ROUGE-L — production-grade MAS evaluation stack. Filter by "Critical" or "High" to see only these 23 metrics.</div>
       </div>
       <div class="card">
-        <div class="card-title" style="color:var(--c-explorer)">Biggest Gaps</div>
-        <div class="card-body">Economic sustainability (Axis 5 of the balanced framework) is almost never measured in practice. Goal-Drift and Harm-Reduction indices are conceptually defined but lack standardized implementations. Cross-framework comparison remains difficult without unified benchmarks.</div>
+        <div class="card-title" style="color:var(--c-explorer)">Biggest Real-World Gaps</div>
+        <div class="card-body">ORR (over-refusal) is critical for production but rarely reported. Goal-Drift and Harm-Reduction are conceptually defined but lack implementations. AD (alignment dispersion) reveals unpredictable safety behavior — almost never measured despite legal exposure. ASV is the most interpretable safety metric but absent from most MAS evaluation pipelines.</div>
       </div>
       <div class="card">
-        <div class="card-title" style="color:var(--c-explorer)">Recommended Stack</div>
-        <div class="card-body">For a practical MAS evaluation: GSR (task) + IDS+UPR (communication) + ANU (coordination) + OER+ERS (safety) + CheckPoint (planning). This 6-metric stack covers all dimensions without excessive measurement overhead.</div>
+        <div class="card-title" style="color:var(--c-explorer)">Recommended Practitioner Stack</div>
+        <div class="card-body">For production MAS: <strong>pass^k</strong> (reliability) + <strong>pGSR</strong> (partial credit) + <strong>ORR+ASR+ERS</strong> (safety triangle) + <strong>OER+AD</strong> (exposure consistency) + <strong>IDS+UPR</strong> (communication audit) + <strong>ANU</strong> (coordination utility) + <strong>CheckPoint</strong> (planning progress). 10-metric stack covers all 8 dimensions from primary sources.</div>
       </div>
     </div>
   </div>
@@ -747,43 +779,85 @@ function toggleAccordion(h){
 }
 
 // ===== METRIC DATA =====
+// importance: 5=Critical (industry standard), 4=High (widely adopted), 3=Medium (research standard), 2=Emerging (novel 2024-25), 1=Niche
 var ALL_METRICS=[
-  {abbr:'GSR',name:'Goal Success Rate',cat:'task',formula:'Completed Tasks / Total Tasks × 100%',source:'GAIA, AgentBench, MASEval',range:'0–100%',higher:true,desc:'Primary end-to-end MAS task metric. Framework choice alone causes 8.6pp GSR range.'},
-  {abbr:'Accuracy',name:'Task Accuracy',cat:'task',formula:'Correct Outputs / Total Outputs',source:'MMLU, MedAgentBoard, LLMArena',range:'0–100%',higher:true,desc:'Standard metric for deterministic-answer tasks. Most appropriate for multiple-choice QA.'},
-  {abbr:'PassRate',name:'Pass Rate',cat:'task',formula:'Queries Completed within Step Limit / Total',source:'Mobile-Bench',range:'0–100%',higher:true,desc:'Measures successful query completion within step budget. Paired with CheckPoint.'},
-  {abbr:'SuccR',name:'Success Rate',cat:'task',formula:'Scripts Completing Task / Total Scripts',source:'Safe-BeAl',range:'0–100%',higher:true,desc:'Task completion for embodied agents. Paired with SafeR to measure both goals.'},
-  {abbr:'SafeR@S',name:'Safety Rate at Success',cat:'task',formula:'Safe Successful Scripts / Total Successful',source:'Safe-BeAl',range:'0–100%',higher:true,desc:'Conditional safety: of scripts that succeed, how many are also safe?'},
-  {abbr:'IDS',name:'Information Diversity Score',cat:'comm',formula:'cluster_entropy(inter_agent_messages)',source:'GEMMAS (2025)',range:'0–1',higher:true,desc:'Semantic variation in agent messages. 2.1% accuracy gap masked 12.8% IDS difference.'},
-  {abbr:'UPR',name:'Unnecessary Path Ratio',cat:'comm',formula:'Redundant Reasoning Paths / Total Paths',source:'GEMMAS (2025)',range:'0–1',higher:false,desc:'Quantifies redundant reasoning. 80% UPR gap found between systems with identical accuracy.'},
-  {abbr:'CORE',name:'Conversational Robustness Evaluation Score',cat:'comm',formula:'f(cluster entropy, lexical repetition, semantic similarity)',source:'CORE paper (2025)',range:'0–1',higher:true,desc:'Integrates 3 linguistic signals. Cooperative settings show steeper Zipf distributions.'},
-  {abbr:'AF',name:'Alignment Factor',cat:'comm',formula:'Agent task alignment → communication efficiency',source:'C2C framework',range:'0–1',higher:true,desc:'Optimizing AF reduced task completion time by ~40% across 5–17 agents.'},
-  {abbr:'TES',name:'Trajectory Efficiency Score',cat:'comm',formula:'Rational sequence score × (1 − redundancy penalty)',source:'Collab-Overcooked',range:'0–1',higher:true,desc:'Compares collaboration trajectories for rationality and efficiency.'},
-  {abbr:'ITES',name:'Incremental Trajectory Efficiency Score',cat:'comm',formula:'Per-action task-progress contribution',source:'Collab-Overcooked',range:'0–1',higher:true,desc:'Fine-grained per-step attribution of collaborative contribution.'},
-  {abbr:'PC',name:'Progress Completeness',cat:'comm',formula:'Aggregate task progress − redundancy penalty',source:'Collab-Overcooked',range:'0–1',higher:true,desc:'Global task progress across all agents, penalizing redundant work.'},
-  {abbr:'IC',name:'Initiating Capability',cat:'comm',formula:'Correct initiations / Total initiation attempts',source:'Collab-Overcooked',range:'0–100%',higher:true,desc:'Evaluates whether agents correctly identify when/how to initiate collaboration.'},
-  {abbr:'RC',name:'Responding Capability',cat:'comm',formula:'Correct responses / Total collaboration requests',source:'Collab-Overcooked',range:'0–100%',higher:true,desc:'Assesses correct reactive coordination when collaboration is requested.'},
-  {abbr:'ANU',name:'Average Normalized Utility',cat:'coord',formula:'Agent utility / Optimal DCOP solver utility',source:'COLLAB benchmark',range:'0–1',higher:true,desc:'LLMs underperform symbolic solvers but are competitive in sparse regimes.'},
-  {abbr:'CSS',name:'Component Synergy Score',cat:'coord',formula:'Composite inter-agent collaboration quality',source:'TRiSM for Agentic AI',range:'0–1',higher:true,desc:'Quantifies emergent synergy beyond individual agent performance.'},
-  {abbr:'TUE',name:'Tool Utilization Efficacy',cat:'coord',formula:'Effective tool invocations / Total × utility weights',source:'TRiSM for Agentic AI',range:'0–1',higher:true,desc:'Measures right-tool-right-time usage vs excessive/irrelevant tool calls.'},
-  {abbr:'Elo',name:'Elo Rating',cat:'coord',formula:'R_new = R_old + K × (Score − Expected)',source:'7 game-theoretic benchmarks',range:'Relative',higher:true,desc:'Classic rating adapted for LLM competitions. GPT-4 achieves 72.5 on GAMA-Bench.'},
-  {abbr:'Conformity Rate',name:'Conformity Rate',cat:'coord',formula:'Changed answers under peer pressure / Total',source:'BenchForm benchmark',range:'0–100%',higher:false,desc:'How often agents abandon correct answers under group pressure.'},
-  {abbr:'Independence Rate',name:'Independence Rate',cat:'coord',formula:'Maintained correct answers under pressure / Total',source:'BenchForm benchmark',range:'0–100%',higher:true,desc:'Inverse of conformity. Critical for multi-agent debate quality.'},
-  {abbr:'CoS',name:'Collaboration Score',cat:'coord',formula:'Collaborative efficiency in joint task execution',source:'MindAgent (CuisineWorld)',range:'Normalized',higher:true,desc:'Auto-metric for calculating collaboration efficiency in gaming interactions.'},
-  {abbr:'OER',name:'Over-Exposure Rate',cat:'safety',formula:'Exposures > MNI baseline / Total interactions',source:'Trust-Vulnerability Paradox',range:'0–100%',higher:false,desc:'Detects boundary violations. Higher trust → higher OER, even with better task success.'},
-  {abbr:'AD',name:'Authorization Drift',cat:'safety',formula:'Δ(authorization scope) / Δ(trust level)',source:'Trust-Vulnerability Paradox',range:'0–1',higher:false,desc:'How sensitively authorization expands with trust. High AD = security vulnerability.'},
-  {abbr:'ASR',name:'Attack Success Rate',cat:'safety',formula:'Successful attacks / Total attack attempts',source:'TAMAS, Agent SafetyBench',range:'0–100%',higher:false,desc:'Vulnerability to adversarial inputs. Increases with prompt length even with detection.'},
-  {abbr:'FPR',name:'False Positive Rate',cat:'safety',formula:'FP / (FP + TN)',source:'AgentMonitor',range:'0–100%',higher:false,desc:'Rate of incorrectly flagging safe content. Must balance with ASR reduction.'},
-  {abbr:'ERS',name:'Effective Robustness Score',cat:'safety',formula:'task_effectiveness × (1 − ASR)',source:'TAMAS benchmark',range:'0–1',higher:true,desc:'Safety-effectiveness tradeoff. MAS score significantly lower ERS than single-agent under attack.'},
-  {abbr:'ECS',name:'Ethical Cooperation Score',cat:'safety',formula:'cooperation × autonomy × integrity × fairness',source:'CMAG framework',range:'0–1',higher:true,desc:'Penalizes manipulation-based cooperation. CMAG 14.9% ECS improvement over unconstrained.'},
-  {abbr:'SafeR',name:'Safety Rate',cat:'safety',formula:'Safe scripts / Total scripts',source:'Safe-BeAl',range:'0–100%',higher:true,desc:'Improved 8.55–15.22% with Safe-BeAl while preserving task success rate.'},
-  {abbr:'CheckPoint',name:'CheckPoint Score',cat:'planning',formula:'Essential milestones reached / Total checkpoints',source:'Mobile-Bench (832 tasks)',range:'0–1',higher:true,desc:'Process quality metric for mobile agents. Reveals where sequential planning breaks.'},
-  {abbr:'Progress Rate',name:'Fine-Grained Progress Rate',cat:'planning',formula:'Sub-goals achieved / Total sub-goals',source:'AgentBoard (NeurIPS 2024)',range:'0–1',higher:true,desc:'Reveals "failing" agents completing 70-80% of tasks — invisible to binary success.'},
-  {abbr:'AUROC',name:'Area Under ROC Curve',cat:'medical',formula:'P(pos score > neg score) over all pairs',source:'MedAgentBoard (EHR)',range:'0.5–1.0',higher:true,desc:'Gold standard for EHR predictive tasks. MAS does not consistently outperform single LLMs.'},
-  {abbr:'AUPRC',name:'Area Under PR Curve',cat:'medical',formula:'Area under precision-recall curve',source:'MedAgentBoard (EHR)',range:'0–1',higher:true,desc:'Preferred for imbalanced clinical datasets (rare positive events).'},
-  {abbr:'ROUGE-L',name:'ROUGE Longest Common Subsequence',cat:'medical',formula:'LCS(generated, reference) / reference_length',source:'MedAgentBoard',range:'0–100',higher:true,desc:'Content overlap for medical lay summary generation.'},
-  {abbr:'SARI',name:'System Output Against References',cat:'medical',formula:'Avg(add F1, keep F1, delete F1)',source:'MedAgentBoard (simplification)',range:'0–100',higher:true,desc:'Simplification quality beyond n-gram overlap. Evaluates add/keep/delete operations.'},
-  {abbr:'Goal-Drift',name:'Goal-Drift Score',cat:'framework',formula:'Deviation(current_goal, original_goal) over horizon',source:'Balanced Framework (Shukla 2025)',range:'0–1',higher:false,desc:'Novel: measures how much agent goals drift from user intent over long tasks.'},
-  {abbr:'Harm-Reduction',name:'Harm Reduction Index',cat:'framework',formula:'(Baseline_harm − Agent_harm) / Baseline_harm',source:'Balanced Framework',range:'0–1',higher:true,desc:'Part of 5-axis framework. Almost never measured in current MAS deployments.'},
+  // ── TASK PERFORMANCE ──
+  {abbr:'GSR',name:'Goal Success Rate',cat:'task',importance:5,formula:'Completed Tasks / Total Tasks × 100%',source:'GAIA, AgentBench, MASEval',range:'0–100%',higher:true,desc:'Primary end-to-end MAS task metric. Framework choice alone causes 8.6pp GSR range.',impact:'Used in GAIA and SWE-bench leaderboards. The #1 metric cited by AI labs for MAS deployment decisions.'},
+  {abbr:'Accuracy',name:'Task Accuracy',cat:'task',importance:5,formula:'Correct Outputs / Total Outputs',source:'MMLU, MedAgentBoard, LLMArena',range:'0–100%',higher:true,desc:'Standard metric for deterministic-answer tasks. Most appropriate for multiple-choice QA.',impact:'Universal benchmark currency. Required in every paper — but insufficient alone for MAS quality assessment.'},
+  {abbr:'pass@k',name:'pass@k (lenient)',cat:'task',importance:4,formula:'pass@k = 1 − C(n−c, k) / C(n, k)',source:'τ-bench (Yao et al., 2024)',range:'0–100%',higher:true,desc:'Probability at least 1 of k trials succeeds. Lenient: masks inconsistency. Distinct from pass^k.',impact:'Standard for code generation (HumanEval, τ-bench). Widely used in leaderboards — but rewards lucky one-shot success.'},
+  {abbr:'pass^k',name:'pass^k (strict)',cat:'task',importance:4,formula:'pass^k = (c/n)^k',source:'τ-bench (Yao et al., 2024)',range:'0–100%',higher:true,desc:'Probability ALL k trials succeed. Strict reliability metric. Drops exponentially with k. Preferred for production evaluation.',impact:'Production reliability standard. 10x more demanding than pass@k. Reveals agents that rely on luck vs consistent skill.'},
+  {abbr:'pGSR',name:'Partial Goal Success Rate',cat:'task',importance:4,formula:'Partial credit sum over completed subtasks / Total subtask budget',source:'MASEval (arxiv:2603.08835)',range:'0–100%',higher:true,desc:'MASEval primary metric. Partial credit for subtask completion — avoids binary all-or-nothing scoring.',impact:'MASEval showed 14.2pp cross-model vs 12.4pp cross-framework gap. More diagnostic than binary GSR for complex pipelines.'},
+  {abbr:'Sub.R',name:'Subgoal Success Rate',cat:'task',importance:4,formula:'Correctly placed objects / Total required objects',source:'Communication & Verification (arxiv:2510.25595)',range:'0–100%',higher:true,desc:'Partial progress credit even when full task fails. Reflects how far through the task the agent got.',impact:'More diagnostic than binary success for multi-step tasks. Reveals agents that consistently reach 70-80% of complex tasks.'},
+  {abbr:'Sup-GSR',name:'Supervisor GSR',cat:'task',importance:4,formula:'Sessions where supervisor succeeds / Total sessions',source:'AWS Bedrock MAS (arxiv:2412.05449)',range:'0–100%',higher:true,desc:'Orchestrator-level reliability independent of sub-agents. Scores 1 if overall GSR=1 or supervisor alone is reliable.',impact:'Enterprise hierarchical MAS: measures orchestrator independently. Critical for blame attribution in production failure analysis.'},
+  {abbr:'Sys-GSR',name:'System-side GSR',cat:'task',importance:4,formula:'Developer assertions (tool accuracy, rule compliance) all True / Sessions',source:'AWS Bedrock MAS (arxiv:2412.05449)',range:'0–100%',higher:true,desc:'Developer-perspective success covering tool correctness, parameter accuracy, and inter-agent rule compliance.',impact:'>85% human-LLM agreement validates automated assertions. Separates user-visible success from internal system correctness.'},
+  {abbr:'BCS',name:'Behavior Competency Score',cat:'task',importance:3,formula:'BCS(a,g) = (1/|T(g)|)·Σ NS(a,ℓ); NS=(s−B)/(T−B)',source:'CREW-Wildfire (arxiv:2507.08270)',range:'0–1',higher:true,desc:'Normalized score across 7 behavioral competencies: Task Designation, Spatial Reasoning, Realtime Coordination, etc.',impact:'Emergency-response MAS benchmark with 16 configurations. Identifies which of 7 coordination behaviors each framework excels at.'},
+  {abbr:'WR',name:'Win Rate',cat:'task',importance:3,formula:'WR = (1/|S|) Σ w_si',source:'MAgIC benchmark (arxiv:2311.08562)',range:'0–1',higher:true,desc:'Overall success rate across all game scenarios and roles in social cognition benchmarks.',impact:'GPT-4-X achieves 85.0% WR vs PPO 70.2% in cross-play. LLMs outperform RL in social deduction game strategy.'},
+  {abbr:'KPI',name:'Key Performance Indicator',cat:'task',importance:3,formula:'KPI = (1/N)·Σ(n_j/M)',source:'MultiAgentBench (arxiv:2503.01935)',range:'0–1',higher:true,desc:'Milestone-based MAS progress metric. n_j = milestones contributed by agent j, M = total milestones.',impact:'Comparable across research, coding, game tasks in MultiAgentBench. Measures individual contribution to collective milestones.'},
+  {abbr:'PassRate',name:'Pass Rate',cat:'task',importance:3,formula:'Queries Completed within Step Limit / Total',source:'Mobile-Bench',range:'0–100%',higher:true,desc:'Measures successful query completion within step budget. Paired with CheckPoint for mobile agent evaluation.',impact:'Step-budget constraint reveals real-world operational limits. Critical for mobile and embodied agent deployment.'},
+  {abbr:'SuccR',name:'Success Rate',cat:'task',importance:3,formula:'Scripts Completing Task / Total Scripts',source:'Safe-BeAl (arxiv:2504.14650)',range:'0–100%',higher:true,desc:'Task completion for embodied agents. Paired with SafeR to measure both task success and safety jointly.',impact:'Combined with SafeR@S to expose safety-task tradeoff. Key for embodied AI regulatory compliance evaluation.'},
+  {abbr:'SafeR@S',name:'Safety Rate at Success',cat:'task',importance:3,formula:'Safe Successful Scripts / Total Successful Scripts',source:'Safe-BeAl (arxiv:2504.14650)',range:'0–100%',higher:true,desc:'Conditional safety: of scripts that succeed, how many are also safe? Reveals unsafe task success.',impact:'Reveals whether task success comes through unsafe means. Critical metric for AI safety auditing in production agents.'},
+  // ── COMMUNICATION ──
+  {abbr:'IDS',name:'Information Divergence Score',cat:'comm',importance:3,formula:'Σ(i,j) w_ij·(1−SS_total[i,j]) / Σ(i,j) w_ij',source:'GEMMAS (arxiv:2507.13190)',range:'0–1',higher:true,desc:'Semantic divergence in agent messages. 2.1% accuracy gap masked 12.8% IDS difference on GSM8K.',impact:'Revealed a 12.8% quality gap masked by 2.1% accuracy difference. Opens MAS communication audit independent of task outcomes.'},
+  {abbr:'UPR',name:'Unnecessary Path Ratio',cat:'comm',importance:3,formula:'UPR = 1 − |P_necessary| / |P_all|',source:'GEMMAS (arxiv:2507.13190)',range:'0–1',higher:false,desc:'Fraction of redundant reasoning paths in agent DAG. 80% UPR gap between near-identical systems.',impact:'80% redundant path gap found in apparently equivalent systems. Directly maps to inference cost and latency overhead.'},
+  {abbr:'TES',name:'Team Execution Score',cat:'comm',importance:3,formula:'max_j{(1+β²)·D_max^j(h̄ₖ,ḡₖʲ) / (mₖ+β²·nₖ)}',source:'Collab-Overcooked (arxiv:2502.20073)',range:'0–1',higher:true,desc:'F-score over collaboration action sequences vs ground truth. mₖ=false positive, nₖ=false negative actions.',impact:'Standard in Overcooked-AI and cooperative robot benchmarks. LLMs are strong at goal interpretation but weak at active collaboration.'},
+  {abbr:'IC',name:'Initiating Capability',cat:'comm',importance:3,formula:'Correct initiation events / Total initiation opportunities',source:'Collab-Overcooked (arxiv:2502.20073)',range:'0–100%',higher:true,desc:'Proactive collaboration quality — whether agents correctly start collaboration. Degrades at complexity level 4+.',impact:'LLMs consistently score lower on IC than RC — proactive collaboration is a confirmed weakness. Guides agent design decisions.'},
+  {abbr:'RC',name:'Responding Capability',cat:'comm',importance:3,formula:'Correct collaboration responses / Total requests received',source:'Collab-Overcooked (arxiv:2502.20073)',range:'0–100%',higher:true,desc:'Reactive coordination quality. RC > IC across all 13 LLMs tested; both degrade with complexity.',impact:'Confirms reactive-proactive asymmetry in all 13 tested LLMs. Baseline for collaboration quality in MAS design.'},
+  {abbr:'AF',name:'Alignment Factor',cat:'comm',importance:2,formula:'AF_new = min(1.0, AF_old + Δ_eval); EffectiveProgress = h·AF',source:'C2C framework (arxiv:2510.19995)',range:'0–1',higher:true,desc:'Measures task understanding alignment through communication. Optimizing AF reduces completion time ~40%.',impact:'Teams optimizing AF achieved 40% faster completion. Used in enterprise workflow MAS with 5–17 agent teams.'},
+  {abbr:'CORE',name:'Conversational Robustness Evaluation',cat:'comm',importance:2,formula:'f(cluster entropy, lexical repetition, semantic similarity)',source:'CORE paper (2025)',range:'0–1',higher:true,desc:'Integrates 3 linguistic signals grounded in Zipf\'s and Heaps\' Laws for MAS dialogue quality.',impact:'First metric grounding MAS dialogue quality in statistical linguistics. Emerging for conversation quality audits.'},
+  {abbr:'ITES',name:'Incremental Team Execution Score',cat:'comm',importance:2,formula:'Per-action TES contribution at step t',source:'Collab-Overcooked (arxiv:2502.20073)',range:'0–1',higher:true,desc:'Step-level attribution of collaborative contribution. Sum over trajectory ≈ TES.',impact:'Enables per-action debugging of MAS collaboration. Useful for MAS fine-tuning and prompt optimization.'},
+  {abbr:'PC',name:'Progress Completeness',cat:'comm',importance:2,formula:'PC = Σ_k TES(h̄ₖ) / K',source:'Collab-Overcooked (arxiv:2502.20073)',range:'0–1',higher:true,desc:'Average TES over K subtasks. Global task completeness across all subtasks of collaborative execution.',impact:'Partial-credit task completion across subtasks. Diagnostic for complex multi-step collaborative pipelines.'},
+  {abbr:'NCCG',name:'Normalized Cumulative Common Ground',cat:'comm',importance:2,formula:'Σ shared propositions per turn / (turns × max propositions)',source:'Collaborate+Deliberate (arxiv:2509.05882)',range:'0–1',higher:true,desc:'Growth of shared task-relevant beliefs during multi-turn collaboration. Normalized against theoretical upper bound.',impact:'Quantifies collaborative learning during dialogue. Rising importance for long-horizon deliberative agent tasks.'},
+  // ── COORDINATION ──
+  {abbr:'ANU',name:'Average Normalized Utility',cat:'coord',importance:3,formula:'(U_achieved − U_min) / (U_max − U_min)',source:'COLLAB (Mahmud et al., NeurIPS 2025)',range:'0–1',higher:true,desc:'Normalizes LLM coordination performance relative to optimal DCOP solver. LLMs competitive in sparse constraint regimes.',impact:'NeurIPS 2025 standard. Provides absolute coordination quality benchmark vs optimal solver — not just relative LLM ranking.'},
+  {abbr:'CS',name:'Coordination Score',cat:'coord',importance:3,formula:'CS = (C_score + P_score) / 2',source:'MultiAgentBench (arxiv:2503.01935)',range:'0–5',higher:true,desc:'Average of LLM-evaluated communication score and planning score. Holistic coordination quality across task types.',impact:'Holistic coordination quality across research, coding, and game tasks. Five-point scale evaluated by LLM judge.'},
+  {abbr:'Elo',name:'Elo Rating',cat:'coord',importance:4,formula:'R_new = R_old + K × (Score − Expected)',source:'7 game-theoretic LLM benchmarks',range:'Relative',higher:true,desc:'Classic competitive rating adapted for LLM game-theory benchmarks. GPT-4 achieves 72.5 on GAMA-Bench.',impact:'Used in 7 game-theoretic LLM benchmarks. Most interpretable competitive ranking metric — familiar to practitioners.'},
+  {abbr:'FASR',name:'False Agent Switch Rate',cat:'coord',importance:3,formula:'Incorrect routing decisions / Total routing decisions',source:'AWS Bedrock MAS (arxiv:2412.05449)',range:'0–100%',higher:false,desc:'Routing error rate in hierarchical MAS. Incorrect handoff to wrong specialist agent compounds failure.',impact:'Enterprise MAS routing quality metric. Incorrect agent switch cascades into downstream failures. >85% human validation.'},
+  {abbr:'Conformity Rate',name:'Conformity Rate',cat:'coord',importance:3,formula:"CR^P = |Q✗^P ∩ Q✓^R| / |Q✓^R|",source:'BenchForm (arxiv:2501.13381)',range:'0–100%',higher:false,desc:'Fraction of correctly-answered questions abandoned under group/peer pressure in multi-agent debate.',impact:'25–60% of LLMs abandon correct answers under peer pressure. Critical for multi-agent debate and voting system design.'},
+  {abbr:'Independence Rate',name:'Independence Rate',cat:'coord',importance:3,formula:"IR = |Q✓^T ∩ Q✓^D ∩ Q✓^R| / |Q✓^R|",source:'BenchForm (arxiv:2501.13381)',range:'0–100%',higher:true,desc:'Answers correct across Trust, Doubt, and Raw protocols. Measures epistemic stability under relational pressure.',impact:'High IR = agent maintains epistemic integrity in MAS debate. Key filter for selecting orchestrator agents.'},
+  {abbr:'CoM Rate',name:'Change-of-Mind Rate',cat:'coord',importance:3,formula:'Participants who switch stance on at least one item / Total',source:'Collaborate+Deliberate (arxiv:2509.05882)',range:'0–100%',higher:false,desc:'Belief revision frequency during multi-turn collaborative dialogue. Too high = unstable; too low = not learning.',impact:'High CoM Rate = agents actively learning from peers. Key quality indicator for MAS deliberation and debate systems.'},
+  {abbr:'CSS',name:'Component Synergy Score',cat:'coord',importance:2,formula:'(1/N_pairs) Σ Impact(a_i→a_j) · Quality(a_j|a_i)',source:'TRiSM for Agentic AI (arxiv:2506.04133)',range:'0–1',higher:true,desc:'Quantifies emergent synergy: how agent i\'s actions enable and improve agent j\'s downstream performance.',impact:'Captures emergent synergy beyond individual performance. Rising importance as multi-model MAS complexity grows.'},
+  {abbr:'TUE',name:'Tool Utilization Efficacy',cat:'coord',importance:3,formula:'α_s·Sel + α_a·Arg + α_e·Exec + α_o·Out + α_f·Eff',source:'TRiSM for Agentic AI (arxiv:2506.04133)',range:'0–1',higher:true,desc:'5-component tool use quality: selection, argument validity, execution success, outcome correctness, efficiency.',impact:'Excessive tool use is a major token cost driver in production. TUE directly predicts API cost efficiency in agentic systems.'},
+  {abbr:'S_J',name:'Judgment (MAgIC)',cat:'coord',importance:2,formula:'S_J = n_cv / n_v',source:'MAgIC (arxiv:2311.08562)',range:'0–1',higher:true,desc:'Correct voting ratio in social deduction games. Measures hidden-state inference from partial information.',impact:'Measures ability to infer hidden social state. Relevant for MAS adversarial detection and insider threat identification.'},
+  {abbr:'S_R',name:'Reasoning (MAgIC)',cat:'coord',importance:3,formula:'S_R = (n_c_gold + n_c_inter) / (n_gold + n_inter)',source:'MAgIC (arxiv:2311.08562)',range:'0–1',higher:true,desc:'Multi-hop deductive reasoning about agent identities and predictions of others\' deductions.',impact:'Correlates with theory-of-mind capability. Predicts performance in hierarchical delegation and role-based agent systems.'},
+  {abbr:'S_D',name:'Deception (MAgIC)',cat:'coord',importance:2,formula:'S_D = (n_wuc/n_uc) + λ·(n_wcg/n_cg), λ=0.25',source:'MAgIC (arxiv:2311.08562)',range:'0–1',higher:true,desc:'Competitive information manipulation ability in social deduction games. Higher = better at strategic deception.',impact:'Reveals whether agents exploit information asymmetry. Important for red-teaming MAS with adversarial agent roles.'},
+  {abbr:'S_self',name:'Self-Awareness (MAgIC)',cat:'coord',importance:2,formula:'S_self = μ·(n_crc/n_rc) + (n_cru/n_ru), μ=0.6',source:'MAgIC (arxiv:2311.08562)',range:'0–1',higher:true,desc:'Role consistency and self-alignment in social deduction games. μ=0.6 weight accounts for Chameleon difficulty.',impact:'Role consistency metric. Agents with high S_self don\'t break character under peer pressure — critical for persona-based MAS.'},
+  {abbr:'S_collab',name:'Cooperation (MAgIC)',cat:'coord',importance:3,formula:'S_collab = n_wcs / n_cs',source:'MAgIC (arxiv:2311.08562)',range:'0–1',higher:true,desc:'Negotiation effectiveness and collective efficacy in cost-sharing game scenarios.',impact:'Direct proxy for enterprise multi-agent collaboration quality. Success rate in joint negotiation tasks.'},
+  {abbr:'CoS',name:'Collaboration Score',cat:'coord',importance:2,formula:'Collaborative efficiency in joint task execution (auto-metric)',source:'MindAgent (CuisineWorld)',range:'Normalized',higher:true,desc:'Auto-metric for collaboration efficiency in gaming interactions. Captures team-level coordination in CuisineWorld.',impact:'Pioneering auto-metric for MAS gaming collaboration. Adopted in kitchen-robot simulation and cooking-agent evaluation.'},
+  // ── SAFETY & TRUST ──
+  {abbr:'ASR',name:'Attack Success Rate',cat:'safety',importance:5,formula:'Successful attacks / Total attack attempts',source:'TAMAS, Agent SafetyBench, AutoDefense',range:'0–100%',higher:false,desc:'Universal adversarial vulnerability metric. AutoDefense reduced ASR from 55.74% to 7.95%.',impact:'Universal adversarial security metric. Required for any production MAS red-teaming. Jailbreak and injection rate.'},
+  {abbr:'OER',name:'Over-Exposure Rate',cat:'safety',importance:4,formula:'OER(S,τ) = (1/|G(S,τ)|)·Σ 𝟙(Oₗ∖A* ≠ ∅)',source:'Trust-Vulnerability Paradox (arxiv:2510.18563)',range:'0–1',higher:false,desc:'Fraction of tasks where agent outputs exceed Minimum Necessary Information A*. Trust ↑ → OER ↑.',impact:'Over-exposure of sensitive data is a legal/compliance risk in production MAS. Trust paradox: more trust = more risk.'},
+  {abbr:'AD',name:'Alignment Dispersion',cat:'safety',importance:4,formula:'AD(S) = Σ_τ w_τ·(OER(S,τ)−OER̄(S))²',source:'Trust-Vulnerability Paradox (arxiv:2510.18563)',range:'0–1',higher:false,desc:'Variance of OER across task types. Inconsistent safety behavior across contexts is a hidden production risk.',impact:'Inconsistent safety across task types is a hidden production risk. High AD = safety behavior is unpredictable.'},
+  {abbr:'ERS',name:'Effective Robustness Score',cat:'safety',importance:4,formula:'ERS = 2·Safety·PNA / (Safety + PNA)',source:'TAMAS (arxiv:2511.05269)',range:'0–1',higher:true,desc:'Harmonic mean of safety score and baseline task performance. Forces explicit safety-utility tradeoff accounting.',impact:'Safety-utility tradeoff harmonic mean. MAS ERS significantly lower than single-agent under adversarial attack.'},
+  {abbr:'ORR',name:'Over-Refuse Rate',cat:'safety',importance:4,formula:'ORR(D_borderline,π) = Σ s_i / N where s_i=1 if benign refused',source:'WaltzRL (arxiv:2510.05748)',range:'0–100%',higher:false,desc:'Proportion of benign prompts incorrectly refused. Critical production metric for safety-helpfulness tradeoff.',impact:'Overly cautious agents frustrate users and reduce adoption. Safety-helpfulness Pareto frontier metric.'},
+  {abbr:'PDR',name:'Process Danger Rate',cat:'safety',importance:4,formula:'PDR(r) = Σ I_PD(B_p,r) / |P|',source:'PsySafe (arxiv:2401.11880)',range:'0–1',higher:false,desc:'Probability at least one agent in round r exhibits dangerous behavior. Critical threshold for cascade detection.',impact:'Any-agent danger rate. Critical threshold for regulatory MAS compliance in healthcare, finance, and legal domains.'},
+  {abbr:'ASV',name:'Average Safety Violations',cat:'safety',importance:4,formula:'ASV = Total safety violations / Total tasks',source:'SAFER robotics (arxiv:2503.15707)',range:'0–∞',higher:false,desc:'Direct count of safety violations per task. Most interpretable safety KPI for operations teams.',impact:'Most interpretable safety metric for operations teams. Directly reportable to compliance and audit committees.'},
+  {abbr:'Robustness',name:'Robustness Score',cat:'safety',importance:4,formula:'Robustness = 1 − ASR',source:'MASEval/ConVerse (arxiv:2603.08835)',range:'0–1',higher:true,desc:'Normalized inverse of attack success rate. ConVerse benchmark primary defense metric.',impact:'Direct normalized safety score for MAS security evaluation. Used in MASEval ConVerse benchmark for agent robustness.'},
+  {abbr:'FPR',name:'False Positive Rate',cat:'safety',importance:4,formula:'FP / (FP + TN)',source:'AgentMonitor, Guardians (arxiv:2502.16750)',range:'0–100%',higher:false,desc:'Rate of incorrectly flagging safe content as dangerous. ObserverAI achieves 2–15% FPR across attack scenarios.',impact:'False alarms erode user trust. Safety systems must balance FPR and ASR — high FPR kills usability.'},
+  {abbr:'ECS',name:'Ethical Cooperation Score',cat:'safety',importance:3,formula:'ECS = C × A × I × F (multiplicative)',source:'CMAG (arxiv:2603.13189)',range:'0–1',higher:true,desc:'Product of Cooperation, Autonomy, Integrity, Fairness. Multiplicative structure penalizes manipulation.',impact:'Constitutional AI governance metric. CMAG achieved 14.9% ECS improvement over unconstrained collaboration.'},
+  {abbr:'JDR',name:'Joint Danger Rate',cat:'safety',importance:3,formula:'JDR(r) = Σ I_JD(B_p,r) / |P|',source:'PsySafe (arxiv:2401.11880)',range:'0–1',higher:false,desc:'All agents simultaneously dangerous in round r. Worst-case cascade safety metric based on psychological scoring.',impact:'All-agents-dangerous worst case. Psychology-based danger model correlates strongly with actual harmful behavior.'},
+  {abbr:'PNA',name:'Performance under No Attack',cat:'safety',importance:3,formula:'PNA = (1/N)·Σ(Tools Correctly Invoked/Total Required)×100',source:'TAMAS (arxiv:2511.05269)',range:'0–100%',higher:true,desc:'Baseline utility before adversarial stress-testing. Required pairing with ERS for complete security evaluation.',impact:'Baseline utility metric for MAS security evaluation. Cannot evaluate ERS without knowing pre-attack capability.'},
+  {abbr:'SafeR',name:'Safety Rate',cat:'safety',importance:3,formula:'Safe scripts / Total scripts',source:'Safe-BeAl (arxiv:2504.14650)',range:'0–100%',higher:true,desc:'Improved 8.55–15.22% with Safe-BeAl framework while preserving task success rate.',impact:'Improved 8.55–15.22% with Safe-BeAl while preserving SuccR. Key safety KPI for embodied and planning agents.'},
+  {abbr:'APDR',name:'Avg Performance Drop Rate',cat:'safety',importance:3,formula:'Range of performance variation / Original performance',source:'PPTC-R (arxiv:2403.03788)',range:'0–100%',higher:false,desc:'Quantifies model fragility under language/API perturbations across 5 robustness dimensions.',impact:'Critical for MAS deployed across multilingual environments. Measures fragility under real-world deployment variation.'},
+  {abbr:'FTR',name:'Feedback Trigger Rate',cat:'safety',importance:3,formula:'Frequency feedback agent activates during inference',source:'WaltzRL (arxiv:2510.05748)',range:'0–100%',higher:false,desc:'Latency overhead of safety interventions. Low FTR = safety without meaningful performance cost.',impact:'Measures latency overhead of safety interventions. Low FTR = safety with minimal performance cost — key for real-time MAS.'},
+  {abbr:'Autonomy',name:'Autonomy Score A(t)',cat:'safety',importance:2,formula:'A(t) = clip(1 − 0.18·q̄(t), 0, 1)',source:'CMAG (arxiv:2603.13189)',range:'0–1',higher:true,desc:'Constitutional governance metric. q̄ = mean exposure-susceptibility product measuring manipulation influence.',impact:'Constitutional AI governance: measures agent self-determination under influence manipulation attempts.'},
+  // ── PLANNING ──
+  {abbr:'CheckPoint',name:'CheckPoint Score',cat:'planning',importance:4,formula:'Essential milestones reached / Total required checkpoints',source:'Mobile-Bench (832 tasks)',range:'0–1',higher:true,desc:'Process quality metric for mobile agents. Sequential Check/Conjunctive Check/Disjunctive Check variants.',impact:'Milestone-based evaluation reveals where sequential planning breaks — essential for LLM agent QA pipelines.'},
+  {abbr:'Progress Rate',name:'Fine-Grained Progress Rate',cat:'planning',importance:4,formula:'Sub-goals achieved / Total sub-goals',source:'AgentBoard (NeurIPS 2024)',range:'0–1',higher:true,desc:'Reveals agents completing 70-80% of tasks — invisible to binary success metrics.',impact:'AgentBoard NeurIPS 2024: "failing" agents actually complete 70-80% of tasks. Binary success misses this entirely.'},
+  {abbr:'StepR',name:'Step Ratio',cat:'planning',importance:3,formula:'Executed steps / Optimal solution steps',source:'Communication & Verification (arxiv:2510.25595)',range:'≥1.0',higher:false,desc:'Efficiency vs optimal plan. 1.92x typical for LLM agents — 92% more steps than needed.',impact:'1.92x typical overhead for LLM agents. Directly predicts operational token/compute cost vs an optimal planner.'},
+  {abbr:'ARL',name:'Average Reasoning Length',cat:'planning',importance:3,formula:'ARL = (1/N) Σ Length(τ^(r,i))',source:'Structured Agent Distillation (arxiv:2505.13820)',range:'tokens',higher:false,desc:'Average tokens in reasoning spans. Shorter + higher success = better quality agent distillation.',impact:'Token efficiency proxy. Shorter ARL with high TSR = higher quality agent distillation — directly reduces inference cost.'},
+  {abbr:'CoT Match Rate',name:'CoT Match Rate',cat:'planning',importance:3,formula:'(1/N) Σ |τ_S^(r,i) ∩ τ_T^(r,i)| / |τ_T^(r,i)|',source:'Structured Agent Distillation (arxiv:2505.13820)',range:'0–1',higher:true,desc:'Token-level overlap between student agent and teacher agent reasoning traces.',impact:'Primary metric for agent knowledge distillation. High CoT Match Rate = student reliably replicates teacher reasoning.'},
+  // ── MEDICAL ──
+  {abbr:'AUROC',name:'Area Under ROC Curve',cat:'medical',importance:4,formula:'P(pos score > neg score) over all pairs',source:'MedAgentBoard (EHR)',range:'0.5–1.0',higher:true,desc:'Gold standard for EHR predictive tasks. MAS does not consistently outperform single LLMs on AUROC.',impact:'Clinical standard for EHR tasks. MAS does not consistently outperform single models — AUROC reveals this clearly.'},
+  {abbr:'AUPRC',name:'Area Under PR Curve',cat:'medical',importance:4,formula:'Area under precision-recall curve',source:'MedAgentBoard (EHR)',range:'0–1',higher:true,desc:'Preferred for imbalanced clinical datasets with rare positive events. More sensitive than AUROC for rare cases.',impact:'Superior to AUROC for rare clinical events. Essential for imbalanced medical AI datasets like ICU mortality.'},
+  {abbr:'ROUGE-L',name:'ROUGE-L (LCS)',cat:'medical',importance:4,formula:'LCS(generated, reference) / reference_length',source:'MedAgentBoard, MedAide',range:'0–100',higher:true,desc:'Content overlap via longest common subsequence. Used for medical lay summary and drug recommendation evaluation.',impact:'NLP standard across summarization and generation. Used in medical AI, code explanation, and report generation.'},
+  {abbr:'BLEU',name:'BLEU Score',cat:'medical',importance:3,formula:'Σ w_n · log p_n − BP',source:'MedAide (arxiv:2410.12532)',range:'0–100',higher:true,desc:'N-gram precision overlap for medical text generation. MedAide achieved up to 47.38% BLEU-1 improvement.',impact:'MedAide achieved 47.38% BLEU-1 improvement in medication management. Standard for medical text generation quality.'},
+  {abbr:'SARI',name:'System Output Against References',cat:'medical',importance:3,formula:'Avg(add F1, keep F1, delete F1)',source:'MedAgentBoard (simplification)',range:'0–100',higher:true,desc:'Simplification quality evaluating add/keep/delete operations beyond n-gram overlap.',impact:'Medical AI standard for patient-facing content. Captures text simplification quality for health literacy improvement.'},
+  // ── FRAMEWORK / COMPOSITE ──
+  {abbr:'T',name:'Trustworthiness Index',cat:'framework',importance:3,formula:'T = [w_acc·A + w_rob·R + w_align·L] / (1 + λ·V)',source:'TRiSM for Agentic AI (arxiv:2506.04133)',range:'0–1',higher:true,desc:'TRiSM composite: accuracy (A), robustness (R), alignment (L), penalized by violation severity (V).',impact:'TRiSM 5-component composite balancing accuracy, robustness, and alignment. Governance standard for enterprise MAS.'},
+  {abbr:'M_comp',name:'Composite Evaluation Metric',cat:'framework',importance:2,formula:'M_comp = ω_T·M_T + ω_E·M_E + ω_U·M_U + ω_Co·M_Co',source:'TRiSM for Agentic AI (arxiv:2506.04133)',range:'0–1',higher:true,desc:'Weighted aggregate across Trustworthiness, Explainability, User-Centered, and Coordination sub-scores.',impact:'Multi-dimensional MAS evaluation composite. Authors recommend Pareto-optimality over single composite to prevent masking.'},
+  {abbr:'NDCG@8',name:'NDCG at 8',cat:'framework',importance:3,formula:'Σᵢ₌₁⁸ relᵢ/log₂(i+1) / Σᵢ₌₁⁸ rel*ᵢ/log₂(i+1)',source:'ARCANE (arxiv:2512.06196)',range:'0–1',higher:true,desc:'Ranking quality for rubric-guided agent evaluation across 8 worker rollouts. +8.3% Precision@3 with GSPO.',impact:'+8.3% Precision@3 improvement with GSPO vs SFT. Used in agentic evaluation pipelines for rubric quality ranking.'},
+  {abbr:'Goal-Drift',name:'Goal-Drift Score',cat:'framework',importance:2,formula:'Deviation(current_goal, original_goal) over horizon',source:'Balanced Framework (Shukla 2025)',range:'0–1',higher:false,desc:'Measures how much agent goals drift from user intent over long-horizon tasks.',impact:'Novel metric for long-horizon agents. Conceptually critical but lacks standardized implementation — a major open gap.'},
+  {abbr:'Harm-Reduction',name:'Harm Reduction Index',cat:'framework',importance:2,formula:'(Baseline_harm − Agent_harm) / Baseline_harm',source:'Balanced Framework (Shukla 2025)',range:'0–1',higher:true,desc:'Part of 5-axis framework. Almost never measured in current MAS deployments despite conceptual importance.',impact:'Almost never measured in current MAS deployments. Axis 5 of the balanced framework — the industry\'s biggest gap.'},
 ];
 
 var catColors={task:'#3b82f6',comm:'#a78bfa',coord:'#10b981',safety:'#ef4444',planning:'#f97316',medical:'#8b5cf6',framework:'#0d9488'};
@@ -791,11 +865,12 @@ var catLabels={task:'Task',comm:'Communication',coord:'Coordination',safety:'Saf
 
 // ===== TASK METRIC DETAIL =====
 var TASK_DATA={
-  gsr:{name:'GSR',full:'Goal Success Rate',desc:'Primary end-to-end metric measuring whether the agent achieved the stated goal. Used across GAIA (466 tasks), Tau-bench (120 tasks), and AgentBench. The MASEval framework found that framework choice alone causes a 8.6pp GSR range — nearly equal to the model-choice gap across frontier LLMs.',formula:'GSR = Completed Tasks / Total Tasks × 100%\n\nExample values (GAIA benchmark):\n  Claude SDK:     53.2%\n  AutoGen:        51.7%\n  LangGraph:      48.9%\n  LlamaIndex:     46.1%\n  smolagents:     44.6%'},
+  gsr:{name:'GSR',full:'Goal Success Rate',desc:'Primary end-to-end metric measuring whether the agent achieved the stated goal. Used across GAIA (466 tasks), τ-bench (120 tasks), and AgentBench. Framework choice alone causes an 8.6pp GSR range — nearly equal to the model-choice gap. Claude Sonnet 4.5 achieves 74.6% on GAIA (Farooq et al., 2025).',formula:'GSR = Completed Tasks / Total Tasks × 100%\n\nGAIA leaderboard (2025):\n  Claude Sonnet 4.5:  74.6%  ← Farooq et al.\n  Claude SDK:         53.2%\n  AutoGen:            51.7%\n  LangGraph:          48.9%\n  smolagents:         44.6%\n\nFramework gap: 8.6pp (≈ model gap across frontiers)'},
   accuracy:{name:'Accuracy',full:'Task Accuracy',desc:'Standard classification accuracy for tasks with deterministic answers. Most appropriate for multiple-choice QA and structured prediction. MMLU uses accuracy across 14,042 questions spanning 57 domains. MedAgentBoard uses accuracy for multiple-choice medical QA.',formula:'Accuracy = Correct Outputs / Total Outputs × 100%\n\nMedAgentBoard (MedQA benchmark):\n  Multi-agent:    67.3%\n  GPT-4o single:  69.1%   ← single model wins\n  Specialized:    71.8%\nFinding: MAS does not consistently outperform'},
   passrate:{name:'PassRate',full:'Pass Rate',desc:'Measures successful query completion within a predefined step budget. Introduced in Mobile-Bench (832 data entries, 103 collected APIs) alongside CheckPoint for mobile agent evaluation. PassRate evaluates whether agents can complete tasks within realistic operation constraints.',formula:'PassRate = Queries Completed within Step Limit / Total\n\nMobile-Bench complexity tiers:\n  SAST (Single App, Single Task):   High\n  SAMT (Single App, Multi Task):    Medium\n  MAMT (Multi App, Multi Task):     Low   ← drops significantly'},
   succr:{name:'SuccR',full:'Success Rate',desc:'Proportion of generated action scripts that fully achieve the task goal. Paired with SafeR to measure both task completion and safety simultaneously. Safe-BeAl improved SafeR by 8.55–15.22% while preserving SuccR, demonstrating joint optimization.',formula:'SuccR = Scripts Successfully Completing Task / Total\n\nSafe-BeAl results:\n  Baseline SuccR:    78.4%\n  Safe-BeAl SuccR:   78.1%  ← minimal change\n  Baseline SafeR:    61.2%\n  Safe-BeAl SafeR:   72.8%  ← +15.2% improvement'},
   safers:{name:'SafeR@S',full:'Safety Rate at Success',desc:'Conditional safety metric: of scripts that succeed, what fraction are also safe? Reveals whether task success comes at the cost of safety compromise. A system with high SuccR but low SafeR@S is completing tasks through unsafe means.',formula:'SafeR@S = Safe Scripts among Successful / Total Successful\n\nInterpretation:\n  High SuccR + High SafeR@S → ideal system\n  High SuccR + Low  SafeR@S → "succeeding unsafely"\n  Low  SuccR + High SafeR@S → "safely failing"'},
+  passk:{name:'pass@k / pass^k',full:'pass@k vs pass^k (τ-bench)',desc:'Two related but fundamentally different reliability metrics from τ-bench. pass@k (lenient) asks whether at least one of k runs succeeds. pass^k (strict) requires ALL k runs to succeed — measuring truly reliable task completion, not just peak performance.',formula:'pass@k = 1 − C(n−c, k) / C(n, k)\n  (prob. at least 1 of k trials succeeds)\n\npass^k = (c/n)^k\n  (prob. all k trials independently succeed)\n\nSource: τ-bench (Yao et al., 2024)\n\nKey difference:\n  pass@1 = pass^1 (identical at k=1)\n  pass@5 >> pass^5 (gap grows with k)\n  pass^k drops exponentially with k\n  → measures consistent reliability, not luck'},
 };
 
 function selectTaskMetric(key,btn){
@@ -811,15 +886,15 @@ function selectTaskMetric(key,btn){
 
 // ===== COMM METRIC DETAIL =====
 var COMM_DATA={
-  ids:{name:'IDS',full:'Information Diversity Score',desc:'Measures semantic variation in messages exchanged between agents using cluster entropy. Low IDS = agents echo each other. High IDS = rich, diverse information flow. Key finding: two systems with only 2.1% accuracy gap showed 12.8% IDS difference on GSM8K.',formula:'IDS = cluster_entropy(inter_agent_messages)\n\nSource: GEMMAS (Graph-based Evaluation\n  Metrics for Multi-Agent Systems, 2025)\n\nGSM8K experiment: same accuracy ≠ same quality\n  System A: accuracy 87.3%, IDS 0.71\n  System B: accuracy 89.4%, IDS 0.84   ← 12.8% gap'},
-  upr:{name:'UPR',full:'Unnecessary Path Ratio',desc:'Quantifies what fraction of agent reasoning steps are redundant — messages that add no new information. An 80% UPR difference found between systems with similar accuracy on GSM8K. Lower is better. Direct cost impact: high UPR = high token consumption.',formula:'UPR = Redundant Reasoning Paths / Total Paths\n\nGSM8K experiment:\n  System A: accuracy 87.3%, UPR 0.23\n  System B: accuracy 89.4%, UPR 0.41   ← 80% gap!\n\nLower UPR = more efficient collaboration'},
+  ids:{name:'IDS',full:'Information Divergence Score',desc:'Measures semantic divergence in messages between agents. Computed as a weighted sum over all agent pairs using syntactic and semantic similarity. Low IDS = agents echo each other. Key finding: 2.1% accuracy gap masked 12.8% IDS difference on GSM8K.',formula:'IDS = Σ(i,j) w_ij·(1−SS_total[i,j]) / Σ(i,j) w_ij\n\nwhere:\n  w_ij = max(S_ij,S_ji) + max(T_ij,T_ji)\n  SS_total = 0.5·SS_syn + 0.5·SS_sem\n  SS_syn = syntactic similarity score\n  SS_sem = semantic similarity score\n\nSource: GEMMAS (arxiv:2507.13190)\n\nGSM8K: same accuracy ≠ same quality\n  System A: accuracy 87.3%, IDS 0.71\n  System B: accuracy 89.4%, IDS 0.84  ← 12.8% gap'},
+  upr:{name:'UPR',full:'Unnecessary Path Ratio',desc:'Quantifies redundant reasoning paths — communications that add no new information toward the goal. Defined as 1 minus the fraction of necessary paths. Lower is better. An 80% UPR gap found between systems with near-identical accuracy on GSM8K.',formula:'UPR = 1 − |P_necessary| / |P_all|\n\nwhere:\n  P_all = all reasoning paths in interaction DAG\n  P_necessary = minimal subset paths for goal\n  Lower UPR = more efficient collaboration\n\nSource: GEMMAS (arxiv:2507.13190)\n\nGSM8K experiment:\n  System A: accuracy 87.3%, UPR 0.23\n  System B: accuracy 89.4%, UPR 0.41   ← 80% gap!'},
   core:{name:'CORE',full:'Conversational Robustness Evaluation Score',desc:'Integrates cluster entropy, lexical repetition, and semantic similarity to measure dialog quality in multi-agent LLM systems across game-theoretic settings. Grounded in Zipf\'s and Heaps\' Laws to characterize word frequency distributions.',formula:'CORE = f(cluster_entropy, lexical_repetition,\n              semantic_similarity)\n\nFindings by game type:\n  Cooperative:  steeper Zipf, higher Heaps exponent\n  Competitive:  lower Zipf, constrained vocabulary\n  Neutral:      intermediate patterns'},
   af:{name:'AF',full:'Alignment Factor',desc:'Novel metric from the Communication to Completion (C2C) framework. Measures how well agent task understanding is aligned through targeted communication. Systems optimizing AF reduced task completion time by ~40% with acceptable costs across teams of 5–17 agents.',formula:'AF = f(agent task alignment → work efficiency)\n\nC2C results (coding workflows, 3 complexity tiers):\n  No communication baseline:  100% time\n  Fixed steps communication:   85% time\n  C2C with AF optimization:    60% time  ← -40%\n  All tasks completed successfully'},
-  tes:{name:'TES',full:'Trajectory Efficiency Score',desc:'Compares two collaboration trajectories, assessing rationally planned action sequences by sequence order and redundancy punishment. Introduced in Collab-Overcooked (30 tasks, 6 complexity levels, 13 LLMs tested).',formula:'TES = sequence_rationality_score ×\n       (1 − redundancy_penalty)\n\nCollab-Overcooked findings:\n  LLMs: strong goal interpretation\n  LLMs: weak active collaboration\n  TES degrades as complexity increases\n  Human vs LLM gap: ~40% at level 6'},
-  ites:{name:'ITES',full:'Incremental Trajectory Efficiency Score',desc:'Fine-grained version of TES — measures the marginal contribution of each individual agent action to overall task progress. Enables per-step attribution analysis, showing which specific collaborative actions drive progress vs. which are wasted.',formula:'ITES(action_t) = ΔProgress(t) / ideal_contribution\n\nUsage: per-step diagnostic\n  High ITES: action significantly advanced task\n  Low  ITES: action was redundant or counterproductive\n  Sum of ITES ≈ TES for full trajectory'},
-  pc:{name:'PC',full:'Progress Completeness',desc:'Measures global task progress across all agents, penalizing redundant efforts. Captures both completeness and efficiency of the collaborative process. Differs from individual completion by accounting for duplicate work between agents.',formula:'PC = Σ(agent_progress) − redundancy_penalty\n\nCaptures: completeness + efficiency\nPenalizes: duplicate work between agents\nDiffers from GSR: partial credit for partial success\nDiffers from TES: focuses on outcome not trajectory'},
-  ic:{name:'IC',full:'Initiating Capability',desc:'Evaluates whether an LLM agent correctly identifies when and how to initiate collaboration with teammates. Reveals proactive coordination ability — a key gap found in LLMs which are strong at reacting but weak at proactively starting collaboration.',formula:'IC = Correct Collaboration Initiations /\n      Total Initiation Attempts\n\nCollab-Overcooked finding:\n  LLMs exhibit "significant shortcomings\n  in active collaboration" (IC metric)\n  IC degrades rapidly at complexity level 4+'},
-  rc:{name:'RC',full:'Responding Capability',desc:'Assesses whether an agent correctly responds when another agent initiates collaboration. Tests reactive coordination ability. LLMs generally score higher on RC than IC — they are better at responding to collaboration than initiating it.',formula:'RC = Correct Responses to Collaboration /\n      Total Collaboration Requests\n\nRC vs IC comparison:\n  RC > IC across all tested LLMs\n  Both degrade with complexity\n  Gap widens at higher complexity levels\n  (proactive worse than reactive)'},
+  tes:{name:'TES',full:'Team Execution Score',desc:'Compares agent collaboration trajectories against ground-truth sequences using an F-score formulation. Assesses rational action ordering and penalizes both false positive and false negative actions. Introduced in Collab-Overcooked (30 tasks, 6 complexity levels, 13 LLMs).',formula:'TES(h̄ₖ) = max_j {(1+β²)·D_max^j(h̄ₖ,ḡₖʲ) / (mₖ + β²·nₖ)}\n\nwhere:\n  h̄ₖ = agent history sequence for subtask k\n  ḡₖʲ = j-th ground truth sequence\n  mₖ = false positive actions (excess)\n  nₖ = false negative actions (missing)\n  β = recall/precision weighting (β=1 → F1)\n\nSource: Collab-Overcooked (arxiv:2502.20073)\n  LLMs: strong goal interpretation\n  LLMs: weak active collaboration\n  TES degrades at complexity level 4+'},
+  ites:{name:'ITES',full:'Incremental Team Execution Score',desc:'Per-action version of TES. Measures the marginal contribution of each individual agent action to overall task progress, enabling fine-grained attribution of which collaboration steps drive progress vs. are redundant.',formula:'ITES(h̄ₖ,t) = TES contribution of action at step t\n\nwhere ITES over full trajectory ≈ TES\n\nSource: Collab-Overcooked (arxiv:2502.20073)\n\nUsage: per-step diagnostic\n  High ITES: action advanced task meaningfully\n  Low  ITES: action was redundant / counterproductive'},
+  pc:{name:'PC',full:'Progress Completeness',desc:'Measures global task progress across all agents, penalizing redundant efforts. Captures both completeness and efficiency of the collaborative process. Differs from TES by focusing on outcome completeness rather than trajectory quality.',formula:'PC = Σ_k TES(h̄ₖ) / K\n\nwhere K = total number of subtasks\n\nSource: Collab-Overcooked (arxiv:2502.20073)\n\nCaptures: outcome completeness across subtasks\nPenalizes: unfinished or redundantly executed steps\nDiffers from GSR: partial credit for partial success'},
+  ic:{name:'IC',full:'Initiating Capability',desc:'Evaluates whether an LLM agent correctly identifies when and how to initiate collaboration with teammates. Reveals proactive coordination ability — a key gap found in LLMs, which are strong at reacting but weak at proactively starting collaboration.',formula:'IC = |{correct initiation events}| /\n      |{total initiation opportunities}|\n\nSource: Collab-Overcooked (arxiv:2502.20073)\n\nKey finding:\n  LLMs show "significant shortcomings\n  in active collaboration" (IC metric)\n  IC degrades rapidly at complexity level 4+'},
+  rc:{name:'RC',full:'Responding Capability',desc:'Assesses whether an agent correctly responds when another agent initiates collaboration. Tests reactive coordination ability. LLMs generally score higher on RC than IC — better at responding than initiating.',formula:'RC = |{correct collaboration responses}| /\n      |{total collaboration requests received}|\n\nSource: Collab-Overcooked (arxiv:2502.20073)\n\nRC vs IC comparison:\n  RC > IC across all 13 tested LLMs\n  Both degrade with complexity\n  Gap widens at higher complexity levels\n  Proactive collab harder than reactive collab'},
 };
 
 function selectCommMetric(key,pill){
@@ -875,7 +950,8 @@ function switchDomain(d,btn){
 
 // ===== EXPLORER =====
 var currentCatFilter='all';
-var currentSort={key:'cat',dir:1};
+var currentImpFilter=0;
+var currentSort={key:'importance',dir:-1};
 
 function setCatFilter(cat,btn){
   currentCatFilter=cat;
@@ -883,38 +959,95 @@ function setCatFilter(cat,btn){
   btn.classList.add('active');
   renderTable();
 }
+function setImpFilter(imp,btn){
+  currentImpFilter=imp;
+  document.querySelectorAll('.imp-filter-btn').forEach(function(b){
+    b.classList.remove('active');
+    b.style.background='';
+    b.style.color='';
+  });
+  btn.classList.add('active');
+  var impColors={0:'#444',5:'#14b8a6',4:'#3b82f6',3:'#f7b731',2:'#f97316',1:'#8b949e'};
+  btn.style.background=impColors[imp]||'#444';
+  btn.style.color='#fff';
+  renderTable();
+}
 function sortMetrics(key){
   if(currentSort.key===key)currentSort.dir*=-1;
-  else{currentSort.key=key;currentSort.dir=1;}
+  else{currentSort.key=key;currentSort.dir=-1;}
   renderTable();
 }
 function filterMetrics(){renderTable();}
 
+var IMP_LABELS=['','Niche','Emerging','Medium','High','Critical'];
+var IMP_COLORS=['','#8b949e','#f97316','#f7b731','#3b82f6','#14b8a6'];
+
+function impCell(m){
+  var imp=m.importance||1;
+  var lbl=IMP_LABELS[imp];
+  var c=IMP_COLORS[imp];
+  var segs='';
+  for(var i=1;i<=5;i++){
+    var on=i<=imp;
+    segs+='<div class="imp-seg'+(on?' on-'+imp:'')+'"></div>';
+  }
+  return '<td style="min-width:170px;vertical-align:top;">'+
+    '<div class="imp-bar">'+segs+'</div>'+
+    '<div style="font-size:9px;font-weight:700;color:'+c+';">'+lbl+'</div>'+
+    '<div class="imp-note">'+(m.impact||'')+'</div>'+
+  '</td>';
+}
+
 function renderTable(){
-  var q=document.getElementById('explorer-search').value.toLowerCase();
-  var filtered=ALL_METRICS.filter(function(m){
-    var catOk=currentCatFilter==='all'||m.cat===currentCatFilter;
-    var qOk=!q||(m.abbr.toLowerCase().includes(q)||m.name.toLowerCase().includes(q)||m.desc.toLowerCase().includes(q)||m.source.toLowerCase().includes(q));
-    return catOk&&qOk;
-  });
-  filtered.sort(function(a,b){
-    var av=a[currentSort.key]||'',bv=b[currentSort.key]||'';
-    return av<bv?-currentSort.dir:av>bv?currentSort.dir:0;
-  });
-  var tbody=document.getElementById('explorer-tbody');
-  tbody.innerHTML=filtered.map(function(m){
-    var cc=catColors[m.cat]||'#888';
-    var cl=catLabels[m.cat]||m.cat;
-    var dir=m.higher?'↑ higher better':'↓ lower better';
-    return '<tr>'+
-      '<td><span style="font-family:\'JetBrains Mono\',monospace;font-weight:700;font-size:12px;color:'+cc+'">'+m.abbr+'</span></td>'+
-      '<td><div style="font-weight:600;font-size:12px;">'+m.name+'</div><div style="font-size:10px;color:var(--muted);margin-top:2px;">'+m.desc.substring(0,80)+'...</div></td>'+
-      '<td><span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:'+cc+'22;color:'+cc+'">'+cl+'</span></td>'+
-      '<td style="font-family:\'JetBrains Mono\',monospace;font-size:10px;color:var(--muted);max-width:200px;word-break:break-word;">'+m.formula+'</td>'+
-      '<td style="font-size:11px;color:var(--muted);">'+m.source+'</td>'+
-      '<td style="font-size:10px;"><div>'+m.range+'</div><div style="color:'+cc+';font-size:9px;margin-top:2px;">'+dir+'</div></td>'+
-    '</tr>';
-  }).join('');
+  try{
+    var searchEl=document.getElementById('explorer-search');
+    var q=searchEl?searchEl.value.toLowerCase():'';
+    var filtered=ALL_METRICS.filter(function(m){
+      var catOk=currentCatFilter==='all'||m.cat===currentCatFilter;
+      var impOk=currentImpFilter===0||m.importance===currentImpFilter;
+      var qOk=!q||(
+        (m.abbr||'').toLowerCase().includes(q)||
+        (m.name||'').toLowerCase().includes(q)||
+        (m.desc||'').toLowerCase().includes(q)||
+        (m.source||'').toLowerCase().includes(q)||
+        (m.impact||'').toLowerCase().includes(q)
+      );
+      return catOk&&impOk&&qOk;
+    });
+    filtered.sort(function(a,b){
+      if(currentSort.key==='importance'){
+        var ai=+(a.importance||0),bi=+(b.importance||0);
+        // dir=-1 means descending (highest first)
+        return bi>ai?-currentSort.dir:bi<ai?currentSort.dir:0;
+      }
+      var av=a[currentSort.key]||'',bv=b[currentSort.key]||'';
+      return av<bv?-currentSort.dir:av>bv?currentSort.dir:0;
+    });
+    var tbody=document.getElementById('explorer-tbody');
+    if(!tbody)return;
+    tbody.innerHTML=filtered.map(function(m){
+      try{
+        var cc=catColors[m.cat]||'#888';
+        var cl=catLabels[m.cat]||m.cat;
+        var dir=m.higher?'↑ higher better':'↓ lower better';
+        return '<tr>'+
+          '<td><span style="font-family:\'JetBrains Mono\',monospace;font-weight:700;font-size:12px;color:'+cc+'">'+m.abbr+'</span></td>'+
+          '<td><div style="font-weight:600;font-size:12px;">'+(m.name||'')+'</div><div style="font-size:10px;color:var(--muted);margin-top:2px;">'+(m.desc||'').substring(0,80)+'...</div></td>'+
+          '<td><span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:'+cc+'22;color:'+cc+'">'+cl+'</span></td>'+
+          '<td style="font-family:\'JetBrains Mono\',monospace;font-size:10px;color:var(--muted);max-width:200px;word-break:break-word;">'+(m.formula||'')+'</td>'+
+          '<td style="font-size:11px;color:var(--muted);">'+(m.source||'')+'</td>'+
+          '<td style="font-size:10px;"><div>'+(m.range||'')+'</div><div style="color:'+cc+';font-size:9px;margin-top:2px;">'+dir+'</div></td>'+
+          impCell(m)+
+        '</tr>';
+      }catch(rowErr){
+        return '<tr><td colspan="7" style="color:#ef4444;font-size:10px;">Row error: '+rowErr.message+'</td></tr>';
+      }
+    }).join('');
+  }catch(e){
+    var tbody=document.getElementById('explorer-tbody');
+    if(tbody)tbody.innerHTML='<tr><td colspan="7" style="color:#ef4444;padding:12px;">Table render error: '+e.message+'</td></tr>';
+    console.error('renderTable error:',e);
+  }
 }
 
 // ===== CANVAS DRAWS =====
@@ -935,7 +1068,7 @@ function drawOverview(){
   var stages=[
     {label:'Single Model',sub:'Task → Output',color:'#3b82f6',metrics:'1 metric\n(Accuracy)'},
     {label:'Single Agent',sub:'Plan → Act → Output',color:'#a78bfa',metrics:'3 metrics\n(GSR, Steps, Cost)'},
-    {label:'Multi-Agent System',sub:'Coord → Comm → Act',color:'#14b8a6',metrics:'35+ metrics\n(All categories)'},
+    {label:'Multi-Agent System',sub:'Coord → Comm → Act',color:'#14b8a6',metrics:'70 metrics\n(All categories)'},
   ];
 
   var boxW=180,boxH=110,gap=40;
