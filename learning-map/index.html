@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Visual Summary — Learning Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#c9d1d9;--muted:#8b949e;
+  --c-foundations:#0984e3;--c-representations:#e17055;--c-training:#a29bfe;
+  --c-agents:#00b894;--c-evaluation:#f7b731;--c-safety:#e11d48;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;min-height:100vh;}
+a{text-decoration:none;color:inherit;}
+
+/* HEADER */
+.header{border-bottom:1px solid var(--border);padding:14px 32px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;position:sticky;top:0;background:rgba(13,17,23,.97);backdrop-filter:blur(8px);z-index:100;}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-icon{width:32px;height:32px;background:linear-gradient(135deg,#7c6fcd,#4a9eff);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1rem;}
+.logo-text{font-size:1rem;font-weight:700;}
+.logo-sub{font-size:.7rem;color:var(--muted);margin-top:1px;}
+.header-actions{display:flex;gap:8px;align-items:center;}
+.btn-back{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:7px;padding:6px 14px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-back:hover{color:var(--text);border-color:#8b949e;}
+
+/* HERO */
+.hero{padding:32px 32px 24px;border-bottom:1px solid var(--border);}
+.hero-title{font-size:26px;font-weight:800;margin-bottom:6px;}
+.hero-sub{font-size:13px;color:var(--muted);max-width:680px;margin-bottom:20px;}
+.stats-row{display:flex;gap:28px;flex-wrap:wrap;margin-bottom:20px;}
+.stat{text-align:center;}
+.stat-val{font-size:22px;font-weight:800;color:#a5b4fc;}
+.stat-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;}
+
+/* CONTROLS */
+.controls{padding:12px 32px;border-bottom:1px solid var(--border);display:flex;align-items:center;flex-wrap:wrap;gap:20px;background:rgba(22,27,34,.8);}
+.controls-section{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.ctrl-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;white-space:nowrap;}
+.filter-chip{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:5px;}
+.filter-chip:hover{color:var(--text);}
+.filter-chip.active{color:#fff;}
+.chip-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.path-chip{border-radius:7px;padding:5px 13px;font-size:11px;font-weight:600;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;transition:all .15s;}
+.path-chip:hover{color:var(--text);}
+.path-chip.active{color:#fff;}
+.ctrl-divider{width:1px;height:24px;background:var(--border);}
+
+/* MAP WRAPPER */
+.map-wrapper{overflow-x:auto;overflow-y:auto;padding:0;background:var(--bg);position:relative;}
+.map-canvas{position:relative;user-select:none;}
+.map-canvas svg{position:absolute;top:0;left:0;pointer-events:none;}
+
+/* NODE CARDS */
+.map-node{position:absolute;width:176px;border-radius:9px;padding:9px 12px;cursor:pointer;transition:transform .12s, box-shadow .12s, opacity .2s;border:1.5px solid var(--border);background:var(--surface);}
+.map-node:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.4);z-index:10;}
+.map-node.gap{border-style:dashed;background:rgba(22,27,34,.5);opacity:.75;}
+.map-node.gap:hover{opacity:1;}
+.map-node.inactive{opacity:.18;}
+.map-node.on-path{box-shadow:0 0 0 2px currentColor;z-index:5;}
+.map-node.highlighted{transform:translateY(-2px);box-shadow:0 0 0 2.5px #7c6fcd, 0 6px 20px rgba(0,0,0,.4);z-index:10;opacity:1!important;}
+.node-badge{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;display:flex;align-items:center;gap:4px;}
+.node-num{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;opacity:.7;}
+.node-title{font-size:11px;font-weight:700;color:var(--text);line-height:1.35;margin-bottom:2px;}
+.node-gap-tag{font-size:8px;font-weight:700;color:var(--muted);background:rgba(48,54,61,.8);border-radius:4px;padding:1px 6px;display:inline-block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.6px;}
+
+/* LEVEL LABELS */
+.level-label{position:absolute;top:0;font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;text-align:center;width:176px;}
+
+/* TOOLTIP */
+.tooltip{position:fixed;background:#1c2128;border:1px solid var(--border);border-radius:9px;padding:10px 14px;max-width:260px;font-size:11px;color:var(--muted);pointer-events:none;z-index:9999;display:none;box-shadow:0 8px 24px rgba(0,0,0,.5);}
+.tooltip strong{color:var(--text);display:block;margin-bottom:4px;font-size:12px;}
+.tooltip-cat{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;}
+.tooltip-gap-note{font-size:10px;color:#f7b731;margin-top:6px;}
+
+/* LEGEND */
+.legend{padding:14px 32px;border-top:1px solid var(--border);display:flex;align-items:center;gap:24px;flex-wrap:wrap;background:rgba(22,27,34,.6);}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);}
+.legend-dot{width:9px;height:9px;border-radius:50%;}
+.legend-gap{width:9px;height:9px;border-radius:2px;border:1.5px dashed var(--muted);background:transparent;}
+.legend-line{width:24px;height:2px;border-radius:1px;}
+
+/* PATHS DETAIL */
+.paths-strip{padding:20px 32px;border-top:1px solid var(--border);display:none;}
+.paths-strip.visible{display:block;}
+.paths-strip-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;}
+.path-detail{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;}
+.path-detail-card{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:12px 16px;flex:1;min-width:200px;cursor:pointer;transition:border-color .15s;}
+.path-detail-card:hover{border-color:#555;}
+.path-detail-card.active{border-color:var(--path-color);}
+.path-name{font-size:13px;font-weight:700;margin-bottom:3px;}
+.path-desc{font-size:11px;color:var(--muted);margin-bottom:8px;}
+.path-steps{display:flex;flex-wrap:wrap;gap:4px;}
+.path-step{font-size:9px;padding:2px 7px;border-radius:4px;font-weight:600;}
+
+/* EDGE SVG */
+.edge-path{fill:none;stroke-width:1.5;opacity:.35;transition:opacity .15s,stroke-width .15s;}
+.edge-path.highlighted{opacity:.9;stroke-width:2.5;}
+.edge-path.inactive{opacity:.04;}
+</style>
+</head>
+<body>
+
+<div class="tooltip" id="tooltip">
+  <div class="tooltip-cat" id="tt-cat"></div>
+  <strong id="tt-title"></strong>
+  <div id="tt-desc"></div>
+  <div class="tooltip-gap-note" id="tt-gap"></div>
+</div>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="logo">
+    <div class="logo-icon">🗺</div>
+    <div>
+      <div class="logo-text">Learning Map</div>
+      <div class="logo-sub">Visual Summary — Complete Curriculum</div>
+    </div>
+  </div>
+  <div class="header-actions">
+    <a href="../" class="btn-back">← All Posts</a>
+  </div>
+</header>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-title">Your Complete AI/ML Learning Map</div>
+  <div class="hero-sub">30 published posts across 9 curriculum levels — plus 13 gap topics that connect the dots. Hover nodes to explore connections. Click to open a post. Select a learning path to see your route.</div>
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val">30</div><div class="stat-lbl">Published Posts</div></div>
+    <div class="stat"><div class="stat-val" style="color:#f7b731;">13</div><div class="stat-lbl">Gap Topics</div></div>
+    <div class="stat"><div class="stat-val" style="color:#00b894;">9</div><div class="stat-lbl">Curriculum Levels</div></div>
+    <div class="stat"><div class="stat-val" style="color:#e17055;">43</div><div class="stat-lbl">Total Nodes</div></div>
+    <div class="stat"><div class="stat-val" style="color:#e11d48;">38</div><div class="stat-lbl">Connections Mapped</div></div>
+  </div>
+</div>
+
+<!-- CONTROLS -->
+<div class="controls">
+  <div class="controls-section">
+    <span class="ctrl-label">Filter</span>
+    <button class="filter-chip active" data-cat="all" onclick="setFilter('all',this)" style="border-color:#555;">
+      <span class="chip-dot" style="background:#7c6fcd;"></span>All
+    </button>
+    <button class="filter-chip" data-cat="foundations" onclick="setFilter('foundations',this)">
+      <span class="chip-dot" style="background:var(--c-foundations);"></span>Foundations
+    </button>
+    <button class="filter-chip" data-cat="representations" onclick="setFilter('representations',this)">
+      <span class="chip-dot" style="background:var(--c-representations);"></span>Representations
+    </button>
+    <button class="filter-chip" data-cat="training" onclick="setFilter('training',this)">
+      <span class="chip-dot" style="background:var(--c-training);"></span>Training
+    </button>
+    <button class="filter-chip" data-cat="agents" onclick="setFilter('agents',this)">
+      <span class="chip-dot" style="background:var(--c-agents);"></span>Agents
+    </button>
+    <button class="filter-chip" data-cat="evaluation" onclick="setFilter('evaluation',this)">
+      <span class="chip-dot" style="background:var(--c-evaluation);"></span>Evaluation
+    </button>
+    <button class="filter-chip" data-cat="safety" onclick="setFilter('safety',this)">
+      <span class="chip-dot" style="background:var(--c-safety);"></span>Safety
+    </button>
+  </div>
+  <div class="ctrl-divider"></div>
+  <div class="controls-section">
+    <span class="ctrl-label">Learning Path</span>
+    <button class="path-chip" data-path="llm-foundations" onclick="setPath('llm-foundations',this)">LLM Foundations</button>
+    <button class="path-chip" data-path="agent-builder" onclick="setPath('agent-builder',this)">Build AI Agents</button>
+    <button class="path-chip" data-path="safety-gov" onclick="setPath('safety-gov',this)">Safety & Governance</button>
+    <button class="path-chip" data-path="eval-track" onclick="setPath('eval-track',this)">Evaluation Track</button>
+    <button class="path-chip" data-path="none" onclick="setPath('none',this)" id="clear-path-btn" style="display:none;">✕ Clear Path</button>
+  </div>
+</div>
+
+<!-- MAP CANVAS -->
+<div class="map-wrapper" id="map-wrapper">
+  <div class="map-canvas" id="map-canvas">
+    <svg id="map-svg"></svg>
+  </div>
+</div>
+
+<!-- LEGEND -->
+<div class="legend">
+  <span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;">Legend:</span>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--c-foundations)"></div>Foundations</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--c-representations)"></div>Representations</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--c-training)"></div>Training</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--c-agents)"></div>Agents</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--c-evaluation)"></div>Evaluation</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--c-safety)"></div>Safety</div>
+  <div class="legend-item"><div class="legend-gap"></div>Gap topic (coming soon)</div>
+  <div class="legend-item"><div class="legend-line" style="background:#555"></div>Prerequisite connection</div>
+  <span style="font-size:10px;color:var(--muted);margin-left:8px;">Hover any node to highlight its connections · Click to open post</span>
+</div>
+
+<!-- PATH DETAIL STRIP -->
+<div class="paths-strip" id="paths-strip">
+  <div class="paths-strip-title">Selected Path</div>
+  <div class="path-detail" id="path-detail"></div>
+</div>
+
+<script>
+// ===================== DATA =====================
+var CAT_COLORS = {
+  foundations:'#0984e3', representations:'#e17055', training:'#a29bfe',
+  agents:'#00b894', evaluation:'#f7b731', safety:'#e11d48'
+};
+
+var NODES = [
+  // Level 0 — Core Foundations
+  {id:'g-tf',   label:'Transformers & Attention',     gap:true,  level:0, row:0, cat:'foundations',     desc:'Self-attention, positional encoding, encoder-decoder architecture. The backbone behind every modern LLM.'},
+  {id:'g-pt',   label:'Pre-training Objectives',      gap:true,  level:0, row:1, cat:'foundations',     desc:'Masked language modeling (BERT), next-token prediction (GPT), and how pre-training shapes what a model knows.'},
+  {id:'p09',    label:'Tokenizers',                   post:'09', level:0, row:2, cat:'foundations',     href:'../09-tokenizers/', desc:'BPE, WordPiece, SentencePiece — the hidden preprocessing step that shapes every LLM.'},
+  // Level 1 — Text & Generation
+  {id:'p05',    label:'Sampling Techniques',          post:'05', level:1, row:0, cat:'foundations',     href:'../05-sampling-techniques/', desc:'Temperature, top-k, nucleus — 6 ways to turn logit distributions into words.'},
+  {id:'p03',    label:'Defeating Nondeterminism',     post:'03', level:1, row:1, cat:'foundations',     href:'../03-nondeterminism/', desc:'Seed control, deterministic inference, and reproducibility across LLM backends.'},
+  {id:'p10',    label:'In-Context Learning',          post:'10', level:1, row:2, cat:'foundations',     href:'../10-icl/', desc:'Zero-shot, few-shot, and how LLMs learn new tasks without gradient updates.'},
+  {id:'g-cot',  label:'Chain-of-Thought / Reasoning', gap:true, level:1, row:3, cat:'foundations',     desc:'Intermediate reasoning steps, tree-of-thought, self-consistency. The bridge from ICL to agentic planning.'},
+  // Level 2 — Representations
+  {id:'g-w2v',  label:'Word Embeddings / Word2Vec',   gap:true,  level:2, row:0, cat:'representations', desc:'CBOW, Skip-gram, GloVe — static embeddings and the foundation required before understanding SBERT and contrastive learning.'},
+  {id:'p08',    label:'Sentence-BERT',                post:'08', level:2, row:1, cat:'representations', href:'../08-sbert/', desc:'From 65 hours to 5 seconds — siamese networks and semantic sentence embeddings.'},
+  {id:'p16',    label:'Contrastive Loss',             post:'16', level:2, row:2, cat:'representations', href:'../16-contrastive-loss/', desc:'Triplet loss, NT-Xent — the training signal behind modern embeddings and the root cause of semantic collapse.'},
+  {id:'p04',    label:'TurboQuant',                   post:'04', level:2, row:3, cat:'representations', href:'../04-turboquant/', desc:'Near-optimal vector quantization — compressing high-dimensional embedding spaces.'},
+  {id:'g-vdb',  label:'Vector Databases / FAISS',     gap:true,  level:2, row:4, cat:'representations', desc:'Approximate nearest-neighbor search at scale. The bridge between embeddings and retrieval systems.'},
+  {id:'p30',    label:'Semantic Collapse',            post:'30', level:2, row:5, cat:'representations', href:'../30-semantic-collapse/', desc:'How embedding models silently erase modal, epistemic, and agency operators — and the Modal Proofing Kernel.'},
+  // Level 3 — Training & Alignment
+  {id:'g-sft',  label:'Fine-tuning / SFT',            gap:true,  level:3, row:0, cat:'training',        desc:'Supervised fine-tuning, instruction tuning, LoRA, QLoRA — the step between pre-training and RLHF alignment.'},
+  {id:'p06',    label:'GRPO',                         post:'06', level:3, row:1, cat:'training',        href:'../06-grpo/', desc:'Group Relative Policy Optimization — reward-based alignment without a separate critic model.'},
+  {id:'g-dpo',  label:'DPO — Direct Preference Opt.', gap:true, level:3, row:2, cat:'training',        desc:'Aligning LLMs from human preference data without reinforcement learning — the alternative to GRPO.'},
+  {id:'p02',    label:'GEPA',                         post:'02', level:3, row:3, cat:'training',        href:'../02-gepa/', desc:'Reflective prompt evolution — using LLMs to automatically improve their own prompts.'},
+  {id:'p15',    label:'DSPy',                         post:'15', level:3, row:4, cat:'training',        href:'../15-dspy/', desc:'Programming LLMs with compiled pipelines instead of hand-crafted prompts.'},
+  // Level 4 — Inference & Serving
+  {id:'g-kvc',  label:'KV Cache Explained',           gap:true,  level:4, row:0, cat:'foundations',     desc:'Key-value caching for autoregressive generation — how transformers avoid recomputing past context.'},
+  {id:'p14',    label:'vLLM & PagedAttention',        post:'14', level:4, row:1, cat:'foundations',     href:'../14-vllm/', desc:'Efficient LLM serving at scale — paged memory management and continuous batching.'},
+  {id:'p27',    label:'World Models',                 post:'27', level:4, row:2, cat:'representations', href:'../27-world-models/', desc:'V-M-C architecture: learning to dream in latent space with VAE, MDN-RNN, and CMA-ES.'},
+  // Level 5 — Agent Frameworks
+  {id:'p01',    label:'Agent Lightning',              post:'01', level:5, row:0, cat:'agents',          href:'../01-agent-lightning/', desc:'RL frameworks explorer — comparing PPO, SAC, TD3 for building learning agents.'},
+  {id:'g-react',label:'ReAct / Tool Use Pattern',     gap:true,  level:5, row:1, cat:'agents',          desc:'Reasoning + Acting — interleaving chain-of-thought with tool calls to solve multi-step tasks.'},
+  {id:'p11',    label:'OpenClaw',                     post:'11', level:5, row:2, cat:'agents',          href:'../11-openclaw/', desc:'Local-first AI agent framework — building agents that run on your own hardware.'},
+  {id:'p17',    label:'Model Context Protocol',       post:'17', level:5, row:3, cat:'agents',          href:'../17-mcp/', desc:'MCP — the universal tool-connection standard. USB-C for AI services.'},
+  {id:'g-mem',  label:'Agent Memory Architectures',   gap:true,  level:5, row:4, cat:'agents',          desc:'Episodic, semantic, and procedural memory for agents. In-context, external, and parametric storage.'},
+  {id:'p20',    label:'Claude Managed Agents',        post:'20', level:5, row:5, cat:'agents',          href:'../20-managed-agents/', desc:'Stateless brains, containerized hands — production-grade multi-agent orchestration.'},
+  {id:'p07',    label:'LLM Wiki',                     post:'07', level:5, row:6, cat:'agents',          href:'../07-llm-wiki/', desc:'Building a personal knowledge base with LLMs — retrieval, ingestion, and Q&A.'},
+  {id:'p21',    label:'Search Agents',                post:'21', level:5, row:7, cat:'agents',          href:'../21-search-agents/', desc:'Making search agents faster and smarter with retrieval, reranking, and routing.'},
+  {id:'g-rag',  label:'RAG Fundamentals',             gap:true,  level:5, row:8, cat:'agents',          desc:'Retrieval-Augmented Generation — chunking strategies, embedding pipelines, and hybrid search.'},
+  // Level 6 — Multi-Agent
+  {id:'p12',    label:'Neurosymbolic AI',             post:'12', level:6, row:0, cat:'agents',          href:'../12-neurosymbolic/', desc:'Combining neural networks with symbolic reasoning — why and how.'},
+  {id:'p18',    label:'Relational Foundation Models', post:'18', level:6, row:1, cat:'agents',          href:'../18-relational-fm/', desc:'AI that speaks SQL — relational reasoning over structured data at scale.'},
+  {id:'p25',    label:'MASEval Framework',            post:'25', level:6, row:2, cat:'evaluation',      href:'../25-maseval/', desc:'Framework choice matters as much as model choice — evaluating entire multi-agent systems across GAIA/Tau/MMLU.'},
+  {id:'p26',    label:'MAS Metrics Survey',           post:'26', level:6, row:3, cat:'evaluation',      href:'../26-mas-metrics/', desc:'95 metrics across 6 categories — a formal taxonomy for measuring LLM multi-agent performance.'},
+  // Level 7 — Evaluation
+  {id:'p13',    label:'Evaluating LLM Agents',        post:'13', level:7, row:0, cat:'evaluation',      href:'../13-agent-eval/', desc:'A visual guide to evaluating LLM agents — task success, robustness, and efficiency metrics.'},
+  {id:'p23',    label:'GraphRAG Evaluation',          post:'23', level:7, row:1, cat:'evaluation',      href:'../23-graphrag-metrics/', desc:'Metrics for graph-based retrieval-augmented generation — coverage, faithfulness, and relevance.'},
+  {id:'g-bench',label:'Benchmarks Overview',          gap:true,  level:7, row:2, cat:'evaluation',      desc:'MMLU, HumanEval, HELM, BIG-Bench — a map of standard benchmarks and what they actually measure.'},
+  {id:'p29',    label:'LLM-as-a-Verifier',            post:'29', level:7, row:3, cat:'agents',          href:'../29-llm-verifier/', desc:'Logprob-based trajectory scoring with criteria decomposition and round-robin tournament selection.'},
+  // Level 8 — Safety & Governance
+  {id:'p19',    label:'Claude Mythos',                post:'19', level:8, row:0, cat:'safety',          href:'../19-claude-mythos/', desc:'The first AI too capable to release — alignment history, Constitutional AI, and the safety-capability tradeoff.'},
+  {id:'g-red',  label:'Adversarial / Red-teaming',    gap:true,  level:8, row:1, cat:'safety',          desc:'Jailbreaking, prompt injection, adversarial examples — finding and fixing model vulnerabilities before deployment.'},
+  {id:'p22',    label:'NIST AI Risk Framework',       post:'22', level:8, row:2, cat:'safety',          href:'../22-nist-ai-rmf/', desc:'The US voluntary framework for managing AI risk — govern, map, measure, manage.'},
+  {id:'p24',    label:'Agentic AI in Finance',        post:'24', level:8, row:3, cat:'safety',          href:'../24-agentic-mrm/', desc:'Runtime governance for agentic AI in financial services — model risk management meets autonomous systems.'},
+  {id:'p28',    label:'EU AI Act',                    post:'28', level:8, row:4, cat:'safety',          href:'../28-eu-ai-act/', desc:'The risk pyramid — 4 tiers, banned practices, high-risk obligations, GPAI thresholds, and penalty calculator.'},
+];
+
+var EDGES = [
+  // Foundations chain
+  ['g-pt','g-tf'],  ['g-pt','g-sft'],
+  ['g-tf','p08'],   ['g-tf','p16'],
+  ['p09','p05'],    ['p09','p03'],    ['p09','p14'],
+  ['p05','p10'],    ['p03','p14'],
+  ['p10','g-cot'],  ['p10','p15'],
+  ['g-cot','p01'],  ['g-cot','g-react'],
+  // Representations chain
+  ['g-w2v','p08'],
+  ['p08','p16'],    ['p08','g-vdb'],
+  ['p16','p04'],    ['p16','p30'],
+  ['g-vdb','p21'],
+  // Training chain
+  ['g-sft','p06'],  ['g-sft','g-dpo'],
+  ['p06','p02'],    ['p02','p15'],
+  // Inference
+  ['g-kvc','p14'],  ['p14','p27'],
+  // Agent chain
+  ['p01','p11'],    ['g-react','p11'],
+  ['p11','p17'],    ['p17','p20'],
+  ['g-mem','p20'],  ['g-rag','p21'],
+  ['p07','p21'],    ['p21','p23'],   ['p21','p25'],
+  ['p20','p25'],
+  // Multi-agent
+  ['p12','p18'],    ['p25','p26'],
+  // Evaluation
+  ['p13','p25'],    ['p13','p29'],   ['p13','p23'],
+  ['p23','p29'],    ['p25','p29'],
+  // Safety
+  ['p19','p22'],    ['g-red','p22'],
+  ['p22','p24'],    ['p22','p28'],
+];
+
+var PATHS = {
+  'llm-foundations': {
+    name:'LLM Foundations',
+    desc:'Understand how language models work from tokens to reasoning.',
+    color:'#0984e3',
+    nodes:['p09','p05','p03','p10','g-cot','g-w2v','p08','p16','g-kvc','p14'],
+    steps:['Post 09','Post 05','Post 03','Post 10','Gap: CoT','Gap: Embeddings','Post 08','Post 16','Gap: KV Cache','Post 14']
+  },
+  'agent-builder': {
+    name:'Build AI Agents',
+    desc:'Go from first principles to production-grade multi-agent systems.',
+    color:'#00b894',
+    nodes:['p09','p10','g-cot','p02','p15','p01','g-react','p11','p17','p20','p21','p25','p13'],
+    steps:['Post 09','Post 10','Gap: CoT','Post 02','Post 15','Post 01','Gap: ReAct','Post 11','Post 17','Post 20','Post 21','Post 25','Post 13']
+  },
+  'safety-gov': {
+    name:'Safety & Governance',
+    desc:'Understand AI risk, alignment history, and regulatory frameworks.',
+    color:'#e11d48',
+    nodes:['p19','g-red','p22','p24','p28','p26'],
+    steps:['Post 19','Gap: Red-teaming','Post 22','Post 24','Post 28','Post 26']
+  },
+  'eval-track': {
+    name:'Evaluation Track',
+    desc:'Master every level of AI evaluation — agents, RAG, multi-agent.',
+    color:'#f7b731',
+    nodes:['p13','p23','p25','p26','g-bench','p29'],
+    steps:['Post 13','Post 23','Post 25','Post 26','Gap: Benchmarks','Post 29']
+  }
+};
+
+// ===================== LAYOUT =====================
+var NODE_W=176, NODE_H=60, COL_W=214, ROW_H=80, PAD_X=16, PAD_Y=48;
+
+function nodePos(n){
+  return {x: PAD_X + n.level*COL_W, y: PAD_Y + n.row*ROW_H};
+}
+
+function getNodeById(id){
+  for(var i=0;i<NODES.length;i++) if(NODES[i].id===id) return NODES[i];
+  return null;
+}
+
+// Build adjacency
+var ADJ={};// id -> {out:[], in:[]}
+NODES.forEach(function(n){ADJ[n.id]={out:[],in:[]};});
+EDGES.forEach(function(e){
+  if(ADJ[e[0]]) ADJ[e[0]].out.push(e[1]);
+  if(ADJ[e[1]]) ADJ[e[1]].in.push(e[0]);
+});
+
+// ===================== RENDER =====================
+var activeFilter='all', activePath=null;
+var nodeEls={}, edgeEls=[];
+
+function build(){
+  var canvas=document.getElementById('map-canvas');
+  var svg=document.getElementById('map-svg');
+
+  // Compute canvas size
+  var maxX=0, maxY=0;
+  NODES.forEach(function(n){
+    var p=nodePos(n);
+    maxX=Math.max(maxX, p.x+NODE_W+PAD_X);
+    maxY=Math.max(maxY, p.y+NODE_H+40);
+  });
+  canvas.style.width=maxX+'px';
+  canvas.style.height=maxY+'px';
+  svg.setAttribute('width',maxX);
+  svg.setAttribute('height',maxY);
+
+  // Draw level labels
+  for(var lv=0;lv<=8;lv++){
+    var lnames=['0 · Core Foundations','1 · Text & Generation','2 · Representations','3 · Training & Alignment','4 · Inference & Serving','5 · Agent Frameworks','6 · Multi-Agent','7 · Evaluation','8 · Safety & Governance'];
+    var lbl=document.createElement('div');
+    lbl.className='level-label';
+    lbl.style.left=(PAD_X+lv*COL_W)+'px';
+    lbl.style.top='4px';
+    lbl.style.width=NODE_W+'px';
+    lbl.textContent=lnames[lv];
+    canvas.appendChild(lbl);
+  }
+
+  // Draw edges first (behind nodes)
+  EDGES.forEach(function(e,ei){
+    var src=getNodeById(e[0]), dst=getNodeById(e[1]);
+    if(!src||!dst) return;
+    var sp=nodePos(src), dp=nodePos(dst);
+    var x1=sp.x+NODE_W, y1=sp.y+NODE_H/2;
+    var x2=dp.x, y2=dp.y+NODE_H/2;
+    var cx=(x2-x1)*0.45;
+    var path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    var d='M'+x1+' '+y1+' C'+(x1+cx)+' '+y1+','+(x2-cx)+' '+y2+','+x2+' '+y2;
+    path.setAttribute('d',d);
+    path.setAttribute('class','edge-path');
+    path.setAttribute('stroke', CAT_COLORS[src.cat]||'#555');
+    path.dataset.src=e[0]; path.dataset.dst=e[1];
+    svg.appendChild(path);
+    edgeEls.push(path);
+  });
+
+  // Draw nodes
+  NODES.forEach(function(n){
+    var p=nodePos(n);
+    var el=document.createElement('div');
+    el.className='map-node'+(n.gap?' gap':'');
+    el.style.left=p.x+'px';
+    el.style.top=p.y+'px';
+    if(!n.gap) el.style.borderColor=CAT_COLORS[n.cat]+'55';
+    el.dataset.id=n.id;
+
+    var html='';
+    if(n.gap){
+      html+='<div class="node-gap-tag">Coming Soon</div>';
+    } else {
+      html+='<div class="node-badge"><span class="node-num">Post '+n.post+'</span></div>';
+    }
+    html+='<div class="node-title">'+n.label+'</div>';
+    el.innerHTML=html;
+
+    if(!n.gap) el.style.setProperty('--cat-color',CAT_COLORS[n.cat]);
+
+    el.addEventListener('mouseenter',function(ev){onHoverNode(n,ev);});
+    el.addEventListener('mousemove',function(ev){moveTooltip(ev);});
+    el.addEventListener('mouseleave',function(){offHoverNode();});
+    el.addEventListener('click',function(){onClickNode(n);});
+
+    canvas.appendChild(el);
+    nodeEls[n.id]=el;
+  });
+}
+
+// ===================== INTERACTION =====================
+function onHoverNode(n,ev){
+  // Show tooltip
+  var tt=document.getElementById('tooltip');
+  var catLabel=n.cat.charAt(0).toUpperCase()+n.cat.slice(1);
+  document.getElementById('tt-cat').textContent=catLabel;
+  document.getElementById('tt-cat').style.color=CAT_COLORS[n.cat]||'#8b949e';
+  document.getElementById('tt-title').textContent=n.label;
+  document.getElementById('tt-desc').textContent=n.desc||'';
+  document.getElementById('tt-gap').textContent=n.gap?'Gap topic — coming in a future post.':'';
+  tt.style.display='block';
+  moveTooltip(ev);
+
+  // Highlight connected nodes and edges
+  var connected={};
+  connected[n.id]=true;
+  (ADJ[n.id]&&ADJ[n.id].out||[]).forEach(function(id){connected[id]=true;});
+  (ADJ[n.id]&&ADJ[n.id].in||[]).forEach(function(id){connected[id]=true;});
+
+  Object.keys(nodeEls).forEach(function(id){
+    nodeEls[id].classList.toggle('highlighted', id===n.id);
+    if(activeFilter==='all' && !activePath){
+      nodeEls[id].classList.toggle('inactive', !connected[id] && id!==n.id);
+    }
+  });
+  edgeEls.forEach(function(ep){
+    var isConn=(ep.dataset.src===n.id || ep.dataset.dst===n.id);
+    ep.classList.toggle('highlighted', isConn);
+    if(activeFilter==='all' && !activePath){
+      ep.classList.toggle('inactive', !isConn);
+    }
+  });
+}
+
+function offHoverNode(){
+  document.getElementById('tooltip').style.display='none';
+  // Restore filter/path state
+  applyFilterState();
+}
+
+function moveTooltip(ev){
+  var tt=document.getElementById('tooltip');
+  var x=ev.clientX+14, y=ev.clientY-10;
+  if(x+280>window.innerWidth) x=ev.clientX-280;
+  tt.style.left=x+'px'; tt.style.top=y+'px';
+}
+
+function onClickNode(n){
+  if(n.gap){
+    // Flash the node to indicate "coming soon"
+    var el=nodeEls[n.id];
+    el.style.borderColor='#f7b731';
+    el.style.background='rgba(247,183,49,.08)';
+    setTimeout(function(){
+      el.style.borderColor='';
+      el.style.background='';
+    },600);
+    return;
+  }
+  if(n.href) window.location.href=n.href;
+}
+
+// ===================== FILTER =====================
+function setFilter(cat, btn){
+  activeFilter=cat;
+  activePath=null;
+  document.querySelectorAll('.filter-chip').forEach(function(b){
+    b.classList.remove('active');
+    b.style.background='';b.style.color='';b.style.borderColor='';
+  });
+  btn.classList.add('active');
+  if(cat!=='all'){
+    btn.style.background=CAT_COLORS[cat]+'33';
+    btn.style.color=CAT_COLORS[cat];
+    btn.style.borderColor=CAT_COLORS[cat]+'88';
+  } else {
+    btn.style.borderColor='#555';
+  }
+  document.querySelectorAll('.path-chip').forEach(function(b){b.classList.remove('active');});
+  document.getElementById('clear-path-btn').style.display='none';
+  document.getElementById('paths-strip').classList.remove('visible');
+  applyFilterState();
+}
+
+function setPath(pathKey, btn){
+  if(pathKey==='none'){
+    activePath=null;
+    document.querySelectorAll('.path-chip').forEach(function(b){b.classList.remove('active');});
+    document.getElementById('clear-path-btn').style.display='none';
+    document.getElementById('paths-strip').classList.remove('visible');
+    applyFilterState();
+    return;
+  }
+  activePath=pathKey;
+  activeFilter='all';
+  document.querySelectorAll('.filter-chip').forEach(function(b){
+    b.classList.remove('active');b.style.background='';b.style.color='';b.style.borderColor='';
+  });
+  document.querySelector('.filter-chip[data-cat="all"]').classList.add('active');
+  document.querySelector('.filter-chip[data-cat="all"]').style.borderColor='#555';
+  document.querySelectorAll('.path-chip').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  var p=PATHS[pathKey];
+  if(p){btn.style.background=p.color+'33';btn.style.color=p.color;btn.style.borderColor=p.color+'88';}
+  document.getElementById('clear-path-btn').style.display='inline-block';
+  showPathDetail(pathKey);
+  applyFilterState();
+}
+
+function applyFilterState(){
+  var pathNodes=activePath?PATHS[activePath].nodes:null;
+  NODES.forEach(function(n){
+    var el=nodeEls[n.id];if(!el)return;
+    el.classList.remove('highlighted','inactive','on-path');
+    var show=true;
+    if(activeFilter!=='all' && n.cat!==activeFilter) show=false;
+    if(!show){el.classList.add('inactive');return;}
+    if(pathNodes){
+      var onPath=pathNodes.indexOf(n.id)>=0;
+      el.classList.toggle('on-path', onPath);
+      if(!onPath) el.classList.add('inactive');
+    }
+  });
+  var pathSet=pathNodes?pathNodes:null;
+  edgeEls.forEach(function(ep){
+    ep.classList.remove('highlighted','inactive');
+    if(activeFilter!=='all'){
+      var src=getNodeById(ep.dataset.src), dst=getNodeById(ep.dataset.dst);
+      if(!src||!dst||src.cat!==activeFilter) ep.classList.add('inactive');
+    }
+    if(pathSet){
+      var onPath=pathSet.indexOf(ep.dataset.src)>=0 && pathSet.indexOf(ep.dataset.dst)>=0;
+      ep.classList.toggle('highlighted', onPath);
+      if(!onPath) ep.classList.add('inactive');
+    }
+  });
+}
+
+function showPathDetail(pathKey){
+  var p=PATHS[pathKey]; if(!p) return;
+  var strip=document.getElementById('paths-strip');
+  var detail=document.getElementById('path-detail');
+  strip.classList.add('visible');
+  detail.innerHTML='<div class="path-detail-card" style="--path-color:'+p.color+'; border-color:'+p.color+'66; flex:none; max-width:320px;">'
+    +'<div class="path-name" style="color:'+p.color+'">'+p.name+'</div>'
+    +'<div class="path-desc">'+p.desc+'</div>'
+    +'<div class="path-steps">'
+    +p.steps.map(function(s,i){
+      return '<span class="path-step" style="background:'+p.color+'22;color:'+p.color+';">'+(i+1)+'. '+s+'</span>';
+    }).join('')
+    +'</div></div>';
+}
+
+// ===================== INIT =====================
+build();
+applyFilterState();
+</script>
+</body>
+</html>
