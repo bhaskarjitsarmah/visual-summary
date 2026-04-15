@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Semantic Collapse — Embedding Space & Entropic Drift</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#c9d1d9;--muted:#8b949e;
+  --accent:#6366f1;--accent2:#a5b4fc;--accent3:#e0e7ff;
+  --c-overview:#f7b731;
+  --c-collapse:#ef4444;
+  --c-neighborhood:#0ea5e9;
+  --c-entropy:#10b981;
+  --c-triplet:#a78bfa;
+  --c-mpk:#f97316;
+  --c-future:#6366f1;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+.sidebar{width:240px;min-width:240px;height:100vh;position:sticky;top:0;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:0 0 40px;flex-shrink:0;}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.sidebar-logo-title{font-size:13px;font-weight:700;color:var(--accent2);}
+.sidebar-logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.nav-group-title{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;padding:10px 16px 4px;}
+.nav-link{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;}
+.nav-link:hover,.nav-link.active{color:var(--text);background:rgba(99,102,241,.08);}
+.nav-link.active{color:var(--accent2);}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.main{flex:1;overflow-y:auto;height:100vh;scroll-behavior:smooth;}
+.pipeline-map{position:sticky;top:0;z-index:50;background:rgba(13,17,23,.96);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+.pipe-step{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);padding:2px 6px;border-radius:4px;cursor:pointer;transition:color .15s;}
+.pipe-step:hover{color:var(--text);}
+.pipe-dot{width:6px;height:6px;border-radius:50%;}
+.pipe-arrow{color:var(--border);font-size:12px;}
+.section{min-height:100vh;padding:60px 48px 80px;border-bottom:1px solid var(--border);}
+.section-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;}
+.section-title{font-size:28px;font-weight:800;color:var(--text);margin-bottom:8px;line-height:1.25;}
+.section-sub{font-size:14px;color:var(--muted);margin-bottom:28px;max-width:680px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:16px;}
+.card-title{font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px;}
+.card-body{font-size:13px;color:var(--muted);line-height:1.6;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+canvas{display:block;border-radius:10px;background:var(--surface);border:1px solid var(--border);}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s;}
+.btn:hover{opacity:.85;}
+.btn-tab{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+.formula{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-family:'JetBrains Mono','Courier New',monospace;font-size:11px;color:#a5b4fc;line-height:1.9;margin-bottom:16px;white-space:pre;overflow-x:auto;}
+.stats-row{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:28px;}
+.stat{text-align:center;}
+.stat-val{font-size:28px;font-weight:800;color:var(--accent2);}
+.stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;}
+.section-bridge{margin-top:48px;padding-top:28px;border-top:1px solid var(--border);text-align:right;}
+.section-bridge-link{font-size:12px;color:var(--accent2);font-weight:600;border:1px solid var(--accent2);border-radius:6px;padding:6px 14px;transition:all .15s;cursor:pointer;}
+.section-bridge-link:hover{background:rgba(99,102,241,.1);}
+.accordion-item{border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+.accordion-header{padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;background:var(--surface);}
+.accordion-header:hover{background:#1c2128;}
+.accordion-chevron{transition:transform .2s;font-size:10px;color:var(--muted);}
+.accordion-item.open .accordion-chevron{transform:rotate(90deg);}
+.accordion-body{padding:14px 16px;font-size:12px;color:var(--muted);display:none;border-top:1px solid var(--border);line-height:1.7;}
+.accordion-item.open .accordion-body{display:block;}
+#pg-gate{position:fixed;inset:0;background:linear-gradient(135deg,#0d1117 0%,#161b22 50%,#0d1117 100%);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.pg-box{background:#161b22;border:1px solid #30363d;border-radius:16px;padding:40px 48px;max-width:440px;width:100%;text-align:center;box-shadow:0 0 40px rgba(99,102,241,.12);}
+.pg-icon{font-size:2.5rem;margin-bottom:16px;}
+.pg-title{font-size:1.3rem;font-weight:800;color:#c9d1d9;margin-bottom:6px;}
+.pg-subtitle{font-size:13px;font-weight:600;color:var(--accent2);margin-bottom:6px;}
+.pg-sub{font-size:11px;color:#8b949e;margin-bottom:24px;}
+.pg-input{width:100%;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:10px 14px;color:#c9d1d9;font-size:14px;outline:none;text-align:center;}
+.pg-input:focus{border-color:var(--accent);}
+.pg-btn{margin-top:12px;width:100%;background:linear-gradient(135deg,#4f46e5,#6366f1);color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;}
+.pg-err{color:#ff6b6b;font-size:11px;margin-top:8px;min-height:16px;}
+.pg-join{margin-top:16px;font-size:11px;color:#8b949e;}
+.pg-join a{color:var(--accent2);text-decoration:underline;}
+.highlight-box{border-left:3px solid var(--accent);padding:12px 16px;background:rgba(99,102,241,.06);border-radius:0 8px 8px 0;margin-bottom:16px;font-size:13px;color:var(--muted);}
+.highlight-box.amber{border-color:#f7b731;background:rgba(247,183,49,.06);}
+.highlight-box.red{border-color:#ef4444;background:rgba(239,68,68,.06);}
+.highlight-box.green{border-color:#10b981;background:rgba(16,185,129,.06);}
+.highlight-box.orange{border-color:#f97316;background:rgba(249,115,22,.06);}
+.highlight-box.sky{border-color:#0ea5e9;background:rgba(14,165,233,.06);}
+.highlight-box.violet{border-color:#a78bfa;background:rgba(167,139,250,.06);}
+.info-panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-top:12px;font-size:13px;color:var(--muted);min-height:70px;}
+.info-panel strong{color:var(--text);}
+.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-right:4px;margin-bottom:4px;}
+.badge-violet{background:rgba(99,102,241,.2);color:#a5b4fc;}
+.badge-green{background:rgba(16,185,129,.2);color:#10b981;}
+.badge-amber{background:rgba(247,183,49,.2);color:#f7b731;}
+.badge-sky{background:rgba(14,165,233,.2);color:#38bdf8;}
+.badge-red{background:rgba(239,68,68,.2);color:#ef4444;}
+.badge-orange{background:rgba(249,115,22,.2);color:#f97316;}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;background:var(--border);border-radius:4px;outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;}
+.slider-row{display:flex;gap:12px;align-items:center;margin-bottom:14px;}
+.slider-lbl{font-size:11px;color:var(--muted);min-width:160px;}
+.slider-val{font-size:12px;font-weight:700;color:var(--accent2);min-width:48px;text-align:right;}
+#scroll-progress{position:fixed;top:0;left:0;height:2px;background:linear-gradient(90deg,#4f46e5,var(--accent2));z-index:9998;width:0;transition:width .1s;}
+.score-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.score-lbl{font-size:11px;color:var(--muted);min-width:160px;}
+.score-bar-track{flex:1;height:12px;background:var(--bg);border-radius:4px;overflow:hidden;}
+.score-bar-fill{height:100%;border-radius:4px;width:0;transition:width 1s ease;}
+.score-num{font-size:11px;font-weight:700;min-width:42px;text-align:right;}
+.metric-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px;}
+.metric-table th{text-align:left;padding:8px 12px;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border);}
+.metric-table td{padding:8px 12px;border-bottom:1px solid rgba(48,54,61,.5);color:var(--text);}
+.metric-table td:first-child{color:var(--accent2);font-family:'JetBrains Mono',monospace;font-size:11px;}
+.metric-table tr:hover td{background:rgba(99,102,241,.04);}
+.illus-note{font-size:10px;color:var(--muted);font-style:italic;text-align:center;margin-top:6px;opacity:.7;}
+.type-pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;margin:2px;}
+.open-q{border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;cursor:pointer;}
+.open-q-header{padding:12px 16px;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;background:var(--surface);}
+.open-q-header:hover{background:#1c2128;}
+.open-q-num{font-size:10px;font-weight:700;color:var(--accent);background:rgba(99,102,241,.12);padding:2px 8px;border-radius:10px;margin-right:10px;font-family:'JetBrains Mono',monospace;}
+.open-q-body{padding:14px 16px;font-size:12px;color:var(--muted);display:none;border-top:1px solid var(--border);line-height:1.7;}
+.open-q.open .open-q-body{display:block;}
+.open-q-chevron{transition:transform .2s;font-size:10px;color:var(--muted);}
+.open-q.open .open-q-chevron{transform:rotate(90deg);}
+</style>
+</head>
+<body>
+
+<div id="pg-gate">
+  <div class="pg-box">
+    <div class="pg-icon">🌀</div>
+    <div class="pg-title">Semantic Collapse</div>
+    <div class="pg-subtitle">Embedding Space & Entropic Drift</div>
+    <div class="pg-sub">This post is for paid subscribers of Visual Summary</div>
+    <input class="pg-input" id="pg-input" type="password" placeholder="Enter password" autocomplete="off" onkeydown="if(event.key==='Enter')pgCheck()">
+    <button class="pg-btn" onclick="pgCheck()">Unlock</button>
+    <div class="pg-err" id="pg-err"></div>
+    <div class="pg-join">Not a subscriber? <a href="#">Join Visual Summary</a></div>
+  </div>
+</div>
+
+<div id="scroll-progress"></div>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-title">Visual Summary</div>
+    <div class="sidebar-logo-sub">Post 30 · Representations</div>
+  </div>
+  <div class="nav-group-title">Sections</div>
+  <a class="nav-link active" data-section="s-overview" onclick="scrollTo('s-overview')">
+    <span class="dot" style="background:var(--c-overview)"></span>The Collapse Problem
+  </a>
+  <a class="nav-link" data-section="s-collapse" onclick="scrollTo('s-collapse')">
+    <span class="dot" style="background:var(--c-collapse)"></span>4 Collapse Types
+  </a>
+  <a class="nav-link" data-section="s-neighborhood" onclick="scrollTo('s-neighborhood')">
+    <span class="dot" style="background:var(--c-neighborhood)"></span>Neighborhood Semantics
+  </a>
+  <a class="nav-link" data-section="s-entropy" onclick="scrollTo('s-entropy')">
+    <span class="dot" style="background:var(--c-entropy)"></span>Entropy & Drift
+  </a>
+  <a class="nav-link" data-section="s-triplet" onclick="scrollTo('s-triplet')">
+    <span class="dot" style="background:var(--c-triplet)"></span>Triplet Diagnostics
+  </a>
+  <a class="nav-link" data-section="s-mpk" onclick="scrollTo('s-mpk')">
+    <span class="dot" style="background:var(--c-mpk)"></span>Modal Proofing Kernel
+  </a>
+  <a class="nav-link" data-section="s-future" onclick="scrollTo('s-future')">
+    <span class="dot" style="background:var(--c-future)"></span>Machine Semantics
+  </a>
+  <div class="nav-group-title" style="margin-top:12px;">Paper</div>
+  <a class="nav-link"><span style="font-size:10px;">Denham (2025), SSRN</span></a>
+  <a class="nav-link"><span style="font-size:10px;">"Semantic Collapse in</span></a>
+  <a class="nav-link"><span style="font-size:10px;">Embedding Space"</span></a>
+</nav>
+
+<!-- MAIN -->
+<div class="main" id="main-scroll">
+
+  <!-- PIPELINE MAP -->
+  <div class="pipeline-map">
+    <div class="pipe-step" onclick="scrollTo('s-overview')"><span class="pipe-dot" style="background:var(--c-overview)"></span>Collapse</div>
+    <span class="pipe-arrow">›</span>
+    <div class="pipe-step" onclick="scrollTo('s-collapse')"><span class="pipe-dot" style="background:var(--c-collapse)"></span>Types</div>
+    <span class="pipe-arrow">›</span>
+    <div class="pipe-step" onclick="scrollTo('s-neighborhood')"><span class="pipe-dot" style="background:var(--c-neighborhood)"></span>Neighborhoods</div>
+    <span class="pipe-arrow">›</span>
+    <div class="pipe-step" onclick="scrollTo('s-entropy')"><span class="pipe-dot" style="background:var(--c-entropy)"></span>Entropy</div>
+    <span class="pipe-arrow">›</span>
+    <div class="pipe-step" onclick="scrollTo('s-triplet')"><span class="pipe-dot" style="background:var(--c-triplet)"></span>Triplets</div>
+    <span class="pipe-arrow">›</span>
+    <div class="pipe-step" onclick="scrollTo('s-mpk')"><span class="pipe-dot" style="background:var(--c-mpk)"></span>MPK</div>
+    <span class="pipe-arrow">›</span>
+    <div class="pipe-step" onclick="scrollTo('s-future')"><span class="pipe-dot" style="background:var(--c-future)"></span>Semantics</div>
+  </div>
+
+  <!-- S1: OVERVIEW -->
+  <section class="section" id="s-overview">
+    <div class="section-tag" style="color:var(--c-overview)">The Collapse Problem · Section 1</div>
+    <div class="section-title">When Meaning Dissolves in Embedding Space</div>
+    <div class="section-sub">Semantic collapse is the systematic erasure of operator-sensitive boundaries in continuous vector representations — the quiet loss of linguistic distinctions that matter for reasoning.</div>
+
+    <div class="stats-row">
+      <div class="stat"><div class="stat-val" style="color:var(--c-collapse)">4</div><div class="stat-lbl">Collapse Types</div></div>
+      <div class="stat"><div class="stat-val" style="color:var(--c-entropy)">5</div><div class="stat-lbl">Core Metrics</div></div>
+      <div class="stat"><div class="stat-val" style="color:var(--c-neighborhood)">3</div><div class="stat-lbl">Embedding Invariants</div></div>
+      <div class="stat"><div class="stat-val" style="color:var(--c-mpk)">7</div><div class="stat-lbl">Open Questions</div></div>
+    </div>
+
+    <canvas id="canvas-overview" width="700" height="280" style="margin-bottom:16px;"></canvas>
+    <div class="illus-note">Illustrative — conceptual animation of semantic cluster collapse over training steps</div>
+
+    <div style="margin-top:20px;" class="grid3">
+      <div class="card">
+        <div class="card-title" style="color:var(--c-overview)">The Core Claim</div>
+        <div class="card-body">Standard embedding objectives optimize for distributional similarity, but distributional similarity is not the same as semantic equivalence. Operators like <em>possibility</em>, <em>belief</em>, and <em>agency</em> can vanish without trace in cosine distance.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-overview)">Why It Matters</div>
+        <div class="card-body">Collapsed embeddings mislead downstream reasoning. "It is possible that P" and "P" become near-neighbors — models trained on such representations lose the ability to distinguish modal facts from categorical assertions.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-overview)">The Framework</div>
+        <div class="card-body">Denham (2025) proposes formal diagnostics (entropy drift, triplet tests, cross-type leakage) and the Modal Proofing Kernel (MPK) — a constraint architecture for preserving semantic boundaries.</div>
+      </div>
+    </div>
+
+    <div style="margin-top:20px;">
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAcc(this)">
+          What is an "operator-sensitive boundary"? <span class="accordion-chevron">›</span>
+        </div>
+        <div class="accordion-body">
+          Natural language expressions carry logical operators that modify propositional content: modal operators (necessarily, possibly), epistemic operators (believes, knows), indexical operators (I, here, now), and agency operators (brings about, ensures). These operators create sharp distinctions in formal semantics — "P" and "possibly P" are different propositions with different truth conditions. Semantic collapse occurs when embedding models map these distinct expressions to nearly identical vectors, erasing the operator boundary.
+        </div>
+      </div>
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAcc(this)">
+          How does collapse happen during training? <span class="accordion-chevron">›</span>
+        </div>
+        <div class="accordion-body">
+          Training corpora associate operator-modified sentences with their propositional cores in similar contexts. "The patient may have pneumonia" and "the patient has pneumonia" co-occur with similar surrounding tokens (treatment plans, test orders). Contrastive objectives pull frequently co-occurring tokens together, while operator tokens appear infrequently enough that their geometric signal is drowned out. The result: the operator contribution to the embedding shrinks toward zero across training steps — entropic drift.
+        </div>
+      </div>
+    </div>
+
+    <div class="section-bridge">
+      <span class="section-bridge-link" onclick="scrollTo('s-collapse')">Next: 4 Collapse Types →</span>
+    </div>
+  </section>
+
+  <!-- S2: COLLAPSE TYPES -->
+  <section class="section" id="s-collapse">
+    <div class="section-tag" style="color:var(--c-collapse)">Collapse Taxonomy · Section 2</div>
+    <div class="section-title">Four Ways Meaning Gets Erased</div>
+    <div class="section-sub">Denham identifies four distinct collapse types, each targeting a different class of semantic operator. Each type has characteristic sentence pairs and distinct downstream failure modes.</div>
+
+    <div class="btn-row">
+      <button class="btn-tab active" onclick="setCollapseTab(0,this)">Modal</button>
+      <button class="btn-tab" onclick="setCollapseTab(1,this)">Epistemic</button>
+      <button class="btn-tab" onclick="setCollapseTab(2,this)">Indexical</button>
+      <button class="btn-tab" onclick="setCollapseTab(3,this)">Agency / STIT</button>
+    </div>
+
+    <canvas id="canvas-collapse" width="700" height="300" style="margin-bottom:6px;"></canvas>
+    <div class="illus-note">Illustrative — conceptual diagram of operator erasure in embedding space</div>
+
+    <div class="info-panel" id="collapse-info" style="margin-top:14px;">
+      <strong>Modal Collapse</strong> — The embedding of "It is <em>possible</em> that P" converges toward the embedding of "P". The possibility operator ◇ is geometrically erased.<br><br>
+      <strong>Example pair:</strong> "It is possible that the treaty will be signed" ≈ "The treaty will be signed"<br>
+      <strong>Failure mode:</strong> Models assert modal facts as categorical truths; hallucination of certainty.<br>
+      <span class="badge badge-red">Type: Modal</span><span class="badge badge-violet">Operator: ◇ / □</span><span class="badge badge-amber">Logic: Modal Logic S5</span>
+    </div>
+
+    <div style="margin-top:16px;" class="grid2">
+      <div class="card">
+        <div class="card-title" style="color:var(--c-collapse)">Hyperintensional Collapse</div>
+        <div class="card-body">A special subcase: two propositions that are logically equivalent but differ in meaning (e.g., "The morning star is Venus" vs. "The evening star is Venus") collapse to the same vector. This destroys intensional distinctions essential for belief reasoning.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-collapse)">Formal Definition</div>
+        <div class="card-body">For collapse type τ, let O(τ) be the set of sentences with operator τ, and B(τ) be their propositional bases. Collapse occurs when: <code style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#a5b4fc;">∀s∈O(τ): cos(embed(s), embed(base(s))) → 1</code> across training steps t → ∞.</div>
+      </div>
+    </div>
+
+    <div class="section-bridge">
+      <span class="section-bridge-link" onclick="scrollTo('s-neighborhood')">Next: Neighborhood Semantics →</span>
+    </div>
+  </section>
+
+  <!-- S3: NEIGHBORHOOD SEMANTICS -->
+  <section class="section" id="s-neighborhood">
+    <div class="section-tag" style="color:var(--c-neighborhood)">Neighborhood Semantics · Section 3</div>
+    <div class="section-title">k-NN Structure as a Semantic Proxy</div>
+    <div class="section-sub">If embeddings preserve meaning, a token's k-nearest neighbors should cluster by semantic type. Collapse contaminates these neighborhoods with type violations — semantically heterogeneous k-NN sets signal geometric boundary failure.</div>
+
+    <div class="btn-row">
+      <button class="btn-tab active" id="nbr-healthy-btn" onclick="setNeighborhood('healthy',this)">Healthy Neighborhood</button>
+      <button class="btn-tab" id="nbr-collapsed-btn" onclick="setNeighborhood('collapsed',this)">Collapsed Neighborhood</button>
+      <button class="btn-tab" id="nbr-worlds-btn" onclick="setNeighborhood('worlds',this)">Possible Worlds View</button>
+    </div>
+
+    <canvas id="canvas-neighborhood" width="700" height="360" style="margin-bottom:6px;"></canvas>
+    <div class="illus-note">Illustrative — conceptual visualization of embedding neighborhood structure and type contamination</div>
+
+    <div class="info-panel" id="neighborhood-info" style="margin-top:14px;">
+      <strong>Healthy neighborhood:</strong> The k=8 nearest neighbors of an anchor modal sentence consist primarily of other modal sentences (same type). Cross-type contamination is low.<br>
+      <span class="badge badge-sky">λ(t) ≈ 0.08</span><span class="badge badge-green">Type purity: 87%</span>
+    </div>
+
+    <div style="margin-top:20px;" class="highlight-box sky">
+      <strong>Possible worlds connection.</strong> In formal semantics, modal operators are evaluated over sets of possible worlds: ◇P is true iff P holds in at least one accessible world. Embedding neighborhoods are the geometric analogue — each neighbor is a "semantically accessible" expression. When modal and non-modal expressions mix in the same neighborhood, the model has lost the ability to distinguish actual from possible.
+    </div>
+
+    <div class="grid2" style="margin-top:16px;">
+      <div class="card">
+        <div class="card-title" style="color:var(--c-neighborhood)">Surface Pressure π(Ω)</div>
+        <div class="card-body">A measure of neighborhood boundary porosity. For a semantic region Ω: <code style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#a5b4fc;">π(Ω) = |{x ∈ ∂Ω : ∃y ∉ Ω, cos(x,y) &gt; θ}| / |∂Ω|</code><br>High π means the boundary is leaking — cross-type neighbors are penetrating the semantic region.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-neighborhood)">Cross-Type Leakage λ(t)</div>
+        <div class="card-body">For token t with semantic type τ(t), leakage is the fraction of k-nearest neighbors whose type differs: <code style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#a5b4fc;">λ(t) = |{u ∈ kNN(t) : τ(u) ≠ τ(t)}| / k</code><br>λ ranges from 0 (perfect purity) to 1 (total collapse).</div>
+      </div>
+    </div>
+
+    <div class="section-bridge">
+      <span class="section-bridge-link" onclick="scrollTo('s-entropy')">Next: Entropy & Drift →</span>
+    </div>
+  </section>
+
+  <!-- S4: ENTROPY & DRIFT -->
+  <section class="section" id="s-entropy">
+    <div class="section-tag" style="color:var(--c-entropy)">Entropy & Drift · Section 4</div>
+    <div class="section-title">Measuring the Dissolution of Meaning</div>
+    <div class="section-sub">Semantic entropy H(t) quantifies how uniformly a token's neighborhood is distributed across semantic types. As collapse progresses, H(t) increases — the neighborhood becomes entropically disordered. Entropic drift ΔH tracks this change over time.</div>
+
+    <div class="formula">-- Neighborhood entropy (from Denham 2025, Section 4)
+H(t) = -Σ_τ  q(τ | t) · log q(τ | t)
+
+where q(τ | t) = fraction of k-nearest neighbors of t with semantic type τ
+
+-- Entropic drift index
+ΔH(t, Δ) = H(t + Δ) - H(t)
+
+-- Low H(t): neighborhood is dominated by one semantic type (healthy)
+-- High H(t): neighborhood is uniformly spread across types (collapsed)</div>
+
+    <div style="margin-bottom:16px;">
+      <div class="slider-row">
+        <span class="slider-lbl">Collapse level (training steps)</span>
+        <input type="range" id="entropy-slider" min="0" max="100" value="15" oninput="updateEntropyVis(this.value)">
+        <span class="slider-val" id="entropy-slider-val">Early</span>
+      </div>
+    </div>
+
+    <canvas id="canvas-entropy" width="700" height="300" style="margin-bottom:6px;"></canvas>
+    <div class="illus-note">Illustrative — conceptual visualization of neighborhood entropy as collapse progresses</div>
+
+    <div class="info-panel" id="entropy-info">
+      <strong>Early training (low collapse):</strong> H(t) ≈ 0.31 nats. The anchor token's k=12 neighbors are predominantly of the same semantic type. Operator boundaries are intact.<br>
+      <span class="badge badge-green">H(t) ≈ 0.31</span><span class="badge badge-green">ΔH ≈ +0.02</span><span class="badge badge-sky">Type purity: 91%</span>
+    </div>
+
+    <div style="margin-top:20px;" class="grid3">
+      <div class="card">
+        <div class="card-title" style="color:var(--c-entropy)">H(t) = 0</div>
+        <div class="card-body">All k neighbors share the same semantic type as anchor t. Perfect type purity. Operator boundaries are fully preserved.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-entropy)">0 &lt; H(t) &lt; log(|T|)</div>
+        <div class="card-body">Partial contamination. Some cross-type neighbors present, but the dominant type still matches the anchor. Moderate collapse — downstream tasks may still succeed.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-entropy)">H(t) → log(|T|)</div>
+        <div class="card-body">Maximum entropy. Neighbors are uniformly distributed across all semantic types. Complete collapse — the anchor token's type is geometrically invisible.</div>
+      </div>
+    </div>
+
+    <div class="accordion-item" style="margin-top:16px;">
+      <div class="accordion-header" onclick="toggleAcc(this)">
+        Relationship to information-theoretic collapse in representation learning <span class="accordion-chevron">›</span>
+      </div>
+      <div class="accordion-body">
+        Denham's entropy measure is distinct from, but related to, dimensional collapse studied in SSL (e.g., SimSiam, VICReg). Dimensional collapse refers to representations living on a low-dimensional subspace. Semantic collapse refers to type distinctions collapsing within that subspace. A representation can avoid dimensional collapse while still exhibiting high semantic collapse — the two pathologies are orthogonal.
+      </div>
+    </div>
+
+    <div class="section-bridge">
+      <span class="section-bridge-link" onclick="scrollTo('s-triplet')">Next: Triplet Diagnostics →</span>
+    </div>
+  </section>
+
+  <!-- S5: TRIPLET DIAGNOSTICS -->
+  <section class="section" id="s-triplet">
+    <div class="section-tag" style="color:var(--c-triplet)">Triplet Diagnostics · Section 5</div>
+    <div class="section-title">A → S vs A → D: The Collapse Rate</div>
+    <div class="section-sub">The triplet framework provides the operational test for collapse. For each anchor token A, we ask: is A geometrically closer to same-type tokens S than to different-type tokens D? Collapse inverts this ordering.</div>
+
+    <div class="formula">-- Triplet framework (Denham 2025, Section 5)
+Triplet: (A, S, D)
+  A = anchor token with semantic type τ
+  S = same-type neighbor: τ(S) = τ(A)
+  D = different-type neighbor: τ(D) ≠ τ(A)
+
+-- Expected: sim(A, S) > sim(A, D)   (type cohesion)
+-- Collapse:  sim(A, S) ≤ sim(A, D)  (boundary inversion)
+
+-- Collapse Rate
+CR = |{A : sim(A, S) ≤ sim(A, D)}| / N</div>
+
+    <div style="margin-bottom:16px;">
+      <div class="slider-row">
+        <span class="slider-lbl">Simulated collapse rate (CR)</span>
+        <input type="range" id="triplet-slider" min="0" max="100" value="10" oninput="updateTripletVis(this.value)">
+        <span class="slider-val" id="triplet-slider-val">10%</span>
+      </div>
+    </div>
+
+    <canvas id="canvas-triplet" width="700" height="320" style="margin-bottom:6px;"></canvas>
+    <div class="illus-note">Illustrative — conceptual visualization of triplet geometry and boundary inversion</div>
+
+    <div class="info-panel" id="triplet-info">
+      <strong>CR = 10%:</strong> 10% of anchor tokens have their nearest same-type neighbor displaced beyond their nearest different-type neighbor. Mild collapse — operator boundaries are mostly intact.<br>
+      <span class="badge badge-green">CR = 0.10</span><span class="badge badge-violet">Healthy threshold: CR &lt; 0.15</span>
+    </div>
+
+    <div style="margin-top:20px;" class="grid2">
+      <div class="card">
+        <div class="card-title" style="color:var(--c-triplet)">Fidelity AUC</div>
+        <div class="card-body">A continuous version of CR. For each anchor A, compute the ROC curve discriminating S from D using cosine similarity. Fidelity AUC = 1.0 indicates perfect separation; AUC = 0.5 is chance (total collapse). The paper proposes Fidelity AUC as a complement to the discrete CR.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-triplet)">Collapse Map</div>
+        <div class="card-body">A visualization of CR distributed across semantic types. A collapse map plots per-type collapse rates, revealing which operator classes are most vulnerable. Modal operators typically collapse before epistemic operators due to frequency distribution in training data.</div>
+      </div>
+    </div>
+
+    <div class="accordion-item" style="margin-top:16px;">
+      <div class="accordion-header" onclick="toggleAcc(this)">
+        How does the triplet test relate to contrastive loss? <span class="accordion-chevron">›</span>
+      </div>
+      <div class="accordion-body">
+        Standard triplet loss in metric learning trains exactly this ordering: anchor-positive distance &lt; anchor-negative distance + margin. The semantic collapse triplet is conceptually identical, but applied diagnostically rather than as a training objective. If existing contrastive training used semantic type as the positive/negative selection criterion, it would directly combat semantic collapse. Most training pipelines use token co-occurrence or task labels instead — missing the operator structure.
+      </div>
+    </div>
+
+    <div class="section-bridge">
+      <span class="section-bridge-link" onclick="scrollTo('s-mpk')">Next: Modal Proofing Kernel →</span>
+    </div>
+  </section>
+
+  <!-- S6: MODAL PROOFING KERNEL -->
+  <section class="section" id="s-mpk">
+    <div class="section-tag" style="color:var(--c-mpk)">Modal Proofing Kernel · Section 6</div>
+    <div class="section-title">Preserving Semantic Boundaries by Design</div>
+    <div class="section-sub">The Modal Proofing Kernel (MPK) is a constraint architecture that enforces operator-sensitive geometry in embedding space. It rests on three invariants and operates through five distinct mechanisms.</div>
+
+    <canvas id="canvas-mpk" width="700" height="320" style="margin-bottom:6px;"></canvas>
+    <div class="illus-note">Illustrative — conceptual diagram of MPK-enforced semantic region separation in embedding space</div>
+
+    <div style="margin-top:20px;" class="btn-row">
+      <button class="btn-tab active" onclick="setMPKTab(0,this)">Invariant 1: Operator Fidelity</button>
+      <button class="btn-tab" onclick="setMPKTab(1,this)">Invariant 2: Type Stability</button>
+      <button class="btn-tab" onclick="setMPKTab(2,this)">Invariant 3: Compositional Grounding</button>
+    </div>
+
+    <div class="info-panel" id="mpk-info">
+      <strong>Operator Fidelity:</strong> For every operator O and proposition P, the embedding of O(P) must be geometrically separated from the embedding of P. Formally: <code style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#a5b4fc;">cos(embed(O(P)), embed(P)) &lt; θ_O</code> where θ_O is an operator-specific threshold. This invariant directly prevents modal, epistemic, indexical, and agency collapse.
+    </div>
+
+    <div style="margin-top:20px;">
+      <div class="card-title" style="color:var(--c-mpk);margin-bottom:12px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;">Five MPK Mechanisms</div>
+      <div class="grid2">
+        <div class="card">
+          <div class="card-title" style="color:var(--c-mpk)">1. Typed Embeddings</div>
+          <div class="card-body">Assign semantic type vectors to expressions at embedding time. The type vector is concatenated or added to the base embedding, creating a typed geometric signature that resists cosine-distance collapse.</div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="color:var(--c-mpk)">2. Operator-Aware Contrastive Loss</div>
+          <div class="card-body">Augment contrastive objectives with operator-sensitive negative sampling. "It is possible that P" must be treated as a hard negative for "P" rather than as a semantically similar positive.</div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="color:var(--c-mpk)">3. Boundary Regularization</div>
+          <div class="card-body">Add a regularization term penalizing embeddings that violate operator separation. The term is proportional to max(0, θ_O - separation(O(P), P)) — a hinge loss on semantic boundaries.</div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="color:var(--c-mpk)">4. Proofing Layers</div>
+          <div class="card-body">Post-hoc adapter layers trained on typed contrastive pairs. Applied after base model training, proofing layers rearrange operator-sensitive regions without affecting non-operator geometry — compatible with frozen base models.</div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:0;">
+        <div class="card-title" style="color:var(--c-mpk)">5. Compositional Grounding</div>
+        <div class="card-body">Ground operator semantics in formal logical structures. Train auxiliary heads to predict the truth-conditional difference between O(P) and P across possible worlds. This multi-task signal provides explicit supervision for the operator's geometric contribution.</div>
+      </div>
+    </div>
+
+    <div class="section-bridge">
+      <span class="section-bridge-link" onclick="scrollTo('s-future')">Next: Machine Semantics →</span>
+    </div>
+  </section>
+
+  <!-- S7: FUTURE / METRICS / OPEN QUESTIONS -->
+  <section class="section" id="s-future">
+    <div class="section-tag" style="color:var(--c-future)">Machine Semantics · Section 7</div>
+    <div class="section-title">Toward Collapse-Aware Representation Learning</div>
+    <div class="section-sub">Semantic collapse is not a bug in any single model — it is a structural consequence of training on distributional co-occurrence without operator supervision. The paper concludes with a diagnostic toolkit and seven open questions.</div>
+
+    <div class="card-title" style="color:var(--c-future);margin-bottom:12px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;">The Five-Metric Diagnostic Suite</div>
+    <table class="metric-table">
+      <thead>
+        <tr><th>Metric</th><th>Definition</th><th>Healthy Range</th><th>Collapse Signal</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>CR</td><td>Collapse Rate — fraction of triplets with inverted ordering</td><td>CR &lt; 0.15</td><td>CR &gt; 0.40</td></tr>
+        <tr><td>H(t)</td><td>Neighborhood entropy across semantic types</td><td>H &lt; 0.5 nats</td><td>H → log|T|</td></tr>
+        <tr><td>ΔH(t)</td><td>Entropic drift over training steps</td><td>ΔH ≈ 0</td><td>ΔH &gt; 0, monotone</td></tr>
+        <tr><td>λ(t)</td><td>Cross-type leakage in k-NN</td><td>λ &lt; 0.10</td><td>λ &gt; 0.40</td></tr>
+        <tr><td>Fidelity AUC</td><td>ROC AUC for S vs D separation at anchor</td><td>AUC &gt; 0.85</td><td>AUC → 0.50</td></tr>
+      </tbody>
+    </table>
+
+    <div class="card-title" style="color:var(--c-future);margin-top:28px;margin-bottom:12px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;">Seven Open Questions (Denham 2025)</div>
+
+    <div class="open-q" onclick="toggleOpenQ(this)">
+      <div class="open-q-header"><span><span class="open-q-num">Q1</span>Is collapse monotone across training?</span><span class="open-q-chevron">›</span></div>
+      <div class="open-q-body">The paper conjectures that ΔH(t) is non-negative across training steps for standard contrastive objectives. Formal proof requires characterizing the gradient dynamics of operator-modified pairs — an open problem in optimization theory.</div>
+    </div>
+    <div class="open-q" onclick="toggleOpenQ(this)">
+      <div class="open-q-header"><span><span class="open-q-num">Q2</span>Does model scale slow or accelerate collapse?</span><span class="open-q-chevron">›</span></div>
+      <div class="open-q-body">Larger models have more representational capacity, which could preserve operator distinctions — or they could collapse more completely by fitting distributional co-occurrence more precisely. The relationship between scale and semantic collapse rate is empirically unstudied.</div>
+    </div>
+    <div class="open-q" onclick="toggleOpenQ(this)">
+      <div class="open-q-header"><span><span class="open-q-num">Q3</span>Can RLHF preserve or repair semantic boundaries?</span><span class="open-q-chevron">›</span></div>
+      <div class="open-q-body">Human feedback may implicitly penalize modal-categorical confusion (hallucination), providing an indirect repair signal. Whether RLHF systematically reduces CR or only suppresses surface-level hallucination symptoms is an open empirical question.</div>
+    </div>
+    <div class="open-q" onclick="toggleOpenQ(this)">
+      <div class="open-q-header"><span><span class="open-q-num">Q4</span>Are there language-specific collapse rates?</span><span class="open-q-chevron">›</span></div>
+      <div class="open-q-body">Morphologically rich languages encode operators through inflection (e.g., subjunctive mood in Romance languages). These languages may exhibit lower collapse rates because the operator signal is spread across more surface tokens. Typological variation in collapse is entirely open.</div>
+    </div>
+    <div class="open-q" onclick="toggleOpenQ(this)">
+      <div class="open-q-header"><span><span class="open-q-num">Q5</span>Does the MPK degrade non-operator geometry?</span><span class="open-q-chevron">›</span></div>
+      <div class="open-q-body">The MPK adds constraints that separate operator regions. Does this come at the cost of general semantic quality (e.g., analogy performance, downstream task accuracy)? The trade-off between operator fidelity and general representation quality is unquantified.</div>
+    </div>
+    <div class="open-q" onclick="toggleOpenQ(this)">
+      <div class="open-q-header"><span><span class="open-q-num">Q6</span>How does collapse interact with RAG and tool use?</span><span class="open-q-chevron">›</span></div>
+      <div class="open-q-body">Retrieval-augmented generation and tool-use pipelines introduce operator-rich queries (hypotheticals, conditionals, permission checks). If the retrieval embedding model has collapsed modal operators, retrieved context may be factually mismatched to the query's intended modality.</div>
+    </div>
+    <div class="open-q" onclick="toggleOpenQ(this)">
+      <div class="open-q-header"><span><span class="open-q-num">Q7</span>Can collapse be detected via probing without labeled type data?</span><span class="open-q-chevron">›</span></div>
+      <div class="open-q-body">All proposed metrics require typed sentence pairs (O(P) and P). Constructing typed datasets at scale is expensive. The paper calls for unsupervised or self-supervised collapse detection — potentially via clustering instability or mutual information between embeddings and logical parses.</div>
+    </div>
+
+    <div style="margin-top:28px;" class="highlight-box violet">
+      <strong>The core argument.</strong> Semantic collapse is not a hallucination problem per se — it is a representation problem that hallucination symptoms reveal. Fixing hallucination at the output layer without repairing the collapsed representation is symptomatic treatment. The Modal Proofing Kernel and associated metrics target the geometric root cause: the operator-boundary erasure that makes categorical and modal assertions indistinguishable in the model's internal geometry.
+    </div>
+
+    <div class="grid3" style="margin-top:20px;">
+      <div class="card">
+        <div class="card-title" style="color:var(--c-future)">Theoretical Foundation</div>
+        <div class="card-body">The paper is explicitly theoretical. All metrics are formal proposals. No empirical measurements are reported. The diagnostic suite awaits implementation and validation on real models.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-future)">Connection to Formal Semantics</div>
+        <div class="card-body">Denham bridges two communities — distributional semantics (NLP) and model-theoretic semantics (linguistics/logic). The paper's contribution is framing the former's failure modes using the latter's vocabulary.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-future)">Implications for AI Safety</div>
+        <div class="card-body">Agency collapse ("Agent X ensures P" ≈ "P happens") has direct AI safety implications: models that cannot distinguish obligation from fact may reason incorrectly about constraints, permissions, and deontic norms.</div>
+      </div>
+    </div>
+
+    <div class="section-bridge">
+      <span class="section-bridge-link" onclick="scrollTo('s-overview')">↑ Back to top</span>
+    </div>
+  </section>
+
+</div><!-- /main -->
+
+<script>
+// ===================== PASSWORD GATE =====================
+(function(){
+  if(localStorage.getItem('pg_unlocked_30')==='1'){
+    var g=document.getElementById('pg-gate');
+    if(g)g.style.display='none';
+    setTimeout(doInit,0);
+  }
+})();
+function pgCheck(){
+  var v=document.getElementById('pg-input').value;
+  if(v==='visual2025'){
+    localStorage.setItem('pg_unlocked_30','1');
+    var g=document.getElementById('pg-gate');
+    g.style.opacity='1';
+    g.style.transition='opacity .4s';
+    setTimeout(function(){g.style.opacity='0';},50);
+    setTimeout(function(){g.style.display='none';doInit();},450);
+  } else {
+    var e=document.getElementById('pg-err');
+    e.textContent='Incorrect password.';
+    setTimeout(function(){e.textContent='';},2000);
+  }
+}
+
+// ===================== SCROLL PROGRESS + SCROLLSPY =====================
+var mainEl=document.getElementById('main-scroll');
+mainEl.addEventListener('scroll',function(){
+  var pct=mainEl.scrollTop/(mainEl.scrollHeight-mainEl.clientHeight)*100;
+  document.getElementById('scroll-progress').style.width=pct+'%';
+  // scrollspy
+  var secs=['s-overview','s-collapse','s-neighborhood','s-entropy','s-triplet','s-mpk','s-future'];
+  var active='s-overview';
+  secs.forEach(function(id){
+    var el=document.getElementById(id);
+    if(el&&el.getBoundingClientRect().top<200) active=id;
+  });
+  document.querySelectorAll('.nav-link[data-section]').forEach(function(l){
+    l.classList.toggle('active',l.dataset.section===active);
+  });
+});
+
+function scrollTo(id){
+  var el=document.getElementById(id);
+  if(el)el.scrollIntoView({behavior:'smooth'});
+}
+
+// ===================== ACCORDION =====================
+function toggleAcc(header){
+  var item=header.parentElement;
+  item.classList.toggle('open');
+}
+function toggleOpenQ(item){
+  item.classList.toggle('open');
+}
+
+// ===================== UTILITIES =====================
+function lerp(a,b,t){return a+(b-a)*t;}
+function easeInOut(t){return t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;}
+function hsl(h,s,l,a){return 'hsla('+h+','+s+'%,'+l+'%,'+(a||1)+')';}
+function hexToRgb(hex){
+  var r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return {r,g,b};
+}
+function rgba(hex,a){var c=hexToRgb(hex);return 'rgba('+c.r+','+c.g+','+c.b+','+a+')';}
+
+// ===================== S1: OVERVIEW CANVAS =====================
+var ovTimer=null;
+var ovT=0;
+var ovPoints=[];
+function initOverviewPoints(){
+  ovPoints=[];
+  var types=[
+    {label:'Modal', color:'#a78bfa', cx:180, cy:130},
+    {label:'Epistemic', color:'#0ea5e9', cx:280, cy:100},
+    {label:'Indexical', color:'#10b981', cx:350, cy:160},
+    {label:'Agency', color:'#f97316', cx:230, cy:190}
+  ];
+  types.forEach(function(tp,ti){
+    for(var i=0;i<10;i++){
+      var angle=Math.random()*Math.PI*2;
+      var r=20+Math.random()*22;
+      ovPoints.push({
+        ox:tp.cx+Math.cos(angle)*r,
+        oy:tp.cy+Math.sin(angle)*r,
+        color:tp.color,
+        type:ti
+      });
+    }
+  });
+}
+function drawOverview(){
+  var c=document.getElementById('canvas-overview');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width, H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ovT=(ovT+0.005)%1;
+
+  // Background gradient
+  ctx.fillStyle='#161b22';
+  ctx.fillRect(0,0,W,H);
+
+  // Three panels
+  var panels=[
+    {label:'Healthy Embedding Space', x:0, w:W*0.48, collapse:0},
+    {label:'Partial Collapse', x:W*0.51, w:W*0.49, collapse:Math.min(1,ovT*2)}
+  ];
+  if(ovT>0.5){
+    panels=[
+      {label:'Healthy Embedding Space', x:0, w:W*0.48, collapse:0},
+      {label:'Collapse in Progress', x:W*0.51, w:W*0.49, collapse:(ovT-0.5)*2}
+    ];
+  }
+
+  var centX=250, centY=140;
+  var cent2X=W*0.76, cent2Y=140;
+
+  // Panel divider
+  ctx.strokeStyle='#30363d';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(W*0.495,20);ctx.lineTo(W*0.495,H-20);ctx.stroke();
+
+  // Panel labels
+  ctx.font='11px Inter,sans-serif';ctx.textAlign='center';
+
+  panels.forEach(function(pan,pi){
+    ctx.fillStyle=pi===0?'#f7b731':'#ef4444';
+    ctx.font='bold 10px Inter,sans-serif';
+    ctx.fillText(pan.label, pan.x+pan.w/2, 24);
+  });
+
+  // Draw points panel 1 (healthy)
+  ovPoints.forEach(function(pt){
+    ctx.beginPath();
+    ctx.arc(pt.ox+30, pt.oy, 5, 0, Math.PI*2);
+    ctx.fillStyle=pt.color;ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,0.1)';ctx.lineWidth=1;ctx.stroke();
+  });
+
+  // Draw type region circles panel 1
+  var typeColors=['#a78bfa','#0ea5e9','#10b981','#f97316'];
+  var typeCenters=[[210,130],[310,100],[380,160],[260,190]];
+  typeCenters.forEach(function(tc,ti){
+    ctx.beginPath();
+    ctx.arc(tc[0],tc[1],28,0,Math.PI*2);
+    ctx.strokeStyle=rgba(typeColors[ti],0.3);
+    ctx.lineWidth=1.5;ctx.stroke();
+  });
+
+  // Legend panel 1
+  var labels=['Modal','Epistemic','Indexical','Agency'];
+  typeColors.forEach(function(c,i){
+    ctx.fillStyle=c;
+    ctx.beginPath();ctx.arc(50, 230+i*0, 4, 0, Math.PI*2);ctx.fill();
+  });
+  // legend row
+  var lx=50;
+  typeColors.forEach(function(col,i){
+    ctx.fillStyle=col;
+    ctx.beginPath();ctx.arc(lx,H-28,4,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#8b949e';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';
+    ctx.fillText(labels[i], lx+7, H-24);
+    lx+=65;
+  });
+
+  // Draw points panel 2 (collapsing)
+  var cval=ovT<0.5?0:(ovT-0.5)*2;
+  cval=Math.min(cval,1);
+  var cx2=W*0.76, cy2=140;
+  ovPoints.forEach(function(pt){
+    var tx=pt.ox+W*0.51+30;
+    var ty=pt.oy;
+    var dx=cx2-tx, dy=cy2-ty;
+    var nx=tx+dx*cval*0.85;
+    var ny=ty+dy*cval*0.85;
+    ctx.beginPath();
+    ctx.arc(nx, ny, 5, 0, Math.PI*2);
+    var alpha=1-cval*0.3;
+    ctx.fillStyle=pt.color;ctx.globalAlpha=alpha;ctx.fill();
+    ctx.globalAlpha=1;
+    ctx.strokeStyle='rgba(255,255,255,0.08)';ctx.lineWidth=1;ctx.stroke();
+  });
+
+  // Glow on collapsed center
+  if(cval>0.3){
+    var gAlpha=(cval-0.3)/0.7;
+    var grad=ctx.createRadialGradient(cx2,cy2,0,cx2,cy2,40);
+    grad.addColorStop(0,rgba('#ef4444',gAlpha*0.5));
+    grad.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=grad;
+    ctx.beginPath();ctx.arc(cx2,cy2,40,0,Math.PI*2);ctx.fill();
+  }
+
+  // Entropy label
+  var entVal=(cval*2.08).toFixed(2);
+  ctx.fillStyle='#10b981';
+  ctx.font='bold 11px JetBrains Mono,monospace';
+  ctx.textAlign='center';
+  ctx.fillText('H(t) = '+entVal+' nats', cx2, H-8);
+  ctx.fillStyle='#f7b731';
+  ctx.fillText('H(t) = 0.28 nats', centX+30, H-8);
+}
+
+// ===================== S2: COLLAPSE TYPES =====================
+var collapseTab=0;
+var COLLAPSE_TYPES=[
+  {
+    name:'Modal Collapse',
+    color:'#ef4444',
+    operator:'◇ / □',
+    anchor:'It is possible that the treaty will be signed',
+    same:'It may eventually be ratified',
+    diff:'The treaty will be signed',
+    info:'<strong>Modal Collapse</strong> — The embedding of "It is <em>possible</em> that P" converges toward the embedding of "P". The possibility operator ◇ is geometrically erased.<br><br><strong>Example pair:</strong> "It is possible that the treaty will be signed" ≈ "The treaty will be signed"<br><strong>Failure mode:</strong> Models assert modal facts as categorical truths; hallucination of certainty.<br><span class="badge badge-red">Type: Modal</span><span class="badge badge-violet">Operator: ◇ / □</span><span class="badge badge-amber">Logic: Modal Logic S5</span>'
+  },
+  {
+    name:'Epistemic Collapse',
+    color:'#0ea5e9',
+    operator:'Bel / Know',
+    anchor:'Alice believes the experiment succeeded',
+    same:'Alice is convinced it worked',
+    diff:'The experiment succeeded',
+    info:'<strong>Epistemic Collapse</strong> — The embedding of "Alice believes P" converges toward the embedding of "P". Belief and knowledge operators vanish, making attributed beliefs indistinguishable from asserted facts.<br><br><strong>Example pair:</strong> "Alice believes the experiment succeeded" ≈ "The experiment succeeded"<br><strong>Failure mode:</strong> Models cannot distinguish someone\'s belief from ground truth; false belief attribution errors.<br><span class="badge badge-sky">Type: Epistemic</span><span class="badge badge-violet">Operator: Bel / Know</span><span class="badge badge-amber">Logic: Epistemic Logic</span>'
+  },
+  {
+    name:'Indexical Collapse',
+    color:'#10b981',
+    operator:'I / here / now',
+    anchor:'I am here now and the door is locked',
+    same:'The speaker is present at this location',
+    diff:'Someone locked the door recently',
+    info:'<strong>Indexical Collapse</strong> — Indexical expressions (I, here, now, this) embed similarly to their context-free counterparts. The context-dependency of the expression is lost in the vector.<br><br><strong>Example pair:</strong> "I am here now" ≈ "Someone is in a location"<br><strong>Failure mode:</strong> Grounded language models lose situational awareness; cannot anchor statements to specific agents/times/places.<br><span class="badge badge-green">Type: Indexical</span><span class="badge badge-violet">Operator: I / here / now</span><span class="badge badge-amber">Logic: Two-Dimensional Semantics</span>'
+  },
+  {
+    name:'Agency / STIT Collapse',
+    color:'#f97316',
+    operator:'Stit / Brings-about',
+    anchor:'The surgeon ensures the patient survives',
+    same:'The surgeon takes all necessary actions to save the patient',
+    diff:'The patient survives',
+    info:'<strong>Agency / STIT Collapse</strong> — STIT (Sees To It That) operators encode deliberate agency. "Agent X ensures P" collapses toward "P", erasing the causal-intentional contribution of the agent.<br><br><strong>Example pair:</strong> "The surgeon ensures the patient survives" ≈ "The patient survives"<br><strong>Failure mode:</strong> Models cannot distinguish obligated outcomes from brute facts; deontic reasoning failures.<br><span class="badge badge-orange">Type: Agency/STIT</span><span class="badge badge-violet">Operator: Stit / Ensures</span><span class="badge badge-amber">Logic: STIT Logic</span>'
+  }
+];
+
+function setCollapseTab(i,btn){
+  collapseTab=i;
+  document.querySelectorAll('#s-collapse .btn-tab').forEach(function(b,j){
+    b.classList.toggle('active',j===i);
+  });
+  document.getElementById('collapse-info').innerHTML=COLLAPSE_TYPES[i].info;
+  drawCollapseCanvas();
+}
+
+function drawCollapseCanvas(){
+  var c=document.getElementById('canvas-collapse');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width, H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var tp=COLLAPSE_TYPES[collapseTab];
+  var col=tp.color;
+
+  // Three nodes: Anchor (A), Same-type (S), Different-type (D)
+  var ax=160, ay=H/2-20;
+  var sx=400, sy=100;
+  var dx=400, dy=H-80;
+  var radius=44;
+
+  // Background regions
+  var grad=ctx.createRadialGradient(ax,ay,0,ax,ay,160);
+  grad.addColorStop(0,rgba(col,0.06));
+  grad.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=grad;ctx.fillRect(0,0,W,H);
+
+  // Draw "before collapse" region (same type cluster)
+  ctx.beginPath();ctx.arc(sx,sy,55,0,Math.PI*2);
+  ctx.strokeStyle=rgba(col,0.25);ctx.lineWidth=1.5;ctx.setLineDash([4,4]);ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Draw "after collapse" zone (D approaching A zone)
+  ctx.beginPath();ctx.arc(dx,dy,55,0,Math.PI*2);
+  ctx.strokeStyle='rgba(239,68,68,0.2)';ctx.lineWidth=1.5;ctx.setLineDash([4,4]);ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Arrows: A→S (healthy), A→D (collapse threat)
+  function drawArrow(x1,y1,x2,y2,color,dashed){
+    var dx2=x2-x1,dy2=y2-y1;
+    var len=Math.sqrt(dx2*dx2+dy2*dy2);
+    var ux=dx2/len,uy=dy2/len;
+    var ex=x2-ux*radius,ey=y2-uy*radius;
+    var sx2=x1+ux*radius,sy2=y1+uy*radius;
+    ctx.beginPath();ctx.moveTo(sx2,sy2);ctx.lineTo(ex,ey);
+    ctx.strokeStyle=color;ctx.lineWidth=2;
+    if(dashed)ctx.setLineDash([5,4]);else ctx.setLineDash([]);
+    ctx.stroke();ctx.setLineDash([]);
+    // arrowhead
+    var angle=Math.atan2(ey-sy2,ex-sx2);
+    ctx.beginPath();
+    ctx.moveTo(ex,ey);
+    ctx.lineTo(ex-10*Math.cos(angle-0.4),ey-10*Math.sin(angle-0.4));
+    ctx.lineTo(ex-10*Math.cos(angle+0.4),ey-10*Math.sin(angle+0.4));
+    ctx.closePath();ctx.fillStyle=color;ctx.fill();
+  }
+
+  // sim(A,S) arrow — green/healthy
+  drawArrow(ax,ay,sx,sy,rgba(col,0.9),false);
+  // sim(A,D) arrow — red/collapse
+  drawArrow(ax,ay,dx,dy,'rgba(239,68,68,0.8)',true);
+
+  // Nodes
+  function drawNode(x,y,label,sublabel,col2,isAnchor){
+    ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);
+    ctx.fillStyle=isAnchor?rgba(col2,0.2):rgba(col2,0.12);
+    ctx.fill();
+    ctx.strokeStyle=col2;ctx.lineWidth=isAnchor?2.5:1.5;ctx.stroke();
+    ctx.fillStyle='#c9d1d9';ctx.font='bold 13px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText(label,x,y+5);
+    ctx.fillStyle='#8b949e';ctx.font='9px Inter,sans-serif';
+    ctx.fillText(sublabel,x,y+20);
+  }
+  drawNode(ax,ay,'A','Anchor',col,true);
+  drawNode(sx,sy,'S','Same type',col,false);
+  drawNode(dx,dy,'D','Diff type','#ef4444',false);
+
+  // Similarity labels
+  ctx.font='11px JetBrains Mono,monospace';ctx.textAlign='center';
+  var mx=(ax+sx)/2, my=(ay+sy)/2;
+  ctx.fillStyle=rgba(col,0.9);
+  ctx.fillText('sim(A,S) > sim(A,D)',mx+20,my-14);
+  ctx.fillStyle='rgba(239,68,68,0.7)';
+  var mx2=(ax+dx)/2, my2=(ay+dy)/2;
+  ctx.fillText('collapse risk ↓',mx2-10,my2+6);
+
+  // Text annotations
+  ctx.fillStyle=col;ctx.font='bold 12px Inter,sans-serif';ctx.textAlign='left';
+  ctx.fillText('Operator: '+tp.operator, sx-40, 26);
+  ctx.fillStyle='#8b949e';ctx.font='10px Inter,sans-serif';
+  ctx.fillText('"'+tp.anchor.substring(0,38)+'..."',ax-50,ay+radius+20);
+}
+
+// ===================== S3: NEIGHBORHOOD CANVAS =====================
+var neighborhoodMode='healthy';
+function setNeighborhood(mode,btn){
+  neighborhoodMode=mode;
+  document.querySelectorAll('#s-neighborhood .btn-tab').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  var info=document.getElementById('neighborhood-info');
+  if(mode==='healthy'){
+    info.innerHTML='<strong>Healthy neighborhood:</strong> The k=8 nearest neighbors of an anchor modal sentence consist primarily of other modal sentences (same type). Cross-type contamination is low.<br><span class="badge badge-sky">λ(t) ≈ 0.08</span><span class="badge badge-green">Type purity: 87%</span>';
+  } else if(mode==='collapsed'){
+    info.innerHTML='<strong>Collapsed neighborhood:</strong> After extensive training without operator supervision, the k=8 nearest neighbors of the same anchor modal sentence are now mixed across types. Epistemic and categorical sentences have penetrated the modal cluster.<br><span class="badge badge-red">λ(t) ≈ 0.58</span><span class="badge badge-red">Type purity: 37%</span>';
+  } else {
+    info.innerHTML='<strong>Possible worlds analogy:</strong> In modal logic, each colored circle is a "possible world." A sentence\'s accessible worlds (neighbors) should stay within the same accessibility relation (type). Collapse is like mixing accessibility relations — the model can no longer tell which worlds are accessible from a given context.<br><span class="badge badge-amber">Kripke Semantics</span><span class="badge badge-violet">S4 / S5 Logic</span>';
+  }
+  drawNeighborhoodCanvas();
+}
+
+function drawNeighborhoodCanvas(){
+  var c=document.getElementById('canvas-neighborhood');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width, H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  if(neighborhoodMode==='worlds'){
+    // Possible worlds Venn diagram
+    var worlds=[
+      {cx:220,cy:150,r:90,color:'#a78bfa',label:'Modal worlds'},
+      {cx:340,cy:120,r:75,color:'#0ea5e9',label:'Epistemic worlds'},
+      {cx:460,cy:160,r:80,color:'#10b981',label:'Indexical worlds'},
+      {cx:320,cy:240,r:65,color:'#f97316',label:'Agency worlds'}
+    ];
+    worlds.forEach(function(w){
+      ctx.beginPath();ctx.arc(w.cx,w.cy,w.r,0,Math.PI*2);
+      ctx.strokeStyle=w.color;ctx.lineWidth=2;ctx.setLineDash([5,3]);ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle=rgba(w.color,0.07);ctx.fill();
+      ctx.fillStyle=w.color;ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='center';
+      ctx.fillText(w.label,w.cx,w.cy-w.r-6);
+    });
+    // Anchor node
+    ctx.beginPath();ctx.arc(220,150,12,0,Math.PI*2);
+    ctx.fillStyle='#f7b731';ctx.fill();
+    ctx.fillStyle='#0d1117';ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText('A',220,154);
+    // Label
+    ctx.fillStyle='#8b949e';ctx.font='11px Inter,sans-serif';
+    ctx.fillText('Each region = semantic type; accessible neighbors should stay within same region',W/2,H-12);
+    return;
+  }
+
+  // k-NN visualization
+  var cx=W/2, cy=H/2+10;
+  var kRadius=110;
+  var collapsed=neighborhoodMode==='collapsed';
+
+  // Draw ring
+  ctx.beginPath();ctx.arc(cx,cy,kRadius,0,Math.PI*2);
+  ctx.strokeStyle='#30363d';ctx.lineWidth=1;ctx.setLineDash([3,4]);ctx.stroke();
+  ctx.setLineDash([]);
+
+  // k=8 neighbors
+  var neighbors;
+  if(!collapsed){
+    neighbors=[
+      {angle:0,    color:'#a78bfa',type:'Modal',  dist:0.82},
+      {angle:45,   color:'#a78bfa',type:'Modal',  dist:0.80},
+      {angle:75,   color:'#a78bfa',type:'Modal',  dist:0.78},
+      {angle:110,  color:'#a78bfa',type:'Modal',  dist:0.76},
+      {angle:170,  color:'#a78bfa',type:'Modal',  dist:0.74},
+      {angle:200,  color:'#0ea5e9',type:'Epistemic',dist:0.62},
+      {angle:240,  color:'#a78bfa',type:'Modal',  dist:0.71},
+      {angle:310,  color:'#a78bfa',type:'Modal',  dist:0.77}
+    ];
+  } else {
+    neighbors=[
+      {angle:0,    color:'#a78bfa',type:'Modal',  dist:0.79},
+      {angle:45,   color:'#0ea5e9',type:'Epistemic',dist:0.77},
+      {angle:75,   color:'#ef4444',type:'Categorical',dist:0.76},
+      {angle:110,  color:'#ef4444',type:'Categorical',dist:0.74},
+      {angle:170,  color:'#10b981',type:'Indexical',dist:0.73},
+      {angle:200,  color:'#0ea5e9',type:'Epistemic',dist:0.71},
+      {angle:240,  color:'#f97316',type:'Agency',  dist:0.68},
+      {angle:310,  color:'#ef4444',type:'Categorical',dist:0.78}
+    ];
+  }
+  neighbors.forEach(function(n){
+    var rad=n.angle*Math.PI/180;
+    var nx=cx+Math.cos(rad)*kRadius*n.dist;
+    var ny=cy+Math.sin(rad)*kRadius*n.dist;
+    // line to anchor
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(nx,ny);
+    ctx.strokeStyle=rgba(n.color,0.2);ctx.lineWidth=1;ctx.stroke();
+    // point
+    ctx.beginPath();ctx.arc(nx,ny,8,0,Math.PI*2);
+    ctx.fillStyle=n.color;ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,0.12)';ctx.lineWidth=1;ctx.stroke();
+    // type label
+    ctx.fillStyle='#8b949e';ctx.font='8px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText(n.type, nx, ny+18);
+  });
+
+  // Anchor
+  ctx.beginPath();ctx.arc(cx,cy,16,0,Math.PI*2);
+  ctx.fillStyle='#f7b731';ctx.fill();
+  ctx.strokeStyle='rgba(247,183,49,0.5)';ctx.lineWidth=2;ctx.stroke();
+  ctx.fillStyle='#0d1117';ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('A',cx,cy+4);
+
+  // Legend
+  var lx=30;
+  var typLegend=collapsed?
+    [['#a78bfa','Modal'],['#0ea5e9','Epistemic'],['#10b981','Indexical'],['#f97316','Agency'],['#ef4444','Categorical']]:
+    [['#a78bfa','Modal'],['#0ea5e9','Epistemic']];
+  typLegend.forEach(function(t){
+    ctx.beginPath();ctx.arc(lx,H-18,5,0,Math.PI*2);ctx.fillStyle=t[0];ctx.fill();
+    ctx.fillStyle='#8b949e';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';
+    ctx.fillText(t[1],lx+8,H-14);
+    lx+=70;
+  });
+  ctx.fillStyle='#f7b731';ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='left';
+  ctx.fillText('k=8 nearest neighbors of anchor A',30,18);
+  ctx.fillStyle=collapsed?'#ef4444':'#10b981';
+  ctx.fillText(collapsed?'COLLAPSED — cross-type contamination high':'HEALTHY — same-type dominates',30,32);
+}
+
+// ===================== S4: ENTROPY CANVAS =====================
+function updateEntropyVis(val){
+  var v=parseInt(val);
+  var stages=['Early (low collapse)','Moderate collapse','High collapse','Full collapse'];
+  var idx=Math.floor(v/26);idx=Math.min(idx,3);
+  document.getElementById('entropy-slider-val').textContent=stages[idx];
+  var H_val=(v/100*2.08).toFixed(2);
+  var purity=Math.round(100-v*0.65);
+  var drift=(v/100*0.08).toFixed(3);
+  var info=document.getElementById('entropy-info');
+  var healthClass=v<30?'badge-green':v<60?'badge-amber':'badge-red';
+  var driftClass=v<30?'badge-green':v<60?'badge-amber':'badge-red';
+  info.innerHTML='<strong>'+stages[idx]+':</strong> H(t) = '+H_val+' nats. The anchor token\'s k=12 neighbors are '+(v<30?'predominantly':'increasingly heterogeneously')+' distributed across semantic types. '+(v>50?'Operator boundaries are compromised.':'Operator boundaries are '+( v<30?'intact.':'weakening.'))+'<br><span class="badge '+healthClass+'">H(t) = '+H_val+'</span><span class="badge '+driftClass+'">ΔH ≈ +'+drift+'</span><span class="badge badge-sky">Type purity: '+purity+'%</span>';
+  drawEntropyCanvas(v);
+}
+
+function drawEntropyCanvas(val){
+  var c=document.getElementById('canvas-entropy');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width, H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var k=12;
+  var cval=val/100;
+  var cx=W/2, cy=H/2;
+  var baseR=90;
+
+  // Draw ring
+  ctx.beginPath();ctx.arc(cx,cy,baseR,0,Math.PI*2);
+  ctx.strokeStyle='#30363d';ctx.lineWidth=1;ctx.setLineDash([3,4]);ctx.stroke();
+  ctx.setLineDash([]);
+
+  var typeColors=['#a78bfa','#a78bfa','#a78bfa','#a78bfa','#a78bfa','#0ea5e9','#10b981','#f97316','#ef4444','#06b6d4','#f59e0b','#ec4899'];
+  // Shuffle types based on collapse level
+  var activeTypes=[];
+  for(var i=0;i<k;i++){
+    var crossProb=cval;
+    if(Math.random()<crossProb){
+      activeTypes.push(typeColors[Math.floor(Math.random()*(typeColors.length-4))+4]);
+    } else {
+      activeTypes.push('#a78bfa');
+    }
+  }
+  // Use deterministic distribution based on val
+  var numSame=Math.round(k*(1-cval*0.75));
+  var numCross=k-numSame;
+  activeTypes=[];
+  for(var i2=0;i2<numSame;i2++) activeTypes.push('#a78bfa');
+  var crossCols=['#0ea5e9','#10b981','#f97316','#ef4444'];
+  for(var i3=0;i3<numCross;i3++) activeTypes.push(crossCols[i3%crossCols.length]);
+
+  for(var i4=0;i4<k;i4++){
+    var angle=(i4/k)*Math.PI*2-Math.PI/2;
+    var r=baseR*0.85;
+    var nx=cx+Math.cos(angle)*r;
+    var ny=cy+Math.sin(angle)*r;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(nx,ny);
+    ctx.strokeStyle=rgba(activeTypes[i4],0.15);ctx.lineWidth=1;ctx.stroke();
+    ctx.beginPath();ctx.arc(nx,ny,7,0,Math.PI*2);
+    ctx.fillStyle=activeTypes[i4];ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,0.1)';ctx.lineWidth=1;ctx.stroke();
+  }
+
+  // Anchor
+  ctx.beginPath();ctx.arc(cx,cy,14,0,Math.PI*2);
+  ctx.fillStyle='#f7b731';ctx.fill();
+  ctx.strokeStyle='rgba(247,183,49,0.5)';ctx.lineWidth=2;ctx.stroke();
+  ctx.fillStyle='#0d1117';ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('A',cx,cy+3);
+
+  // H(t) bar on right
+  var barX=W-120, barY=40, barW=18, barH=H-80;
+  ctx.fillStyle='#0d1117';
+  ctx.fillRect(barX,barY,barW,barH);
+  ctx.strokeStyle='#30363d';ctx.lineWidth=1;ctx.strokeRect(barX,barY,barW,barH);
+  var fillH=barH*cval*0.92;
+  var barGrad=ctx.createLinearGradient(0,barY+barH,0,barY+barH-fillH);
+  barGrad.addColorStop(0,'#10b981');barGrad.addColorStop(0.5,'#f7b731');barGrad.addColorStop(1,'#ef4444');
+  ctx.fillStyle=barGrad;
+  ctx.fillRect(barX,barY+barH-fillH,barW,fillH);
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter,sans-serif';ctx.textAlign='center';
+  ctx.fillText('H(t)',barX+barW/2,barY-6);
+  ctx.fillText((cval*2.08).toFixed(2),barX+barW/2,barY+barH+14);
+
+  // Type legend left
+  var types=[['#a78bfa','Modal'],['#0ea5e9','Epistemic'],['#10b981','Indexical'],['#f97316','Agency'],['#ef4444','Categorical']];
+  types.forEach(function(t,i){
+    ctx.beginPath();ctx.arc(30,50+i*20,5,0,Math.PI*2);ctx.fillStyle=t[0];ctx.fill();
+    ctx.fillStyle='#8b949e';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';
+    ctx.fillText(t[1],40,54+i*20);
+  });
+}
+
+// ===================== S5: TRIPLET CANVAS =====================
+function updateTripletVis(val){
+  var v=parseInt(val);
+  document.getElementById('triplet-slider-val').textContent=v+'%';
+  var info=document.getElementById('triplet-info');
+  var col=v<15?'badge-green':v<40?'badge-amber':'badge-red';
+  var status=v<15?'Healthy — operator boundaries intact':v<40?'Moderate collapse — boundaries weakening':'Severe collapse — boundaries inverted';
+  info.innerHTML='<strong>CR = '+v+'%:</strong> '+v+'% of anchor tokens have their nearest same-type neighbor displaced beyond their nearest different-type neighbor. '+status+'.<br><span class="badge '+col+'">CR = '+(v/100).toFixed(2)+'</span><span class="badge badge-violet">Healthy threshold: CR &lt; 0.15</span><span class="badge badge-sky">Fidelity AUC ≈ '+(1-v/100*0.5).toFixed(2)+'</span>';
+  drawTripletCanvas(v);
+}
+
+function drawTripletCanvas(val){
+  var c=document.getElementById('canvas-triplet');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width, H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var cval=val/100;
+
+  // Conceptual 2D embedding space
+  // Show N=20 anchors with their S and D positions
+  var N=16;
+  var anchors=[];
+  // deterministic pseudo-random positions
+  var seeded=42;
+  function srandom(){seeded=(seeded*1664525+1013904223)&0xffffffff;return(seeded>>>0)/4294967296;}
+
+  for(var i=0;i<N;i++){
+    var ax2=80+srandom()*(W-160);
+    var ay2=50+srandom()*(H-120);
+    // S is close, D is farther
+    var sAngle=srandom()*Math.PI*2;
+    var sBaseDist=25+srandom()*15;
+    var dAngle=sAngle+Math.PI*(0.6+srandom()*0.8);
+    // Collapse: S dist increases, D dist decreases
+    var sDist=sBaseDist+cval*30;
+    var dDist=80-cval*40;
+    var sx=ax2+Math.cos(sAngle)*sDist;
+    var sy=ay2+Math.sin(sAngle)*sDist;
+    var dx2=ax2+Math.cos(dAngle)*Math.max(dDist,15);
+    var dy2=ay2+Math.sin(dAngle)*Math.max(dDist,15);
+    // Is this a collapsed triplet?
+    var simAS=1/(1+sDist/50);
+    var simAD=1/(1+Math.max(dDist,15)/50);
+    var isCollapsed=simAS<simAD;
+    anchors.push({ax:ax2,ay:ay2,sx,sy,dx:dx2,dy:dy2,isCollapsed});
+  }
+
+  // Draw triplets
+  anchors.forEach(function(a){
+    // A→S line
+    ctx.beginPath();ctx.moveTo(a.ax,a.ay);ctx.lineTo(a.sx,a.sy);
+    ctx.strokeStyle=a.isCollapsed?rgba('#ef4444',0.4):rgba('#a78bfa',0.3);
+    ctx.lineWidth=1.5;ctx.stroke();
+    // A→D line
+    ctx.beginPath();ctx.moveTo(a.ax,a.ay);ctx.lineTo(a.dx,a.dy);
+    ctx.strokeStyle=rgba('#ef4444',0.15);ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.stroke();
+    ctx.setLineDash([]);
+    // S point
+    ctx.beginPath();ctx.arc(a.sx,a.sy,5,0,Math.PI*2);
+    ctx.fillStyle=a.isCollapsed?rgba('#ef4444',0.7):'#a78bfa';ctx.fill();
+    // D point
+    ctx.beginPath();ctx.arc(a.dx,a.dy,5,0,Math.PI*2);
+    ctx.fillStyle=rgba('#ef4444',0.5);ctx.fill();
+    // A point
+    ctx.beginPath();ctx.arc(a.ax,a.ay,6,0,Math.PI*2);
+    ctx.fillStyle='#f7b731';ctx.fill();
+  });
+
+  // Legend
+  ctx.beginPath();ctx.arc(30,H-40,6,0,Math.PI*2);ctx.fillStyle='#f7b731';ctx.fill();
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter,sans-serif';ctx.textAlign='left';ctx.fillText('A: Anchor',42,H-36);
+  ctx.beginPath();ctx.arc(120,H-40,5,0,Math.PI*2);ctx.fillStyle='#a78bfa';ctx.fill();
+  ctx.fillText('S: Same-type',132,H-36);
+  ctx.beginPath();ctx.arc(230,H-40,5,0,Math.PI*2);ctx.fillStyle=rgba('#ef4444',0.7);ctx.fill();
+  ctx.fillText('D: Diff-type',242,H-36);
+  ctx.beginPath();ctx.arc(330,H-40,6,0,Math.PI*2);ctx.fillStyle=rgba('#ef4444',0.9);ctx.fill();
+  ctx.fillText('Collapsed triplet (S > D dist)',342,H-36);
+
+  // CR annotation
+  ctx.fillStyle='#c9d1d9';ctx.font='bold 13px JetBrains Mono,monospace';ctx.textAlign='right';
+  ctx.fillText('CR = '+(val/100).toFixed(2), W-20, 24);
+  ctx.fillStyle='#8b949e';ctx.font='10px Inter,sans-serif';
+  ctx.fillText(val+'% of triplets inverted', W-20, 40);
+}
+
+// ===================== S6: MPK CANVAS =====================
+var mpkTab=0;
+var MPK_INVARIANTS=[
+  {name:'Operator Fidelity',info:'<strong>Operator Fidelity:</strong> For every operator O and proposition P, the embedding of O(P) must be geometrically separated from the embedding of P. Formally: <code style="font-family:\'JetBrains Mono\',monospace;font-size:11px;color:#a5b4fc;">cos(embed(O(P)), embed(P)) &lt; θ_O</code> where θ_O is an operator-specific threshold. This invariant directly prevents modal, epistemic, indexical, and agency collapse.'},
+  {name:'Type Stability',info:'<strong>Type Stability:</strong> For every token t with semantic type τ(t), the type assignment must be stable under small perturbations: <code style="font-family:\'JetBrains Mono\',monospace;font-size:11px;color:#a5b4fc;">τ(embed(t) + ε) = τ(embed(t))</code> for small ε. This prevents boundary fragility where minor variations in context cause semantic type drift.'},
+  {name:'Compositional Grounding',info:'<strong>Compositional Grounding:</strong> The embedding of a compound expression must compositionally reflect the contributions of its parts, including operators. The embedding of O(P) must carry a detectable trace of O independently of the embedding of P. This is the key invariant for preventing hyperintensional collapse.'}
+];
+function setMPKTab(i,btn){
+  mpkTab=i;
+  document.querySelectorAll('#s-mpk .btn-tab').forEach(function(b,j){
+    b.classList.toggle('active',j===i);
+  });
+  document.getElementById('mpk-info').innerHTML=MPK_INVARIANTS[i].info;
+  drawMPKCanvas();
+}
+function drawMPKCanvas(){
+  var c=document.getElementById('canvas-mpk');
+  if(!c)return;
+  var ctx=c.getContext('2d');
+  var W=c.width, H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  // Show 4 semantic type regions separated by MPK boundaries
+  var regions=[
+    {cx:180,cy:130,r:70,color:'#a78bfa',label:'Modal',tokens:['◇P','□P','possibly P','must P']},
+    {cx:350,cy:110,r:65,color:'#0ea5e9',label:'Epistemic',tokens:['Bel(P)','K(P)','believes P']},
+    {cx:490,cy:190,r:70,color:'#10b981',label:'Indexical',tokens:['I am P','here P','now P']},
+    {cx:280,cy:240,r:65,color:'#f97316',label:'Agency',tokens:['stit(P)','ensures P']}
+  ];
+
+  // MPK boundary highlight for active invariant
+  if(mpkTab===0){
+    // Draw separator boundaries between Modal and base
+    ctx.beginPath();ctx.arc(180,130,80,0,Math.PI*2);
+    ctx.strokeStyle='rgba(167,139,250,0.5)';ctx.lineWidth=3;ctx.setLineDash([]);ctx.stroke();
+    // Base proposition cluster
+    ctx.beginPath();ctx.arc(580,150,55,0,Math.PI*2);
+    ctx.strokeStyle='rgba(239,68,68,0.4)';ctx.lineWidth=2;ctx.setLineDash([5,3]);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='rgba(239,68,68,0.08)';ctx.fill();
+    ctx.fillStyle='#ef4444';ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText('Base P',580,150);
+    ctx.fillStyle='#8b949e';ctx.font='9px Inter,sans-serif';
+    ctx.fillText('(no operator)',580,164);
+    // MPK separation arrow
+    ctx.beginPath();ctx.moveTo(270,130);ctx.lineTo(520,145);
+    ctx.strokeStyle='rgba(167,139,250,0.4)';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='rgba(167,139,250,0.8)';ctx.font='10px JetBrains Mono,monospace';ctx.textAlign='center';
+    ctx.fillText('cos(O(P), P) < θ_modal',395,120);
+  }
+
+  regions.forEach(function(reg){
+    // Region fill
+    ctx.beginPath();ctx.arc(reg.cx,reg.cy,reg.r,0,Math.PI*2);
+    ctx.fillStyle=rgba(reg.color,0.08);ctx.fill();
+    ctx.strokeStyle=reg.color;ctx.lineWidth=2;ctx.stroke();
+    // Label
+    ctx.fillStyle=reg.color;ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText(reg.label,reg.cx,reg.cy-reg.r-8);
+    // Sample tokens
+    reg.tokens.forEach(function(tok,ti){
+      var angle=(ti/reg.tokens.length)*Math.PI*2-Math.PI/2;
+      var r2=reg.r*0.55;
+      var tx=reg.cx+Math.cos(angle)*r2;
+      var ty=reg.cy+Math.sin(angle)*r2;
+      ctx.beginPath();ctx.arc(tx,ty,5,0,Math.PI*2);
+      ctx.fillStyle=reg.color;ctx.fill();
+    });
+  });
+
+  // MPK label
+  ctx.fillStyle='#f97316';ctx.font='bold 12px JetBrains Mono,monospace';ctx.textAlign='left';
+  ctx.fillText('MPK: operator-enforced semantic regions',20,H-12);
+}
+
+// ===================== INIT =====================
+function doInit(){
+  initOverviewPoints();
+  ovTimer=setInterval(drawOverview,40);
+  drawCollapseCanvas();
+  setNeighborhood('healthy',document.getElementById('nbr-healthy-btn'));
+  updateEntropyVis(15);
+  updateTripletVis(10);
+  drawMPKCanvas();
+}
+</script>
+</body>
+</html>
