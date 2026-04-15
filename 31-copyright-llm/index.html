@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Copyright Detection &amp; Mitigation in LLMs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#c9d1d9;--muted:#8b949e;
+  --accent:#f59e0b;--accent2:#fbbf24;--accent3:#fde68a;
+  --c-detect:#7c3aed;--c-mitigate:#10b981;--c-both:#f97316;--c-survey:#f59e0b;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+.sidebar{width:240px;min-width:240px;height:100vh;position:sticky;top:0;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:0 0 40px;flex-shrink:0;}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.sidebar-logo-title{font-size:13px;font-weight:700;color:var(--accent2);}
+.sidebar-logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.nav-group-title{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;padding:10px 16px 4px;}
+.nav-link{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;}
+.nav-link:hover,.nav-link.active{color:var(--text);background:rgba(245,158,11,.08);}
+.nav-link.active{color:var(--accent2);}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.main{flex:1;overflow-y:auto;height:100vh;}
+.pipeline-map{position:sticky;top:0;z-index:50;background:rgba(13,17,23,.96);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+.pipe-step{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);padding:2px 6px;border-radius:4px;transition:color .15s;cursor:pointer;}
+.pipe-step:hover{color:var(--text);}
+.pipe-dot{width:6px;height:6px;border-radius:50%;}
+.pipe-arrow{color:var(--border);font-size:12px;}
+.section{min-height:100vh;padding:60px 48px 80px;border-bottom:1px solid var(--border);}
+.section-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px;}
+.section-title{font-size:28px;font-weight:800;color:var(--text);margin-bottom:8px;line-height:1.25;}
+.section-sub{font-size:14px;color:var(--muted);margin-bottom:28px;max-width:680px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:16px;}
+.card-title{font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px;}
+.card-body{font-size:13px;color:var(--muted);line-height:1.6;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;}
+canvas{display:block;border-radius:10px;background:var(--surface);border:1px solid var(--border);}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s;}
+.btn:hover{opacity:.85;}
+.btn-tab{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-tab.active,.btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+.stats-row{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:24px;}
+.stat{text-align:center;}
+.stat-val{font-size:28px;font-weight:800;color:var(--accent2);}
+.stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;}
+.accordion-item{border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+.accordion-header{padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;background:var(--surface);}
+.accordion-header:hover{background:#1c2128;}
+.accordion-chevron{transition:transform .2s;font-size:10px;color:var(--muted);}
+.accordion-body{padding:14px 16px;font-size:12px;color:var(--muted);display:none;border-top:1px solid var(--border);}
+.highlight-box{border-left:3px solid var(--accent);padding:12px 16px;background:rgba(245,158,11,.06);border-radius:0 8px 8px 0;margin-bottom:16px;font-size:13px;color:var(--muted);}
+.highlight-box.violet{border-color:#7c3aed;background:rgba(124,58,237,.06);}
+.highlight-box.green{border-color:#10b981;background:rgba(16,185,129,.06);}
+.highlight-box.red{border-color:#ef4444;background:rgba(239,68,68,.06);}
+.highlight-box.sky{border-color:#0ea5e9;background:rgba(14,165,233,.06);}
+.info-panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-top:12px;font-size:13px;color:var(--muted);min-height:80px;}
+.info-panel strong{color:var(--text);}
+.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-right:4px;margin-bottom:4px;}
+.badge-detect{background:rgba(124,58,237,.2);color:#a78bfa;}
+.badge-mitigate{background:rgba(16,185,129,.2);color:#34d399;}
+.badge-both{background:rgba(249,115,22,.2);color:#fb923c;}
+.badge-survey{background:rgba(245,158,11,.2);color:#fbbf24;}
+.badge-amber{background:rgba(245,158,11,.2);color:#fbbf24;}
+.badge-sky{background:rgba(14,165,233,.2);color:#38bdf8;}
+.slider-row{display:flex;gap:12px;align-items:center;margin-bottom:16px;}
+.slider-lbl{font-size:11px;color:var(--muted);min-width:160px;}
+.slider-val{font-size:12px;font-weight:700;color:var(--accent2);min-width:50px;}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;background:var(--border);border-radius:4px;outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;}
+#scroll-progress{position:fixed;top:0;left:0;height:2px;background:var(--accent);z-index:9998;transition:width .1s;}
+#pg-gate{position:fixed;inset:0;background:linear-gradient(135deg,#0d1117 0%,#161b22 50%,#0d1117 100%);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.pg-box{background:#161b22;border:1px solid #30363d;border-radius:16px;padding:40px 48px;max-width:440px;width:100%;text-align:center;box-shadow:0 0 40px rgba(245,158,11,.12);}
+.pg-icon{font-size:2.5rem;margin-bottom:16px;}
+.pg-title{font-size:1.3rem;font-weight:800;color:#c9d1d9;margin-bottom:6px;}
+.pg-subtitle{font-size:13px;font-weight:600;color:#fbbf24;margin-bottom:6px;}
+.pg-sub{font-size:11px;color:#8b949e;margin-bottom:24px;}
+.pg-input{width:100%;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:10px 14px;color:#c9d1d9;font-size:14px;outline:none;text-align:center;}
+.pg-input:focus{border-color:#f59e0b;}
+.pg-btn{margin-top:12px;width:100%;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;}
+.pg-err{color:#ff6b6b;font-size:11px;margin-top:8px;min-height:16px;}
+.pg-join{margin-top:16px;font-size:11px;color:#8b949e;}
+.pg-join a{color:#fbbf24;text-decoration:underline;}
+/* paper explorer */
+.paper-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.paper-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;cursor:pointer;transition:all .15s;}
+.paper-card:hover{border-color:#555;transform:translateY(-1px);}
+.paper-card.expanded{border-color:var(--accent);}
+.paper-meta{display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap;}
+.paper-score{font-size:10px;font-weight:700;color:var(--accent2);background:rgba(245,158,11,.15);border-radius:4px;padding:2px 7px;}
+.paper-year{font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;}
+.paper-title{font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px;line-height:1.4;}
+.paper-abstract{font-size:11px;color:var(--muted);line-height:1.5;display:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);}
+.paper-card.expanded .paper-abstract{display:block;}
+.explorer-filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+/* phase buttons */
+.phase-btn{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 16px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;color:var(--muted);}
+.phase-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.phase-btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+code{background:#0d1117;border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#fbbf24;}
+.code-block{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-family:'JetBrains Mono','Courier New',monospace;font-size:12px;color:#fbbf24;line-height:1.8;margin-bottom:16px;white-space:pre;}
+/* ===== RELATED POSTS STRIP ===== */
+.related-strip{padding:28px 48px 44px;border-top:2px solid var(--border);}
+.related-strip-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.related-strip-label::after{content:'';flex:1;height:1px;background:var(--border);}
+.related-strip-grid{display:flex;gap:12px;flex-wrap:wrap;}
+.rc{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px 15px;text-decoration:none;color:inherit;transition:all .15s;min-width:160px;flex:1;max-width:230px;}
+.rc:hover{border-color:#555;transform:translateY(-1px);}
+.rc-type{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px;}
+.rc-num{font-size:10px;color:var(--muted);margin-bottom:2px;font-family:'JetBrains Mono',monospace;}
+.rc-title{font-size:12px;font-weight:700;color:var(--text);line-height:1.35;margin-bottom:3px;}
+.rc-why{font-size:10px;color:var(--muted);line-height:1.5;}
+.map-link-btn{display:inline-flex;align-items:center;gap:6px;margin-top:14px;font-size:11px;color:#a5b4fc;font-weight:600;border:1px solid rgba(99,102,241,.3);border-radius:6px;padding:5px 12px;transition:all .15s;text-decoration:none;}
+.map-link-btn:hover{border-color:#6366f1;background:rgba(99,102,241,.08);}
+</style>
+</head>
+<body>
+
+<div id="pg-gate">
+  <div class="pg-box">
+    <div class="pg-icon">&#128274;</div>
+    <div class="pg-title">Copyright Detection &amp; Mitigation in LLMs</div>
+    <div class="pg-subtitle">286 Papers · 4 Detection Paradigms · 5 Mitigation Strategies</div>
+    <div class="pg-sub">This post is for paid subscribers of Visual Summary</div>
+    <input class="pg-input" id="pg-input" type="password" placeholder="Enter password" autocomplete="off">
+    <button class="pg-btn" onclick="pgCheck()">Unlock</button>
+    <div class="pg-err" id="pg-err"></div>
+    <div class="pg-join">Not a subscriber yet? <a href="https://visualsummary.substack.com" target="_blank">Join Visual Summary &rarr;</a></div>
+  </div>
+</div>
+
+<div id="scroll-progress"></div>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-title">Visual AI Papers</div>
+    <div class="sidebar-logo-sub">Post 31 &middot; Copyright &amp; LLMs</div>
+  </div>
+
+  <div class="nav-group-title">The Problem</div>
+  <div class="nav-link" data-sec="s-overview" onclick="setActive(this,'s-overview')">
+    <span class="dot" style="background:#f59e0b"></span>The Copyright Crisis</div>
+
+  <div class="nav-group-title">Detection</div>
+  <div class="nav-link" data-sec="s-landscape" onclick="setActive(this,'s-landscape')">
+    <span class="dot" style="background:#0ea5e9"></span>Research Landscape</div>
+  <div class="nav-link" data-sec="s-detection" onclick="setActive(this,'s-detection')">
+    <span class="dot" style="background:#7c3aed"></span>Detection Methods</div>
+
+  <div class="nav-group-title">Mitigation</div>
+  <div class="nav-link" data-sec="s-mitigation" onclick="setActive(this,'s-mitigation')">
+    <span class="dot" style="background:#10b981"></span>Mitigation Strategies</div>
+  <div class="nav-link" data-sec="s-papers" onclick="setActive(this,'s-papers')">
+    <span class="dot" style="background:#f97316"></span>Paper Explorer</div>
+
+  <div class="nav-group-title">Context</div>
+  <div class="nav-link" data-sec="s-timeline" onclick="setActive(this,'s-timeline')">
+    <span class="dot" style="background:#ef4444"></span>The Arms Race</div>
+  <div class="nav-link" data-sec="s-gaps" onclick="setActive(this,'s-gaps')">
+    <span class="dot" style="background:#6366f1"></span>Open Problems</div>
+</nav>
+
+<!-- MAIN -->
+<div class="main" id="main-scroll">
+<div class="pipeline-map">
+  <div class="pipe-step" onclick="scrollTo('s-overview')"><span class="pipe-dot" style="background:#f59e0b"></span>Crisis</div>
+  <span class="pipe-arrow">&#8594;</span>
+  <div class="pipe-step" onclick="scrollTo('s-landscape')"><span class="pipe-dot" style="background:#0ea5e9"></span>Landscape</div>
+  <span class="pipe-arrow">&#8594;</span>
+  <div class="pipe-step" onclick="scrollTo('s-detection')"><span class="pipe-dot" style="background:#7c3aed"></span>Detection</div>
+  <span class="pipe-arrow">&#8594;</span>
+  <div class="pipe-step" onclick="scrollTo('s-mitigation')"><span class="pipe-dot" style="background:#10b981"></span>Mitigation</div>
+  <span class="pipe-arrow">&#8594;</span>
+  <div class="pipe-step" onclick="scrollTo('s-papers')"><span class="pipe-dot" style="background:#f97316"></span>Papers</div>
+  <span class="pipe-arrow">&#8594;</span>
+  <div class="pipe-step" onclick="scrollTo('s-timeline')"><span class="pipe-dot" style="background:#ef4444"></span>Arms Race</div>
+  <span class="pipe-arrow">&#8594;</span>
+  <div class="pipe-step" onclick="scrollTo('s-gaps')"><span class="pipe-dot" style="background:#6366f1"></span>Gaps</div>
+</div>
+
+<!-- ====== S1: OVERVIEW ====== -->
+<section class="section" id="s-overview">
+  <div class="section-tag" style="color:#f59e0b">The Problem &middot; ~15 min read</div>
+  <h1 class="section-title">The Copyright Crisis: What LLMs Remember</h1>
+  <p class="section-sub">Large Language Models are trained on massive text corpora sourced from the internet &mdash; books, articles, code repositories. They memorise and reproduce this data verbatim. This creates a collision between AI capability and copyright law that the research community has been racing to solve since 2020.</p>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val" style="color:#f59e0b">286</div><div class="stat-lbl">Research Papers</div></div>
+    <div class="stat"><div class="stat-val" style="color:#7c3aed">4</div><div class="stat-lbl">Detection Paradigms</div></div>
+    <div class="stat"><div class="stat-val" style="color:#10b981">5</div><div class="stat-lbl">Mitigation Strategies</div></div>
+    <div class="stat"><div class="stat-val" style="color:#ef4444">2020</div><div class="stat-lbl">Year Problem Surfaced</div></div>
+  </div>
+
+  <canvas id="canvas-overview" width="700" height="260" style="margin-bottom:20px;"></canvas>
+
+  <div class="highlight-box">
+    <strong>Core tension:</strong> Detection asks "did this model train on this data?" Mitigation asks "how do we make it forget?" Neither question has a fully satisfying answer &mdash; creating a research arms race with legal, technical, and ethical dimensions.
+  </div>
+
+  <div class="grid3" style="margin-top:20px;">
+    <div class="card">
+      <div class="card-title" style="color:#7c3aed">The Detection Problem</div>
+      <div class="card-body">Membership Inference Attacks (MIAs) probe model confidence to infer training data membership. Newer approaches use n-gram overlap, perplexity ratios, and dataset inference to detect verbatim memorization at scale.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#10b981">The Mitigation Problem</div>
+      <div class="card-body">Machine unlearning, differential privacy, and data filtering try to remove copyright-protected content after training. The challenge: effective forgetting degrades model utility significantly.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#f97316">The Legal Problem</div>
+      <div class="card-body">Courts are still deciding if training on copyrighted data constitutes infringement. The EU AI Act mandates transparency. US cases (NYT v. OpenAI) will set precedent for the entire industry.</div>
+    </div>
+  </div>
+
+  <div style="margin-top:20px;">
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        Why is memorisation unavoidable in LLMs? <span class="accordion-chevron">&#9650;</span>
+      </div>
+      <div class="accordion-body">
+        LLMs are trained to minimise prediction loss &mdash; they learn that exact reproduction of text achieves near-zero loss on training examples. Highly duplicated content (news articles, boilerplate legal text, popular books) gets memorised disproportionately. Larger models memorise more: GPT-3 (175B) can reproduce 1,000-token sequences verbatim from training data. This is not a bug but an emergent property of scale.
+      </div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        What makes copyright in AI different from traditional copyright issues? <span class="accordion-chevron">&#9650;</span>
+      </div>
+      <div class="accordion-body">
+        Traditional copyright law was designed for human creators copying discrete works. LLMs ingest billions of documents simultaneously during training &mdash; there is no human "copy-paste." Reproduction emerges probabilistically from weights, not from stored copies. Courts must decide: does training constitute copying? Does output generation constitute infringement? These questions have no clear legal precedent.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== S2: LANDSCAPE ====== -->
+<section class="section" id="s-landscape">
+  <div class="section-tag" style="color:#0ea5e9">Research Landscape &middot; 286 Papers, 2020–2025</div>
+  <h1 class="section-title">How Research Has Evolved</h1>
+  <p class="section-sub">From a handful of theoretical MIA papers in 2020 to a multi-disciplinary field combining cryptography, ML theory, and legal scholarship. See how focus areas shifted over time as the problem moved from academic curiosity to industry imperative.</p>
+
+  <div class="btn-row">
+    <button class="btn-tab active" onclick="setLandscapeView('stacked',this)">Stacked by Focus</button>
+    <button class="btn-tab" onclick="setLandscapeView('total',this)">Total Count</button>
+  </div>
+
+  <canvas id="canvas-landscape" width="700" height="320" style="margin-bottom:16px;"></canvas>
+
+  <div class="info-panel" id="landscape-info">
+    <strong>Hover over a bar</strong> to see paper counts by focus area for that year. Detection-focused papers (violet) led early work; mitigation and hybrid approaches grew significantly from 2022 onward.
+  </div>
+
+  <div class="grid4" style="margin-top:20px;">
+    <div class="card" style="border-color:rgba(124,58,237,.4)">
+      <div class="card-title" style="color:#a78bfa">Detection</div>
+      <div class="card-body">MIA, memorization probing, watermarking, dataset inference. Asks: <em>was this data in training?</em></div>
+    </div>
+    <div class="card" style="border-color:rgba(16,185,129,.4)">
+      <div class="card-title" style="color:#34d399">Mitigation</div>
+      <div class="card-body">Unlearning, DP, data filtering, model fusion. Asks: <em>how do we make models forget?</em></div>
+    </div>
+    <div class="card" style="border-color:rgba(249,115,22,.4)">
+      <div class="card-title" style="color:#fb923c">Both</div>
+      <div class="card-body">Hybrid papers combining detection mechanisms with mitigation pipelines end-to-end.</div>
+    </div>
+    <div class="card" style="border-color:rgba(245,158,11,.4)">
+      <div class="card-title" style="color:#fbbf24">Survey</div>
+      <div class="card-body">Systematic reviews, benchmarks, and position papers shaping the research agenda.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== S3: DETECTION ====== -->
+<section class="section" id="s-detection">
+  <div class="section-tag" style="color:#7c3aed">Detection Methods</div>
+  <h1 class="section-title">Four Paradigms for Finding What Models Remember</h1>
+  <p class="section-sub">Detection research has converged on four distinct paradigms, each with different assumptions about attacker access (black-box vs white-box), target scale, and legal alignment. Compare them across key evaluation axes.</p>
+
+  <div class="btn-row" id="detect-tab-row">
+    <button class="btn-tab active" onclick="setDetectTab('MIA',this)">Membership Inference</button>
+    <button class="btn-tab" onclick="setDetectTab('Memorization',this)">Memorization Detection</button>
+    <button class="btn-tab" onclick="setDetectTab('Watermarking',this)">Watermarking</button>
+    <button class="btn-tab" onclick="setDetectTab('Dataset',this)">Dataset Inference</button>
+  </div>
+
+  <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;">
+    <canvas id="canvas-radar" width="440" height="400"></canvas>
+    <div style="flex:1;min-width:240px;">
+      <div class="info-panel" id="detect-info">
+        <strong>Membership Inference Attacks (MIA)</strong><br><br>
+        Probe model output probabilities to determine if a specific text was in the training set. Approaches include LOSS attack (threshold on perplexity), zlib compression ratio, MIN-K% (focus on low-probability tokens), and neighbourhood comparison.<br><br>
+        <span class="badge badge-detect">Black-box Friendly</span>
+        <span class="badge badge-sky">High Scalability</span>
+      </div>
+      <div style="margin-top:16px;">
+        <div class="slider-row">
+          <span class="slider-lbl">Accuracy</span>
+          <input type="range" min="0" max="100" value="65" id="sl-acc" oninput="updateRadar()">
+          <span class="slider-val" id="sv-acc">65</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-lbl">Black-box Friendly</span>
+          <input type="range" min="0" max="100" value="85" id="sl-bb" oninput="updateRadar()">
+          <span class="slider-val" id="sv-bb">85</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-lbl">Scalability</span>
+          <input type="range" min="0" max="100" value="80" id="sl-sc" oninput="updateRadar()">
+          <span class="slider-val" id="sv-sc">80</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-lbl">Legal Alignment</span>
+          <input type="range" min="0" max="100" value="55" id="sl-la" oninput="updateRadar()">
+          <span class="slider-val" id="sv-la">55</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-lbl">Data Efficiency</span>
+          <input type="range" min="0" max="100" value="70" id="sl-de" oninput="updateRadar()">
+          <span class="slider-val" id="sv-de">70</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="highlight-box violet" style="margin-top:20px;">
+    <strong>Key finding from MIN-K% (2023):</strong> Focusing on the k% of tokens with <em>lowest</em> probability under the model is more reliable than average perplexity for detecting non-member text &mdash; because models are surprisingly confident on all tokens for memorised passages.
+  </div>
+
+  <div class="grid2" style="margin-top:20px;">
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        Why do MIAs struggle at scale? <span class="accordion-chevron">&#9650;</span>
+      </div>
+      <div class="accordion-body">
+        MIAs assume a clear signal difference between seen and unseen data. But modern LLMs are trained on near-deduplicated corpora &mdash; unique documents have high perplexity regardless of membership. The signal is weak and false positive rates are high (AUC near 0.6 for many attacks). Newer approaches (Min-K++, neighbourhood comparison) improve this but remain far from forensic-quality evidence.
+      </div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        What are the legal requirements for detection evidence? <span class="accordion-chevron">&#9650;</span>
+      </div>
+      <div class="accordion-body">
+        Courts require near-certain attribution, not probabilistic inference. Current MIA methods produce AUC scores that would be inadmissible in most jurisdictions as standalone proof. The research community is working toward "certified membership" methods that provide provable statistical guarantees &mdash; analogous to differential privacy but for detection rather than protection.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== S4: MITIGATION ====== -->
+<section class="section" id="s-mitigation">
+  <div class="section-tag" style="color:#10b981">Mitigation Strategies</div>
+  <h1 class="section-title">Five Ways to Make Models Forget</h1>
+  <p class="section-sub">Mitigation research seeks the elusive goal: remove or suppress memorised copyrighted content without degrading model performance on legitimate tasks. The fundamental tension is the utility-forgetting tradeoff &mdash; effective forgetting is expensive.</p>
+
+  <div class="btn-row" id="mitig-btn-row">
+    <button class="btn-tab active" onclick="setMitigView('effectiveness',this)">Effectiveness vs Utility</button>
+    <button class="btn-tab" onclick="setMitigView('cost',this)">Cost vs Scalability</button>
+  </div>
+
+  <canvas id="canvas-mitigation" width="700" height="380" style="margin-bottom:16px;"></canvas>
+
+  <div class="info-panel" id="mitigation-info">
+    <strong>Bubble chart:</strong> Each bubble is a mitigation strategy. X-axis = effectiveness at removing copyrighted content. Y-axis = utility preservation (how much model capability is retained). Bubble size = volume of research papers. <strong>Click a bubble</strong> to learn more.
+  </div>
+
+  <div class="highlight-box green" style="margin-top:16px;">
+    <strong>The utility-forgetting tradeoff:</strong> Machine unlearning achieves high copyright removal but degrades perplexity on general tasks. Differential privacy preserves utility but requires retraining from scratch &mdash; prohibitively expensive for 70B+ models. Inference-time methods are cheapest but only suppress, not remove.
+  </div>
+
+  <div class="grid3" style="margin-top:20px;">
+    <div class="card">
+      <div class="card-title" style="color:#10b981">Machine Unlearning</div>
+      <div class="card-body">Fine-tune model to "forget" target data using gradient ascent, SCRUB, or exact unlearning via influence functions. Most papers in this category (72+ papers). High forgetting, moderate utility loss.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#0ea5e9">Differential Privacy</div>
+      <div class="card-body">Train with DP-SGD (ε-bounded noise injection). Provides formal guarantee that any single training example has bounded influence. Requires full retraining &mdash; not viable post-deployment.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#f97316">Data Filtering</div>
+      <div class="card-body">Remove copyrighted documents before or during training using deduplication, MinHash, or copyright-aware filtering pipelines. Most practical but misses paraphrased memorisation.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== S5: PAPER EXPLORER ====== -->
+<section class="section" id="s-papers">
+  <div class="section-tag" style="color:#f97316">Paper Explorer &middot; Top Papers by Relevance</div>
+  <h1 class="section-title">The Research That Matters Most</h1>
+  <p class="section-sub">From 286 papers, these 12 were rated highest by focus area relevance and technical contribution. Click any card to expand the abstract and findings.</p>
+
+  <div class="explorer-filters">
+    <button class="btn-tab active" onclick="filterPapers('all',this)">All</button>
+    <button class="btn-tab" onclick="filterPapers('Detection',this)">Detection</button>
+    <button class="btn-tab" onclick="filterPapers('Mitigation',this)">Mitigation</button>
+    <button class="btn-tab" onclick="filterPapers('Both',this)">Both</button>
+    <button class="btn-tab" onclick="filterPapers('Survey',this)">Survey</button>
+  </div>
+
+  <div class="paper-grid" id="paper-grid"></div>
+</section>
+
+<!-- ====== S6: TIMELINE ====== -->
+<section class="section" id="s-timeline">
+  <div class="section-tag" style="color:#ef4444">The Arms Race · 2020–2025</div>
+  <h1 class="section-title">Detection vs Mitigation: A Timeline</h1>
+  <p class="section-sub">Each major detection breakthrough prompted a mitigation response, and vice versa. This is not a linear progression but an adversarial game &mdash; researchers on both sides are simultaneously advancing the state of the art.</p>
+
+  <canvas id="canvas-timeline" width="700" height="380" style="margin-bottom:16px;"></canvas>
+
+  <div class="info-panel" id="timeline-info">
+    <strong>Click any milestone</strong> on the timeline to see details. Detection papers appear above the axis (violet), mitigation papers below (green).
+  </div>
+
+  <div class="highlight-box red" style="margin-top:16px;">
+    <strong>The adversarial dynamic:</strong> When MIN-K% (2023) showed that LLMs systematically memorise copyrighted text, the ML community responded with 3x more unlearning papers in 2024. Every new detection tool exposes a liability; every mitigation creates a new attack surface.
+  </div>
+
+  <div class="grid2" style="margin-top:20px;">
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        What triggered the 2023 research surge? <span class="accordion-chevron">&#9650;</span>
+      </div>
+      <div class="accordion-body">
+        Three events converged in 2023: (1) ChatGPT's public release proved scale of memorisation to non-technical audiences; (2) The New York Times and other publishers filed lawsuits; (3) The EU AI Act's transparency requirements around training data became law. This turned an academic problem into an industry emergency.
+      </div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        Is watermarking a detection or mitigation strategy? <span class="accordion-chevron">&#9650;</span>
+      </div>
+      <div class="accordion-body">
+        Both. Proactive watermarking embeds invisible signatures into training data so that if a model reproduces them, ownership is provable (detection). Reactive watermarking modifies model outputs to carry ownership signals (also detection). Neither prevents memorisation &mdash; they only provide forensic evidence after the fact. True mitigation must change what the model has learned.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== S7: OPEN PROBLEMS ====== -->
+<section class="section" id="s-gaps">
+  <div class="section-tag" style="color:#6366f1">Open Problems &middot; The Unsolved Frontier</div>
+  <h1 class="section-title">Five Gaps the Field Has Not Closed</h1>
+  <p class="section-sub">Despite 286 papers and five years of intensive research, five fundamental problems remain unsolved. These represent the most productive areas for future work.</p>
+
+  <div class="phase-btn-row" id="gap-btn-row">
+    <button class="phase-btn active" onclick="setGap(0,this)">Evaluation</button>
+    <button class="phase-btn" onclick="setGap(1,this)">Scalability</button>
+    <button class="phase-btn" onclick="setGap(2,this)">Legal</button>
+    <button class="phase-btn" onclick="setGap(3,this)">Robustness</button>
+    <button class="phase-btn" onclick="setGap(4,this)">Multimodal</button>
+  </div>
+
+  <canvas id="canvas-gaps" width="700" height="120" style="margin-bottom:16px;"></canvas>
+
+  <div class="info-panel" id="gap-info">
+    <strong>Gap 1: Evaluation Standardisation</strong><br><br>
+    There is no agreed benchmark for measuring copyright detection accuracy. Papers use different datasets (Books3, Common Crawl subsets, synthetic corpora), different metrics (AUC, TPR@FPR, exact-match rate), and different threat models. A result of "85% detection accuracy" in one paper may be incomparable to "72% AUC" in another.<br><br>
+    <strong>Why it matters:</strong> Without standardisation, practitioners cannot choose between methods, and legal arguments built on research results are vulnerable to challenge.<br><br>
+    <span class="badge badge-detect">49 papers cite this gap</span>
+  </div>
+
+  <div class="grid3" style="margin-top:20px;">
+    <div class="card">
+      <div class="card-title" style="color:#6366f1">Open Source</div>
+      <div class="card-body">The best detection tools (MIN-K%, MemHunter) are available as open-source libraries. Standardised APIs are emerging for plug-in compliance testing.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#6366f1">Reproducibility</div>
+      <div class="card-body">~60% of top papers provide code. The gap: most evaluations require access to original training data, which proprietary model builders won't share.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#6366f1">Extensibility</div>
+      <div class="card-body">Frameworks like MIMIR and CopyrightShield are designed for easy extension to new model architectures and new copyright jurisdictions.</div>
+    </div>
+  </div>
+
+  <!-- RELATED POSTS -->
+  <div class="related-strip">
+    <div class="related-strip-label">Continue Learning</div>
+    <div class="related-strip-grid">
+      <a class="rc" href="../07-llm-wiki/" style="border-color:rgba(245,158,11,.4)">
+        <div class="rc-type" style="color:#f59e0b">&#9650; Prerequisite</div>
+        <div class="rc-num">Post 07</div>
+        <div class="rc-title">LLM Knowledge Management</div>
+        <div class="rc-why">How LLMs store and retrieve knowledge &mdash; foundation for understanding memorisation and unlearning.</div>
+      </a>
+      <a class="rc" href="../05-sampling-techniques/" style="border-color:rgba(245,158,11,.4)">
+        <div class="rc-type" style="color:#f59e0b">&#9650; Prerequisite</div>
+        <div class="rc-num">Post 05</div>
+        <div class="rc-title">Sampling Techniques</div>
+        <div class="rc-why">Temperature, top-p, and how decoding strategies affect verbatim reproduction of training data.</div>
+      </a>
+      <a class="rc" href="../28-eu-ai-act/" style="border-color:rgba(124,58,237,.4)">
+        <div class="rc-type" style="color:#a78bfa">&#9670; Related</div>
+        <div class="rc-num">Post 28</div>
+        <div class="rc-title">EU AI Act</div>
+        <div class="rc-why">The legal framework mandating training data transparency &mdash; the compliance context for this entire research field.</div>
+      </a>
+      <a class="rc" href="../29-llm-verifier/" style="border-color:rgba(124,58,237,.4)">
+        <div class="rc-type" style="color:#a78bfa">&#9670; Related</div>
+        <div class="rc-num">Post 29</div>
+        <div class="rc-title">LLM-as-a-Verifier</div>
+        <div class="rc-why">Logprob-based scoring methods that underpin membership inference attacks.</div>
+      </a>
+    </div>
+    <a class="map-link-btn" href="../learning-map/">&#128506; See Post 31 in the Learning Map &rarr;</a>
+  </div>
+</section>
+
+</div><!-- end .main -->
+
+<script>
+// ── PASSWORD GATE ─────────────────────────────────────────────────────────────
+function pgCheck(){
+  var v=document.getElementById('pg-input').value.trim();
+  if(v==='visual2025'){
+    localStorage.setItem('pg_unlocked_31','1');
+    document.getElementById('pg-gate').style.display='none';
+    doInit();
+  } else {
+    document.getElementById('pg-err').textContent='Incorrect password. Try again.';
+  }
+}
+document.getElementById('pg-input').addEventListener('keydown',function(e){if(e.key==='Enter')pgCheck();});
+if(localStorage.getItem('pg_unlocked_31')==='1'){
+  document.getElementById('pg-gate').style.display='none';
+  window.addEventListener('load',doInit);
+}
+
+// ── SCROLL PROGRESS ───────────────────────────────────────────────────────────
+var mainEl = document.getElementById('main-scroll');
+mainEl.addEventListener('scroll', function(){
+  var s = mainEl;
+  var pct = s.scrollTop / (s.scrollHeight - s.clientHeight) * 100;
+  document.getElementById('scroll-progress').style.width = pct + '%';
+  updateScrollspy();
+});
+
+// ── SCROLLSPY ─────────────────────────────────────────────────────────────────
+var SECS = ['s-overview','s-landscape','s-detection','s-mitigation','s-papers','s-timeline','s-gaps'];
+function updateScrollspy(){
+  var st = mainEl.scrollTop + 120;
+  var active = SECS[0];
+  for(var i=0;i<SECS.length;i++){
+    var el = document.getElementById(SECS[i]);
+    if(el && el.offsetTop <= st) active = SECS[i];
+  }
+  document.querySelectorAll('.nav-link').forEach(function(l){
+    l.classList.toggle('active', l.dataset.sec === active);
+  });
+}
+function setActive(el, sec){
+  document.querySelectorAll('.nav-link').forEach(function(l){l.classList.remove('active');});
+  el.classList.add('active');
+  scrollTo(sec);
+}
+function scrollTo(sec){
+  var el = document.getElementById(sec);
+  if(el) mainEl.scrollTo({top: el.offsetTop - 50, behavior:'smooth'});
+}
+
+// ── ACCORDION ─────────────────────────────────────────────────────────────────
+function toggleAccordion(hdr){
+  var body = hdr.nextElementSibling;
+  var chevron = hdr.querySelector('.accordion-chevron');
+  var isOpen = body.style.display === 'block';
+  body.style.display = isOpen ? 'none' : 'block';
+  chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+}
+
+// ── UTILITIES ─────────────────────────────────────────────────────────────────
+function lerp(a,b,t){return a+(b-a)*t;}
+function easeOut(t){return 1-(1-t)*(1-t);}
+function hexToRgba(hex, a){
+  var r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return 'rgba('+r+','+g+','+b+','+a+')';
+}
+
+// ── DATA ──────────────────────────────────────────────────────────────────────
+var LANDSCAPE_DATA = {
+  years: [2020, 2021, 2022, 2023, 2024, 2025],
+  detect:  [12, 18, 28, 54, 61, 22],
+  mitigate:[3,  6,  14, 28, 38, 14],
+  both:    [2,  4,  8,  18, 22, 8],
+  survey:  [1,  2,  4,  8,  12, 5]
+};
+
+var DETECT_DATA = {
+  MIA:         {acc:65, bb:85, sc:80, la:55, de:70,
+    info:'<strong>Membership Inference Attacks (MIA)</strong><br><br>Probe model output probabilities to determine if a specific text was in the training set. Key approaches: LOSS attack (threshold on perplexity), zlib compression ratio, MIN-K% (focus on low-probability tokens), neighbourhood comparison.<br><br><span class="badge badge-detect">Black-box Friendly</span><span class="badge badge-sky">High Scalability</span>'},
+  Memorization:{acc:82, bb:55, sc:60, la:78, de:65,
+    info:'<strong>Memorization Detection</strong><br><br>Directly probe the model to extract memorised sequences using greedy decoding from prompts drawn from the target document. Carlini et al. (2021) extracted 100+ verbatim passages from GPT-2. MemHunter extends this to RLHF-tuned models.<br><br><span class="badge badge-detect">High Accuracy</span><span class="badge badge-amber">White-box Required</span>'},
+  Watermarking: {acc:90, bb:70, la:88, sc:45, de:40,
+    info:'<strong>Watermarking</strong><br><br>Embed invisible statistical signatures into training data or model outputs. If reproduced, ownership is provable. RegionMarker (2024) achieves near-zero false positive rate for book passages. Data Watermarks (2023) use n-gram modifications invisible to humans.<br><br><span class="badge badge-detect">High Accuracy</span><span class="badge badge-mitigate">Legally Strong</span>'},
+  Dataset:      {acc:75, bb:75, sc:70, la:82, de:55,
+    info:'<strong>Dataset Inference</strong><br><br>Rather than inferring individual sample membership, test if a model was trained on an <em>entire dataset</em>. Uses statistical hypothesis testing across many samples. ISACL (2024) achieves dataset-level attribution with p<0.01 confidence.<br><br><span class="badge badge-detect">Dataset-level</span><span class="badge badge-sky">Scalable</span>'}
+};
+
+var MITIG_DATA = [
+  {name:'Machine\nUnlearning',  x:72, y:58, r:32, color:'#10b981',
+   info:'<strong>Machine Unlearning</strong><br><br>Fine-tune model using gradient ascent on target data (opposite of normal training) to erase memorisation. SCRUB (2023) and MeMIT achieve state-of-the-art forgetting but require access to original training data and reduce perplexity by 8-15% on general tasks. 72+ papers make this the most-studied approach.'},
+  {name:'Differential\nPrivacy', x:40, y:88, r:22, color:'#0ea5e9',
+   info:'<strong>Differential Privacy</strong><br><br>Train with DP-SGD: add calibrated Gaussian noise to gradients to guarantee any single document has ε-bounded influence on outputs. Provides formal mathematical guarantee but requires full retraining from scratch — prohibitively expensive for models >7B parameters. Best for new model training, not post-hoc fixes.'},
+  {name:'Data\nFiltering',      x:55, y:72, r:26, color:'#f97316',
+   info:'<strong>Data Filtering</strong><br><br>Remove copyrighted documents before training using MinHash deduplication, copyright database matching, or perplexity-based quality filters. Most practical but misses paraphrased memorisation and near-duplicates. Tools: C4 cleaning pipeline, ROOTS deduplication, The Pile decontamination.'},
+  {name:'Model\nFusion',        x:60, y:80, r:18, color:'#7c3aed',
+   info:'<strong>Model Fusion / Merging</strong><br><br>Blend model weights with a "safety-tuned" version trained on copyright-free data. TIES-Merging and DARE (Drop And REscale) can surgically reduce memorisation in specific weight subspaces without full retraining. Emerging technique with promising utility-forgetting tradeoffs.'},
+  {name:'Inference-\ntime',     x:35, y:92, r:14, color:'#ef4444',
+   info:'<strong>Inference-time Suppression</strong><br><br>At generation time, detect and block verbatim reproduction using n-gram overlap filters or canary-token detection. ModelShield (2024) and CopyrightShield implement API-level filtering. Does NOT remove memorisation from weights — the model still knows the text, it just cannot output it. Cheapest but weakest guarantee.'}
+];
+
+var TIMELINE_EVENTS = [
+  {year:2020, side:'detect',   x:60,  label:'MIA for\nLLMs (Shokri)', info:'Shokri et al. adapt membership inference attacks from image models to language models. Baseline AUC 0.68 on GPT-2 — first proof that LLMs leak training data membership.'},
+  {year:2021, side:'mitigate', x:148, label:'DP-SGD\nfor LLMs',       info:'Anil et al. apply differential privacy training to large language models. Cost: perplexity increases 15%, training time doubles. First formal privacy guarantee for LLM pretraining.'},
+  {year:2021, side:'detect',   x:148, label:'Carlini\nExtraction',     info:'Carlini et al. directly extract 100+ verbatim passages from GPT-2 using targeted prompting. First demonstration that LLMs can reproduce copyrighted text on demand.'},
+  {year:2022, side:'mitigate', x:242, label:'SISA\nUnlearning',        info:'Bourtoule et al. propose SISA training: shard training data so unlearning requires retraining only a fraction of the model. First scalable unlearning framework.'},
+  {year:2022, side:'detect',   x:242, label:'Min-K%\nProbing',         info:'Shi et al. introduce MIN-K%: focus on the k% of tokens with lowest probability. Outperforms perplexity-based MIA by 12% AUC. Becomes the de-facto baseline.'},
+  {year:2023, side:'detect',   x:340, label:'NYT\nLawsuit',            info:'The New York Times v. OpenAI filed. Times demonstrates GPT-4 reproduces article passages verbatim. Converts academic research problem into active legal dispute.'},
+  {year:2023, side:'mitigate', x:340, label:'SCRUB\nUnlearning',       info:'Kurmanji et al. propose SCRUB: model "remembers" general patterns while "forgetting" specific examples. Best utility-forgetting tradeoff to date. Requires white-box access.'},
+  {year:2023, side:'detect',   x:340, label:'Data\nWatermarks',        info:'Zhao et al. introduce dataset watermarking: modify training data with invisible n-gram substitutions. If model reproduces them, provable evidence of training data membership.'},
+  {year:2024, side:'detect',   x:436, label:'MemHunter\n(RLHF)',       info:'MemHunter extends extraction attacks to RLHF-tuned models. Shows that instruction tuning and RLHF do NOT remove memorisation — they may amplify it for high-value content.'},
+  {year:2024, side:'mitigate', x:436, label:'Model\nFusion',           info:'TIES-Merging and DARE demonstrate surgical weight editing to reduce copyright-specific memorisation. Opens new direction: targeted weight-space interventions without full retraining.'},
+  {year:2024, side:'detect',   x:436, label:'RegionMarker',            info:'RegionMarker (2024): watermark specific regions of copyright-protected content (chapter openings, key passages). Near-zero false positive rate for attribution. Used by several publishers in ongoing litigation.'},
+  {year:2025, side:'detect',   x:530, label:'ISACL\nAttribution',      info:'ISACL achieves dataset-level copyright attribution with statistical confidence p<0.01. Can prove a model was trained on an entire book collection without sample-level access.'},
+  {year:2025, side:'mitigate', x:530, label:'ModelShield\nAPI',        info:'ModelShield deploys inference-time copyright protection as a managed API service. First production-grade copyright compliance layer for LLM providers.'}
+];
+
+var GAP_DATA = [
+  {label:'Evaluation',   color:'#6366f1',
+   info:'<strong>Gap 1: Evaluation Standardisation</strong><br><br>No agreed benchmark for measuring copyright detection accuracy. Papers use different datasets, metrics, and threat models. A "85% detection accuracy" result in one paper may be incomparable to "72% AUC" in another.<br><br><strong>Why it matters:</strong> Without standardisation, practitioners cannot choose between methods.<br><br><span class="badge badge-detect">49 papers cite this gap</span>'},
+  {label:'Scalability',  color:'#7c3aed',
+   info:'<strong>Gap 2: Scalability to Frontier Models</strong><br><br>Most unlearning experiments run on models under 7B parameters. GPT-4/Claude-scale models (>100B parameters) have never had successful unlearning demonstrated. The compute cost of retraining renders most approaches impractical.<br><br><strong>Why it matters:</strong> The models with the most copyright exposure are the ones we cannot fix.<br><br><span class="badge badge-detect">38 papers cite this gap</span>'},
+  {label:'Legal',        color:'#ef4444',
+   info:'<strong>Gap 3: Legal-Technical Alignment</strong><br><br>Detection methods produce statistical evidence (AUC scores), not legal proof. Courts require near-certain attribution. The gap between "85% AUC" and "beyond reasonable doubt" has not been closed by any existing method.<br><br><strong>Why it matters:</strong> Research results cannot yet directly inform litigation outcomes.<br><br><span class="badge badge-detect">31 papers cite this gap</span>'},
+  {label:'Robustness',   color:'#f97316',
+   info:'<strong>Gap 4: Adversarial Robustness</strong><br><br>All current detection methods fail against paraphrasing, summarisation, and style transfer. A model reproducing paraphrased copyrighted content is legally equivalent to verbatim reproduction in most jurisdictions, but technically undetectable.<br><br><strong>Why it matters:</strong> Mitigation incentivises paraphrase rather than true forgetting.<br><br><span class="badge badge-detect">27 papers cite this gap</span>'},
+  {label:'Multimodal',   color:'#0ea5e9',
+   info:'<strong>Gap 5: Multimodal Copyright</strong><br><br>Virtually all 286 papers study text. But modern LLMs are multimodal &mdash; images, audio, video, and code have their own copyright regimes. MIA and unlearning methods for text do not transfer to vision transformers or code generation models.<br><br><strong>Why it matters:</strong> Copyright disputes for image generation (Stability AI cases) are already in court with no technical solution.<br><br><span class="badge badge-detect">22 papers cite this gap</span>'}
+];
+
+var PAPERS = [
+  {title:'Quantifying Memorization Across Neural Language Models',         year:2022, score:89, focus:'Detection',
+   abstract:'Carlini et al. define and quantify memorization in LLMs using an extractability metric. Shows 1 in 10 training documents can be extracted from GPT-3-scale models. Larger models memorise more: memorisation scales with log(model size). Key baseline for the entire field.',
+   badges:['badge-detect']},
+  {title:'ModelShield: Scalable API-Level Copyright Protection',            year:2024, score:86, focus:'Detection',
+   abstract:'Inference-time copyright protection deployed as a managed API proxy. Uses streaming n-gram matching against a copyright index with <2ms latency overhead. Blocks verbatim reproduction without model retraining. Deployed by 3 major LLM providers in 2024.',
+   badges:['badge-detect','badge-mitigate']},
+  {title:'Unlearning Copyrighted Content from LLMs via Gradient Ascent',   year:2023, score:78, focus:'Mitigation',
+   abstract:'First comprehensive study of gradient ascent unlearning for copyright removal. Identifies three failure modes: catastrophic forgetting, relearning from adjacent passages, and knowledge entanglement. Proposes regularized unlearning objective that preserves 92% of general capability while removing 78% of target memorisation.',
+   badges:['badge-mitigate']},
+  {title:'RegionMarker: Provable Attribution via Structured Watermarking',  year:2024, score:75, focus:'Detection',
+   abstract:'Embeds invisible statistical watermarks into specific regions of copyright-protected content (chapter openings, character names). Near-zero false positive rate (0.003%) at 95% true positive rate. Used in ongoing litigation by three major publishers. Extends to code, mathematical derivations.',
+   badges:['badge-detect','badge-both']},
+  {title:'ISACL: Dataset-Level Attribution with Statistical Confidence',    year:2025, score:72, focus:'Both',
+   abstract:'Achieves copyright attribution at the dataset level (did this model train on this collection?) rather than individual samples. Statistical hypothesis testing framework achieves p<0.01 confidence with 100-sample probing sets. Does not require white-box access to the model.',
+   badges:['badge-both']},
+  {title:'MIA-Tuner: Amplifying Membership Signals via Prompt Optimization', year:2024, score:72, focus:'Detection',
+   abstract:'Automatically optimises prompts to maximally distinguish member from non-member text in LLMs. Achieves 18% AUC improvement over baseline MIN-K% attacks. Applicable to black-box API access. Shows that RLHF-tuned models retain membership signal despite alignment training.',
+   badges:['badge-detect']},
+  {title:'A Survey of Machine Unlearning Methods for Large Language Models', year:2024, score:72, focus:'Survey',
+   abstract:'Systematic review of 86 unlearning papers. Taxonomises methods into exact unlearning (retraining), approximate unlearning (gradient-based), and amnesiac unlearning (memorisation suppression). Identifies the "goldfish loss" problem: unlearning one passage may increase memorisation of nearby text.',
+   badges:['badge-survey']},
+  {title:'Data Watermarks for Copyright Attribution in Neural Networks',    year:2023, score:71, focus:'Detection',
+   abstract:'Proposes dataset watermarking via invisible n-gram substitutions in training data. If a model trained on watermarked data reproduces the substitutions, provable training data membership follows. Survives paraphrasing with 74% recall. First method admissible as forensic evidence in EU data courts.',
+   badges:['badge-detect']},
+  {title:'Min-K++ Improved Membership Inference for Language Models',       year:2024, score:71, focus:'Detection',
+   abstract:'Improves on MIN-K% by normalising against a reference language model. Reduces false positive rate from 12% to 4% at 80% true positive rate. Works on deduplicated corpora where original MIN-K% fails. Open-source implementation in MIMIR benchmark.',
+   badges:['badge-detect']},
+  {title:'MemHunter: Extracting Memorised Content from RLHF Models',       year:2024, score:66, focus:'Detection',
+   abstract:'Extends direct extraction attacks to instruction-tuned and RLHF-aligned models. Finds that RLHF does not remove memorisation but displaces it: content that cannot be extracted via direct prompting is retrievable via jailbreak-adjacent prompts. Tested on Llama-2, Mistral, GPT-4.',
+   badges:['badge-detect']},
+  {title:'Adversarial Compression Attacks on Copyright Detection',          year:2024, score:66, focus:'Detection',
+   abstract:'Shows that paraphrase models and summarisers can evade all current n-gram-based copyright detection while preserving creative expression. Argues that legal copyright tests (substantial similarity) require semantic rather than syntactic detection. Proposes embedding-space copyright distance metric.',
+   badges:['badge-detect']},
+  {title:'On the Impossibility of Exact Unlearning in Neural Networks',     year:2023, score:66, focus:'Mitigation',
+   abstract:'Theoretical paper proving that for overparameterised neural networks, exact unlearning (making model output identical to never-having-seen the data) is computationally equivalent to full retraining. Establishes fundamental limits on approximate unlearning and DP-SGD post-hoc application.',
+   badges:['badge-mitigate']}
+];
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+var landscapeView = 'stacked';
+var detectTab = 'MIA';
+var mitigView = 'effectiveness';
+var currentGap = 0;
+var activeTimeline = -1;
+var radarCustom = null;
+var animFrame = null;
+
+// ── S1 OVERVIEW CANVAS ────────────────────────────────────────────────────────
+var overviewT = 0;
+function drawOverview(){
+  var cv = document.getElementById('canvas-overview');
+  if(!cv) return;
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  ctx.clearRect(0,0,W,H);
+
+  overviewT = (overviewT + 0.015) % (Math.PI * 2);
+
+  var panels = [
+    {x:60,  label:'Training\nCorpus', color:'#0ea5e9', icon:'&#128218;'},
+    {x:290, label:'LLM\nTraining',    color:'#f59e0b', icon:'&#9881;'},
+    {x:520, label:'Generation\n& Risk', color:'#ef4444', icon:'&#9888;'}
+  ];
+
+  // draw arrows between panels
+  ctx.strokeStyle = '#30363d';
+  ctx.lineWidth = 2;
+  [160, 390].forEach(function(ax){
+    ctx.beginPath();
+    ctx.moveTo(ax, H/2);
+    ctx.lineTo(ax + 90, H/2);
+    ctx.stroke();
+    // arrowhead
+    ctx.beginPath();
+    ctx.moveTo(ax+90, H/2-6);
+    ctx.lineTo(ax+90+10, H/2);
+    ctx.lineTo(ax+90, H/2+6);
+    ctx.fillStyle='#30363d';
+    ctx.fill();
+  });
+
+  // animated particle along first arrow
+  var p1x = 165 + (90 * ((overviewT / (Math.PI*2) * 3) % 1));
+  var p2x = 395 + (90 * ((overviewT / (Math.PI*2) * 3 + 0.33) % 1));
+  [p1x, p2x].forEach(function(px){
+    ctx.beginPath();
+    ctx.arc(px, H/2, 4, 0, Math.PI*2);
+    ctx.fillStyle = '#f59e0b';
+    ctx.fill();
+  });
+
+  panels.forEach(function(p, i){
+    var glow = (i===2) ? (0.5 + 0.5*Math.sin(overviewT*2)) * 0.3 : 0;
+    // panel bg
+    var grd = ctx.createRadialGradient(p.x+60, H/2, 10, p.x+60, H/2, 80);
+    grd.addColorStop(0, hexToRgba(p.color, 0.12 + glow));
+    grd.addColorStop(1, 'rgba(22,27,34,0)');
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.roundRect(p.x, 20, 120, H-40, 10);
+    ctx.fill();
+
+    // border
+    ctx.strokeStyle = hexToRgba(p.color, 0.5 + glow);
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // label
+    ctx.fillStyle = p.color;
+    ctx.font = '700 12px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    var lines = p.label.split('\n');
+    lines.forEach(function(line, li){
+      ctx.fillText(line, p.x+60, H/2 - 10 + li*18);
+    });
+
+    // sub items
+    var items = i===0 ? ['Books','Articles','Code'] : i===1 ? ['Weights','Gradients','Loss'] : ['Output','Verbatim','Legal?'];
+    ctx.fillStyle = '#8b949e';
+    ctx.font = '10px Inter, sans-serif';
+    items.forEach(function(it, ii){
+      ctx.fillText(it, p.x+60, H/2 + 30 + ii*16);
+    });
+  });
+}
+
+// ── S2 LANDSCAPE CANVAS ───────────────────────────────────────────────────────
+function drawLandscape(){
+  var cv = document.getElementById('canvas-landscape');
+  if(!cv) return;
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  ctx.clearRect(0,0,W,H);
+
+  var D = LANDSCAPE_DATA;
+  var years = D.years;
+  var n = years.length;
+  var pad = {l:50, r:20, t:20, b:40};
+  var bw = (W - pad.l - pad.r) / n;
+  var colors = ['#7c3aed','#10b981','#f97316','#f59e0b'];
+  var keys = ['detect','mitigate','both','survey'];
+  var labels = ['Detection','Mitigation','Both','Survey'];
+
+  // max
+  var maxVal = 0;
+  for(var i=0;i<n;i++){
+    var tot = D.detect[i]+D.mitigate[i]+D.both[i]+D.survey[i];
+    if(tot>maxVal) maxVal=tot;
+  }
+  maxVal = Math.ceil(maxVal/20)*20;
+
+  var chartH = H - pad.t - pad.b;
+  var chartW = W - pad.l - pad.r;
+
+  // axes
+  ctx.strokeStyle = '#30363d'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, H-pad.b); ctx.lineTo(W-pad.r, H-pad.b); ctx.stroke();
+
+  // y gridlines
+  ctx.fillStyle = '#8b949e'; ctx.font = '10px Inter,sans-serif'; ctx.textAlign = 'right';
+  for(var v=0; v<=maxVal; v+=20){
+    var y = H - pad.b - (v/maxVal)*chartH;
+    ctx.beginPath(); ctx.strokeStyle='#30363d'; ctx.setLineDash([3,4]);
+    ctx.moveTo(pad.l, y); ctx.lineTo(W-pad.r, y); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillText(v, pad.l-4, y+4);
+  }
+
+  if(landscapeView === 'stacked'){
+    for(var i=0;i<n;i++){
+      var x = pad.l + i*bw + bw*0.1;
+      var bwidth = bw*0.8;
+      var base = H - pad.b;
+      var vals = [D.detect[i], D.mitigate[i], D.both[i], D.survey[i]];
+      for(var k=0;k<4;k++){
+        var bh = (vals[k]/maxVal)*chartH;
+        ctx.fillStyle = colors[k];
+        ctx.fillRect(x, base-bh, bwidth, bh);
+        base -= bh;
+      }
+      // x label
+      ctx.fillStyle='#8b949e'; ctx.font='10px Inter,sans-serif'; ctx.textAlign='center';
+      ctx.fillText(years[i], pad.l + i*bw + bw/2, H-pad.b+16);
+    }
+  } else {
+    // total bars
+    for(var i=0;i<n;i++){
+      var tot = D.detect[i]+D.mitigate[i]+D.both[i]+D.survey[i];
+      var x = pad.l + i*bw + bw*0.15;
+      var bwidth = bw*0.7;
+      var bh = (tot/maxVal)*chartH;
+      var grd = ctx.createLinearGradient(0, H-pad.b-bh, 0, H-pad.b);
+      grd.addColorStop(0,'#f59e0b'); grd.addColorStop(1,'rgba(245,158,11,0.3)');
+      ctx.fillStyle = grd;
+      ctx.fillRect(x, H-pad.b-bh, bwidth, bh);
+      ctx.fillStyle='#fbbf24'; ctx.font='700 11px Inter,sans-serif'; ctx.textAlign='center';
+      ctx.fillText(tot, x+bwidth/2, H-pad.b-bh-5);
+      ctx.fillStyle='#8b949e'; ctx.font='10px Inter,sans-serif';
+      ctx.fillText(years[i], pad.l + i*bw + bw/2, H-pad.b+16);
+    }
+  }
+
+  // legend
+  var lx = pad.l + 10;
+  for(var k=0;k<4;k++){
+    ctx.fillStyle = colors[k];
+    ctx.fillRect(lx, pad.t+2, 10, 10);
+    ctx.fillStyle='#8b949e'; ctx.font='10px Inter,sans-serif'; ctx.textAlign='left';
+    ctx.fillText(labels[k], lx+14, pad.t+11);
+    lx += 80;
+  }
+
+  // hover
+  cv.onmousemove = function(e){
+    var rect = cv.getBoundingClientRect();
+    var mx = (e.clientX - rect.left) * (W / rect.width);
+    var mi = Math.floor((mx - pad.l) / bw);
+    if(mi>=0 && mi<n){
+      var y = D.years[mi];
+      document.getElementById('landscape-info').innerHTML =
+        '<strong>'+y+'</strong> — '+
+        'Detection: <span style="color:#a78bfa">'+D.detect[mi]+'</span> · '+
+        'Mitigation: <span style="color:#34d399">'+D.mitigate[mi]+'</span> · '+
+        'Both: <span style="color:#fb923c">'+D.both[mi]+'</span> · '+
+        'Survey: <span style="color:#fbbf24">'+D.survey[mi]+'</span> · '+
+        'Total: <strong>'+(D.detect[mi]+D.mitigate[mi]+D.both[mi]+D.survey[mi])+'</strong>';
+    }
+  };
+}
+
+function setLandscapeView(v, btn){
+  landscapeView = v;
+  document.querySelectorAll('#s-landscape .btn-tab').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  drawLandscape();
+}
+
+// ── S3 RADAR CHART ─────────────────────────────────────────────────────────────
+var radarAxes = ['Accuracy','Black-box\nFriendly','Scalability','Legal\nAlignment','Data\nEfficiency'];
+function getRadarVals(){
+  return [
+    parseInt(document.getElementById('sl-acc').value),
+    parseInt(document.getElementById('sl-bb').value),
+    parseInt(document.getElementById('sl-sc').value),
+    parseInt(document.getElementById('sl-la').value),
+    parseInt(document.getElementById('sl-de').value)
+  ];
+}
+function drawRadar(){
+  var cv = document.getElementById('canvas-radar');
+  if(!cv) return;
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  ctx.clearRect(0,0,W,H);
+  var cx = W/2, cy = H/2-10, R = 150;
+  var n = radarAxes.length;
+
+  // gridlines
+  for(var g=1;g<=5;g++){
+    var r = R * g/5;
+    ctx.beginPath();
+    ctx.strokeStyle = '#30363d'; ctx.lineWidth = 1;
+    for(var i=0;i<n;i++){
+      var a = (i/n)*Math.PI*2 - Math.PI/2;
+      var px = cx + r*Math.cos(a), py = cy + r*Math.sin(a);
+      i===0 ? ctx.moveTo(px,py) : ctx.lineTo(px,py);
+    }
+    ctx.closePath(); ctx.stroke();
+  }
+
+  // spokes
+  for(var i=0;i<n;i++){
+    var a = (i/n)*Math.PI*2 - Math.PI/2;
+    ctx.beginPath(); ctx.strokeStyle='#30363d'; ctx.lineWidth=1;
+    ctx.moveTo(cx,cy); ctx.lineTo(cx+R*Math.cos(a), cy+R*Math.sin(a)); ctx.stroke();
+
+    // axis labels
+    var lx = cx + (R+28)*Math.cos(a), ly = cy + (R+28)*Math.sin(a);
+    ctx.fillStyle='#8b949e'; ctx.font='10px Inter,sans-serif'; ctx.textAlign='center';
+    var lines = radarAxes[i].split('\n');
+    lines.forEach(function(line, li){ ctx.fillText(line, lx, ly + li*13 - (lines.length-1)*6); });
+  }
+
+  // reference polygon (selected tab)
+  var ref = DETECT_DATA[detectTab];
+  var refVals = [ref.acc, ref.bb, ref.sc, ref.la, ref.de];
+  ctx.beginPath(); ctx.strokeStyle='rgba(124,58,237,0.4)'; ctx.lineWidth=1.5; ctx.setLineDash([4,4]);
+  for(var i=0;i<n;i++){
+    var a=(i/n)*Math.PI*2 - Math.PI/2;
+    var r = (refVals[i]/100)*R;
+    var px = cx+r*Math.cos(a), py = cy+r*Math.sin(a);
+    i===0 ? ctx.moveTo(px,py) : ctx.lineTo(px,py);
+  }
+  ctx.closePath(); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle='rgba(124,58,237,0.06)'; ctx.fill();
+
+  // custom polygon (sliders)
+  var vals = getRadarVals();
+  ctx.beginPath(); ctx.strokeStyle='#f59e0b'; ctx.lineWidth=2.5;
+  for(var i=0;i<n;i++){
+    var a=(i/n)*Math.PI*2 - Math.PI/2;
+    var r=(vals[i]/100)*R;
+    var px=cx+r*Math.cos(a), py=cy+r*Math.sin(a);
+    i===0 ? ctx.moveTo(px,py) : ctx.lineTo(px,py);
+  }
+  ctx.closePath(); ctx.stroke();
+  ctx.fillStyle='rgba(245,158,11,0.12)'; ctx.fill();
+
+  // dots
+  for(var i=0;i<n;i++){
+    var a=(i/n)*Math.PI*2 - Math.PI/2;
+    var r=(vals[i]/100)*R;
+    ctx.beginPath(); ctx.arc(cx+r*Math.cos(a), cy+r*Math.sin(a), 5, 0, Math.PI*2);
+    ctx.fillStyle='#f59e0b'; ctx.fill();
+  }
+}
+
+function updateRadar(){
+  ['acc','bb','sc','la','de'].forEach(function(k){
+    document.getElementById('sv-'+k).textContent = document.getElementById('sl-'+k).value;
+  });
+  drawRadar();
+}
+
+function setDetectTab(tab, btn){
+  detectTab = tab;
+  document.querySelectorAll('#detect-tab-row .btn-tab').forEach(function(b){b.classList.remove('active');});
+  if(btn) btn.classList.add('active');
+  var d = DETECT_DATA[tab];
+  document.getElementById('sl-acc').value = d.acc;
+  document.getElementById('sl-bb').value  = d.bb;
+  document.getElementById('sl-sc').value  = d.sc;
+  document.getElementById('sl-la').value  = d.la;
+  document.getElementById('sl-de').value  = d.de;
+  ['acc','bb','sc','la','de'].forEach(function(k){
+    document.getElementById('sv-'+k).textContent = document.getElementById('sl-'+k).value;
+  });
+  document.getElementById('detect-info').innerHTML = d.info;
+  drawRadar();
+}
+
+// ── S4 MITIGATION BUBBLE CHART ────────────────────────────────────────────────
+var mitigAnim = {progress:0, start:null};
+function drawMitigation(){
+  var cv = document.getElementById('canvas-mitigation');
+  if(!cv) return;
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  ctx.clearRect(0,0,W,H);
+
+  var pad = {l:60, r:30, t:30, b:50};
+  var cW = W - pad.l - pad.r, cH = H - pad.t - pad.b;
+
+  // axes
+  ctx.strokeStyle='#30363d'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, H-pad.b); ctx.lineTo(W-pad.r, H-pad.b); ctx.stroke();
+
+  // axis labels
+  ctx.fillStyle='#8b949e'; ctx.font='10px Inter,sans-serif';
+  ctx.textAlign='center';
+  var xLabel = mitigView==='effectiveness' ? 'Effectiveness (copyright removal %)' : 'Scalability (model size limit)';
+  var yLabel = mitigView==='effectiveness' ? 'Utility Preservation (%)' : 'Cost (inverse: lower = cheaper)';
+  ctx.fillText(xLabel, pad.l + cW/2, H-8);
+  ctx.save(); ctx.translate(14, pad.t+cH/2); ctx.rotate(-Math.PI/2);
+  ctx.fillText(yLabel, 0, 0); ctx.restore();
+
+  // gridlines
+  ctx.setLineDash([3,4]);
+  for(var v=0;v<=100;v+=25){
+    var gx = pad.l + (v/100)*cW;
+    var gy = pad.t + cH - (v/100)*cH;
+    ctx.beginPath(); ctx.strokeStyle='#30363d'; ctx.lineWidth=0.5;
+    ctx.moveTo(gx, pad.t); ctx.lineTo(gx, H-pad.b); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(pad.l, gy); ctx.lineTo(W-pad.r, gy); ctx.stroke();
+    ctx.fillStyle='#555'; ctx.font='9px Inter,sans-serif';
+    ctx.textAlign='center'; ctx.fillText(v, gx, H-pad.b+12);
+    ctx.textAlign='right'; ctx.fillText(v, pad.l-4, gy+4);
+  }
+  ctx.setLineDash([]);
+
+  var t = Math.min(1, mitigAnim.progress);
+  MITIG_DATA.forEach(function(d){
+    var xVal = mitigView==='effectiveness' ? d.x : 100-d.x+20;
+    var yVal = mitigView==='effectiveness' ? d.y : 100-d.r;
+    var cx2 = pad.l + (xVal/100)*cW;
+    var cy2 = pad.t + cH - (yVal/100)*cH;
+    var r = d.r * 0.9 * t;
+
+    // glow
+    var grd = ctx.createRadialGradient(cx2,cy2,0,cx2,cy2,r+10);
+    grd.addColorStop(0, hexToRgba(d.color, 0.25));
+    grd.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grd;
+    ctx.beginPath(); ctx.arc(cx2, cy2, r+10, 0, Math.PI*2); ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(cx2, cy2, r, 0, Math.PI*2);
+    ctx.fillStyle = hexToRgba(d.color, 0.3);
+    ctx.fill();
+    ctx.strokeStyle = d.color; ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // label
+    var lines = d.name.split('\n');
+    ctx.fillStyle = '#c9d1d9'; ctx.font = '700 10px Inter,sans-serif'; ctx.textAlign='center';
+    lines.forEach(function(line, li){
+      ctx.fillText(line, cx2, cy2 + (li-(lines.length-1)/2)*13);
+    });
+
+    d._cx = cx2; d._cy = cy2; d._r = r;
+  });
+
+  if(t < 1){
+    mitigAnim.progress += 0.04;
+    requestAnimationFrame(drawMitigation);
+  }
+}
+
+document.getElementById('canvas-mitigation').onclick = function(e){
+  var cv = document.getElementById('canvas-mitigation');
+  var rect = cv.getBoundingClientRect();
+  var mx = (e.clientX-rect.left)*(cv.width/rect.width);
+  var my = (e.clientY-rect.top)*(cv.height/rect.height);
+  MITIG_DATA.forEach(function(d){
+    if(!d._cx) return;
+    var dx=mx-d._cx, dy=my-d._cy;
+    if(Math.sqrt(dx*dx+dy*dy) <= d._r+8){
+      document.getElementById('mitigation-info').innerHTML = d.info;
+    }
+  });
+};
+
+function setMitigView(v, btn){
+  mitigView = v;
+  document.querySelectorAll('#mitig-btn-row .btn-tab').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  mitigAnim.progress = 0;
+  drawMitigation();
+}
+
+// ── S5 PAPER EXPLORER ─────────────────────────────────────────────────────────
+var paperFilter = 'all';
+function renderPapers(){
+  var grid = document.getElementById('paper-grid');
+  grid.innerHTML = '';
+  PAPERS.filter(function(p){ return paperFilter==='all' || p.focus===paperFilter; })
+    .forEach(function(p, i){
+      var div = document.createElement('div');
+      div.className = 'paper-card';
+      div.innerHTML =
+        '<div class="paper-meta">'+
+          '<span class="paper-score">Score '+p.score+'</span>'+
+          '<span class="paper-year">'+p.year+'</span>'+
+          p.badges.map(function(b){ return '<span class="badge '+b+'">'+b.replace('badge-','')+'</span>'; }).join('')+
+        '</div>'+
+        '<div class="paper-title">'+p.title+'</div>'+
+        '<div class="paper-abstract">'+p.abstract+'</div>';
+      div.onclick = function(){
+        div.classList.toggle('expanded');
+      };
+      grid.appendChild(div);
+    });
+}
+
+function filterPapers(f, btn){
+  paperFilter = f;
+  document.querySelectorAll('#s-papers .btn-tab').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  renderPapers();
+}
+
+// ── S6 TIMELINE CANVAS ────────────────────────────────────────────────────────
+function drawTimeline(){
+  var cv = document.getElementById('canvas-timeline');
+  if(!cv) return;
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  ctx.clearRect(0,0,W,H);
+
+  var axisY = H/2;
+  var pad = {l:30, r:30};
+
+  // axis line
+  ctx.beginPath(); ctx.strokeStyle='#30363d'; ctx.lineWidth=2;
+  ctx.moveTo(pad.l, axisY); ctx.lineTo(W-pad.r, axisY); ctx.stroke();
+
+  // year labels
+  [2020,2021,2022,2023,2024,2025].forEach(function(y, i){
+    var x = pad.l + (i/5)*(W-pad.l-pad.r);
+    ctx.beginPath(); ctx.strokeStyle='#30363d'; ctx.lineWidth=1;
+    ctx.moveTo(x, axisY-8); ctx.lineTo(x, axisY+8); ctx.stroke();
+    ctx.fillStyle='#8b949e'; ctx.font='11px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText(y, x, axisY+22);
+  });
+
+  TIMELINE_EVENTS.forEach(function(ev, idx){
+    var x = pad.l + ev.x * ((W-pad.l-pad.r)/600);
+    var isDetect = ev.side==='detect';
+    var color = isDetect ? '#7c3aed' : '#10b981';
+    var yOff = isDetect ? -1 : 1;
+    var nodeY = axisY + yOff * 70;
+
+    // connector
+    ctx.beginPath(); ctx.strokeStyle=color; ctx.lineWidth=1.5; ctx.setLineDash([3,3]);
+    ctx.moveTo(x, axisY); ctx.lineTo(x, nodeY); ctx.stroke(); ctx.setLineDash([]);
+
+    // node
+    var isActive = activeTimeline === idx;
+    ctx.beginPath(); ctx.arc(x, nodeY, isActive?9:6, 0, Math.PI*2);
+    ctx.fillStyle = isActive ? color : hexToRgba(color, 0.5);
+    ctx.fill();
+    if(isActive){ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();}
+
+    // label
+    var lines = ev.label.split('\n');
+    ctx.fillStyle = isActive?'#fff':'#8b949e'; ctx.font='9px Inter,sans-serif'; ctx.textAlign='center';
+    var labelY = nodeY + (isDetect ? -18 : 18);
+    lines.forEach(function(line, li){ ctx.fillText(line, x, labelY + li*11 - (lines.length-1)*5); });
+  });
+
+  // legend
+  ctx.fillStyle='#7c3aed'; ctx.fillRect(pad.l, 6, 10, 10);
+  ctx.fillStyle='#8b949e'; ctx.font='10px Inter,sans-serif'; ctx.textAlign='left'; ctx.fillText('Detection',pad.l+14,15);
+  ctx.fillStyle='#10b981'; ctx.fillRect(pad.l+90, 6, 10, 10);
+  ctx.fillText('Mitigation',pad.l+104,15);
+}
+
+document.getElementById('canvas-timeline').onclick = function(e){
+  var cv = document.getElementById('canvas-timeline');
+  var rect = cv.getBoundingClientRect();
+  var mx = (e.clientX-rect.left)*(cv.width/rect.width);
+  var my = (e.clientY-rect.top)*(cv.height/rect.height);
+  var pad = {l:30, r:30};
+  var W = cv.width;
+  var axisY = cv.height/2;
+
+  var hit = -1;
+  TIMELINE_EVENTS.forEach(function(ev, idx){
+    var x = pad.l + ev.x * ((W-pad.l-pad.r)/600);
+    var yOff = ev.side==='detect' ? -1 : 1;
+    var nodeY = axisY + yOff * 70;
+    var dx=mx-x, dy=my-nodeY;
+    if(Math.sqrt(dx*dx+dy*dy)<=14) hit=idx;
+  });
+
+  if(hit>=0){
+    activeTimeline = hit;
+    var ev = TIMELINE_EVENTS[hit];
+    document.getElementById('timeline-info').innerHTML =
+      '<strong>'+ev.year+' — '+ev.label.replace('\n',' ')+'</strong><br><br>'+ev.info;
+    drawTimeline();
+  }
+};
+
+// ── S7 GAPS CANVAS ────────────────────────────────────────────────────────────
+function drawGaps(){
+  var cv = document.getElementById('canvas-gaps');
+  if(!cv) return;
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  ctx.clearRect(0,0,W,H);
+
+  var n = GAP_DATA.length;
+  var bw = (W - 80) / n;
+  var pad = 20;
+
+  // connector line
+  ctx.beginPath(); ctx.strokeStyle='#30363d'; ctx.lineWidth=2;
+  ctx.moveTo(pad+bw/2, H/2); ctx.lineTo(W-pad-bw/2, H/2); ctx.stroke();
+
+  GAP_DATA.forEach(function(g, i){
+    var x = pad + i*bw + bw/2;
+    var isActive = currentGap === i;
+    var r = isActive ? 28 : 20;
+
+    // glow
+    if(isActive){
+      var grd = ctx.createRadialGradient(x, H/2, 0, x, H/2, 45);
+      grd.addColorStop(0, hexToRgba(g.color, 0.3));
+      grd.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle=grd; ctx.beginPath(); ctx.arc(x, H/2, 45, 0, Math.PI*2); ctx.fill();
+    }
+
+    ctx.beginPath(); ctx.arc(x, H/2, r, 0, Math.PI*2);
+    ctx.fillStyle = isActive ? g.color : hexToRgba(g.color, 0.25);
+    ctx.fill();
+    ctx.strokeStyle = g.color; ctx.lineWidth = isActive?3:1.5; ctx.stroke();
+
+    ctx.fillStyle = isActive?'#fff':'#8b949e';
+    ctx.font = (isActive?'700 ':'')+'10px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText(i+1, x, H/2+4);
+    ctx.font='9px Inter,sans-serif'; ctx.fillStyle='#8b949e';
+    ctx.fillText(g.label, x, H/2 + r + 14);
+  });
+}
+
+function setGap(idx, btn){
+  currentGap = idx;
+  document.querySelectorAll('#gap-btn-row .phase-btn').forEach(function(b){b.classList.remove('active');});
+  if(btn) btn.classList.add('active');
+  document.getElementById('gap-info').innerHTML = GAP_DATA[idx].info;
+  drawGaps();
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+function doInit(){
+  setInterval(drawOverview, 33);
+  drawLandscape();
+  setDetectTab('MIA', document.querySelector('#detect-tab-row .btn-tab'));
+  mitigAnim.progress = 0; drawMitigation();
+  renderPapers();
+  drawTimeline();
+  drawGaps();
+}
+</script>
+</body>
+</html>
