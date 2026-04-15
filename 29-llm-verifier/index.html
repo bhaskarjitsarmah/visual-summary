@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>LLM-as-a-Verifier — Fine-Grained Trajectory Scoring</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#c9d1d9;--muted:#8b949e;
+  --accent:#8b5cf6;--accent2:#c4b5fd;--accent3:#ede9fe;
+  --c-overview:#f7b731;
+  --c-problem:#ef4444;
+  --c-scoring:#0ea5e9;
+  --c-criteria:#10b981;
+  --c-tournament:#a78bfa;
+  --c-results:#f97316;
+  --c-insight:#8b5cf6;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+.sidebar{width:240px;min-width:240px;height:100vh;position:sticky;top:0;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:0 0 40px;flex-shrink:0;}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.sidebar-logo-title{font-size:13px;font-weight:700;color:var(--accent2);}
+.sidebar-logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.nav-group-title{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;padding:10px 16px 4px;}
+.nav-link{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;}
+.nav-link:hover,.nav-link.active{color:var(--text);background:rgba(139,92,246,.08);}
+.nav-link.active{color:var(--accent2);}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.main{flex:1;overflow-y:auto;height:100vh;scroll-behavior:smooth;}
+.pipeline-map{position:sticky;top:0;z-index:50;background:rgba(13,17,23,.96);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+.pipe-step{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);padding:2px 6px;border-radius:4px;cursor:pointer;transition:color .15s;}
+.pipe-step:hover{color:var(--text);}
+.pipe-dot{width:6px;height:6px;border-radius:50%;}
+.pipe-arrow{color:var(--border);font-size:12px;}
+.section{min-height:100vh;padding:60px 48px 80px;border-bottom:1px solid var(--border);}
+.section-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;}
+.section-title{font-size:28px;font-weight:800;color:var(--text);margin-bottom:8px;line-height:1.25;}
+.section-sub{font-size:14px;color:var(--muted);margin-bottom:28px;max-width:680px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:16px;}
+.card-title{font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px;}
+.card-body{font-size:13px;color:var(--muted);line-height:1.6;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+canvas{display:block;border-radius:10px;background:var(--surface);border:1px solid var(--border);}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s;}
+.btn:hover{opacity:.85;}
+.btn-tab{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+.formula{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-family:'JetBrains Mono','Courier New',monospace;font-size:11px;color:#c4b5fd;line-height:1.9;margin-bottom:16px;white-space:pre;overflow-x:auto;}
+.stats-row{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:28px;}
+.stat{text-align:center;}
+.stat-val{font-size:28px;font-weight:800;color:var(--accent2);}
+.stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;}
+.section-bridge{margin-top:48px;padding-top:28px;border-top:1px solid var(--border);text-align:right;}
+.section-bridge-link{font-size:12px;color:var(--accent2);font-weight:600;border:1px solid var(--accent2);border-radius:6px;padding:6px 14px;transition:all .15s;cursor:pointer;}
+.section-bridge-link:hover{background:rgba(139,92,246,.1);}
+.accordion-item{border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+.accordion-header{padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;background:var(--surface);}
+.accordion-header:hover{background:#1c2128;}
+.accordion-chevron{transition:transform .2s;font-size:10px;color:var(--muted);}
+.accordion-item.open .accordion-chevron{transform:rotate(90deg);}
+.accordion-body{padding:14px 16px;font-size:12px;color:var(--muted);display:none;border-top:1px solid var(--border);line-height:1.7;}
+.accordion-item.open .accordion-body{display:block;}
+#pg-gate{position:fixed;inset:0;background:linear-gradient(135deg,#0d1117 0%,#161b22 50%,#0d1117 100%);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.pg-box{background:#161b22;border:1px solid #30363d;border-radius:16px;padding:40px 48px;max-width:440px;width:100%;text-align:center;box-shadow:0 0 40px rgba(139,92,246,.12);}
+.pg-icon{font-size:2.5rem;margin-bottom:16px;}
+.pg-title{font-size:1.3rem;font-weight:800;color:#c9d1d9;margin-bottom:6px;}
+.pg-subtitle{font-size:13px;font-weight:600;color:var(--accent2);margin-bottom:6px;}
+.pg-sub{font-size:11px;color:#8b949e;margin-bottom:24px;}
+.pg-input{width:100%;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:10px 14px;color:#c9d1d9;font-size:14px;outline:none;text-align:center;}
+.pg-input:focus{border-color:var(--accent);}
+.pg-btn{margin-top:12px;width:100%;background:linear-gradient(135deg,#7c3aed,#8b5cf6);color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;}
+.pg-err{color:#ff6b6b;font-size:11px;margin-top:8px;min-height:16px;}
+.pg-join{margin-top:16px;font-size:11px;color:#8b949e;}
+.pg-join a{color:var(--accent2);text-decoration:underline;}
+.highlight-box{border-left:3px solid var(--accent);padding:12px 16px;background:rgba(139,92,246,.06);border-radius:0 8px 8px 0;margin-bottom:16px;font-size:13px;color:var(--muted);}
+.highlight-box.amber{border-color:#f7b731;background:rgba(247,183,49,.06);}
+.highlight-box.red{border-color:#ef4444;background:rgba(239,68,68,.06);}
+.highlight-box.green{border-color:#10b981;background:rgba(16,185,129,.06);}
+.highlight-box.orange{border-color:#f97316;background:rgba(249,115,22,.06);}
+.highlight-box.sky{border-color:#0ea5e9;background:rgba(14,165,233,.06);}
+.info-panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-top:12px;font-size:13px;color:var(--muted);min-height:70px;}
+.info-panel strong{color:var(--text);}
+.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-right:4px;margin-bottom:4px;}
+.badge-violet{background:rgba(139,92,246,.2);color:#c4b5fd;}
+.badge-green{background:rgba(16,185,129,.2);color:#10b981;}
+.badge-amber{background:rgba(247,183,49,.2);color:#f7b731;}
+.badge-sky{background:rgba(14,165,233,.2);color:#38bdf8;}
+.badge-red{background:rgba(239,68,68,.2);color:#ef4444;}
+.badge-orange{background:rgba(249,115,22,.2);color:#f97316;}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;background:var(--border);border-radius:4px;outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;}
+.slider-row{display:flex;gap:12px;align-items:center;margin-bottom:14px;}
+.slider-lbl{font-size:11px;color:var(--muted);min-width:140px;}
+.slider-val{font-size:12px;font-weight:700;color:var(--accent2);min-width:36px;text-align:right;}
+#scroll-progress{position:fixed;top:0;left:0;height:2px;background:linear-gradient(90deg,#7c3aed,var(--accent2));z-index:9998;width:0;transition:width .1s;}
+.score-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.score-lbl{font-size:11px;color:var(--muted);min-width:160px;}
+.score-bar-track{flex:1;height:12px;background:var(--bg);border-radius:4px;overflow:hidden;}
+.score-bar-fill{height:100%;border-radius:4px;width:0;transition:width 1s ease;}
+.score-num{font-size:11px;font-weight:700;min-width:42px;text-align:right;}
+.letter-pill{display:inline-block;width:26px;height:26px;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;text-align:center;line-height:26px;margin:2px;cursor:pointer;transition:all .15s;}
+</style>
+</head>
+<body>
+
+<div id="pg-gate">
+  <div class="pg-box">
+    <div class="pg-icon">🔍</div>
+    <div class="pg-title">LLM-as-a-Verifier</div>
+    <div class="pg-subtitle">Fine-Grained Trajectory Scoring</div>
+    <div class="pg-sub">This post is for paid subscribers of Visual Summary</div>
+    <input class="pg-input" id="pg-input" type="password" placeholder="Enter password" autocomplete="off" onkeydown="if(event.key==='Enter')pgCheck()">
+    <button class="pg-btn" onclick="pgCheck()">Unlock</button>
+    <div class="pg-err" id="pg-err"></div>
+    <div class="pg-join">Not a subscriber yet? <a href="https://visualsummary.substack.com" target="_blank">Join Visual Summary &rarr;</a></div>
+  </div>
+</div>
+
+<div id="scroll-progress"></div>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-title">LLM-as-a-Verifier</div>
+    <div class="sidebar-logo-sub">Trajectory Scoring via Logprobs</div>
+  </div>
+  <div class="nav-group-title">Sections</div>
+  <a class="nav-link active" data-sec="s-overview" onclick="goTo('s-overview')">
+    <span class="dot" style="background:var(--c-overview)"></span>The Verification Gap
+  </a>
+  <a class="nav-link" data-sec="s-problem" onclick="goTo('s-problem')">
+    <span class="dot" style="background:var(--c-problem)"></span>Why Scoring is Hard
+  </a>
+  <a class="nav-link" data-sec="s-scoring" onclick="goTo('s-scoring')">
+    <span class="dot" style="background:var(--c-scoring)"></span>Logprob Scoring
+  </a>
+  <a class="nav-link" data-sec="s-criteria" onclick="goTo('s-criteria')">
+    <span class="dot" style="background:var(--c-criteria)"></span>Criteria Decomposition
+  </a>
+  <a class="nav-link" data-sec="s-tournament" onclick="goTo('s-tournament')">
+    <span class="dot" style="background:var(--c-tournament)"></span>Tournament Selection
+  </a>
+  <a class="nav-link" data-sec="s-results" onclick="goTo('s-results')">
+    <span class="dot" style="background:var(--c-results)"></span>Benchmark Results
+  </a>
+  <a class="nav-link" data-sec="s-insight" onclick="goTo('s-insight')">
+    <span class="dot" style="background:var(--c-insight)"></span>Key Insights
+  </a>
+  <div class="nav-group-title" style="margin-top:16px;">Resources</div>
+  <a class="nav-link" href="https://github.com/llm-as-a-verifier/llm-as-a-verifier" target="_blank">
+    <span class="dot" style="background:#8b949e"></span>GitHub Repo
+  </a>
+  <a class="nav-link" href="https://github.com/llm-as-a-verifier/llm-as-a-verifier/blob/main/scripts/verifier_core.py" target="_blank">
+    <span class="dot" style="background:#8b949e"></span>verifier_core.py
+  </a>
+</nav>
+
+<!-- MAIN -->
+<div class="main" id="main-scroll">
+
+  <div class="pipeline-map">
+    <div class="pipe-step" onclick="goTo('s-overview')">
+      <span class="pipe-dot" style="background:var(--c-overview)"></span>Gap
+    </div>
+    <span class="pipe-arrow">›</span>
+    <div class="pipe-step" onclick="goTo('s-problem')">
+      <span class="pipe-dot" style="background:var(--c-problem)"></span>Problem
+    </div>
+    <span class="pipe-arrow">›</span>
+    <div class="pipe-step" onclick="goTo('s-scoring')">
+      <span class="pipe-dot" style="background:var(--c-scoring)"></span>Logprobs
+    </div>
+    <span class="pipe-arrow">›</span>
+    <div class="pipe-step" onclick="goTo('s-criteria')">
+      <span class="pipe-dot" style="background:var(--c-criteria)"></span>Criteria
+    </div>
+    <span class="pipe-arrow">›</span>
+    <div class="pipe-step" onclick="goTo('s-tournament')">
+      <span class="pipe-dot" style="background:var(--c-tournament)"></span>Tournament
+    </div>
+    <span class="pipe-arrow">›</span>
+    <div class="pipe-step" onclick="goTo('s-results')">
+      <span class="pipe-dot" style="background:var(--c-results)"></span>Results
+    </div>
+    <span class="pipe-arrow">›</span>
+    <div class="pipe-step" onclick="goTo('s-insight')">
+      <span class="pipe-dot" style="background:var(--c-insight)"></span>Insights
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- S1 — THE VERIFICATION GAP                                    -->
+  <!-- ============================================================ -->
+  <section class="section" id="s-overview">
+    <div class="section-tag" style="color:var(--c-overview)">Section 01 — Overview</div>
+    <div class="section-title">The Verification Gap</div>
+    <div class="section-sub">LLMs generate multiple candidate solutions, but picking the best one is itself a hard problem. The gap between Pass@1 (random pick) and Oracle (perfect pick) is where verification lives.</div>
+
+    <div class="stats-row">
+      <div class="stat"><div class="stat-val" style="color:var(--c-overview)">86.4%</div><div class="stat-lbl">Terminal-Bench 2</div></div>
+      <div class="stat"><div class="stat-val" style="color:var(--c-results)">77.8%</div><div class="stat-lbl">SWE-Bench Verified</div></div>
+      <div class="stat"><div class="stat-val" style="color:var(--c-scoring)">G=20</div><div class="stat-lbl">Score Granularity</div></div>
+      <div class="stat"><div class="stat-val" style="color:var(--c-criteria)">C×K×G</div><div class="stat-lbl">Scaling Axes</div></div>
+    </div>
+
+    <canvas id="canvas-overview" width="700" height="240" style="margin-bottom:16px;max-width:100%;"></canvas>
+
+    <div class="grid3">
+      <div class="card">
+        <div class="card-title" style="color:var(--c-overview)">The Setup</div>
+        <div class="card-body">A coding agent runs N times on each task, producing N candidate trajectories. Pass@1 randomly picks one. Oracle always picks the correct one. LLM-as-a-Verifier ranks them to beat random — closing the gap toward oracle.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-scoring)">The Key Insight</div>
+        <div class="card-body">Instead of asking the LLM "is this correct? (yes/no)", extract the <strong>probability distribution</strong> over score tokens A→T via logprobs. More signal → better ranking → better trajectory selection.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-criteria)">Three Scaling Axes</div>
+        <div class="card-body"><strong>C</strong> — decompose evaluation into multiple criteria (e.g., spec adherence, output match, error signals). <strong>K</strong> — repeat verification to reduce noise. <strong>G</strong> — use G score tokens for fine-grained probability mass.</div>
+      </div>
+    </div>
+
+    <div class="accordion-item" style="margin-top:8px;">
+      <div class="accordion-header" onclick="toggleAcc(this)">
+        What is a trajectory?
+        <span class="accordion-chevron">▶</span>
+      </div>
+      <div class="accordion-body">
+        A trajectory τ is the full execution trace of an agent solving a task: the sequence of observations, actions (commands, file edits, bash outputs), and reasoning steps from start to final state. For Terminal-Bench 2 and SWE-bench, trajectories include terminal commands, their outputs, error messages, and the agent's responses. The verifier reads the <em>entire trace</em> — not just the final answer — to evaluate solution quality.
+      </div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAcc(this)">
+        Why not just run tests?
+        <span class="accordion-chevron">▶</span>
+      </div>
+      <div class="accordion-body">
+        Many real-world tasks lack reliable automated tests. SWE-bench has unit tests, but Terminal-Bench 2 involves arbitrary shell tasks where "correctness" requires semantic understanding. The verifier also catches cases where tests pass but the trajectory took an incorrect or fragile path — e.g., hardcoding expected outputs. LLM verification is complementary to, not a replacement for, test-based evaluation.
+      </div>
+    </div>
+
+    <div class="section-bridge">
+      <span class="section-bridge-link" onclick="goTo('s-problem')">Why Scoring is Hard →</span>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- S2 — WHY SCORING IS HARD                                     -->
+  <!-- ============================================================ -->
+  <section class="section" id="s-problem">
+    <div class="section-tag" style="color:var(--c-problem)">Section 02 — The Problem</div>
+    <div class="section-title">Why Scoring Trajectories is Hard</div>
+    <div class="section-sub">A single binary verdict ("correct" / "incorrect") discards most of the LLM's signal. The challenge is extracting a <em>continuous</em>, <em>calibrated</em> quality score from a discrete token generator.</div>
+
+    <div class="btn-row" id="prob-tabs">
+      <button class="btn-tab active" onclick="setProbTab('binary',this)">Binary Scoring</button>
+      <button class="btn-tab" onclick="setProbTab('logprob',this)">Logprob Scoring</button>
+      <button class="btn-tab" onclick="setProbTab('compare',this)">Side by Side</button>
+    </div>
+
+    <canvas id="canvas-problem" width="700" height="260" style="margin-bottom:16px;max-width:100%;"></canvas>
+    <div class="info-panel" id="prob-info">
+      <strong>Binary scoring:</strong> The LLM outputs a single token — "Yes" or "No", "Pass" or "Fail". Two very different trajectories (one almost correct, one completely wrong) receive the same score of 0. No gradient. No ranking ability.
+    </div>
+
+    <div class="grid2" style="margin-top:16px;">
+      <div>
+        <div class="highlight-box red">
+          <strong>Problem with binary:</strong> If 4 out of 5 trajectories are labelled "incorrect", you have no way to rank them. Random selection from the pool is as good as the verifier's choice.
+        </div>
+        <div class="accordion-item">
+          <div class="accordion-header" onclick="toggleAcc(this)">
+            What is a logprob?
+            <span class="accordion-chevron">▶</span>
+          </div>
+          <div class="accordion-body">
+            A logprob (log probability) is the natural log of the probability the model assigns to a token at a given position. If the model has 60% confidence that the next token is "A", the logprob is ln(0.6) ≈ −0.51. Modern APIs like Gemini expose the top-K logprobs at each position. LLM-as-a-Verifier uses <code>logprobs=20</code> to capture the full distribution over the 20 score tokens (A–T).
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="highlight-box sky">
+          <strong>The logprob advantage:</strong> At the score token position, the LLM assigns probability to every letter A–T simultaneously. This gives a full probability distribution — effectively a soft, continuous score — without any extra API calls.
+        </div>
+        <div class="accordion-item">
+          <div class="accordion-header" onclick="toggleAcc(this)">
+            How does Gemini expose logprobs?
+            <span class="accordion-chevron">▶</span>
+          </div>
+          <div class="accordion-body">
+            Via <code>response_logprobs=True</code> and <code>logprobs=20</code> parameters in the Gemini API (Vertex AI). The response includes <code>position_logprobs</code>: for each generated token position, the top-20 alternative tokens and their log-probabilities. The verifier locates the closing XML tag <code>&lt;/score_A&gt;</code> in the stream, then reads logprobs at the <em>next</em> position — where the score letter appears.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-bridge">
+      <span class="section-bridge-link" onclick="goTo('s-scoring')">Explore Logprob Scoring →</span>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- S3 — LOGPROB SCORING                                         -->
+  <!-- ============================================================ -->
+  <section class="section" id="s-scoring">
+    <div class="section-tag" style="color:var(--c-scoring)">Section 03 — The Algorithm</div>
+    <div class="section-title">Logprob-Based Score Extraction</div>
+    <div class="section-sub">The verifier asks the LLM to score a trajectory and extracts the probability mass over letters A–T at the score position. This probability distribution is collapsed into a single expected-value score in [0, 1].</div>
+
+    <!-- Letter scale -->
+    <div style="margin-bottom:20px;">
+      <div class="card-title" style="color:var(--c-scoring);margin-bottom:10px;">Letter Scale (A → T) — G = 20 Granularity</div>
+      <div id="letter-scale" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;"></div>
+      <div style="font-size:11px;color:var(--muted);">A = 20 (perfect) &nbsp;·&nbsp; T = 1 (total failure) &nbsp;·&nbsp; Normalised to [0, 1]</div>
+    </div>
+
+    <!-- Interactive logprob visualiser -->
+    <div class="grid2" style="align-items:start;margin-bottom:20px;">
+      <div>
+        <div class="card-title" style="color:var(--c-scoring);margin-bottom:12px;">Live Logprob Visualiser</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:14px;">Drag the slider to simulate different trajectory quality levels. Watch the probability mass shift across letters.</div>
+        <div class="slider-row">
+          <span class="slider-lbl">Trajectory quality</span>
+          <input type="range" id="quality-slider" min="0" max="1" step="0.01" value="0.7" oninput="updateLogprob()">
+          <span class="slider-val" id="quality-val">0.70</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-lbl">Score spread (σ)</span>
+          <input type="range" id="spread-slider" min="0.5" max="4" step="0.1" value="1.8" oninput="updateLogprob()">
+          <span class="slider-val" id="spread-val">1.80</span>
+        </div>
+        <div class="info-panel" id="logprob-panel" style="margin-top:8px;min-height:60px;">
+          <strong>Expected score:</strong> <span id="expected-score">—</span> &nbsp;·&nbsp; <strong>Normalised:</strong> <span id="norm-score">—</span>
+        </div>
+      </div>
+      <canvas id="canvas-logprob" width="330" height="220" style="width:100%;max-width:330px;"></canvas>
+    </div>
+
+    <div class="formula">-- Score extraction (verifier_core.py)
+
+# 1. Find score token position in logprob stream
+tag_logprobs = _find_tag_logprobs(position_logprobs, "&lt;/score_A&gt;")
+
+# 2. Aggregate probabilities over valid letters A–T
+probs = {}
+for token, logprob in tag_logprobs:
+    if token.upper() in VALID_TOKENS:
+        raw_val = VALID_TOKENS[token.upper()]   # A→20, B→19, ..., T→1
+        probs[raw_val] = exp(logprob)
+
+# 3. Compute expected value
+expected = sum(v * p for v,p in probs.items()) / sum(probs.values())
+
+# 4. Normalise to [0, 1]
+score = (expected - 1) / (20 - 1)   # min=1 (T), max=20 (A)</div>
+
+    <div class="grid3">
+      <div class="card">
+        <div class="card-title" style="color:var(--c-scoring)">Why Expected Value?</div>
+        <div class="card-body">Taking E[score] over the distribution integrates all the model's uncertainty. A trajectory where the model is 55% "A" and 45% "B" gets a higher score than one where it's 55% "A" but also 30% "F" — correctly penalising inconsistency.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-scoring)">Why 20 Letters?</div>
+        <div class="card-body">G=20 (A–T) provides fine-grained signal while staying within the top-20 logprob budget exposed by the API. Fewer bins = coarser scores. More bins would require API support for top-K > 20. G=20 is the sweet spot for Gemini's API.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-scoring)">Fallback</div>
+        <div class="card-body">If logprobs are unavailable (wrong API tier), the verifier falls back to regex extraction — finding the letter between the XML tags. This gives a hard score (one of 20 values) with no gradient information.</div>
+      </div>
+    </div>
+
+    <div class="section-bridge">
+      <span class="section-bridge-link" onclick="goTo('s-criteria')">Criteria Decomposition →</span>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- S4 — CRITERIA DECOMPOSITION                                  -->
+  <!-- ============================================================ -->
+  <section class="section" id="s-criteria">
+    <div class="section-tag" style="color:var(--c-criteria)">Section 04 — Criteria</div>
+    <div class="section-title">Criteria Decomposition (C = 3)</div>
+    <div class="section-sub">Rather than a single holistic score, the verifier evaluates each trajectory pair on <strong>C = 3 independent criteria</strong>. This decomposes the evaluation problem and reduces the chance that one aspect dominates the score.</div>
+
+    <div class="btn-row" id="crit-tabs">
+      <button class="btn-tab active" onclick="setCrit(0,this)">Specification Adherence</button>
+      <button class="btn-tab" onclick="setCrit(1,this)">Output Match</button>
+      <button class="btn-tab" onclick="setCrit(2,this)">Error Signal Detection</button>
+    </div>
+
+    <canvas id="canvas-criteria" width="700" height="240" style="margin-bottom:16px;max-width:100%;"></canvas>
+    <div class="info-panel" id="crit-info">
+      <strong>Specification Adherence:</strong> Verifies that the agent met the <em>exact</em> requirements — correct file paths, installation locations, output formats, and explicit constraints — rather than solving a superficially similar but fundamentally different problem. Rewards strict compliance over approximate solutions.
+    </div>
+
+    <div class="grid2" style="margin-top:16px;">
+      <div>
+        <div class="formula" style="font-size:10px;">-- Prompt structure for each criterion
+create_prompt_for_criterion(
+    task_desc,        # Problem statement
+    trajectory_A,     # Full trace of agent A
+    trajectory_B,     # Full trace of agent B
+    criterion_name,   # e.g. "Specification Adherence"
+    criterion_desc,   # Detailed evaluation rubric
+    scale_desc        # "A = perfect match, T = total failure"
+)
+# Returns XML with &lt;score_A&gt;X&lt;/score_A&gt; &lt;score_B&gt;Y&lt;/score_B&gt;</div>
+        <div class="highlight-box green">
+          <strong>Pairwise evaluation:</strong> Each API call scores <em>two</em> trajectories simultaneously — extracting both score_A and score_B from a single response. This halves the cost versus scoring each trajectory independently.
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-title" style="color:var(--c-criteria)">Why Decompose?</div>
+          <div class="card-body">A holistic score conflates dimensions. A trajectory might spec-adhere perfectly but have unresolved errors. Decomposition lets the verifier assign partial credit across dimensions, producing a more nuanced ranking. The final score is the sum across all C criteria and K verification passes.</div>
+        </div>
+        <div class="card" style="margin-top:12px;">
+          <div class="card-title" style="color:var(--c-criteria)">Final Aggregation</div>
+          <div class="card-body">For each pair (i, j):<br>
+          s_i = Σ<sub>c∈C</sub> Σ<sub>k∈K</sub> score(τ_i, c, k) / (C × K)<br><br>
+          Win awarded if s_i > s_j. Tie if |s_i − s_j| below threshold. Used in tournament selection.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-bridge">
+      <span class="section-bridge-link" onclick="goTo('s-tournament')">Tournament Selection →</span>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- S5 — TOURNAMENT SELECTION                                    -->
+  <!-- ============================================================ -->
+  <section class="section" id="s-tournament">
+    <div class="section-tag" style="color:var(--c-tournament)">Section 05 — Selection</div>
+    <div class="section-title">Round-Robin Tournament Selection</div>
+    <div class="section-sub">With N candidate trajectories per task, every possible pair is scored. The trajectory that wins the most head-to-head matchups — aggregated across all C criteria and K passes — is selected as the final answer.</div>
+
+    <div class="slider-row" style="max-width:400px;margin-bottom:4px;">
+      <span class="slider-lbl">Number of trajectories (N)</span>
+      <input type="range" id="n-slider" min="2" max="8" step="1" value="4" oninput="updateTournament()">
+      <span class="slider-val" id="n-val">4</span>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:16px;">
+      <span id="n-pairs">6</span> pairwise comparisons · <span id="n-calls">72</span> API calls (C=3 × K=4 × pairs)
+    </div>
+
+    <canvas id="canvas-tournament" width="700" height="300" style="margin-bottom:16px;max-width:100%;cursor:pointer;" onclick="runTournament()"></canvas>
+    <div style="font-size:11px;color:var(--muted);text-align:center;margin-bottom:12px;">Click canvas to run a new random tournament</div>
+    <div class="info-panel" id="tourn-info">
+      <strong>How it works:</strong> All N(N−1)/2 trajectory pairs are evaluated. Each pair gets a score from the verifier (aggregated over C criteria × K passes). The trajectory with the most wins is declared the best candidate for this task.
+    </div>
+
+    <div class="grid3" style="margin-top:16px;">
+      <div class="card">
+        <div class="card-title" style="color:var(--c-tournament)">Why Round-Robin?</div>
+        <div class="card-body">A single ranking score might be miscalibrated between trajectories from different agents. Pairwise comparison is more robust — each matchup is a direct, contextualised comparison. The LLM sees both trajectories simultaneously, enabling contrastive evaluation.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-tournament)">K = 4 Passes</div>
+        <div class="card-body">Each pair is evaluated K=4 times with independent API calls. Results are averaged. This reduces variance from LLM stochasticity — the verifier may give slightly different scores on each call, and averaging smooths this out.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--c-tournament)">Caching</div>
+        <div class="card-body">Results are cached with key <code>"{crit}|{task}|{i,j}|{rep}"</code> and persisted to JSON. This enables reproducibility and avoids redundant API calls. Concurrent scoring via ThreadPoolExecutor speeds up large benchmark runs.</div>
+      </div>
+    </div>
+
+    <div class="section-bridge">
+      <span class="section-bridge-link" onclick="goTo('s-results')">See Benchmark Results →</span>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- S6 — RESULTS                                                 -->
+  <!-- ============================================================ -->
+  <section class="section" id="s-results">
+    <div class="section-tag" style="color:var(--c-results)">Section 06 — Results</div>
+    <div class="section-title">Benchmark Results</div>
+    <div class="section-sub">LLM-as-a-Verifier closes a significant portion of the gap between random selection and oracle on two challenging coding benchmarks.</div>
+
+    <div class="btn-row" id="res-tabs">
+      <button class="btn-tab active" onclick="setResBench('terminal',this)">Terminal-Bench 2</button>
+      <button class="btn-tab" onclick="setResBench('swe',this)">SWE-bench Verified</button>
+      <button class="btn-tab" onclick="setResBench('ablation',this)">Ablation Study</button>
+    </div>
+
+    <canvas id="canvas-results" width="700" height="240" style="margin-bottom:16px;max-width:100%;"></canvas>
+
+    <div id="res-terminal">
+      <div class="grid3">
+        <div class="card">
+          <div class="card-title" style="color:var(--c-results)">Pass@1 (Random)</div>
+          <div class="card-body" style="font-size:20px;font-weight:800;color:#8b949e;">81.8%</div>
+          <div class="card-body">Baseline: randomly picking one of the available trajectories. 73/89 tasks solved on average.</div>
+        </div>
+        <div class="card" style="border-color:var(--c-results);">
+          <div class="card-title" style="color:var(--c-results)">LLM-as-a-Verifier</div>
+          <div class="card-body" style="font-size:20px;font-weight:800;color:var(--c-results);">86.4% <span style="font-size:12px;font-weight:400;color:var(--muted)">±0.3</span></div>
+          <div class="card-body">76.9/89 tasks. +4.6pp over random. Consistent across 3 repeated evaluations (standard error ±0.3).</div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="color:var(--c-criteria)">Oracle</div>
+          <div class="card-body" style="font-size:20px;font-weight:800;color:var(--c-criteria);">89.9%</div>
+          <div class="card-body">Ceiling: always picking the correct trajectory. 80/89 tasks. Verifier recovers 60% of the gap.</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="res-swe" style="display:none;">
+      <div class="grid3">
+        <div class="card">
+          <div class="card-title" style="color:var(--c-results)">Pass@1 (Random)</div>
+          <div class="card-body" style="font-size:20px;font-weight:800;color:#8b949e;">76.1%</div>
+          <div class="card-body">Baseline: randomly picking one trajectory. 380.5/500 tasks solved on average.</div>
+        </div>
+        <div class="card" style="border-color:var(--c-results);">
+          <div class="card-title" style="color:var(--c-results)">LLM-as-a-Verifier</div>
+          <div class="card-body" style="font-size:20px;font-weight:800;color:var(--c-results);">77.8% <span style="font-size:12px;font-weight:400;color:var(--muted)">±0.4</span></div>
+          <div class="card-body">389/500 tasks. +1.7pp over random. SWE-bench is harder to verify — tasks often have multiple valid solutions.</div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="color:var(--c-criteria)">Oracle</div>
+          <div class="card-body" style="font-size:20px;font-weight:800;color:var(--c-criteria);">84.4%</div>
+          <div class="card-body">Ceiling: 422/500 tasks. Verifier recovers 20% of the oracle gap — harder benchmark, harder to verify.</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="res-ablation" style="display:none;">
+      <canvas id="canvas-ablation" width="700" height="220" style="margin-bottom:16px;max-width:100%;"></canvas>
+      <div class="grid3">
+        <div class="card">
+          <div class="card-title" style="color:var(--c-scoring)">Granularity (G)</div>
+          <div class="card-body">Higher G → richer probability distribution → better expected value estimate. G=20 (A–T) is the API maximum. G=1 (binary) collapses to standard yes/no scoring.</div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="color:var(--c-tournament)">Passes (K)</div>
+          <div class="card-body">More passes → lower variance in scores. K=4 balances accuracy vs API cost. K=1 has higher variance; K=8 diminishing returns. Standard error scales as 1/√K.</div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="color:var(--c-criteria)">Criteria (C)</div>
+          <div class="card-body">C=3 outperforms C=1 by separating orthogonal quality dimensions. A trajectory might ace output match but fail spec adherence — decomposition surfaces this.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-bridge">
+      <span class="section-bridge-link" onclick="goTo('s-insight')">Key Insights →</span>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- S7 — KEY INSIGHTS                                            -->
+  <!-- ============================================================ -->
+  <section class="section" id="s-insight">
+    <div class="section-tag" style="color:var(--c-insight)">Section 07 — Insights</div>
+    <div class="section-title">Key Insights &amp; Connections</div>
+    <div class="section-sub">LLM-as-a-Verifier synthesises ideas from reward modelling, process reward models, and LLM-as-a-judge into a practical, scalable framework for trajectory selection.</div>
+
+    <canvas id="canvas-insight" width="700" height="200" style="margin-bottom:24px;max-width:100%;"></canvas>
+
+    <div class="grid2">
+      <div>
+        <div class="card">
+          <div class="card-title" style="color:var(--c-insight)">Soft vs Hard Scoring</div>
+          <div class="card-body">The core innovation: treating the LLM as a <em>probability estimator</em>, not a classifier. By reading logprobs instead of the generated token, we extract a continuous signal. This is analogous to how temperature-scaled softmax gives calibrated confidence in classification — the distribution is more informative than the argmax.</div>
+        </div>
+        <div class="card" style="margin-top:12px;">
+          <div class="card-title" style="color:var(--c-insight)">Relation to PRMs</div>
+          <div class="card-body">Process Reward Models (PRMs) score intermediate steps of reasoning. LLM-as-a-Verifier scores entire trajectories — a coarser but more general approach. The C-criteria decomposition is a step toward process-level granularity without requiring step-level annotations.</div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-title" style="color:var(--c-insight)">Relation to LLM-as-a-Judge</div>
+          <div class="card-body">LLM-as-a-Judge (MT-Bench, Chatbot Arena) uses LLMs to score free-form outputs. LLM-as-a-Verifier extends this to: (1) code/shell trajectories rather than text, (2) logprob extraction rather than token output, (3) criteria decomposition, and (4) tournament aggregation. It's a more structured, signal-rich version of the same idea.</div>
+        </div>
+        <div class="card" style="margin-top:12px;">
+          <div class="card-title" style="color:var(--c-insight)">Scalable Test-Time Compute</div>
+          <div class="card-body">This framework is a form of inference-time scaling: run the agent N times, then invest compute in verification to select the best output. Combined with Best-of-N sampling, it represents a practical recipe for improving coding agent performance without retraining.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="highlight-box" style="margin-top:20px;">
+      <strong>The C × K × G product space:</strong> Each dimension is independently scalable. More criteria (C↑) captures more evaluation aspects. More passes (K↑) reduces noise. Higher granularity (G↑) extracts more signal per call. Total information scales as C × K × G — and the API cost scales similarly, making it a tunable compute–accuracy tradeoff.
+    </div>
+
+    <div class="accordion-item" style="margin-top:16px;">
+      <div class="accordion-header" onclick="toggleAcc(this)">
+        What model is used as the verifier?
+        <span class="accordion-chevron">▶</span>
+      </div>
+      <div class="accordion-body">
+        <strong>Gemini 2.5 Flash</strong> (via Vertex AI) is the verifier model in the published results. It was chosen for its speed, cost-effectiveness, and support for <code>response_logprobs=True</code> with <code>logprobs=20</code>. The framework is model-agnostic — any API that exposes per-token logprobs could serve as the verifier. Note: the evaluated agent trajectories are from other models (the trajectories stored in <code>data/</code>), not from Gemini.
+      </div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAcc(this)">
+        What are the limitations?
+        <span class="accordion-chevron">▶</span>
+      </div>
+      <div class="accordion-body">
+        1. <strong>Long context:</strong> Full trajectories can be thousands of tokens. Gemini 2.5 Flash's context is large, but very long traces may exceed limits or degrade attention quality.<br>
+        2. <strong>API dependency:</strong> Requires logprob access, which not all providers offer (OpenAI limits logprobs to top-5; Anthropic does not expose them).<br>
+        3. <strong>Verifier bias:</strong> The verifier model may share blind spots with the agent — if Gemini generates and verifies, it may consistently miss the same errors.<br>
+        4. <strong>Cost:</strong> C=3 × K=4 × N(N−1)/2 API calls per task. For N=5 trajectories, that's 3×4×10 = 120 calls per task, scaling quadratically with N.<br>
+        5. <strong>Swing tasks only:</strong> The verifier only helps on tasks where some trajectories succeed and some fail. All-pass and all-fail tasks are unaffected.
+      </div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAcc(this)">
+        How does this connect to reinforcement learning?
+        <span class="accordion-chevron">▶</span>
+      </div>
+      <div class="accordion-body">
+        The verifier produces a reward signal R(τ) ∈ [0, 1] for any trajectory τ. This is exactly what a reward model does in RLHF. LLM-as-a-Verifier can be seen as a lightweight, training-free reward model for code trajectories — using the verifier LLM's internal probability estimates rather than a learned scalar head. The tournament selection then acts as a best-of-N policy, equivalent to rejection sampling with the verifier as the reward function.
+      </div>
+    </div>
+  </section>
+
+</div><!-- /main -->
+
+<script>
+/* ===== PASSWORD GATE ===== */
+var PG_PASSWORD='visual2025';
+var PG_KEY='pg_unlocked_29';
+function pgCheck(){
+  var v=document.getElementById('pg-input').value.trim();
+  if(v===PG_PASSWORD){
+    localStorage.setItem(PG_KEY,'1');
+    document.getElementById('pg-gate').style.display='none';
+    doInit();
+  } else {
+    document.getElementById('pg-err').textContent='Incorrect password. Try again.';
+  }
+}
+
+/* ===== SCROLL / SCROLLSPY ===== */
+document.getElementById('main-scroll').addEventListener('scroll',function(){
+  var el=this;
+  var pct=el.scrollTop/(el.scrollHeight-el.clientHeight)*100;
+  document.getElementById('scroll-progress').style.width=pct+'%';
+  var ids=['s-overview','s-problem','s-scoring','s-criteria','s-tournament','s-results','s-insight'];
+  var active=ids[0];
+  ids.forEach(function(id){var e=document.getElementById(id);if(e&&e.offsetTop-80<=el.scrollTop)active=id;});
+  document.querySelectorAll('.nav-link[data-sec]').forEach(function(a){a.classList.toggle('active',a.dataset.sec===active);});
+});
+function goTo(id){document.getElementById(id).scrollIntoView({behavior:'smooth'});}
+function toggleAcc(hdr){hdr.parentElement.classList.toggle('open');}
+
+/* ===== UTILS ===== */
+function hexRgb(hex){return{r:parseInt(hex.slice(1,3),16),g:parseInt(hex.slice(3,5),16),b:parseInt(hex.slice(5,7),16)};}
+function toRgba(hex,a){var c=hexRgb(hex);return 'rgba('+c.r+','+c.g+','+c.b+','+a+')';}
+function lerp(a,b,t){return a+(b-a)*t;}
+function drawRR(ctx,x,y,w,h,r){
+  ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);ctx.closePath();
+}
+
+/* ===== OVERVIEW CANVAS ===== */
+function drawOverview(){
+  var cv=document.getElementById('canvas-overview');
+  if(!cv)return;
+  var ctx=cv.getContext('2d');
+  var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var data=[
+    {label:'Pass@1\n(Random Pick)',val:0.818,col:'#8b949e',note:'81.8%'},
+    {label:'LLM-as-a-Verifier\n(Ours)',val:0.864,col:'#f97316',note:'86.4%'},
+    {label:'Oracle\n(Perfect Pick)',val:0.899,col:'#10b981',note:'89.9%'},
+  ];
+
+  var padL=80,padR=30,padT=24,padB=54;
+  var bw=100,gap=60;
+  var totalW=data.length*(bw+gap)-gap;
+  var startX=(W-totalW)/2;
+  var maxH=H-padT-padB;
+
+  // Gap annotations
+  ctx.strokeStyle='#30363d';ctx.lineWidth=1;ctx.setLineDash([3,4]);
+  var y1=padT+maxH*(1-data[0].val);
+  var y2=padT+maxH*(1-data[2].val);
+  ctx.beginPath();ctx.moveTo(startX+bw+gap*0.1,y1);ctx.lineTo(startX+bw+gap*0.1,y2);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter';ctx.textAlign='left';
+  ctx.fillText('Gap: '+(Math.round((data[2].val-data[0].val)*1000)/10)+'pp',startX+bw+gap*0.15,(y1+y2)/2+3);
+
+  // Verifier recovery arrow
+  var yV=padT+maxH*(1-data[1].val);
+  ctx.strokeStyle=toRgba('#f97316',0.5);ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(startX+bw*1.5+gap,y1+2);ctx.lineTo(startX+bw*1.5+gap,yV-2);ctx.stroke();
+  ctx.fillStyle='#f97316';ctx.font='700 9px Inter';ctx.textAlign='center';
+  ctx.fillText('+4.6pp',startX+bw*1.5+gap+20,(y1+yV)/2+3);
+
+  data.forEach(function(d,i){
+    var x=startX+i*(bw+gap);
+    var barH=d.val*maxH;
+    var y=padT+maxH-barH;
+    drawRR(ctx,x,y,bw,barH,6);
+    ctx.fillStyle=toRgba(d.col,0.22);ctx.fill();
+    ctx.strokeStyle=d.col;ctx.lineWidth=1.5;ctx.stroke();
+    ctx.fillStyle=d.col;ctx.font='700 15px Inter';ctx.textAlign='center';
+    ctx.fillText(d.note,x+bw/2,y-8);
+    ctx.fillStyle='#8b949e';ctx.font='9px Inter';
+    d.label.split('\n').forEach(function(l,j){ctx.fillText(l,x+bw/2,H-padB+16+j*12);});
+  });
+
+  // 80% line
+  ctx.strokeStyle='#21262d';ctx.lineWidth=1;ctx.setLineDash([4,6]);
+  ctx.beginPath();ctx.moveTo(padL-40,padT+maxH*0.2);ctx.lineTo(W-padR,padT+maxH*0.2);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='#30363d';ctx.font='9px Inter';ctx.textAlign='right';
+  ctx.fillText('80%',padL-44,padT+maxH*0.2+3);
+}
+
+/* ===== PROBLEM CANVAS ===== */
+var probMode='binary';
+function setProbTab(mode,btn){
+  probMode=mode;
+  document.querySelectorAll('#prob-tabs .btn-tab').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  var infos={
+    binary:'<strong>Binary scoring:</strong> The LLM outputs "Yes"/"No". Two trajectories — one 90% correct, one 10% correct — both get score 0. No ranking is possible. You cannot distinguish \'almost right\' from \'completely wrong\'.',
+    logprob:'<strong>Logprob scoring:</strong> At the score position, the LLM assigns probability to each letter A–T. The expected value E[score] gives a continuous signal in [0,1]. \'Almost correct\' trajectories get score ~0.85; \'completely wrong\' gets ~0.05. Ranking is now meaningful.',
+    compare:'<strong>Side by side:</strong> Five identical trajectories with different quality levels. Binary scoring cannot rank them (all score 0 if incorrect). Logprob scoring produces a continuous gradient — enabling accurate tournament selection.'
+  };
+  document.getElementById('prob-info').innerHTML=infos[mode];
+  drawProblem();
+}
+
+function drawProblem(){
+  var cv=document.getElementById('canvas-problem');
+  if(!cv)return;
+  var ctx=cv.getContext('2d');
+  var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  if(probMode==='binary'){
+    // Show 5 trajectories — all scored 0 or 1
+    var trajs=[0.92,0.71,0.45,0.22,0.08];
+    var labels=['τ₁','τ₂','τ₃','τ₄','τ₅'];
+    var trueCol=['#10b981','#10b981','#ef4444','#ef4444','#ef4444'];
+    var binaryScore=[1,0,0,0,0];
+    var bw=80,gap=40,startX=60,padB=50;
+    var maxH=H-60-padB;
+
+    trajs.forEach(function(v,i){
+      var x=startX+i*(bw+gap);
+      var barH=v*maxH;
+      var y=40+maxH-barH;
+      // True quality bar (faint)
+      drawRR(ctx,x,y,bw,barH,6);
+      ctx.fillStyle=toRgba(trueCol[i],0.1);ctx.fill();
+      ctx.strokeStyle=toRgba(trueCol[i],0.3);ctx.lineWidth=1;ctx.setLineDash([3,4]);ctx.stroke();
+      ctx.setLineDash([]);
+      // Binary score marker
+      var binY=40+maxH*(1-binaryScore[i])-10;
+      ctx.fillStyle=binaryScore[i]===1?'#10b981':'#ef4444';ctx.font='700 12px JetBrains Mono';ctx.textAlign='center';
+      ctx.fillText(binaryScore[i]===1?'Pass':'Fail',x+bw/2,binY+4);
+      // Label
+      ctx.fillStyle='#8b949e';ctx.font='10px Inter';ctx.textAlign='center';
+      ctx.fillText(labels[i],x+bw/2,H-padB+18);
+      ctx.fillStyle='#30363d';ctx.font='9px Inter';
+      ctx.fillText((v*100).toFixed(0)+'% quality',x+bw/2,H-padB+30);
+    });
+
+    ctx.fillStyle='#ef4444';ctx.font='700 11px Inter';ctx.textAlign='center';
+    ctx.fillText('τ₂ to τ₅ all score 0 — impossible to rank',W/2,H-8);
+
+  } else if(probMode==='logprob'){
+    // Show logprob distribution for a single trajectory
+    var quality=0.72;
+    var sigma=2.2;
+    var G=20;
+    var scores=[];
+    var total=0;
+    for(var g=0;g<G;g++){
+      var letter=String.fromCharCode(65+g);
+      var rawVal=G-g;
+      var mean=(quality*G);
+      var prob=Math.exp(-0.5*Math.pow((rawVal-mean)/sigma,2));
+      scores.push({letter:letter,val:rawVal,prob:prob});
+      total+=prob;
+    }
+    scores.forEach(function(s){s.prob/=total;});
+
+    var padL=50,padB=40,padT=30;
+    var plotW=W-padL-30,plotH=H-padT-padB;
+    var bw2=plotW/G-2;
+
+    // Bars
+    var maxProb=Math.max.apply(null,scores.map(function(s){return s.prob;}));
+    scores.forEach(function(s,i){
+      var bh=s.prob/maxProb*plotH*0.8;
+      var x=padL+i*(bw2+2);
+      var y=padT+plotH-bh;
+      drawRR(ctx,x,y,bw2,bh,2);
+      ctx.fillStyle=toRgba('#8b5cf6',0.7+0.3*(s.prob/maxProb));ctx.fill();
+      ctx.strokeStyle='#8b5cf6';ctx.lineWidth=0.5;ctx.stroke();
+      ctx.fillStyle='#8b949e';ctx.font='8px JetBrains Mono';ctx.textAlign='center';
+      ctx.fillText(s.letter,x+bw2/2,H-padB+12);
+    });
+
+    // Expected value line
+    var ev=0;scores.forEach(function(s){ev+=s.val*s.prob;});
+    var evNorm=(ev-1)/(G-1);
+    var evX=padL+(G-1-(ev-1))*(bw2+2)+bw2/2;
+    ctx.strokeStyle='#f97316';ctx.lineWidth=2;ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(evX,padT);ctx.lineTo(evX,padT+plotH);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#f97316';ctx.font='700 10px Inter';ctx.textAlign='center';
+    ctx.fillText('E[score]='+(evNorm).toFixed(2),evX,padT-8);
+
+    ctx.fillStyle='#8b949e';ctx.font='9px Inter';ctx.textAlign='center';
+    ctx.fillText('Score letter (A=best → T=worst)',W/2,H-2);
+
+  } else {
+    // Side by side comparison
+    var trajs2=[
+      {label:'τ₁',quality:0.92,col:'#10b981'},
+      {label:'τ₂',quality:0.71,col:'#0ea5e9'},
+      {label:'τ₃',quality:0.50,col:'#f7b731'},
+      {label:'τ₄',quality:0.28,col:'#f97316'},
+      {label:'τ₅',quality:0.08,col:'#ef4444'},
+    ];
+    var n=trajs2.length;
+    var bw3=80,gap2=20,startX2=60,padB2=60;
+    var maxH2=H-60-padB2;
+
+    trajs2.forEach(function(t,i){
+      var x=startX2+i*(bw3+gap2);
+      // Binary col = same for all incorrect
+      var binCol=t.quality>0.5?'#10b981':'#ef4444';
+      var binScore=t.quality>0.5?'1':'0';
+      // Binary bar (flat)
+      var binH=maxH2*0.2;
+      drawRR(ctx,x,40+maxH2*0.75,bw3,binH,6);
+      ctx.fillStyle=toRgba(binCol,0.12);ctx.fill();
+      ctx.strokeStyle=binCol;ctx.lineWidth=1;ctx.stroke();
+      ctx.fillStyle=binCol;ctx.font='700 11px JetBrains Mono';ctx.textAlign='center';
+      ctx.fillText(binScore,x+bw3/2,40+maxH2*0.75+binH/2+4);
+      // Logprob bar
+      var lpH=t.quality*maxH2*0.65;
+      var lpY=40+maxH2*0.65-lpH;
+      drawRR(ctx,x+bw3/4,lpY,bw3/2,lpH,4);
+      ctx.fillStyle=toRgba(t.col,0.7);ctx.fill();
+      ctx.strokeStyle=t.col;ctx.lineWidth=1.5;ctx.stroke();
+      ctx.fillStyle=t.col;ctx.font='700 10px Inter';ctx.textAlign='center';
+      ctx.fillText(t.quality.toFixed(2),x+bw3/2,lpY-6);
+      // Labels
+      ctx.fillStyle='#8b949e';ctx.font='10px Inter';
+      ctx.fillText(t.label,x+bw3/2,H-padB2+14);
+    });
+    ctx.fillStyle='#30363d';ctx.font='9px Inter';ctx.textAlign='left';
+    ctx.fillText('■ Binary score (top band)',50,H-padB2+28);
+    ctx.fillStyle='#8b5cf6';
+    ctx.fillText('■ Logprob score (tall bars)',200,H-padB2+28);
+    ctx.fillStyle='#ef4444';ctx.font='700 9px Inter';ctx.textAlign='center';
+    ctx.fillText('Binary cannot rank τ₂–τ₅; logprob clearly separates them',W/2,H-4);
+  }
+}
+
+/* ===== LETTER SCALE ===== */
+function buildLetterScale(){
+  var el=document.getElementById('letter-scale');
+  var letters='ABCDEFGHIJKLMNOPQRST';
+  for(var i=0;i<20;i++){
+    var frac=i/19;
+    var r=Math.round(lerp(16,239,1-frac)),g2=Math.round(lerp(185,68,1-frac)),b=Math.round(lerp(129,68,1-frac));
+    var col='rgb('+r+','+g2+','+b+')';
+    var pill=document.createElement('span');
+    pill.className='letter-pill';
+    pill.textContent=letters[i];
+    pill.style.background='rgba('+r+','+g2+','+b+',0.2)';
+    pill.style.color=col;
+    pill.style.border='1px solid rgba('+r+','+g2+','+b+',0.4)';
+    pill.title=letters[i]+'='+(20-i)+' (raw)';
+    el.appendChild(pill);
+  }
+}
+
+/* ===== LOGPROB VISUALISER ===== */
+function updateLogprob(){
+  var q=parseFloat(document.getElementById('quality-slider').value);
+  var s=parseFloat(document.getElementById('spread-slider').value);
+  document.getElementById('quality-val').textContent=q.toFixed(2);
+  document.getElementById('spread-val').textContent=s.toFixed(2);
+  drawLogprob(q,s);
+}
+
+function drawLogprob(q,s){
+  if(q===undefined)q=0.7;if(s===undefined)s=1.8;
+  var cv=document.getElementById('canvas-logprob');
+  if(!cv)return;
+  var ctx=cv.getContext('2d');
+  var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var G=20;
+  var mean=q*(G-1)+1;
+  var probs={},total=0;
+  for(var g=0;g<G;g++){
+    var rawVal=G-g;
+    var p=Math.exp(-0.5*Math.pow((rawVal-mean)/s,2));
+    probs[rawVal]=p;total+=p;
+  }
+  var ev=0;
+  Object.keys(probs).forEach(function(k){probs[k]/=total;ev+=k*probs[k];});
+
+  var padL=30,padB=36,padT=20;
+  var plotW=W-padL-10,plotH=H-padT-padB;
+  var bw=(plotW/G)-1;
+  var maxP=Math.max.apply(null,Object.values(probs));
+  var letters='ABCDEFGHIJKLMNOPQRST';
+
+  for(var g=0;g<G;g++){
+    var rawVal=G-g;
+    var p=probs[rawVal];
+    var bh=p/maxP*plotH*0.85;
+    var x=padL+g*(bw+1);
+    var y=padT+plotH-bh;
+    var frac=g/19;
+    var r=Math.round(lerp(16,239,frac)),g2=Math.round(lerp(185,68,frac)),b=Math.round(lerp(129,68,frac));
+    drawRR(ctx,x,y,bw,bh,2);
+    ctx.fillStyle='rgba('+r+','+g2+','+b+',0.75)';ctx.fill();
+    ctx.fillStyle='#8b949e';ctx.font='7px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText(letters[g],x+bw/2,H-padB+10);
+  }
+
+  // EV line
+  var norm=(ev-1)/(G-1);
+  var evX=padL+(G-1-(ev-1))*(bw+1)+bw/2;
+  ctx.strokeStyle='#f97316';ctx.lineWidth=2;ctx.setLineDash([3,4]);
+  ctx.beginPath();ctx.moveTo(evX,padT);ctx.lineTo(evX,H-padB);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#f97316';ctx.font='700 9px Inter';ctx.textAlign='center';
+  ctx.fillText('E[score]',evX,padT+10);
+
+  document.getElementById('expected-score').textContent=ev.toFixed(2)+' (raw)';
+  document.getElementById('norm-score').textContent=norm.toFixed(3);
+}
+
+/* ===== CRITERIA CANVAS ===== */
+var CRIT_DATA=[
+  {name:'Specification Adherence',col:'#10b981',
+   items:['Exact file paths met?','Installation locations correct?','Output format matches spec?','No requirement reinterpretation?'],
+   scores:[0.88,0.65,0.41,0.72,0.58]},
+  {name:'Output Match',col:'#0ea5e9',
+   items:['Final terminal output matches?','Character-by-character comparison?','No hallucinated results claimed?','Verification command ran correctly?'],
+   scores:[0.92,0.55,0.38,0.80,0.45]},
+  {name:'Error Signal Detection',col:'#ef4444',
+   items:['No unresolved error messages?','No non-zero exit codes?','No failed compilation in final steps?','No exception tracebacks remaining?'],
+   scores:[0.75,0.60,0.82,0.55,0.70]},
+];
+var critIdx=0;
+function setCrit(idx,btn){
+  critIdx=idx;
+  document.querySelectorAll('#crit-tabs .btn-tab').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  var d=CRIT_DATA[idx];
+  var info={
+    0:'<strong>Specification Adherence:</strong> Verifies that the agent met exact requirements — correct file paths, installation locations, output formats, and explicit constraints — rather than solving a superficially similar but fundamentally different problem. Rewards strict compliance.',
+    1:'<strong>Output Match:</strong> Compares the final verification command output character-by-character against expected results. Focuses on what the terminal <em>actually shows</em>, not what the agent <em>claims</em>. Detects hallucinated successes.',
+    2:'<strong>Error Signal Detection:</strong> Scans the trajectory for unresolved failure markers — error messages, exceptions, non-zero exit codes, compilation failures — particularly in later steps. A trajectory that ends with errors but claims success is penalised.',
+  };
+  document.getElementById('crit-info').innerHTML=info[idx];
+  drawCriteria();
+}
+
+function drawCriteria(){
+  var cv=document.getElementById('canvas-criteria');
+  if(!cv)return;
+  var ctx=cv.getContext('2d');
+  var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var d=CRIT_DATA[critIdx];
+  var n=d.scores.length;
+  var bw=80,gap=40;
+  var totalW=n*(bw+gap)-gap;
+  var startX=(W-totalW)/2;
+  var padB=50,padT=24;
+  var maxH=H-padT-padB;
+
+  d.scores.forEach(function(s,i){
+    var x=startX+i*(bw+gap);
+    var barH=s*maxH;
+    var y=padT+maxH-barH;
+    drawRR(ctx,x,y,bw,barH,6);
+    ctx.fillStyle=toRgba(d.col,0.2);ctx.fill();
+    ctx.strokeStyle=d.col;ctx.lineWidth=1.5;ctx.stroke();
+    ctx.fillStyle=d.col;ctx.font='700 13px Inter';ctx.textAlign='center';
+    ctx.fillText((s).toFixed(2),x+bw/2,y-8);
+    ctx.fillStyle='#8b949e';ctx.font='10px Inter';
+    ctx.fillText('τ'+(i+1),x+bw/2,H-padB+16);
+    ctx.font='9px Inter';ctx.fillText((s>0.6?'Better':'Worse'),x+bw/2,H-padB+28);
+  });
+
+  ctx.fillStyle=d.col;ctx.font='700 11px Inter';ctx.textAlign='center';
+  ctx.fillText(d.name+' scores across 5 trajectories',W/2,H-4);
+}
+
+/* ===== TOURNAMENT CANVAS ===== */
+var tournScores=null;
+function updateTournament(){
+  var n=parseInt(document.getElementById('n-slider').value);
+  document.getElementById('n-val').textContent=n;
+  var pairs=n*(n-1)/2;
+  document.getElementById('n-pairs').textContent=pairs;
+  document.getElementById('n-calls').textContent=(pairs*3*4);
+  tournScores=null;
+  drawTournament(n);
+}
+
+function runTournament(){
+  var n=parseInt(document.getElementById('n-slider').value);
+  tournScores=null;
+  drawTournament(n,true);
+}
+
+function drawTournament(n,randomise){
+  var cv=document.getElementById('canvas-tournament');
+  if(!cv)return;
+  var ctx=cv.getContext('2d');
+  var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  if(!tournScores||randomise){
+    tournScores=[];
+    for(var i=0;i<n;i++){
+      tournScores.push(0.1+Math.random()*0.85);
+    }
+  }
+
+  var wins=new Array(n).fill(0);
+  for(var i=0;i<n;i++){
+    for(var j=i+1;j<n;j++){
+      var si=tournScores[i],sj=tournScores[j];
+      if(si>sj+0.02)wins[i]++;
+      else if(sj>si+0.02)wins[j]++;
+      else{wins[i]+=0.5;wins[j]+=0.5;}
+    }
+  }
+  var bestIdx=wins.indexOf(Math.max.apply(null,wins));
+
+  // Draw trajectory nodes in a circle
+  var cx2=W/2-80,cy2=H/2,r=100;
+  var nodeR=22;
+  var TRAJ_COLS=['#8b5cf6','#0ea5e9','#10b981','#f7b731','#f97316','#ef4444','#a78bfa','#06b6d4'];
+
+  // Draw pairwise edges
+  for(var i=0;i<n;i++){
+    for(var j=i+1;j<n;j++){
+      var ai=i/n*Math.PI*2-Math.PI/2;
+      var aj=j/n*Math.PI*2-Math.PI/2;
+      var x1=cx2+r*Math.cos(ai),y1=cy2+r*Math.sin(ai);
+      var x2=cx2+r*Math.cos(aj),y2=cy2+r*Math.sin(aj);
+      var winner=tournScores[i]>tournScores[j]+0.02?i:tournScores[j]>tournScores[i]+0.02?j:-1;
+      ctx.strokeStyle=winner===-1?'#30363d':toRgba(TRAJ_COLS[winner%TRAJ_COLS.length],0.5);
+      ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+    }
+  }
+
+  // Draw nodes
+  for(var i=0;i<n;i++){
+    var a=i/n*Math.PI*2-Math.PI/2;
+    var x=cx2+r*Math.cos(a),y=cy2+r*Math.sin(a);
+    var col=TRAJ_COLS[i%TRAJ_COLS.length];
+    var isBest=(i===bestIdx);
+    ctx.beginPath();ctx.arc(x,y,isBest?nodeR+4:nodeR,0,Math.PI*2);
+    ctx.fillStyle=toRgba(col,isBest?0.4:0.15);ctx.fill();
+    ctx.strokeStyle=col;ctx.lineWidth=isBest?3:1.5;ctx.stroke();
+    if(isBest){
+      ctx.beginPath();ctx.arc(x,y,nodeR+10,0,Math.PI*2);
+      ctx.strokeStyle=toRgba(col,0.25);ctx.lineWidth=2;ctx.stroke();
+    }
+    ctx.fillStyle=col;ctx.font='700 11px Inter';ctx.textAlign='center';
+    ctx.fillText('τ'+(i+1),x,y-2);
+    ctx.fillStyle='#c9d1d9';ctx.font='9px JetBrains Mono';
+    ctx.fillText(tournScores[i].toFixed(2),x,y+12);
+  }
+
+  // Win counts panel
+  var px=W-190,py=20,pw=170,ph=n*28+28;
+  drawRR(ctx,px,py,pw,ph,8);
+  ctx.fillStyle='#0d1117';ctx.fill();
+  ctx.strokeStyle='#30363d';ctx.lineWidth=1;ctx.stroke();
+  ctx.fillStyle='#8b949e';ctx.font='700 10px Inter';ctx.textAlign='left';
+  ctx.fillText('Win counts',px+10,py+16);
+  var sortedIdx=Array.from({length:n},function(_,i){return i;}).sort(function(a,b){return wins[b]-wins[a];});
+  sortedIdx.forEach(function(idx,rank){
+    var col=TRAJ_COLS[idx%TRAJ_COLS.length];
+    var ry=py+30+rank*26;
+    ctx.fillStyle=idx===bestIdx?col:'#8b949e';ctx.font=(idx===bestIdx?'700 ':'')+'11px Inter';
+    ctx.fillText('τ'+(idx+1)+': '+wins[idx]+' wins'+(idx===bestIdx?' ★':''),px+10,ry);
+  });
+
+  document.getElementById('tourn-info').innerHTML='<strong>Winner: τ'+(bestIdx+1)+'</strong> with '+wins[bestIdx]+' wins (score: '+tournScores[bestIdx].toFixed(2)+'). Click canvas to randomise trajectory scores and run a new tournament.';
+}
+
+/* ===== RESULTS CANVAS ===== */
+var resBench='terminal';
+function setResBench(bench,btn){
+  resBench=bench;
+  document.querySelectorAll('#res-tabs .btn-tab').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  ['res-terminal','res-swe','res-ablation'].forEach(function(id){
+    document.getElementById(id).style.display='none';
+  });
+  var map={terminal:'res-terminal',swe:'res-swe',ablation:'res-ablation'};
+  document.getElementById(map[bench]).style.display='block';
+  drawResults(bench);
+  if(bench==='ablation')setTimeout(drawAblation,50);
+}
+
+function drawResults(bench){
+  var cv=document.getElementById('canvas-results');
+  if(!cv)return;
+  var ctx=cv.getContext('2d');
+  var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var terminal=[
+    {label:'Pass@1',pct:81.8,col:'#8b949e'},
+    {label:'LLM-Verifier',pct:86.4,col:'#f97316'},
+    {label:'Oracle',pct:89.9,col:'#10b981'},
+  ];
+  var swe=[
+    {label:'Pass@1',pct:76.1,col:'#8b949e'},
+    {label:'LLM-Verifier',pct:77.8,col:'#f97316'},
+    {label:'Oracle',pct:84.4,col:'#10b981'},
+  ];
+  var data=bench==='swe'?swe:terminal;
+  var benchName=bench==='swe'?'SWE-bench Verified':'Terminal-Bench 2';
+
+  var padL=100,padR=30,padT=24,padB=36;
+  var maxH=H-padT-padB;
+  var baseline=bench==='swe'?70:75;
+  var maxVal=bench==='swe'?90:95;
+
+  // Horizontal bar chart
+  var bh=44,gap=16;
+  var startY=padT+(maxH-data.length*(bh+gap))/2;
+
+  data.forEach(function(d,i){
+    var y=startY+i*(bh+gap);
+    var w=(d.pct-baseline)/(maxVal-baseline)*(W-padL-padR);
+    drawRR(ctx,padL,y,w,bh,6);
+    ctx.fillStyle=toRgba(d.col,0.2);ctx.fill();
+    ctx.strokeStyle=d.col;ctx.lineWidth=1.5;ctx.stroke();
+    ctx.fillStyle=d.col;ctx.font='700 13px Inter';ctx.textAlign='left';
+    ctx.fillText(d.pct+'%',padL+w+8,y+bh/2+4);
+    ctx.fillStyle='#8b949e';ctx.font='11px Inter';ctx.textAlign='right';
+    ctx.fillText(d.label,padL-8,y+bh/2+4);
+  });
+
+  ctx.fillStyle='#8b949e';ctx.font='10px Inter';ctx.textAlign='center';
+  ctx.fillText(benchName,W/2,H-4);
+}
+
+function drawAblation(){
+  var cv=document.getElementById('canvas-ablation');
+  if(!cv)return;
+  var ctx=cv.getContext('2d');
+  var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  // Simulated ablation: vary G, K, C on Terminal-Bench
+  var groups=[
+    {label:'G (Granularity)',vals:[1,5,10,20],scores:[83.1,84.2,85.5,86.4],col:'#0ea5e9'},
+    {label:'K (Passes)',vals:[1,2,3,4],scores:[84.0,85.1,85.9,86.4],col:'#a78bfa'},
+    {label:'C (Criteria)',vals:[1,2,3,4],scores:[84.8,85.7,86.4,86.4],col:'#10b981'},
+  ];
+
+  var padL=50,padR=20,padT=20,padB=44;
+  var plotW=(W-padL-padR-30)/3,plotH=H-padT-padB;
+  var baseline=81.8;
+
+  groups.forEach(function(g,gi){
+    var ox=padL+gi*(plotW+15);
+    // Axes
+    ctx.strokeStyle='#30363d';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(ox,padT);ctx.lineTo(ox,padT+plotH);ctx.lineTo(ox+plotW,padT+plotH);ctx.stroke();
+
+    // Line
+    ctx.beginPath();
+    g.vals.forEach(function(v,i){
+      var x=ox+i/(g.vals.length-1)*plotW;
+      var y=padT+plotH-(g.scores[i]-baseline)/(90-baseline)*plotH;
+      if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    });
+    ctx.strokeStyle=g.col;ctx.lineWidth=2;ctx.stroke();
+
+    // Dots + labels
+    g.vals.forEach(function(v,i){
+      var x=ox+i/(g.vals.length-1)*plotW;
+      var y=padT+plotH-(g.scores[i]-baseline)/(90-baseline)*plotH;
+      ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);
+      ctx.fillStyle=g.col;ctx.fill();
+      ctx.fillStyle='#8b949e';ctx.font='9px Inter';ctx.textAlign='center';
+      ctx.fillText(v,x,padT+plotH+12);
+      if(i===g.vals.length-1){
+        ctx.fillStyle=g.col;ctx.font='700 9px Inter';
+        ctx.fillText(g.scores[i]+'%',x+14,y+3);
+      }
+    });
+
+    // Baseline
+    var by=padT+plotH-(baseline-baseline)/(90-baseline)*plotH;
+    ctx.strokeStyle='#30363d';ctx.lineWidth=1;ctx.setLineDash([3,4]);
+    ctx.beginPath();ctx.moveTo(ox,by);ctx.lineTo(ox+plotW,by);ctx.stroke();ctx.setLineDash([]);
+
+    ctx.fillStyle=g.col;ctx.font='700 10px Inter';ctx.textAlign='center';
+    ctx.fillText(g.label,ox+plotW/2,H-4);
+  });
+
+  ctx.fillStyle='#8b949e';ctx.font='9px Inter';ctx.textAlign='left';
+  ctx.fillText('Pass@1 baseline: 81.8%',padL,padT+plotH+28);
+}
+
+/* ===== INSIGHT CANVAS ===== */
+function drawInsight(){
+  var cv=document.getElementById('canvas-insight');
+  if(!cv)return;
+  var ctx=cv.getContext('2d');
+  var W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#161b22';ctx.fillRect(0,0,W,H);
+
+  var nodes=[
+    {label:'LLM-as-a-Judge',sub:'(MT-Bench)',col:'#8b949e',x:0.12,y:0.5},
+    {label:'Process Reward\nModels (PRM)',col:'#0ea5e9',x:0.35,y:0.18},
+    {label:'LLM-as-a-Verifier',sub:'(This work)',col:'#8b5cf6',x:0.55,y:0.5},
+    {label:'RLHF Reward\nModelling',col:'#10b981',x:0.35,y:0.82},
+    {label:'Best-of-N\nSampling',col:'#f97316',x:0.82,y:0.5},
+  ];
+  var edges=[
+    [0,2,'Extends to code\ntrajectories'],
+    [1,2,'Coarser but\nno annotations'],
+    [3,2,'Training-free\nreward signal'],
+    [2,4,'Verifier enables\neffective B-o-N'],
+  ];
+
+  edges.forEach(function(e){
+    var a=nodes[e[0]],b=nodes[e[1]];
+    var x1=a.x*W,y1=a.y*H,x2=b.x*W,y2=b.y*H;
+    ctx.strokeStyle='#30363d';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+    ctx.fillStyle='#8b949e';ctx.font='8px Inter';ctx.textAlign='center';
+    ctx.fillText(e[2].split('\n')[0],(x1+x2)/2,(y1+y2)/2-5);
+    if(e[2].split('\n')[1])ctx.fillText(e[2].split('\n')[1],(x1+x2)/2,(y1+y2)/2+6);
+  });
+
+  nodes.forEach(function(n){
+    var x=n.x*W,y=n.y*H;
+    var lines=n.label.split('\n');
+    var tw=Math.max.apply(null,lines.map(function(l){return l.length*6.5;}));
+    var th=lines.length*16+16;
+    drawRR(ctx,x-tw/2-8,y-th/2,tw+16,th,8);
+    ctx.fillStyle=toRgba(n.col,0.14);ctx.fill();
+    ctx.strokeStyle=n.col;ctx.lineWidth=1.5;ctx.stroke();
+    ctx.fillStyle=n.col;ctx.font='700 11px Inter';ctx.textAlign='center';
+    lines.forEach(function(l,i){ctx.fillText(l,x,y-(lines.length-1)*8+i*16);});
+    if(n.sub){ctx.fillStyle='#8b949e';ctx.font='9px Inter';ctx.fillText(n.sub,x,y+(lines.length-1)*8+12);}
+  });
+}
+
+/* ===== INIT ===== */
+function doInit(){
+  buildLetterScale();
+  drawOverview();
+  drawProblem();
+  drawLogprob(0.7,1.8);
+  drawCriteria();
+  var n=parseInt(document.getElementById('n-slider').value);
+  updateTournament();
+  drawTournament(n);
+  drawResults('terminal');
+  drawInsight();
+}
+
+if(localStorage.getItem(PG_KEY)==='1'){
+  document.getElementById('pg-gate').style.display='none';
+  setTimeout(doInit,0);
+}
+</script>
+</body>
+</html>
