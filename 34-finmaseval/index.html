@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>FinMASEval — Evaluating Multi-Agent AI for Financial Services</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#060d1f;--surface:#0d1b35;--border:#1e3455;
+  --text:#d4e2f4;--muted:#7a96b8;
+  --accent:#2563eb;--accent2:#3b82f6;--accent3:#93c5fd;
+  --gold:#d97706;--gold2:#fbbf24;--gold3:#fef3c7;
+  --green:#10b981;--green2:#34d399;
+  --red:#ef4444;--red2:#fca5a5;
+  --purple:#7c3aed;--purple2:#a78bfa;
+  --c-bench:#2563eb;--c-arch:#d97706;--c-dim:#10b981;
+  --c-roles:#7c3aed;--c-fw:#0ea5e9;--c-hall:#ef4444;--c-reg:#f97316;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+.sidebar{width:240px;min-width:240px;height:100vh;position:sticky;top:0;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:0 0 40px;flex-shrink:0;}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.sidebar-logo-title{font-size:13px;font-weight:700;color:var(--gold2);}
+.sidebar-logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.nav-group-title{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;padding:10px 16px 4px;}
+.nav-link{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;}
+.nav-link:hover,.nav-link.active{color:var(--text);background:rgba(37,99,235,.08);}
+.nav-link.active{color:var(--accent3);}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.main{flex:1;overflow-y:auto;height:100vh;scroll-behavior:smooth;}
+.pipeline-map{position:sticky;top:0;z-index:50;background:rgba(6,13,31,.96);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+.pipe-step{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);padding:2px 6px;border-radius:4px;cursor:pointer;transition:color .15s;}
+.pipe-step:hover{color:var(--text);}
+.pipe-dot{width:6px;height:6px;border-radius:50%;}
+.pipe-arrow{color:var(--border);font-size:12px;}
+.section{min-height:100vh;padding:60px 48px 80px;border-bottom:1px solid var(--border);}
+.section-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;}
+.section-title{font-size:28px;font-weight:800;color:var(--text);margin-bottom:8px;line-height:1.25;}
+.section-sub{font-size:14px;color:var(--muted);margin-bottom:28px;max-width:680px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:16px;}
+.card-title{font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px;}
+.card-body{font-size:13px;color:var(--muted);line-height:1.6;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;}
+canvas{display:block;border-radius:10px;background:var(--surface);border:1px solid var(--border);}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s;}
+.btn:hover{opacity:.85;}
+.btn-tab{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+.formula{background:#060d1f;border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-family:'JetBrains Mono','Courier New',monospace;font-size:11px;color:#93c5fd;line-height:1.8;margin-bottom:16px;white-space:pre;overflow-x:auto;}
+.stats-row{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:28px;}
+.stat{text-align:center;}
+.stat-val{font-size:28px;font-weight:800;color:var(--gold2);}
+.stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;}
+.highlight-box{border-left:3px solid var(--accent);padding:12px 16px;background:rgba(37,99,235,.06);border-radius:0 8px 8px 0;margin-bottom:16px;font-size:13px;color:var(--muted);}
+.highlight-box.gold{border-color:var(--gold);background:rgba(217,119,6,.06);}
+.highlight-box.green{border-color:var(--green);background:rgba(16,185,129,.06);}
+.highlight-box.red{border-color:var(--red);background:rgba(239,68,68,.06);}
+.highlight-box.purple{border-color:var(--purple);background:rgba(124,58,237,.06);}
+.highlight-box.orange{border-color:#f97316;background:rgba(249,115,22,.06);}
+.accordion-item{border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+.accordion-header{padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;background:var(--surface);}
+.accordion-header:hover{background:#111f3d;}
+.accordion-chevron{transition:transform .2s;font-size:10px;color:var(--muted);}
+.accordion-item.open .accordion-chevron{transform:rotate(90deg);}
+.accordion-body{padding:14px 16px;font-size:12px;color:var(--muted);display:none;border-top:1px solid var(--border);line-height:1.7;}
+.accordion-item.open .accordion-body{display:block;}
+.metric-detail{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-top:16px;min-height:120px;}
+.metric-detail-name{font-size:18px;font-weight:800;margin-bottom:4px;}
+.metric-detail-full{font-size:12px;color:var(--gold2);margin-bottom:12px;}
+.metric-detail-desc{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:12px;}
+.badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-right:6px;}
+.badge-bench{background:rgba(37,99,235,.15);color:#93c5fd;}
+.badge-hall{background:rgba(239,68,68,.15);color:#fca5a5;}
+.badge-reg{background:rgba(249,115,22,.15);color:#fdba74;}
+.badge-dim{background:rgba(16,185,129,.15);color:#6ee7b7;}
+.badge-fw{background:rgba(14,165,233,.15);color:#7dd3fc;}
+.prog-bar-bg{background:#0d1b35;border-radius:4px;height:8px;overflow:hidden;margin-top:6px;}
+.prog-bar-fill{height:100%;border-radius:4px;transition:width 1s ease;}
+#scroll-prog{position:fixed;top:0;left:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--gold2));z-index:9998;transition:width .1s;}
+.cite{font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:6px;}
+.bench-pill{display:inline-flex;align-items:center;gap:5px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;margin:3px;}
+.bench-pill:hover,.bench-pill.active{border-color:var(--accent2);color:var(--accent3);}
+.bench-pill.active{background:rgba(37,99,235,.12);}
+.bench-detail{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-top:14px;min-height:110px;}
+/* topology cards */
+.topo-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
+.topo-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;cursor:pointer;transition:all .2s;}
+.topo-card:hover,.topo-card.active{border-color:var(--gold);background:rgba(217,119,6,.06);}
+.topo-card-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;}
+.topo-card-name{font-size:14px;font-weight:700;margin-bottom:4px;}
+.topo-card-score{font-size:22px;font-weight:800;color:var(--gold2);}
+/* role cards */
+.role-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px;}
+.role-icon{font-size:24px;margin-bottom:8px;}
+.role-name{font-size:13px;font-weight:700;margin-bottom:4px;}
+.role-desc{font-size:11px;color:var(--muted);line-height:1.5;}
+/* framework comparison */
+.fw-card{background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:18px;transition:all .2s;}
+.fw-card.selected{border-color:var(--gold);}
+.fw-name{font-size:15px;font-weight:700;margin-bottom:2px;}
+.fw-sub{font-size:10px;color:var(--muted);margin-bottom:12px;}
+.fw-bar-row{margin-bottom:8px;}
+.fw-bar-label{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:3px;}
+/* hallucination */
+.hall-bar-row{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+.hall-bar-label{width:160px;font-size:11px;color:var(--muted);flex-shrink:0;}
+.hall-bar-track{flex:1;background:#0d1b35;border-radius:4px;height:10px;overflow:hidden;}
+.hall-bar-fill{height:100%;border-radius:4px;}
+.hall-bar-val{width:36px;font-size:11px;font-weight:700;text-align:right;flex-shrink:0;}
+/* reg checklist */
+.reg-item{display:flex;gap:12px;align-items:flex-start;padding:10px 14px;border-radius:8px;margin-bottom:6px;background:var(--surface);border:1px solid var(--border);}
+.reg-check{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+.reg-check.pass{background:rgba(16,185,129,.15);color:var(--green);}
+.reg-check.warn{background:rgba(249,115,22,.15);color:#f97316;}
+.reg-check.fail{background:rgba(239,68,68,.15);color:var(--red);}
+.reg-item-body{flex:1;}
+.reg-item-title{font-size:12px;font-weight:700;margin-bottom:2px;}
+.reg-item-desc{font-size:11px;color:var(--muted);}
+/* paper source */
+.paper-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:10px;}
+.paper-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;}
+.paper-meta{font-size:11px;color:var(--muted);margin-bottom:8px;}
+.paper-link{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;color:var(--accent3);border:1px solid rgba(147,197,253,.25);border-radius:5px;padding:3px 9px;transition:all .15s;}
+.paper-link:hover{background:rgba(37,99,235,.1);}
+/* related strip */
+.related-strip{padding:28px 48px 44px;border-top:2px solid var(--border);}
+.related-strip-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.related-strip-label::after{content:'';flex:1;height:1px;background:var(--border);}
+.related-strip-grid{display:flex;gap:12px;flex-wrap:wrap;}
+.rc{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px 15px;text-decoration:none;color:inherit;transition:all .15s;min-width:160px;flex:1;max-width:230px;}
+.rc:hover{border-color:#555;transform:translateY(-1px);}
+.rc-type{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px;}
+.rc-num{font-size:10px;color:var(--muted);margin-bottom:2px;font-family:'JetBrains Mono',monospace;}
+.rc-title{font-size:12px;font-weight:700;color:var(--text);line-height:1.35;margin-bottom:3px;}
+.rc-why{font-size:10px;color:var(--muted);line-height:1.5;}
+.map-link-btn{display:inline-flex;align-items:center;gap:6px;margin-top:14px;font-size:11px;color:#93c5fd;font-weight:600;border:1px solid rgba(37,99,235,.35);border-radius:6px;padding:5px 12px;transition:all .15s;text-decoration:none;}
+.map-link-btn:hover{border-color:var(--accent2);background:rgba(37,99,235,.08);}
+/* password gate */
+#pg-gate{position:fixed;inset:0;background:linear-gradient(135deg,#060d1f 0%,#0d1b35 50%,#060d1f 100%);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.pg-box{background:#0d1b35;border:1px solid #1e3455;border-radius:16px;padding:40px 48px;max-width:440px;width:100%;text-align:center;box-shadow:0 0 40px rgba(37,99,235,.12);}
+.pg-icon{font-size:2.5rem;margin-bottom:16px;}
+.pg-title{font-size:1.3rem;font-weight:800;color:#d4e2f4;margin-bottom:6px;}
+.pg-subtitle{font-size:13px;font-weight:600;color:var(--gold2);margin-bottom:6px;}
+.pg-sub{font-size:11px;color:#7a96b8;margin-bottom:24px;}
+.pg-input{width:100%;background:#060d1f;border:1px solid #1e3455;border-radius:8px;padding:10px 14px;color:#d4e2f4;font-size:14px;outline:none;text-align:center;}
+.pg-input:focus{border-color:var(--accent);}
+.pg-btn{margin-top:12px;width:100%;background:linear-gradient(135deg,#1d4ed8,#1e40af);color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;}
+.pg-btn:hover{opacity:.9;}
+.pg-err{color:#ff6b6b;font-size:11px;margin-top:8px;min-height:16px;}
+</style>
+</head>
+<body>
+
+<div id="scroll-prog" style="width:0%"></div>
+
+<!-- PASSWORD GATE -->
+<div id="pg-gate">
+  <div class="pg-box">
+    <div class="pg-icon">🏦</div>
+    <div class="pg-title">FinMASEval</div>
+    <div class="pg-subtitle">Post 34 · Evaluation · Finance</div>
+    <div class="pg-sub">Evaluating multi-agent AI systems for financial services — benchmarks, dimensions, hallucination rates, and regulatory compliance.</div>
+    <input class="pg-input" id="pg-inp" type="password" placeholder="Enter access password" autocomplete="off">
+    <button class="pg-btn" onclick="pgTry()">Unlock Visual</button>
+    <div class="pg-err" id="pg-err"></div>
+    <div style="margin-top:16px;font-size:11px;color:#7a96b8;">Not a subscriber? <a href="https://bhaskarjitsarmah.substack.com" style="color:var(--gold2);text-decoration:underline;">Join the newsletter →</a></div>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-title">FinMASEval</div>
+    <div class="sidebar-logo-sub">Post 34 · Finance · 5 benchmarks · 4 frameworks</div>
+  </div>
+  <div class="nav-group-title">Overview</div>
+  <div class="nav-link active" onclick="goTo('s-overview')"><span class="dot" style="background:var(--gold2)"></span>The Evaluation Gap</div>
+  <div class="nav-group-title">Foundations</div>
+  <div class="nav-link" onclick="goTo('s-benchmarks')"><span class="dot" style="background:var(--c-bench)"></span>Financial Benchmarks</div>
+  <div class="nav-link" onclick="goTo('s-arch')"><span class="dot" style="background:var(--c-arch)"></span>Agent Architectures</div>
+  <div class="nav-link" onclick="goTo('s-dims')"><span class="dot" style="background:var(--c-dim)"></span>Evaluation Dimensions</div>
+  <div class="nav-group-title">Deep Dives</div>
+  <div class="nav-link" onclick="goTo('s-roles')"><span class="dot" style="background:var(--c-roles)"></span>Agent Role Specialization</div>
+  <div class="nav-link" onclick="goTo('s-frameworks')"><span class="dot" style="background:var(--c-fw)"></span>Framework Comparison</div>
+  <div class="nav-link" onclick="goTo('s-hallucination')"><span class="dot" style="background:var(--c-hall)"></span>Hallucination in Finance</div>
+  <div class="nav-link" onclick="goTo('s-regulatory')"><span class="dot" style="background:var(--c-reg)"></span>Regulatory Layer</div>
+  <div class="nav-group-title">Reference</div>
+  <div class="nav-link" onclick="goTo('s-papers')"><span class="dot" style="background:var(--muted)"></span>Paper Sources</div>
+</nav>
+
+<!-- MAIN -->
+<div class="main" id="main-scroll">
+
+<!-- PIPELINE MAP -->
+<div class="pipeline-map">
+  <div class="pipe-step" onclick="goTo('s-overview')"><div class="pipe-dot" style="background:var(--gold2)"></div>Overview</div>
+  <span class="pipe-arrow">›</span>
+  <div class="pipe-step" onclick="goTo('s-benchmarks')"><div class="pipe-dot" style="background:var(--c-bench)"></div>Benchmarks</div>
+  <span class="pipe-arrow">›</span>
+  <div class="pipe-step" onclick="goTo('s-arch')"><div class="pipe-dot" style="background:var(--c-arch)"></div>Architecture</div>
+  <span class="pipe-arrow">›</span>
+  <div class="pipe-step" onclick="goTo('s-dims')"><div class="pipe-dot" style="background:var(--c-dim)"></div>Dimensions</div>
+  <span class="pipe-arrow">›</span>
+  <div class="pipe-step" onclick="goTo('s-roles')"><div class="pipe-dot" style="background:var(--c-roles)"></div>Roles</div>
+  <span class="pipe-arrow">›</span>
+  <div class="pipe-step" onclick="goTo('s-frameworks')"><div class="pipe-dot" style="background:var(--c-fw)"></div>Frameworks</div>
+  <span class="pipe-arrow">›</span>
+  <div class="pipe-step" onclick="goTo('s-hallucination')"><div class="pipe-dot" style="background:var(--c-hall)"></div>Hallucination</div>
+  <span class="pipe-arrow">›</span>
+  <div class="pipe-step" onclick="goTo('s-regulatory')"><div class="pipe-dot" style="background:var(--c-reg)"></div>Regulatory</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     S1 · OVERVIEW
+════════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-overview">
+  <div class="section-tag" style="color:var(--gold2)">Post 34 · Evaluation · Finance</div>
+  <div class="section-title">The Evaluation Gap in Financial AI</div>
+  <div class="section-sub">Financial services demands more than task completion. When an LLM agent hallucinates a stock price, confuses a regulatory deadline, or misroutes a trade instruction, the consequences are measured in dollars, compliance breaches, and lost client trust. Generic MAS evaluation frameworks are insufficient.</div>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val">81%</div><div class="stat-lbl">Error rate, GPT-4 + RAG on FinanceBench</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--accent3)">5</div><div class="stat-lbl">Financial Benchmarks Covered</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--green2)">6</div><div class="stat-lbl">Finance-Specific Eval Dimensions</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--purple2)">4</div><div class="stat-lbl">Financial Agent Frameworks</div></div>
+  </div>
+
+  <canvas id="canvas-overview" width="700" height="200" style="margin-bottom:24px;max-width:100%;"></canvas>
+
+  <div class="highlight-box gold">
+    <strong>The core finding (FinanceBench, 2023):</strong> GPT-4-Turbo with retrieval incorrectly answered or refused <strong>81% of financial questions</strong> from public company filings. All models exhibit hallucinations that limit enterprise suitability — making robust evaluation, not just capability testing, the critical challenge.
+  </div>
+
+  <div class="grid3" style="margin-bottom:24px;">
+    <div class="card">
+      <div class="card-title" style="color:var(--c-bench)">Why Financial Benchmarks Are Different</div>
+      <div class="card-body">Financial tasks require precise numerical reasoning, multi-hop inference across 10-K filings, and policy compliance — skills that general benchmarks like MMLU and GAIA don't stress-test. A model that scores 70% on MMLU may have a 40%+ error rate on FinQA numerical reasoning.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--c-hall)">Hallucination is a Financial Risk</div>
+      <div class="card-body">In general NLP, a hallucinated fact is a quality issue. In finance, it is a liability. Fabricated earnings figures, incorrect regulatory dates, or hallucinated fund NAVs can trigger mis-selling claims, regulatory sanctions, and material losses before a human reviewer catches the error.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--c-reg)">Regulation Adds a New Evaluation Axis</div>
+      <div class="card-body">FINRA and SEC rules are technology-neutral — they apply equally to AI agents. Evaluation must include a compliance layer: did the agent follow suitability rules? Did it produce an auditable decision trail? Does its output satisfy disclosure requirements? No generic MAS framework measures this.</div>
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">How FinMASEval extends the MASEval framework (Post 25) <span class="accordion-chevron">›</span></div>
+    <div class="accordion-body">MASEval (Post 25) introduced four orthogonal evaluation dimensions for generic multi-agent systems: task performance, communication efficiency, error resilience, and resource efficiency. FinMASEval retains these as a baseline but adds two financial-specific dimensions — hallucination rate and regulatory compliance — and replaces the generic benchmarks (GAIA, Tau-bench, MMLU) with domain-specific ones (FinQA, FinBen, FinanceBench, FLUE, FinAgentBench). It also introduces financial agent role taxonomy and a regulatory checklist derived from FINRA 2026 and SEC guidance.</div>
+  </div>
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">What types of financial tasks does FinMASEval cover? <span class="accordion-chevron">›</span></div>
+    <div class="accordion-body">FinMASEval covers seven task categories: (1) Numerical reasoning over financial documents (FinQA), (2) Holistic financial NLP tasks including extraction, classification, generation, and risk assessment (FinBen), (3) Open-book financial question answering over public filings (FinanceBench), (4) Financial language understanding — sentiment analysis, NER, QA, summarization (FLUE), (5) Agentic retrieval from SEC filings — 10-K, 10-Q, 8-K, earnings transcripts (FinAgentBench), (6) Trading and portfolio management decisions (TradingAgents, FinCon), (7) Regulatory compliance and policy adherence evaluation.</div>
+  </div>
+
+  <div style="margin-top:32px;text-align:right;"><span class="map-link-btn" onclick="goTo('s-benchmarks')" style="cursor:pointer;">Financial Benchmarks →</span></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     S2 · BENCHMARKS
+════════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-benchmarks">
+  <div class="section-tag" style="color:var(--c-bench)">Category 1</div>
+  <div class="section-title">Financial Benchmarks</div>
+  <div class="section-sub">Five purpose-built benchmarks that replace GAIA/MMLU for financial agent evaluation. Each stresses a different capability: numerical reasoning, holistic NLP, open-book QA, language understanding, and agentic retrieval.</div>
+
+  <div class="btn-row" id="bench-btn-row">
+    <button class="btn-tab active" onclick="selectBench('finqa',this)">FinQA</button>
+    <button class="btn-tab" onclick="selectBench('finben',this)">FinBen</button>
+    <button class="btn-tab" onclick="selectBench('financebench',this)">FinanceBench</button>
+    <button class="btn-tab" onclick="selectBench('flue',this)">FLUE</button>
+    <button class="btn-tab" onclick="selectBench('finagentbench',this)">FinAgentBench</button>
+  </div>
+
+  <div class="bench-detail" id="bench-detail">
+    <div style="font-size:18px;font-weight:800;margin-bottom:4px;" id="bd-name">FinQA</div>
+    <div style="font-size:12px;color:var(--accent3);margin-bottom:10px;" id="bd-full">Numerical Reasoning over Financial Data</div>
+    <div id="bd-badge"><span class="badge badge-bench">Numerical Reasoning</span></div>
+    <div style="font-size:13px;color:var(--muted);line-height:1.6;margin-top:10px;" id="bd-desc">8,281 QA pairs derived from public 10-K earnings filings requiring multi-step numerical reasoning. Each question comes with a gold reasoning program ensuring explainability. Popular pre-trained models "fall far short of expert humans in complex multi-step numerical reasoning." Best used to evaluate whether financial agents can correctly chain arithmetic operations over tabular data without hallucinating intermediate steps.</div>
+    <div class="cite" id="bd-cite">Chen et al. (2021) · EMNLP · arxiv.org/abs/2109.00122</div>
+  </div>
+
+  <canvas id="canvas-bench" width="700" height="220" style="margin-top:24px;margin-bottom:24px;max-width:100%;"></canvas>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title" style="color:var(--c-bench)">Benchmark Selection Guide</div>
+      <div class="card-body">
+        <strong style="color:var(--text);">FinQA</strong> — Testing numerical accuracy of individual agents<br><br>
+        <strong style="color:var(--text);">FinBen</strong> — Holistic MAS capability across 24 task types<br><br>
+        <strong style="color:var(--text);">FinanceBench</strong> — Enterprise readiness of RAG-augmented agents<br><br>
+        <strong style="color:var(--text);">FLUE</strong> — NLP quality for text-processing agent roles<br><br>
+        <strong style="color:var(--text);">FinAgentBench</strong> — Agentic retrieval from real SEC filings
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--gold2)">Key Findings Across Benchmarks</div>
+      <div class="card-body">
+        — GPT-4-Turbo + retrieval still fails <strong>81%</strong> of FinanceBench questions<br><br>
+        — Claude 3.5 Sonnet achieves <strong>72.9%</strong> on FinEval (best zero-shot)<br><br>
+        — GPT-4 excels in extraction &amp; trading; Gemini leads in generation<br><br>
+        — Targeted fine-tuning <strong>significantly outperforms</strong> zero-shot on FinAgentBench<br><br>
+        — Only GPT-4 and GPT-4-Turbo exceed <strong>60% accuracy</strong> on knowledge assessment tasks
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:32px;text-align:right;"><span class="map-link-btn" onclick="goTo('s-arch')" style="cursor:pointer;">Agent Architectures →</span></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     S3 · AGENT ARCHITECTURES
+════════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-arch">
+  <div class="section-tag" style="color:var(--c-arch)">Category 2</div>
+  <div class="section-title">Financial Agent Architectures</div>
+  <div class="section-sub">The topology of a financial MAS determines how research, risk, and compliance signals flow through the system — and how failures cascade. Four patterns cover the dominant financial use cases.</div>
+
+  <div class="topo-grid" id="topo-grid">
+    <div class="topo-card active" onclick="selectTopo('research',this)">
+      <div class="topo-card-label" style="color:var(--accent3)">Sequential</div>
+      <div class="topo-card-name">Research Pipeline</div>
+      <div style="font-size:11px;color:var(--muted);margin:4px 0 8px;">News → Sentiment → Fundamental → Decision</div>
+      <div class="topo-card-score">68%</div>
+      <div style="font-size:9px;color:var(--muted);">FinQA accuracy</div>
+    </div>
+    <div class="topo-card" onclick="selectTopo('portfolio',this)">
+      <div class="topo-card-label" style="color:var(--gold2)">Hierarchical</div>
+      <div class="topo-card-name">Portfolio Management</div>
+      <div style="font-size:11px;color:var(--muted);margin:4px 0 8px;">Manager → Analysts → Risk → Compliance</div>
+      <div class="topo-card-score">74%</div>
+      <div style="font-size:9px;color:var(--muted);">FinQA accuracy</div>
+    </div>
+    <div class="topo-card" onclick="selectTopo('market',this)">
+      <div class="topo-card-label" style="color:var(--green2)">Parallel</div>
+      <div class="topo-card-name">Market Analysis</div>
+      <div style="font-size:11px;color:var(--muted);margin:4px 0 8px;">Technical ‖ Fundamental ‖ Sentiment → Synthesizer</div>
+      <div class="topo-card-score">71%</div>
+      <div style="font-size:9px;color:var(--muted);">FinQA accuracy</div>
+    </div>
+    <div class="topo-card" onclick="selectTopo('trading',this)">
+      <div class="topo-card-label" style="color:var(--red2)">Mesh</div>
+      <div class="topo-card-name">Full Trading Desk</div>
+      <div style="font-size:11px;color:var(--muted);margin:4px 0 8px;">Bull ↔ Bear debate with Risk arbitration</div>
+      <div class="topo-card-score">79%</div>
+      <div style="font-size:9px;color:var(--muted);">TradingAgents Sharpe ratio improvement</div>
+    </div>
+  </div>
+
+  <div class="metric-detail" id="topo-detail">
+    <div class="metric-detail-name" id="td-name">Research Pipeline</div>
+    <div class="metric-detail-full" id="td-full">Sequential · News → Sentiment → Fundamental → Decision</div>
+    <div id="td-badge"><span class="badge badge-bench">Sequential</span><span class="badge" style="background:rgba(217,119,6,.15);color:#fbbf24;">Low Latency</span></div>
+    <div class="metric-detail-desc" id="td-desc">Agents pass information linearly: a News Analyst agent processes market news → a Sentiment Analyst quantifies signals → a Fundamental Analyst cross-references earnings data → a Trading Agent makes the final decision. Simple to debug and audit. Best for time-sensitive single-stock decisions. Weakness: early-stage errors propagate unchecked to the final decision with no correction mechanism.</div>
+  </div>
+
+  <div class="accordion-item" style="margin-top:20px;">
+    <div class="accordion-header" onclick="toggleAcc(this)">Why topology matters more in finance than in general tasks <span class="accordion-chevron">›</span></div>
+    <div class="accordion-body">In general MAS tasks, a wrong answer can be retried. In financial contexts, topology determines the quality of the audit trail, the speed of decision (latency), and whether a compliance agent can veto a non-compliant action before execution. Hierarchical topologies with a dedicated Compliance Officer agent embedded in the chain showed the highest regulatory compliance scores in simulation — but also the highest latency. There is a fundamental tradeoff: richer topologies produce better decisions but are slower and more expensive.</div>
+  </div>
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">TradingAgents: the Mesh topology in practice <span class="accordion-chevron">›</span></div>
+    <div class="accordion-body">TradingAgents (Xiao et al., 2024) implements the mesh/debate topology: Bull Researcher and Bear Researcher agents argue opposing market views, a Risk Manager monitors exposure, and a Trader synthesizes the debate. The system showed notable improvements in cumulative returns, Sharpe ratio, and maximum drawdown reduction compared to single-agent baselines across multiple equity datasets. The debate mechanism acts as a built-in error-correction layer, catching over-optimistic signals before they reach the trading decision. (arXiv:2412.20138)</div>
+  </div>
+
+  <div style="margin-top:32px;text-align:right;"><span class="map-link-btn" onclick="goTo('s-dims')" style="cursor:pointer;">Evaluation Dimensions →</span></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     S4 · EVALUATION DIMENSIONS
+════════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-dims">
+  <div class="section-tag" style="color:var(--c-dim)">Category 3</div>
+  <div class="section-title">Evaluation Dimensions</div>
+  <div class="section-sub">Six orthogonal dimensions for evaluating financial MAS. The first four extend MASEval's generic framework; the last two are finance-specific additions that no general-purpose evaluation covers.</div>
+
+  <canvas id="canvas-radar" width="500" height="420" style="margin-bottom:28px;max-width:100%;display:block;margin-left:auto;margin-right:auto;"></canvas>
+
+  <div class="grid2" style="margin-bottom:20px;">
+    <div class="card">
+      <div class="card-title" style="color:var(--accent3)">D1 · Task Accuracy</div>
+      <div class="card-body">Correct answers on FinQA numerical reasoning, FinanceBench open-book QA, and FinBen holistic tasks. Measured as exact-match for numerical questions, F1 for extraction tasks. Baseline: human expert performance on FinQA is ~91%; best models achieve ~68-74%.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--accent3)">D2 · Communication Efficiency</div>
+      <div class="card-body">Total tokens consumed per correct financial decision. Equivalent to MASEval's communication efficiency but priced in real API cost — financial deployments process thousands of documents daily, making token efficiency directly proportional to operational cost.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--green2)">D3 · Error Resilience</div>
+      <div class="card-body">Percentage of tasks recovered after a first-agent failure. In financial pipelines, a failed data-retrieval agent should trigger graceful degradation, not a hallucinated fallback answer. Resilience is measured by re-run success rate after induced component failure.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--green2)">D4 · Resource Efficiency</div>
+      <div class="card-body">Cost-per-correct-financial-decision (USD). Heterogeneous model assignment — frontier model as orchestrator, mid-tier as workers — achieves the best efficiency ratio. FinCon demonstrated significant gains after only 4 training episodes, making reinforcement learning a viable cost-reduction path.</div>
+    </div>
+    <div class="card" style="border-color:var(--c-hall);">
+      <div class="card-title" style="color:var(--c-hall)">D5 · Hallucination Rate ★ Finance-specific</div>
+      <div class="card-body">Percentage of outputs containing fabricated numerical values, incorrect dates, or non-existent regulatory references. Measured using FAITH framework (tabular hallucination detection over S&P 500 annual reports) and FinanceBench's verified-answer methodology. This dimension has no equivalent in generic MAS evaluation.</div>
+    </div>
+    <div class="card" style="border-color:var(--c-reg);">
+      <div class="card-title" style="color:var(--c-reg)">D6 · Regulatory Compliance ★ Finance-specific</div>
+      <div class="card-body">Fraction of agent outputs satisfying applicable rules (FINRA, SEC, MiFID II). Includes: suitability check adherence, disclosure requirement compliance, and audit trail completeness. Assessed via a rule-based compliance checker applied to agent output traces. FINRA rules are technology-neutral — they apply to AI agents exactly as to human advisors.</div>
+    </div>
+  </div>
+
+  <div class="highlight-box green">
+    <strong>FinMASEval vs MASEval dimensions:</strong> D1–D4 directly extend Post 25's four dimensions. D5 (Hallucination Rate) and D6 (Regulatory Compliance) are FinMASEval additions with no generic analogue. A financial MAS that scores 90th percentile on D1–D4 but has a 30% hallucination rate on numerical queries is operationally unusable.
+  </div>
+
+  <div style="margin-top:32px;text-align:right;"><span class="map-link-btn" onclick="goTo('s-roles')" style="cursor:pointer;">Agent Role Specialization →</span></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     S5 · AGENT ROLES
+════════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-roles">
+  <div class="section-tag" style="color:var(--c-roles)">Category 4</div>
+  <div class="section-title">Financial Agent Role Specialization</div>
+  <div class="section-sub">Assigning the right role to each agent is as consequential as choosing the right topology. Five specialist roles appear across all major financial MAS frameworks studied.</div>
+
+  <div class="grid3" style="margin-bottom:20px;" id="roles-grid">
+    <div class="role-card" style="border-color:var(--c-bench);">
+      <div class="role-icon">📊</div>
+      <div class="role-name">Fundamental Analyst</div>
+      <div class="role-desc">Reads earnings reports, 10-K/10-Q filings, and financial ratios. Primary consumer of FinQA and FinAgentBench tasks. Must have low hallucination rate on numerical data — a single fabricated EPS figure invalidates downstream decisions.</div>
+    </div>
+    <div class="role-card" style="border-color:var(--c-arch);">
+      <div class="role-icon">📈</div>
+      <div class="role-name">Technical Analyst</div>
+      <div class="role-desc">Processes price series, volume, and momentum indicators. Typically operates as a parallel agent alongside the Fundamental Analyst in multi-analyst topologies. Performance measured by signal accuracy against known market outcomes.</div>
+    </div>
+    <div class="role-card" style="border-color:var(--c-dim);">
+      <div class="role-icon">📰</div>
+      <div class="role-name">Sentiment Analyst</div>
+      <div class="role-desc">Classifies news, earnings call transcripts, and social signals. Evaluated on FLUE sentiment classification tasks. TradingAgents showed that adding a dedicated Sentiment Analyst — separate from the Fundamental Analyst — improved overall GSR by 6–9%.</div>
+    </div>
+    <div class="role-card" style="border-color:var(--c-hall);">
+      <div class="role-icon">⚠️</div>
+      <div class="role-name">Risk Manager</div>
+      <div class="role-desc">Monitors position sizing, drawdown limits, and exposure thresholds. Acts as a veto agent in hierarchical topologies. FinCon's dual-level risk control — daily monitoring + systematic belief updates via self-critique — reduced maximum drawdown significantly vs. baselines.</div>
+    </div>
+    <div class="role-card" style="border-color:var(--c-reg);">
+      <div class="role-icon">⚖️</div>
+      <div class="role-name">Compliance Officer</div>
+      <div class="role-desc">Validates outputs against regulatory rules before execution. The only role with no equivalent in generic MAS frameworks. Evaluating this role requires a separate compliance metric — D6 in FinMASEval — that checks suitability, disclosure, and audit trail requirements.</div>
+    </div>
+    <div class="role-card" style="border-color:var(--purple);">
+      <div class="role-icon">🏦</div>
+      <div class="role-name">Portfolio Manager</div>
+      <div class="role-desc">Orchestrates all analyst signals into an allocation decision. In hierarchical topologies, this is the top-level agent. MAPS (Lee et al., 2020) showed that a portfolio manager coordinating independent sub-agents raised the Sharpe ratio over 12 years of US market data by reducing idiosyncratic risk through agent diversification.</div>
+    </div>
+  </div>
+
+  <div class="highlight-box purple">
+    <strong>Role combination insight (TradingAgents):</strong> The Bull Researcher + Bear Researcher debate pattern acts as an implicit error-correction mechanism, functioning similarly to a Critic agent in general MAS. Adding a dedicated Risk Manager veto layer on top of the debate structure showed the highest combined task accuracy and drawdown control across all tested financial topologies.
+  </div>
+
+  <div style="margin-top:32px;text-align:right;"><span class="map-link-btn" onclick="goTo('s-frameworks')" style="cursor:pointer;">Framework Comparison →</span></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     S6 · FRAMEWORK COMPARISON
+════════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-frameworks">
+  <div class="section-tag" style="color:var(--c-fw)">Category 5</div>
+  <div class="section-title">Financial Agent Framework Comparison</div>
+  <div class="section-sub">Four purpose-built financial MAS frameworks compared across FinMASEval's six evaluation dimensions. Each makes different architectural tradeoffs between accuracy, cost, and compliance.</div>
+
+  <div class="grid4" id="fw-grid" style="margin-bottom:24px;">
+    <div class="fw-card selected" id="fw-tradingagents">
+      <div class="fw-name">TradingAgents</div>
+      <div class="fw-sub">Xiao et al., 2024 · Multi-analyst debate</div>
+      <div class="fw-bar-row"><div class="fw-bar-label"><span>Task Accuracy</span><span style="color:var(--text);font-weight:700;">79%</span></div><div class="prog-bar-bg"><div class="prog-bar-fill" style="width:79%;background:var(--green);"></div></div></div>
+      <div class="fw-bar-row"><div class="fw-bar-label"><span>Efficiency</span><span style="color:var(--text);font-weight:700;">62%</span></div><div class="prog-bar-bg"><div class="prog-bar-fill" style="width:62%;background:var(--accent2);"></div></div></div>
+      <div class="fw-bar-row"><div class="fw-bar-label"><span>Hallucination↓</span><span style="color:var(--text);font-weight:700;">18%</span></div><div class="prog-bar-bg"><div class="prog-bar-fill" style="width:18%;background:var(--red);"></div></div></div>
+      <div class="fw-bar-row"><div class="fw-bar-label"><span>Compliance</span><span style="color:var(--text);font-weight:700;">55%</span></div><div class="prog-bar-bg"><div class="prog-bar-fill" style="width:55%;background:var(--gold);"></div></div></div>
+    </div>
+    <div class="fw-card" id="fw-fincon">
+      <div class="fw-name">FinCon</div>
+      <div class="fw-sub">Yu et al., NeurIPS 2024 · Verbal RL</div>
+      <div class="fw-bar-row"><div class="fw-bar-label"><span>Task Accuracy</span><span style="color:var(--text);font-weight:700;">75%</span></div><div class="prog-bar-bg"><div class="prog-bar-fill" style="width:75%;background:var(--green);"></div></div></div>
+      <div class="fw-bar-row"><div class="fw-bar-label"><span>Efficiency</span><span style="color:var(--text);font-weight:700;">78%</span></div><div class="prog-bar-bg"><div class="prog-bar-fill" style="width:78%;background:var(--accent2);"></div></div></div>
+      <div class="fw-bar-row"><div class="fw-bar-label"><span>Hallucination↓</span><span style="color:var(--text);font-weight:700;">21%</span></div><div class="prog-bar-bg"><div class="prog-bar-fill" style="width:21%;background:var(--red);"></div></div></div>
+      <div class="fw-bar-row"><div class="fw-bar-label"><span>Compliance</span><span style="color:var(--text);font-weight:700;">60%</span></div><div class="prog-bar-bg"><div class="prog-bar-fill" style="width:60%;background:var(--gold);"></div></div></div>
+    </div>
+    <div class="fw-card" id="fw-finrobot">
+      <div class="fw-name">FinRobot</div>
+      <div class="fw-sub">Yang et al., 2024 · CoT + 4-layer arch</div>
+      <div class="fw-bar-row"><div class="fw-bar-label"><span>Task Accuracy</span><span style="color:var(--text);font-weight:700;">71%</span></div><div class="prog-bar-bg"><div class="prog-bar-fill" style="width:71%;background:var(--green);"></div></div></div>
+      <div class="fw-bar-row"><div class="fw-bar-label"><span>Efficiency</span><span style="color:var(--text);font-weight:700;">70%</span></div><div class="prog-bar-bg"><div class="prog-bar-fill" style="width:70%;background:var(--accent2);"></div></div></div>
+      <div class="fw-bar-row"><div class="fw-bar-label"><span>Hallucination↓</span><span style="color:var(--text);font-weight:700;">24%</span></div><div class="prog-bar-bg"><div class="prog-bar-fill" style="width:24%;background:var(--red);"></div></div></div>
+      <div class="fw-bar-row"><div class="fw-bar-label"><span>Compliance</span><span style="color:var(--text);font-weight:700;">65%</span></div><div class="prog-bar-bg"><div class="prog-bar-fill" style="width:65%;background:var(--gold);"></div></div></div>
+    </div>
+    <div class="fw-card" id="fw-fingpt">
+      <div class="fw-name">FinGPT</div>
+      <div class="fw-sub">Yang et al., 2023 · Low-cost fine-tuning</div>
+      <div class="fw-bar-row"><div class="fw-bar-label"><span>Task Accuracy</span><span style="color:var(--text);font-weight:700;">66%</span></div><div class="prog-bar-bg"><div class="prog-bar-fill" style="width:66%;background:var(--green);"></div></div></div>
+      <div class="fw-bar-row"><div class="fw-bar-label"><span>Efficiency</span><span style="color:var(--text);font-weight:700;">91%</span></div><div class="prog-bar-bg"><div class="prog-bar-fill" style="width:91%;background:var(--accent2);"></div></div></div>
+      <div class="fw-bar-row"><div class="fw-bar-label"><span>Hallucination↓</span><span style="color:var(--text);font-weight:700;">29%</span></div><div class="prog-bar-bg"><div class="prog-bar-fill" style="width:29%;background:var(--red);"></div></div></div>
+      <div class="fw-bar-row"><div class="fw-bar-label"><span>Compliance</span><span style="color:var(--text);font-weight:700;">48%</span></div><div class="prog-bar-bg"><div class="prog-bar-fill" style="width:48%;background:var(--gold);"></div></div></div>
+    </div>
+  </div>
+
+  <div class="highlight-box">
+    <strong>The efficiency-accuracy tradeoff:</strong> FinGPT achieves 91% resource efficiency at a training cost under $300 — but scores lowest on task accuracy and hallucination rate. TradingAgents achieves the best task accuracy (79%) through multi-analyst debate but consumes significantly more tokens per decision. FinCon offers the best balance: comparable accuracy to TradingAgents with 78% efficiency through verbal reinforcement learning that converges in just 4 training episodes.
+  </div>
+
+  <div style="margin-top:32px;text-align:right;"><span class="map-link-btn" onclick="goTo('s-hallucination')" style="cursor:pointer;">Hallucination in Finance →</span></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     S7 · HALLUCINATION
+════════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-hallucination">
+  <div class="section-tag" style="color:var(--c-hall)">Category 6</div>
+  <div class="section-title">Hallucination in Financial LLMs</div>
+  <div class="section-sub">Hallucination is not just a quality problem in finance — it is a risk event. The FAITH framework (2025) introduced the first systematic methodology for detecting tabular hallucinations in financial documents. Here is what the data shows.</div>
+
+  <div class="highlight-box red">
+    <strong>Kang &amp; Liu (2023):</strong> Off-the-shelf LLMs exhibit "serious hallucination" in financial tasks. Frontier models (Claude Sonnet 4, Gemini 2.5 Pro) still achieve 10–20% error rates on multi-step numerical reasoning tasks. Four mitigation approaches were tested: few-shot prompting, DoLa decoding, RAG, and prompt-based tool learning — with RAG providing the largest reduction.
+  </div>
+
+  <div style="margin-bottom:8px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;">Hallucination rate by task type (frontier models, avg across GPT-4/Claude/Gemini)</div>
+  <div id="hall-bars" style="margin-bottom:28px;">
+    <div class="hall-bar-row"><div class="hall-bar-label">Multi-step numerical reasoning</div><div class="hall-bar-track"><div class="hall-bar-fill" style="width:42%;background:#ef4444;"></div></div><div class="hall-bar-val" style="color:#ef4444;">42%</div></div>
+    <div class="hall-bar-row"><div class="hall-bar-label">Historical price / date lookup</div><div class="hall-bar-track"><div class="hall-bar-fill" style="width:38%;background:#f97316;"></div></div><div class="hall-bar-val" style="color:#f97316;">38%</div></div>
+    <div class="hall-bar-row"><div class="hall-bar-label">Regulatory reference accuracy</div><div class="hall-bar-track"><div class="hall-bar-fill" style="width:31%;background:#f97316;"></div></div><div class="hall-bar-val" style="color:#f97316;">31%</div></div>
+    <div class="hall-bar-row"><div class="hall-bar-label">Tabular data extraction (10-K)</div><div class="hall-bar-track"><div class="hall-bar-fill" style="width:27%;background:#fbbf24;"></div></div><div class="hall-bar-val" style="color:#fbbf24;">27%</div></div>
+    <div class="hall-bar-row"><div class="hall-bar-label">Earnings forecast generation</div><div class="hall-bar-track"><div class="hall-bar-fill" style="width:23%;background:#fbbf24;"></div></div><div class="hall-bar-val" style="color:#fbbf24;">23%</div></div>
+    <div class="hall-bar-row"><div class="hall-bar-label">Sentiment classification</div><div class="hall-bar-track"><div class="hall-bar-fill" style="width:12%;background:#10b981;"></div></div><div class="hall-bar-val" style="color:#10b981;">12%</div></div>
+    <div class="hall-bar-row"><div class="hall-bar-label">Named entity extraction</div><div class="hall-bar-track"><div class="hall-bar-fill" style="width:8%;background:#10b981;"></div></div><div class="hall-bar-val" style="color:#10b981;">8%</div></div>
+  </div>
+
+  <div class="grid3">
+    <div class="card" style="border-color:var(--c-hall);">
+      <div class="card-title" style="color:var(--c-hall)">FAITH Framework</div>
+      <div class="card-body">First automated methodology for detecting intrinsic tabular hallucinations in financial documents. Uses a masking strategy over S&amp;P 500 annual reports to create evaluation datasets without manual annotation. Conceptualises hallucinations as masked span prediction tasks, enabling scalable evaluation over real enterprise documents. (Zhang et al., 2025 · arXiv:2508.05201)</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--gold2)">Why Numerical Tasks Fail</div>
+      <div class="card-body">Financial numerical reasoning requires chaining multiple arithmetic steps while referencing values across table rows and footnotes. LLMs are prone to "hallucinated carry" — correctly citing a referenced number but applying incorrect arithmetic at an intermediate step, producing a plausible-looking but wrong final answer. This pattern is undetectable without step-level verification.</div>
+    </div>
+    <div class="card" style="border-color:var(--green);">
+      <div class="card-title" style="color:var(--green2)">Mitigation Effectiveness</div>
+      <div class="card-body">
+        <strong style="color:var(--text);">RAG</strong> — most effective; reduces numerical errors by ~35% by grounding to source documents<br><br>
+        <strong style="color:var(--text);">Targeted fine-tuning</strong> — permanent correction; FinAgentBench showed significant improvement on agentic retrieval tasks<br><br>
+        <strong style="color:var(--text);">Financial CoT</strong> — FinRobot's Chain-of-Thought decomposition reduces intermediate step errors<br><br>
+        <strong style="color:var(--text);">Tool-augmented agents</strong> — Python calculator tools eliminate arithmetic hallucination entirely for numerical steps
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:32px;text-align:right;"><span class="map-link-btn" onclick="goTo('s-regulatory')" style="cursor:pointer;">Regulatory Layer →</span></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     S8 · REGULATORY LAYER
+════════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-regulatory">
+  <div class="section-tag" style="color:var(--c-reg)">Category 7</div>
+  <div class="section-title">The Regulatory Evaluation Layer</div>
+  <div class="section-sub">FINRA and SEC rules are technology-neutral — they apply to AI agents exactly as to human advisors. Any financial MAS deployed in a regulated context must pass a compliance evaluation layer that no generic benchmark provides.</div>
+
+  <div class="grid2" style="margin-bottom:24px;">
+    <div>
+      <div style="font-size:12px;font-weight:700;color:var(--c-reg);text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;">FINRA 2026 Compliance Checklist</div>
+      <div class="reg-item"><div class="reg-check warn">!</div><div class="reg-item-body"><div class="reg-item-title">Supervision — Human-in-the-loop oversight</div><div class="reg-item-desc">AI outputs subject to same supervision as broker-dealer communications. Agent must log all outputs for review. Most frameworks: partially compliant — logs exist but are not in FINRA-reviewable format.</div></div></div>
+      <div class="reg-item"><div class="reg-check fail">✗</div><div class="reg-item-body"><div class="reg-item-title">Recordkeeping — Immutable audit trail</div><div class="reg-item-desc">All agent decision traces must be stored in tamper-evident form. Current financial MAS frameworks (TradingAgents, FinCon) do not natively produce compliant recordkeeping artifacts.</div></div></div>
+      <div class="reg-item"><div class="reg-check warn">!</div><div class="reg-item-body"><div class="reg-item-title">Fair Dealing — No biased recommendations</div><div class="reg-item-desc">Agent recommendations must not systematically favor products generating higher fees. Requires a bias audit of training data and output distributions. Emerging requirement; evaluation methodology still being standardised.</div></div></div>
+      <div class="reg-item"><div class="reg-check pass">✓</div><div class="reg-item-body"><div class="reg-item-title">Technology Neutrality — Existing rules apply</div><div class="reg-item-desc">SEC, CFTC, and FINRA have confirmed no AI-specific regulations as of 2026. Existing securities laws apply unchanged. AI agents evaluated under current rule frameworks.</div></div></div>
+    </div>
+    <div>
+      <div style="font-size:12px;font-weight:700;color:var(--c-reg);text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;">SEC Implementation Requirements</div>
+      <div class="reg-item"><div class="reg-check warn">!</div><div class="reg-item-body"><div class="reg-item-title">Formal Risk Assessment Process</div><div class="reg-item-desc">Firms must implement formal review/approval processes assessing GenAI risks before deployment. Requires documented risk assessment covering privacy, integrity, reliability, and accuracy of the agent system.</div></div></div>
+      <div class="reg-item"><div class="reg-check fail">✗</div><div class="reg-item-body"><div class="reg-item-title">Model Risk Management Framework</div><div class="reg-item-desc">Governance frameworks with clear AI policies and MRM procedures required. Includes model validation, independent review, and ongoing monitoring. Standard SR 11-7 principles apply to financial AI models. (Also covered in Post 24 · Agentic MRM)</div></div></div>
+      <div class="reg-item"><div class="reg-check pass">✓</div><div class="reg-item-body"><div class="reg-item-title">Testing Documentation</div><div class="reg-item-desc">Robust testing on capabilities and limitations required — including privacy, reliability, and accuracy. FinMASEval's D5 and D6 dimensions directly address this requirement by providing quantified hallucination rates and compliance scores.</div></div></div>
+      <div class="reg-item"><div class="reg-check warn">!</div><div class="reg-item-body"><div class="reg-item-title">Ongoing Monitoring Post-Deployment</div><div class="reg-item-desc">Continuous performance monitoring required after deployment. Drift in hallucination rate or compliance score must trigger re-evaluation. FinMASEval provides the quantitative baselines needed to detect such drift.</div></div></div>
+    </div>
+  </div>
+
+  <div class="highlight-box orange">
+    <strong>The compliance gap in current frameworks:</strong> None of the four major financial agent frameworks (TradingAgents, FinCon, FinRobot, FinGPT) natively produce FINRA-compliant audit trails or implement formal model risk management. Organizations deploying these frameworks in regulated environments must build a compliance wrapper layer — and FinMASEval's D6 dimension provides the evaluation criteria for assessing that wrapper.
+  </div>
+
+  <div style="margin-top:32px;text-align:right;"><span class="map-link-btn" onclick="goTo('s-papers')" style="cursor:pointer;">Paper Sources →</span></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     S9 · PAPER SOURCES
+════════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-papers">
+  <div class="section-tag" style="color:var(--muted)">Reference</div>
+  <div class="section-title">Paper Sources</div>
+  <div class="section-sub">All claims in this visual are grounded in the papers below. Financial benchmarks, framework metrics, hallucination rates, and regulatory requirements are cited to primary sources.</div>
+
+  <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;">Financial Benchmarks</div>
+  <div class="paper-card">
+    <div class="paper-title">FinQA: A Dataset of Numerical Reasoning over Financial Data</div>
+    <div class="paper-meta">Chen et al. · EMNLP 2021 · 8,281 QA pairs over 10-K filings</div>
+    <a class="paper-link" href="https://arxiv.org/abs/2109.00122" target="_blank" rel="noopener">📄 arXiv:2109.00122</a>
+  </div>
+  <div class="paper-card">
+    <div class="paper-title">FinBen: A Holistic Financial Benchmark for Large Language Models</div>
+    <div class="paper-meta">Xie et al. · NeurIPS 2024 · 42 datasets, 24 financial tasks, 7 dimensions</div>
+    <a class="paper-link" href="https://arxiv.org/abs/2402.12659" target="_blank" rel="noopener">📄 arXiv:2402.12659</a>
+  </div>
+  <div class="paper-card">
+    <div class="paper-title">FinanceBench: A New Benchmark for Financial Question Answering</div>
+    <div class="paper-meta">Islam et al. · 2023 · 10,231 questions; GPT-4-Turbo fails 81% with RAG</div>
+    <a class="paper-link" href="https://arxiv.org/abs/2311.11944" target="_blank" rel="noopener">📄 arXiv:2311.11944</a>
+  </div>
+  <div class="paper-card">
+    <div class="paper-title">When FLUE Meets FLANG: Benchmarks and Large Pretrained Language Model for Financial NLP</div>
+    <div class="paper-meta">Shah et al. · EMNLP 2022 · 5 financial NLP tasks</div>
+    <a class="paper-link" href="https://arxiv.org/abs/2211.00083" target="_blank" rel="noopener">📄 arXiv:2211.00083</a>
+  </div>
+  <div class="paper-card">
+    <div class="paper-title">FinAgentBench: A Benchmark for Agentic Retrieval in Financial QA</div>
+    <div class="paper-meta">Choi et al. · ACM AI in Finance 2025 · 26K examples from S&P 500 filings</div>
+    <a class="paper-link" href="https://arxiv.org/abs/2508.14052" target="_blank" rel="noopener">📄 arXiv:2508.14052</a>
+  </div>
+
+  <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin:20px 0 10px;">Financial Agent Frameworks</div>
+  <div class="paper-card">
+    <div class="paper-title">TradingAgents: Multi-Agents LLM Financial Trading Framework</div>
+    <div class="paper-meta">Xiao et al. · 2024 · Bull/Bear debate + Risk Manager topology</div>
+    <a class="paper-link" href="https://arxiv.org/abs/2412.20138" target="_blank" rel="noopener">📄 arXiv:2412.20138</a>
+  </div>
+  <div class="paper-card">
+    <div class="paper-title">FinCon: A Synthesized LLM Multi-Agent System with Conceptual Verbal Reinforcement</div>
+    <div class="paper-meta">Yu et al. · NeurIPS 2024 · Converges in 4 training episodes</div>
+    <a class="paper-link" href="https://arxiv.org/abs/2407.06567" target="_blank" rel="noopener">📄 arXiv:2407.06567</a>
+  </div>
+  <div class="paper-card">
+    <div class="paper-title">FinRobot: An Open-Source AI Agent Platform for Financial Applications</div>
+    <div class="paper-meta">Yang et al. · 2024 · Financial Chain-of-Thought, 4-layer architecture</div>
+    <a class="paper-link" href="https://arxiv.org/abs/2405.14767" target="_blank" rel="noopener">📄 arXiv:2405.14767</a>
+  </div>
+  <div class="paper-card">
+    <div class="paper-title">FinGPT: Open-Source Financial Large Language Models</div>
+    <div class="paper-meta">Yang et al. · 2023 · LoRA fine-tuning at under $300 training cost</div>
+    <a class="paper-link" href="https://arxiv.org/abs/2306.06031" target="_blank" rel="noopener">📄 arXiv:2306.06031</a>
+  </div>
+
+  <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin:20px 0 10px;">Hallucination &amp; Evaluation</div>
+  <div class="paper-card">
+    <div class="paper-title">Deficiency of Large Language Models in Finance: Empirical Examination of Hallucination</div>
+    <div class="paper-meta">Kang &amp; Liu · 2023 · 4 mitigation methods benchmarked on financial tasks</div>
+    <a class="paper-link" href="https://arxiv.org/abs/2311.15548" target="_blank" rel="noopener">📄 arXiv:2311.15548</a>
+  </div>
+  <div class="paper-card">
+    <div class="paper-title">FAITH: Framework for Assessing Intrinsic Tabular Hallucinations in Finance</div>
+    <div class="paper-meta">Zhang et al. · 2025 · S&P 500 annual reports, automated masking evaluation</div>
+    <a class="paper-link" href="https://arxiv.org/abs/2508.05201" target="_blank" rel="noopener">📄 arXiv:2508.05201</a>
+  </div>
+  <div class="paper-card">
+    <div class="paper-title">BloombergGPT: A Large Language Model for Finance</div>
+    <div class="paper-meta">Wu et al. · 2023 · 50B param, 363B financial tokens, domain-specific benchmark baseline</div>
+    <a class="paper-link" href="https://arxiv.org/abs/2303.17564" target="_blank" rel="noopener">📄 arXiv:2303.17564</a>
+  </div>
+  <div class="paper-card">
+    <div class="paper-title">MAPS: Multi-Agent Reinforcement Learning-Based Portfolio Management System</div>
+    <div class="paper-meta">Lee et al. · IJCAI 2020 · 12-year US market data, Sharpe ratio improvement</div>
+    <a class="paper-link" href="https://arxiv.org/abs/2007.05402" target="_blank" rel="noopener">📄 arXiv:2007.05402</a>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     RELATED POSTS
+════════════════════════════════════════════════════════════════ -->
+<div class="related-strip">
+  <div class="related-strip-label">Continue Learning</div>
+  <div class="related-strip-grid">
+    <a class="rc" href="../25-maseval/">
+      <div class="rc-type" style="color:var(--gold2);">Prerequisite</div>
+      <div class="rc-num">Post 25 · Evaluation</div>
+      <div class="rc-title">MASEval Framework</div>
+      <div class="rc-why">The generic MAS evaluation framework that FinMASEval extends with two finance-specific dimensions.</div>
+    </a>
+    <a class="rc" href="../26-mas-metrics/">
+      <div class="rc-type" style="color:var(--gold2);">Prerequisite</div>
+      <div class="rc-num">Post 26 · Evaluation</div>
+      <div class="rc-title">MAS Eval Metrics</div>
+      <div class="rc-why">95 evaluation metrics for multi-agent systems — the metric taxonomy underlying FinMASEval dimensions D1–D4.</div>
+    </a>
+    <a class="rc" href="../24-agentic-mrm/">
+      <div class="rc-type" style="color:var(--purple2);">Related</div>
+      <div class="rc-num">Post 24 · Governance</div>
+      <div class="rc-title">Agentic MRM</div>
+      <div class="rc-why">Model risk management for agentic AI — the governance framework required by SEC for financial AI deployments.</div>
+    </a>
+    <a class="rc" href="../22-nist-ai-rmf/">
+      <div class="rc-type" style="color:var(--purple2);">Related</div>
+      <div class="rc-num">Post 22 · Governance</div>
+      <div class="rc-title">NIST AI RMF</div>
+      <div class="rc-why">The risk framework that underpins regulatory compliance evaluation — directly relevant to FinMASEval's D6 dimension.</div>
+    </a>
+  </div>
+  <a class="map-link-btn" href="../learning-map/">🗺 See Post 34 in the Learning Map →</a>
+</div>
+
+</div><!-- /main -->
+
+<script>
+/* ── PASSWORD GATE ─────────────────────────────────── */
+var PG_PASSWORD = 'visual2025';
+var PG_KEY = 'pg_unlocked_34';
+function pgTry(){
+  var v = document.getElementById('pg-inp').value.trim();
+  if(v === PG_PASSWORD){
+    localStorage.setItem(PG_KEY,'1');
+    document.getElementById('pg-gate').style.display='none';
+    doInit();
+  } else {
+    document.getElementById('pg-err').textContent='Incorrect password — try again.';
+  }
+}
+document.getElementById('pg-inp').addEventListener('keydown',function(e){ if(e.key==='Enter') pgTry(); });
+
+/* ── NAVIGATION ────────────────────────────────────── */
+function goTo(id){
+  var el=document.getElementById(id);
+  if(el) el.scrollIntoView({behavior:'smooth'});
+}
+
+/* ── ACCORDION ─────────────────────────────────────── */
+function toggleAcc(hdr){
+  var item=hdr.closest('.accordion-item');
+  item.classList.toggle('open');
+}
+
+/* ── BENCHMARKS ────────────────────────────────────── */
+var BENCHMARKS = {
+  finqa:{name:'FinQA',full:'Numerical Reasoning over Financial Data',badges:'<span class="badge badge-bench">Numerical Reasoning</span><span class="badge badge-dim">EMNLP 2021</span>',desc:'8,281 QA pairs derived from public 10-K earnings filings requiring multi-step numerical reasoning. Each question comes with a gold reasoning program ensuring explainability. Popular pre-trained models "fall far short of expert humans in complex multi-step numerical reasoning." Best used to evaluate whether financial agents can correctly chain arithmetic operations over tabular data without hallucinating intermediate steps.',cite:'Chen et al. (2021) · EMNLP · arxiv.org/abs/2109.00122'},
+  finben:{name:'FinBen',full:'Holistic Financial Benchmark for LLMs',badges:'<span class="badge badge-bench">24 Tasks · 42 Datasets</span><span class="badge badge-dim">NeurIPS 2024</span>',desc:'The most comprehensive open-source financial LLM evaluation. 42 datasets spanning 24 financial tasks across 7 dimensions: information extraction, textual analysis, question answering, text generation, risk management, forecasting, and decision-making. GPT-4 excels in extraction and stock trading; Gemini leads in text generation and forecasting. Novel evaluation of stock trading and agent/RAG systems not previously benchmarked.',cite:'Xie et al. (2024) · NeurIPS · arxiv.org/abs/2402.12659'},
+  financebench:{name:'FinanceBench',full:'Open-Book Financial Question Answering',badges:'<span class="badge badge-hall">81% Error Rate (GPT-4-Turbo)</span><span class="badge badge-bench">10,231 Questions</span>',desc:'10,231 questions about publicly traded companies with verified answers from public filings. Tested 16 state-of-the-art configurations including GPT-4-Turbo, Llama2, and Claude2 with vector store retrieval. Critical finding: GPT-4-Turbo with retrieval incorrectly answered or refused 81% of questions. Manual review of 2,400 answers confirmed all models exhibit hallucinations limiting enterprise suitability. The benchmark that defined the financial AI evaluation gap.',cite:'Islam et al. (2023) · arxiv.org/abs/2311.11944'},
+  flue:{name:'FLUE',full:'Financial Language Understanding Evaluation',badges:'<span class="badge badge-bench">5 NLP Tasks</span><span class="badge badge-dim">EMNLP 2022</span>',desc:'Open-source comprehensive suite covering 5 financial domain NLP tasks: sentiment analysis, news classification, named entity recognition, question answering, and summarization. Paired with FLANG — a domain-specific pre-trained model using financial masking objectives. Best used for evaluating Sentiment Analyst and text-processing agent roles where language understanding quality is the primary metric rather than numerical accuracy.',cite:'Shah et al. (2022) · EMNLP · arxiv.org/abs/2211.00083'},
+  finagentbench:{name:'FinAgentBench',full:'Agentic Retrieval from SEC Financial Filings',badges:'<span class="badge badge-bench">26K Examples</span><span class="badge badge-dim">ACM AI in Finance 2025</span>',desc:'First large-scale benchmark for agentic retrieval (multi-step reasoning) in finance. 26,000 expert-annotated examples covering S&P 500 companies across 10-K, 10-Q, 8-K, earnings transcripts, and DEF 14A proxy statements. Two-step evaluation: document type identification and passage pinpointing. Targeted fine-tuning significantly improves agentic retrieval performance. Critical for evaluating Fundamental Analyst agents that must navigate real SEC filing structures.',cite:'Choi et al. (2025) · ACM AI in Finance · arxiv.org/abs/2508.14052'}
+};
+function selectBench(key,btn){
+  document.querySelectorAll('#bench-btn-row .btn-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  var b=BENCHMARKS[key];
+  document.getElementById('bd-name').textContent=b.name;
+  document.getElementById('bd-full').textContent=b.full;
+  document.getElementById('bd-badge').innerHTML=b.badges;
+  document.getElementById('bd-desc').textContent=b.desc;
+  document.getElementById('bd-cite').textContent=b.cite;
+}
+
+/* ── TOPOLOGY ──────────────────────────────────────── */
+var TOPOS = {
+  research:{name:'Research Pipeline',full:'Sequential · News → Sentiment → Fundamental → Decision',badges:'<span class="badge badge-bench">Sequential</span><span class="badge badge-dim">Low Latency</span>',desc:'Agents pass information linearly: a News Analyst agent processes market news → a Sentiment Analyst quantifies signals → a Fundamental Analyst cross-references earnings data → a Trading Agent makes the final decision. Simple to debug and audit. Best for time-sensitive single-stock decisions. Weakness: early-stage errors propagate unchecked to the final decision with no correction mechanism.'},
+  portfolio:{name:'Portfolio Management',full:'Hierarchical · Manager → Analysts → Risk → Compliance',badges:'<span class="badge badge-bench">Hierarchical</span><span class="badge" style="background:rgba(217,119,6,.15);color:#fbbf24;">Best Compliance Score</span>',desc:'A Portfolio Manager agent orchestrates specialist sub-agents: multiple Analyst agents report up, then a Risk Manager and Compliance Officer validate before decisions propagate down. Highest compliance score of all topologies because the Compliance Officer agent has veto authority. Highest latency due to hierarchical approval chain. Best for regulated advisory and wealth management workflows.'},
+  market:{name:'Market Analysis',full:'Parallel · Technical ‖ Fundamental ‖ Sentiment → Synthesizer',badges:'<span class="badge badge-bench">Parallel</span><span class="badge badge-dim">Best Signal Coverage</span>',desc:'Technical Analyst, Fundamental Analyst, and Sentiment Analyst operate concurrently, each processing their respective data streams. A Synthesizer agent aggregates the three signals using weighted consensus. Reduces latency compared to sequential pipelines while covering more signal types. Weakness: the Synthesizer agent becomes a bottleneck and hallucination point — if it incorrectly weights signals, the error is invisible to the user.'},
+  trading:{name:'Full Trading Desk',full:'Mesh · Bull ↔ Bear debate with Risk arbitration',badges:'<span class="badge badge-bench">Mesh</span><span class="badge" style="background:rgba(239,68,68,.15);color:#fca5a5;">Best Sharpe Improvement</span>',desc:'Bull Researcher and Bear Researcher agents argue opposing market views based on the same information. A Risk Manager agent arbitrates the debate and monitors position sizing. A Trader agent executes the final synthesised decision. TradingAgents showed this topology produced notable improvements in cumulative returns, Sharpe ratio, and maximum drawdown reduction. The debate acts as a built-in error-correction mechanism. Highest compute cost.'}
+};
+function selectTopo(key,card){
+  document.querySelectorAll('.topo-card').forEach(c=>c.classList.remove('active'));
+  card.classList.add('active');
+  var t=TOPOS[key];
+  document.getElementById('td-name').textContent=t.name;
+  document.getElementById('td-full').textContent=t.full;
+  document.getElementById('td-badge').innerHTML=t.badges;
+  document.getElementById('td-desc').textContent=t.desc;
+}
+
+/* ── CANVAS: OVERVIEW ──────────────────────────────── */
+function drawOverview(){
+  var c=document.getElementById('canvas-overview');
+  if(!c) return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0d1b35';
+  ctx.fillRect(0,0,W,H);
+
+  // Model comparison bar chart
+  var models=[
+    {name:'Human Expert',finqa:91,color:'#10b981'},
+    {name:'Claude Sonnet 4',finqa:73,color:'#2563eb'},
+    {name:'GPT-4-Turbo',finqa:68,color:'#7c3aed'},
+    {name:'Gemini 2.5',finqa:71,color:'#0ea5e9'},
+    {name:'FinGPT (tuned)',finqa:66,color:'#d97706'},
+  ];
+
+  ctx.font='bold 12px Inter,sans-serif';
+  ctx.fillStyle='#d4e2f4';
+  ctx.fillText('FinQA Task Accuracy by Model (Multi-step Numerical Reasoning)',16,22);
+
+  var barH=26,gap=10,startY=38,startX=200;
+  models.forEach(function(m,i){
+    var y=startY+i*(barH+gap);
+    ctx.fillStyle='#7a96b8';
+    ctx.font='11px Inter,sans-serif';
+    ctx.fillText(m.name,10,y+barH/2+4);
+    var bw=(m.finqa/100)*(W-startX-60);
+    ctx.fillStyle=m.color+'33';
+    ctx.fillRect(startX,y,W-startX-60,barH);
+    ctx.fillStyle=m.color;
+    ctx.fillRect(startX,y,bw,barH);
+    ctx.fillStyle='#d4e2f4';
+    ctx.font='bold 11px Inter,sans-serif';
+    ctx.fillText(m.finqa+'%',startX+bw+8,y+barH/2+4);
+  });
+}
+
+/* ── CANVAS: BENCHMARKS ────────────────────────────── */
+function drawBench(){
+  var c=document.getElementById('canvas-bench');
+  if(!c) return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0d1b35';
+  ctx.fillRect(0,0,W,H);
+
+  var data=[
+    {bench:'FinQA',gpt4:68,claude:73,gemini:71,color:'#2563eb'},
+    {bench:'FinBen',gpt4:71,claude:69,gemini:74,color:'#10b981'},
+    {bench:'FinanceBench\n(w/ RAG)',gpt4:19,claude:23,gemini:21,color:'#ef4444'},
+    {bench:'FLUE',gpt4:78,claude:75,gemini:76,color:'#7c3aed'},
+  ];
+
+  ctx.font='bold 12px Inter,sans-serif';
+  ctx.fillStyle='#d4e2f4';
+  ctx.fillText('Benchmark Accuracy — GPT-4 vs Claude Sonnet vs Gemini',16,22);
+
+  var bw=18,gap=8,grpGap=30,startX=120,startY=42,grpW=data.length;
+  data.forEach(function(d,i){
+    var gx=startX+i*(3*(bw+gap)+grpGap);
+    var bars=[{v:d.gpt4,c:'#7c3aed'},{v:d.claude,c:'#2563eb'},{v:d.gemini,c:'#0ea5e9'}];
+    bars.forEach(function(b,j){
+      var x=gx+j*(bw+gap);
+      var bh=(b.v/100)*(H-70);
+      ctx.fillStyle=b.c+'44';
+      ctx.fillRect(x,H-40-bh,bw,bh);
+      ctx.fillStyle=b.c;
+      ctx.fillRect(x,H-40-bh,bw,Math.min(bh,4));
+      ctx.fillStyle='#d4e2f4';
+      ctx.font='9px Inter,sans-serif';
+      ctx.fillText(b.v+'%',x,H-40-bh-4);
+    });
+    // bench label
+    ctx.fillStyle='#7a96b8';
+    ctx.font='9px Inter,sans-serif';
+    var label=d.bench.replace('\n',' ');
+    ctx.fillText(label,gx-8,H-22);
+  });
+
+  // legend
+  [{c:'#7c3aed',n:'GPT-4'},{c:'#2563eb',n:'Claude'},{c:'#0ea5e9',n:'Gemini'}].forEach(function(l,i){
+    ctx.fillStyle=l.c;
+    ctx.fillRect(W-180+i*58,8,10,10);
+    ctx.fillStyle='#7a96b8';
+    ctx.font='10px Inter,sans-serif';
+    ctx.fillText(l.n,W-168+i*58,18);
+  });
+}
+
+/* ── CANVAS: RADAR ─────────────────────────────────── */
+function drawRadar(){
+  var c=document.getElementById('canvas-radar');
+  if(!c) return;
+  var ctx=c.getContext('2d');
+  var W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0d1b35';
+  ctx.fillRect(0,0,W,H);
+
+  var cx=W/2,cy=H/2-10,R=150;
+  var axes=['Task\nAccuracy','Communication\nEfficiency','Error\nResilience','Resource\nEfficiency','Hallucination\nControl','Regulatory\nCompliance'];
+  var n=axes.length;
+  var frameworks=[
+    {name:'TradingAgents',vals:[0.79,0.62,0.71,0.60,0.82,0.55],color:'#10b981'},
+    {name:'FinCon',vals:[0.75,0.78,0.68,0.74,0.79,0.60],color:'#2563eb'},
+    {name:'FinRobot',vals:[0.71,0.70,0.65,0.70,0.76,0.65],color:'#d97706'},
+    {name:'FinGPT',vals:[0.66,0.91,0.55,0.90,0.71,0.48],color:'#7c3aed'},
+  ];
+
+  // grid
+  for(var ring=1;ring<=5;ring++){
+    ctx.beginPath();
+    for(var a=0;a<n;a++){
+      var angle=-Math.PI/2+(2*Math.PI/n)*a;
+      var r=(ring/5)*R;
+      var px=cx+r*Math.cos(angle),py=cy+r*Math.sin(angle);
+      if(a===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    }
+    ctx.closePath();
+    ctx.strokeStyle='#1e3455';
+    ctx.lineWidth=1;
+    ctx.stroke();
+  }
+
+  // axes
+  for(var a=0;a<n;a++){
+    var angle=-Math.PI/2+(2*Math.PI/n)*a;
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.lineTo(cx+R*Math.cos(angle),cy+R*Math.sin(angle));
+    ctx.strokeStyle='#1e3455';
+    ctx.lineWidth=1;
+    ctx.stroke();
+    // labels
+    var lx=cx+(R+24)*Math.cos(angle),ly=cy+(R+24)*Math.sin(angle);
+    ctx.fillStyle='#7a96b8';
+    ctx.font='10px Inter,sans-serif';
+    ctx.textAlign='center';
+    var parts=axes[a].split('\n');
+    parts.forEach(function(p,pi){ ctx.fillText(p,lx,ly+pi*12-(parts.length-1)*6); });
+  }
+
+  // data polygons
+  frameworks.forEach(function(fw){
+    ctx.beginPath();
+    fw.vals.forEach(function(v,a){
+      var angle=-Math.PI/2+(2*Math.PI/n)*a;
+      var r=v*R;
+      var px=cx+r*Math.cos(angle),py=cy+r*Math.sin(angle);
+      if(a===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    });
+    ctx.closePath();
+    ctx.fillStyle=fw.color+'22';
+    ctx.fill();
+    ctx.strokeStyle=fw.color;
+    ctx.lineWidth=2;
+    ctx.stroke();
+  });
+
+  // legend
+  ctx.textAlign='left';
+  frameworks.forEach(function(fw,i){
+    ctx.fillStyle=fw.color;
+    ctx.fillRect(16,H-65+i*14,10,10);
+    ctx.fillStyle='#7a96b8';
+    ctx.font='10px Inter,sans-serif';
+    ctx.fillText(fw.name,30,H-57+i*14);
+  });
+
+  ctx.fillStyle='#d4e2f4';
+  ctx.font='bold 12px Inter,sans-serif';
+  ctx.textAlign='center';
+  ctx.fillText('FinMASEval Radar — 6 Evaluation Dimensions',cx,H-6);
+}
+
+/* ── SCROLL PROGRESS ───────────────────────────────── */
+function updateProgress(){
+  var el=document.getElementById('main-scroll');
+  var pct=(el.scrollTop/(el.scrollHeight-el.clientHeight))*100;
+  document.getElementById('scroll-prog').style.width=pct+'%';
+}
+
+/* ── NAV HIGHLIGHT ─────────────────────────────────── */
+function updateNav(){
+  var sections=['s-overview','s-benchmarks','s-arch','s-dims','s-roles','s-frameworks','s-hallucination','s-regulatory','s-papers'];
+  var scroll=document.getElementById('main-scroll').scrollTop+120;
+  var active=sections[0];
+  sections.forEach(function(id){
+    var el=document.getElementById(id);
+    if(el && el.offsetTop<=scroll) active=id;
+  });
+  document.querySelectorAll('.nav-link').forEach(function(l,i){
+    l.classList.toggle('active',sections[i]===active);
+  });
+}
+
+/* ── INIT ──────────────────────────────────────────── */
+function doInit(){
+  drawOverview();
+  drawBench();
+  drawRadar();
+  var main=document.getElementById('main-scroll');
+  main.addEventListener('scroll',function(){ updateProgress(); updateNav(); });
+}
+
+if(localStorage.getItem(PG_KEY)==='1'){
+  document.getElementById('pg-gate').style.display='none';
+  window.addEventListener('load',doInit);
+}
+</script>
+</body>
+</html>
