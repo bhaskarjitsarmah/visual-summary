@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>LLM Watermarking — Copyright Attribution & Detection</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#c9d1d9;--muted:#8b949e;
+  --accent:#0ea5e9;--accent2:#38bdf8;--accent3:#bae6fd;
+  --c-overview:#0ea5e9;--c-token:#f59e0b;--c-schemes:#7c3aed;
+  --c-detect:#10b981;--c-robustness:#f97316;--c-production:#ef4444;--c-challenges:#6366f1;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+.sidebar{width:240px;min-width:240px;height:100vh;position:sticky;top:0;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:0 0 40px;flex-shrink:0;}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.sidebar-logo-title{font-size:13px;font-weight:700;color:var(--accent2);}
+.sidebar-logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.nav-group-title{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;padding:10px 16px 4px;}
+.nav-link{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;}
+.nav-link:hover,.nav-link.active{color:var(--text);background:rgba(14,165,233,.08);}
+.nav-link.active{color:var(--accent2);}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.main{flex:1;overflow-y:auto;height:100vh;}
+.pipeline-map{position:sticky;top:0;z-index:50;background:rgba(13,17,23,.96);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+.pipe-step{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);padding:2px 6px;border-radius:4px;transition:color .15s;cursor:pointer;}
+.pipe-step:hover{color:var(--text);}
+.pipe-dot{width:6px;height:6px;border-radius:50%;}
+.pipe-arrow{color:var(--border);font-size:12px;}
+.section{min-height:100vh;padding:60px 48px 80px;border-bottom:1px solid var(--border);}
+.section-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px;}
+.section-title{font-size:28px;font-weight:800;color:var(--text);margin-bottom:8px;line-height:1.25;}
+.section-sub{font-size:14px;color:var(--muted);margin-bottom:28px;max-width:680px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:16px;}
+.card-title{font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px;}
+.card-body{font-size:13px;color:var(--muted);line-height:1.6;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;}
+canvas{display:block;border-radius:10px;background:var(--surface);border:1px solid var(--border);}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s;}
+.btn:hover{opacity:.85;}
+.btn-tab{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-tab.active,.btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+.stats-row{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:24px;}
+.stat{text-align:center;}
+.stat-val{font-size:28px;font-weight:800;color:var(--accent2);}
+.stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;}
+.accordion-item{border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+.accordion-header{padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;background:var(--surface);}
+.accordion-header:hover{background:#1c2128;}
+.accordion-chevron{transition:transform .2s;font-size:10px;color:var(--muted);}
+.accordion-body{padding:14px 16px;font-size:12px;color:var(--muted);display:none;border-top:1px solid var(--border);}
+.highlight-box{border-left:3px solid var(--accent);padding:12px 16px;background:rgba(14,165,233,.06);border-radius:0 8px 8px 0;margin-bottom:16px;font-size:13px;color:var(--muted);}
+.highlight-box.amber{border-color:#f59e0b;background:rgba(245,158,11,.06);}
+.highlight-box.violet{border-color:#7c3aed;background:rgba(124,58,237,.06);}
+.highlight-box.green{border-color:#10b981;background:rgba(16,185,129,.06);}
+.highlight-box.red{border-color:#ef4444;background:rgba(239,68,68,.06);}
+.highlight-box.orange{border-color:#f97316;background:rgba(249,115,22,.06);}
+.info-panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-top:12px;font-size:13px;color:var(--muted);min-height:80px;}
+.info-panel strong{color:var(--text);}
+.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-right:4px;margin-bottom:4px;}
+.badge-sky{background:rgba(14,165,233,.2);color:#38bdf8;}
+.badge-amber{background:rgba(245,158,11,.2);color:#fbbf24;}
+.badge-violet{background:rgba(124,58,237,.2);color:#a78bfa;}
+.badge-green{background:rgba(16,185,129,.2);color:#34d399;}
+.badge-orange{background:rgba(249,115,22,.2);color:#fb923c;}
+.badge-red{background:rgba(239,68,68,.2);color:#f87171;}
+.badge-indigo{background:rgba(99,102,241,.2);color:#818cf8;}
+.slider-row{display:flex;gap:12px;align-items:center;margin-bottom:16px;}
+.slider-lbl{font-size:11px;color:var(--muted);min-width:160px;}
+.slider-val{font-size:12px;font-weight:700;color:var(--accent2);min-width:50px;}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;background:var(--border);border-radius:4px;outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;}
+#scroll-progress{position:fixed;top:0;left:0;height:2px;background:var(--accent);z-index:9998;transition:width .1s;}
+#pg-gate{position:fixed;inset:0;background:linear-gradient(135deg,#0d1117 0%,#161b22 50%,#0d1117 100%);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.pg-box{background:#161b22;border:1px solid #30363d;border-radius:16px;padding:40px 48px;max-width:440px;width:100%;text-align:center;box-shadow:0 0 40px rgba(14,165,233,.12);}
+.pg-icon{font-size:2.5rem;margin-bottom:16px;}
+.pg-title{font-size:1.3rem;font-weight:800;color:#c9d1d9;margin-bottom:6px;}
+.pg-subtitle{font-size:13px;font-weight:600;color:#38bdf8;margin-bottom:6px;}
+.pg-sub{font-size:11px;color:#8b949e;margin-bottom:24px;}
+.pg-input{width:100%;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:10px 14px;color:#c9d1d9;font-size:14px;outline:none;text-align:center;}
+.pg-input:focus{border-color:#0ea5e9;}
+.pg-btn{margin-top:12px;width:100%;background:linear-gradient(135deg,#0ea5e9,#0284c7);color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;}
+.pg-err{color:#ff6b6b;font-size:11px;margin-top:8px;min-height:16px;}
+.pg-join{margin-top:16px;font-size:11px;color:#8b949e;}
+.pg-join a{color:#38bdf8;text-decoration:underline;}
+/* scheme cards */
+.scheme-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;cursor:pointer;transition:all .15s;}
+.scheme-card:hover{border-color:#555;transform:translateY(-1px);}
+.scheme-card.active{border-color:var(--accent);}
+.scheme-meta{display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap;}
+.scheme-type{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;padding:2px 7px;border-radius:4px;}
+.scheme-year{font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;}
+.scheme-name{font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;}
+/* phase buttons */
+.phase-btn{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 16px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;color:var(--muted);}
+.phase-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.phase-btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+code{background:#0d1117;border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#38bdf8;}
+.code-block{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-family:'JetBrains Mono','Courier New',monospace;font-size:12px;color:#38bdf8;line-height:1.8;margin-bottom:16px;white-space:pre;}
+/* ===== RELATED POSTS STRIP ===== */
+.related-strip{padding:28px 48px 44px;border-top:2px solid var(--border);}
+.related-strip-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.related-strip-label::after{content:'';flex:1;height:1px;background:var(--border);}
+.related-strip-grid{display:flex;gap:12px;flex-wrap:wrap;}
+.rc{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px 15px;text-decoration:none;color:inherit;transition:all .15s;min-width:160px;flex:1;max-width:230px;}
+.rc:hover{border-color:#555;transform:translateY(-1px);}
+.rc-type{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px;}
+.rc-num{font-size:10px;color:var(--muted);margin-bottom:2px;font-family:'JetBrains Mono',monospace;}
+.rc-title{font-size:12px;font-weight:700;color:var(--text);line-height:1.35;margin-bottom:3px;}
+.rc-why{font-size:10px;color:var(--muted);line-height:1.5;}
+.map-link-btn{display:inline-flex;align-items:center;gap:6px;margin-top:14px;font-size:11px;color:#a5b4fc;font-weight:600;border:1px solid rgba(99,102,241,.3);border-radius:6px;padding:5px 12px;transition:all .15s;text-decoration:none;}
+.map-link-btn:hover{border-color:#6366f1;background:rgba(99,102,241,.08);}
+/* heatmap */
+.heatmap-table{width:100%;border-collapse:collapse;font-size:11px;margin-top:12px;}
+.heatmap-table th{padding:6px 10px;text-align:center;font-weight:700;color:var(--muted);font-size:10px;background:var(--surface);border:1px solid var(--border);}
+.heatmap-table td{padding:6px 10px;text-align:center;border:1px solid var(--border);font-family:'JetBrains Mono',monospace;font-size:11px;transition:background .2s;}
+.hm-low{background:rgba(16,185,129,.25);color:#34d399;}
+.hm-mid{background:rgba(249,115,22,.25);color:#fb923c;}
+.hm-high{background:rgba(239,68,68,.3);color:#f87171;}
+</style>
+</head>
+<body>
+
+<div id="pg-gate">
+  <div class="pg-box">
+    <div class="pg-icon">&#128274;</div>
+    <div class="pg-title">LLM Watermarking</div>
+    <div class="pg-subtitle">12 Schemes &middot; 5 Attack Vectors &middot; 100% TPR at Scale</div>
+    <div class="pg-sub">This post is for paid subscribers of Visual Summary</div>
+    <input class="pg-input" id="pg-input" type="password" placeholder="Enter password" autocomplete="off">
+    <button class="pg-btn" onclick="pgCheck()">Unlock</button>
+    <div class="pg-err" id="pg-err"></div>
+    <div class="pg-join">Not a subscriber yet? <a href="https://visualsummary.substack.com" target="_blank">Join Visual Summary &rarr;</a></div>
+  </div>
+</div>
+
+<div id="scroll-progress"></div>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-title">Visual AI Papers</div>
+    <div class="sidebar-logo-sub">Post 32 &middot; LLM Watermarking</div>
+  </div>
+
+  <div class="nav-group-title">Background</div>
+  <div class="nav-link" data-sec="s-overview" onclick="setActive(this,'s-overview')">
+    <span class="dot" style="background:#0ea5e9"></span>The Watermarking Landscape</div>
+
+  <div class="nav-group-title">Mechanisms</div>
+  <div class="nav-link" data-sec="s-token" onclick="setActive(this,'s-token')">
+    <span class="dot" style="background:#f59e0b"></span>Token-Level Watermarks</div>
+  <div class="nav-link" data-sec="s-schemes" onclick="setActive(this,'s-schemes')">
+    <span class="dot" style="background:#7c3aed"></span>Scheme Gallery</div>
+
+  <div class="nav-group-title">Analysis</div>
+  <div class="nav-link" data-sec="s-detection" onclick="setActive(this,'s-detection')">
+    <span class="dot" style="background:#10b981"></span>Detection &amp; Verification</div>
+  <div class="nav-link" data-sec="s-robustness" onclick="setActive(this,'s-robustness')">
+    <span class="dot" style="background:#f97316"></span>Robustness vs Quality</div>
+
+  <div class="nav-group-title">Applications</div>
+  <div class="nav-link" data-sec="s-production" onclick="setActive(this,'s-production')">
+    <span class="dot" style="background:#ef4444"></span>Production &amp; Attribution</div>
+  <div class="nav-link" data-sec="s-challenges" onclick="setActive(this,'s-challenges')">
+    <span class="dot" style="background:#6366f1"></span>Open Challenges</div>
+</nav>
+
+<!-- MAIN -->
+<div class="main" id="main-scroll">
+<div class="pipeline-map">
+  <div class="pipe-step" onclick="scrollTo('s-overview')"><span class="pipe-dot" style="background:#0ea5e9"></span>Landscape</div>
+  <span class="pipe-arrow">&#8594;</span>
+  <div class="pipe-step" onclick="scrollTo('s-token')"><span class="pipe-dot" style="background:#f59e0b"></span>Token</div>
+  <span class="pipe-arrow">&#8594;</span>
+  <div class="pipe-step" onclick="scrollTo('s-schemes')"><span class="pipe-dot" style="background:#7c3aed"></span>Schemes</div>
+  <span class="pipe-arrow">&#8594;</span>
+  <div class="pipe-step" onclick="scrollTo('s-detection')"><span class="pipe-dot" style="background:#10b981"></span>Detection</div>
+  <span class="pipe-arrow">&#8594;</span>
+  <div class="pipe-step" onclick="scrollTo('s-robustness')"><span class="pipe-dot" style="background:#f97316"></span>Robustness</div>
+  <span class="pipe-arrow">&#8594;</span>
+  <div class="pipe-step" onclick="scrollTo('s-production')"><span class="pipe-dot" style="background:#ef4444"></span>Production</div>
+  <span class="pipe-arrow">&#8594;</span>
+  <div class="pipe-step" onclick="scrollTo('s-challenges')"><span class="pipe-dot" style="background:#6366f1"></span>Challenges</div>
+</div>
+
+<!-- ====== S1: OVERVIEW ====== -->
+<section class="section" id="s-overview">
+  <div class="section-tag" style="color:#0ea5e9">Background &middot; ~18 min read</div>
+  <h1 class="section-title">The Watermarking Landscape</h1>
+  <p class="section-sub">When an LLM generates text, how do we prove it? Watermarking embeds imperceptible signals into generated text — provable, scalable, and increasingly deployed in production systems serving hundreds of millions of users. This post maps 12+ schemes from 30 research papers spanning 2023–2025.</p>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val" style="color:#0ea5e9">12+</div><div class="stat-lbl">Watermark Schemes</div></div>
+    <div class="stat"><div class="stat-val" style="color:#7c3aed">4</div><div class="stat-lbl">Watermark Types</div></div>
+    <div class="stat"><div class="stat-val" style="color:#10b981">100%</div><div class="stat-lbl">TPR @ 0% FPR (Data Prov.)</div></div>
+    <div class="stat"><div class="stat-val" style="color:#ef4444">20M+</div><div class="stat-lbl">Texts Marked (SynthID)</div></div>
+  </div>
+
+  <canvas id="canvas-overview" width="700" height="260" style="margin-bottom:20px;"></canvas>
+
+  <div class="highlight-box">
+    <strong>Core insight:</strong> Unlike steganography (hiding a message in content), LLM watermarking modifies the <em>sampling distribution</em> during generation &mdash; making certain token patterns statistically unlikely to appear in unwatermarked text. Detection is a hypothesis test: was this text generated with a watermarked model?
+  </div>
+
+  <div class="grid3" style="margin-top:20px;">
+    <div class="card">
+      <div class="card-title" style="color:#0ea5e9">Why Watermark?</div>
+      <div class="card-body">Prove AI authorship for copyright attribution, detect AI-generated misinformation at scale, enable policy enforcement (EU AI Act mandates AI text disclosure), and protect model IP against extraction attacks.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#7c3aed">The Detection Problem</div>
+      <div class="card-body">A watermark detector runs a statistical hypothesis test on candidate text. It needs to answer: could this token sequence have been generated by random chance, or does it show a statistically significant green-token bias? Z-score thresholds govern the tradeoff.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#10b981">Legal Admissibility</div>
+      <div class="card-body">Data Provenance Auditing (2025) achieves 100% TPR at 0% FPR using Unicode cue-reply pairs — a court-admissible standard. SynthID-Text (Google, Nature 2024) is already deployed across Gemini APIs at production scale.</div>
+    </div>
+  </div>
+
+  <div style="margin-top:20px;">
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        How does watermarking differ from traditional steganography? <span class="accordion-chevron">&#9650;</span>
+      </div>
+      <div class="accordion-body">
+        Steganography hides a pre-defined message inside existing content (e.g., flipping LSBs in image pixels) without changing the visible content. LLM watermarking is different: there is no existing content to hide in — the model generates content fresh at inference time. Instead, watermarking biases the <em>sampling process</em>: the vocabulary is split into green/red lists, and the model samples preferentially from the green list. The "message" is implicit in the statistical deviation from expected sampling behaviour. This means watermarks are probabilistic — they can be detected but not decoded like steganographic messages unless bit-level schemes (REMARK-LLM, PersonaMark) are used.
+      </div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        What 4 types of watermark schemes exist? <span class="accordion-chevron">&#9650;</span>
+      </div>
+      <div class="accordion-body">
+        <strong>1. Token-Level:</strong> Biases next-token probabilities during decoding (Kirchenbauer KGW, DiPmark). Fastest, widest adoption, but fragile to paraphrasing.<br><br>
+        <strong>2. Semantic:</strong> Embeds signal in semantic/syntactic structure rather than surface tokens (REMARK-LLM, PersonaMark). More robust to surface-level edits, higher bit capacity.<br><br>
+        <strong>3. Attribution / Provenance:</strong> Designed to identify specific users or sources (WASA, TRACE, Data Provenance Auditing). Uses entropy-gated injection or cue-reply pairs.<br><br>
+        <strong>4. Production-Scale:</strong> End-to-end systems for real deployment (SynthID-Text via speculative sampling, ModelShield for model IP protection). Optimise for near-zero quality degradation.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== S2: TOKEN-LEVEL ====== -->
+<section class="section" id="s-token">
+  <div class="section-tag" style="color:#f59e0b">Mechanisms &middot; Kirchenbauer 2023</div>
+  <h1 class="section-title">How Token-Level Watermarks Work</h1>
+  <p class="section-sub">The Kirchenbauer (KGW) scheme — the most cited watermarking paper in this space — partitions the vocabulary into green and red lists using the previous token as a pseudorandom seed. During generation the model adds a hardness bias &delta; to green-token logits, skewing sampling without changing the visible topic.</p>
+
+  <div class="btn-row" id="token-tab-row">
+    <button class="btn-tab active" onclick="setTokenTab('partition',this)">Green/Red Partition</button>
+    <button class="btn-tab" onclick="setTokenTab('zscore',this)">Z-Score Detection</button>
+    <button class="btn-tab" onclick="setTokenTab('dipmark',this)">DiPmark Variant</button>
+  </div>
+
+  <canvas id="canvas-token" width="700" height="280" style="margin-bottom:16px;"></canvas>
+
+  <div class="info-panel" id="token-info">
+    <strong>Green/Red Vocabulary Partition</strong><br><br>
+    For each generated token position, a hash of the previous token seeds a PRNG that splits the full vocabulary into a green list (~50%) and a red list (~50%). The LM's logit distribution is then shifted: green-token logits receive +&delta; (hardness parameter). At inference the model still samples probabilistically — but green tokens are now more likely. Over a sequence of T tokens, the fraction of green tokens will be significantly above 0.5 if a watermark is present.
+  </div>
+
+  <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:16px;">
+    <div style="flex:1;min-width:240px;">
+      <div class="slider-row">
+        <span class="slider-lbl">Green fraction (&gamma;)</span>
+        <input type="range" min="30" max="70" value="50" id="sl-gamma" oninput="updateTokenSliders()">
+        <span class="slider-val" id="sv-gamma">0.50</span>
+      </div>
+      <div class="slider-row">
+        <span class="slider-lbl">Hardness bias (&delta;)</span>
+        <input type="range" min="1" max="50" value="20" id="sl-delta" oninput="updateTokenSliders()">
+        <span class="slider-val" id="sv-delta">2.0</span>
+      </div>
+      <div class="slider-row">
+        <span class="slider-lbl">Sequence length (T)</span>
+        <input type="range" min="20" max="500" value="200" id="sl-T" oninput="updateTokenSliders()">
+        <span class="slider-val" id="sv-T">200</span>
+      </div>
+    </div>
+    <div class="info-panel" style="flex:1;min-width:240px;" id="token-formula">
+      z-score ≈ <strong id="zscore-val">8.26</strong><br>
+      Expected green tokens: <span id="exp-green">100</span><br>
+      Observed green (est.): <span id="obs-green">~141</span><br><br>
+      <span style="color:#10b981">&#10003; Detectable</span> at z &gt; 4 threshold (p &lt; 0.00003)
+    </div>
+  </div>
+
+  <div class="grid2" style="margin-top:20px;">
+    <div class="card">
+      <div class="card-title" style="color:#f59e0b">Why Previous-Token Seeding?</div>
+      <div class="card-body">Using the previous token as the PRNG seed means the green/red split changes at every position — an attacker cannot learn a fixed "green vocabulary" to exploit. The partition is context-dependent and unpredictable without the secret key. KGW uses a one-way hash so the key cannot be recovered from observed tokens.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#0ea5e9">Quality Impact</div>
+      <div class="card-body">With &delta;=2.0 and &gamma;=0.5, KGW reduces MAUVE text quality scores by ~5–8%. The quality-detectability tradeoff is the core tension: higher &delta; makes watermarks more detectable but degrades fluency. DiPmark (2023) eliminates this tradeoff by preserving the full token probability distribution while still biasing green tokens.</div>
+    </div>
+  </div>
+
+  <div style="margin-top:16px;">
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        KGW vs DiPmark: what's the key difference? <span class="accordion-chevron">&#9650;</span>
+      </div>
+      <div class="accordion-body">
+        KGW adds a flat +&delta; to all green token logits before softmax, which distorts the probability distribution — words that happen to be in the red list become systematically underrepresented regardless of their semantic appropriateness. DiPmark instead applies a multiplicative reweighting that preserves the <em>rank order</em> of token probabilities within green/red groups. The expected output distribution is the same as the original model, meaning DiPmark is distribution-preserving (hence the name). This comes at no cost to detection power — both use the same z-score test — but DiPmark has near-zero measurable quality degradation in MAUVE and PPL benchmarks.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== S3: SCHEME GALLERY ====== -->
+<section class="section" id="s-schemes">
+  <div class="section-tag" style="color:#7c3aed">Mechanisms &middot; 6 Key Schemes</div>
+  <h1 class="section-title">Watermark Scheme Gallery</h1>
+  <p class="section-sub">Six schemes span the design space: token-level (fast, fragile), semantic (robust, slow), attribution (user-traceable), and production-scale (deployed). Click any card to load its profile on the radar chart.</p>
+
+  <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start;">
+    <div style="flex:0 0 500px;">
+      <canvas id="canvas-radar" width="500" height="420"></canvas>
+    </div>
+    <div style="flex:1;min-width:240px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;" id="scheme-grid">
+        <!-- populated by JS -->
+      </div>
+      <div class="info-panel" id="scheme-info">
+        <strong>Select a scheme</strong> to see its profile and design philosophy.
+      </div>
+    </div>
+  </div>
+
+  <div class="highlight-box violet" style="margin-top:24px;">
+    <strong>Key insight:</strong> No single scheme dominates all 5 axes. SynthID-Text leads on scalability and quality (production-proven across 20M+ texts), while REMARK-LLM leads on robustness and bit capacity. TRACE leads for attribution in black-box settings. Choosing a watermark scheme is an engineering tradeoff, not a technical optimum.
+  </div>
+</section>
+
+<!-- ====== S4: DETECTION ====== -->
+<section class="section" id="s-detection">
+  <div class="section-tag" style="color:#10b981">Analysis &middot; Hypothesis Testing</div>
+  <h1 class="section-title">Detection &amp; Verification</h1>
+  <p class="section-sub">Watermark detection is a one-sided hypothesis test. The null hypothesis H&#8320; is "this text was generated without a watermark" — i.e., green-token fraction ≈ &gamma; by random chance. The alternative H&#8321; is "the watermark bias is present." A z-score above threshold triggers detection.</p>
+
+  <canvas id="canvas-detection" width="700" height="300" style="margin-bottom:16px;"></canvas>
+
+  <div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;margin-top:8px;">
+    <div style="flex:1;min-width:220px;">
+      <div class="slider-row">
+        <span class="slider-lbl">Detection threshold (z*)</span>
+        <input type="range" min="10" max="60" value="40" id="sl-thresh" oninput="updateDetection()">
+        <span class="slider-val" id="sv-thresh">4.0</span>
+      </div>
+      <div class="slider-row">
+        <span class="slider-lbl">Token sequence length</span>
+        <input type="range" min="20" max="500" value="200" id="sl-seqlen" oninput="updateDetection()">
+        <span class="slider-val" id="sv-seqlen">200</span>
+      </div>
+    </div>
+    <div class="info-panel" style="flex:1;min-width:240px;" id="detect-panel">
+      At z* = <strong>4.0</strong> and T = 200:<br>
+      False Positive Rate: <span id="dp-fpr" style="color:#ef4444">~0.003%</span><br>
+      True Positive Rate: <span id="dp-tpr" style="color:#10b981">~94%</span><br><br>
+      Detection requires ~<span id="dp-mintokens">50</span> tokens minimum at this threshold.
+    </div>
+  </div>
+
+  <div class="grid3" style="margin-top:20px;">
+    <div class="card">
+      <div class="card-title" style="color:#10b981">Z-Score Formula</div>
+      <div class="card-body">
+        <code style="font-size:12px;">z = (|s|&#8330; - &gamma;T) / &radic;(T&gamma;(1-&gamma;))</code><br><br>
+        Where |s|&#8330; = observed green token count, T = sequence length, &gamma; = expected green fraction. Under H&#8320;, z ~ N(0,1).
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#0ea5e9">Multi-Bit Detection</div>
+      <div class="card-body">REMARK-LLM and PersonaMark embed actual bit strings (not just presence/absence). Detection uses a correlation score between the observed token sequence and each possible bit pattern. Enables user-level attribution — who generated this text.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#7c3aed">Black-Box vs White-Box</div>
+      <div class="card-body">White-box detection requires access to model logits (exact green/red lists). Black-box detection (TRACE, DE-COP) only needs the output text — achievable via API calls or document comparison. TRACE achieves 72% attribution accuracy without model weights.</div>
+    </div>
+  </div>
+
+  <div style="margin-top:16px;">
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        How does TRACE's entropy-gated approach work? <span class="accordion-chevron">&#9650;</span>
+      </div>
+      <div class="accordion-body">
+        TRACE (2025) observes that high-entropy positions (where the model is uncertain between many tokens) are more flexible — any of several tokens would be semantically valid. Low-entropy positions (where one token is heavily favoured) are "committed" choices that cannot be changed without semantic distortion. TRACE only injects watermark bias at high-entropy positions, leaving low-entropy tokens untouched. This means the watermark signal is invisible in the most "fixed" parts of the text and detectable only by knowing which positions were high-entropy — knowledge only the watermark authority has. Black-box detection works by re-running the target model on the same prompt and checking entropy patterns.
+      </div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        What is the Data Provenance Auditing 100% TPR claim? <span class="accordion-chevron">&#9650;</span>
+      </div>
+      <div class="accordion-body">
+        Data Provenance Auditing (2025) uses a different paradigm: Unicode-based cue-reply pairs embedded in training data. When the model is fine-tuned on watermarked data, it learns to reproduce specific Unicode character sequences (invisible to humans) in response to trigger prompts. Detection queries the model with these cues and checks for the expected Unicode reply. In controlled experiments this achieves 100% TPR at 0% FPR — essentially a keyed authentication code rather than a probabilistic watermark. The tradeoff: it requires controlling the training data (not applicable to existing models) and the approach is fragile if the training set is modified.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== S5: ROBUSTNESS ====== -->
+<section class="section" id="s-robustness">
+  <div class="section-tag" style="color:#f97316">Analysis &middot; Attack Vectors</div>
+  <h1 class="section-title">Robustness vs Quality Tradeoffs</h1>
+  <p class="section-sub">Every watermarking scheme faces a two-front challenge: maintaining text quality (users must not notice the watermark) and surviving adversarial attacks (attackers try to remove or spoof the watermark). The table below shows attack success rate — how often each attack strips the watermark signal.</p>
+
+  <div class="btn-row" id="attack-tab-row">
+    <button class="btn-tab active" onclick="setAttackView('heatmap',this)">Attack Heatmap</button>
+    <button class="btn-tab" onclick="setAttackView('bars',this)">Bar Comparison</button>
+  </div>
+
+  <div id="attack-heatmap-view">
+    <div style="overflow-x:auto;">
+    <table class="heatmap-table">
+      <thead>
+        <tr>
+          <th>Attack ↓ / Scheme →</th>
+          <th style="color:#f59e0b">KGW</th>
+          <th style="color:#0ea5e9">DiPmark</th>
+          <th style="color:#7c3aed">REMARK</th>
+          <th style="color:#10b981">PersonaMark</th>
+          <th style="color:#f97316">TRACE</th>
+          <th style="color:#ef4444">SynthID</th>
+        </tr>
+      </thead>
+      <tbody id="heatmap-body">
+        <!-- filled by JS -->
+      </tbody>
+    </table>
+    </div>
+    <div style="display:flex;gap:16px;margin-top:10px;font-size:11px;color:var(--muted);">
+      <span><span style="display:inline-block;width:12px;height:12px;background:rgba(16,185,129,.3);border-radius:2px;margin-right:4px;"></span>Low (&lt;40% watermark removed)</span>
+      <span><span style="display:inline-block;width:12px;height:12px;background:rgba(249,115,22,.3);border-radius:2px;margin-right:4px;"></span>Medium (40–65%)</span>
+      <span><span style="display:inline-block;width:12px;height:12px;background:rgba(239,68,68,.35);border-radius:2px;margin-right:4px;"></span>High (&gt;65% removed)</span>
+    </div>
+  </div>
+
+  <canvas id="canvas-bars" width="700" height="300" style="margin-bottom:16px;display:none;"></canvas>
+
+  <div class="highlight-box orange" style="margin-top:20px;">
+    <strong>The Waterfall insight (2024):</strong> Rather than fighting paraphrase attacks, Waterfall <em>uses</em> an LLM paraphraser as the watermark medium itself. The watermark is embedded in the paraphraser's output distribution, making it training-free and inherently paraphrase-resistant. This sidesteps the token-level vulnerability entirely.
+  </div>
+
+  <div class="grid2" style="margin-top:16px;">
+    <div class="card">
+      <div class="card-title" style="color:#f97316">Why Paraphrase Attacks Are Hard to Stop</div>
+      <div class="card-body">Token-level watermarks (KGW, DiPmark) embed the signal in which specific tokens appear. A paraphrase that replaces 60–70% of tokens while preserving meaning will effectively destroy the green-token bias. Semantic watermarks (REMARK-LLM) are more resistant because the signal is in sentence structure and semantic choices — harder to change without altering meaning.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#10b981">The RegionMarker Approach (2025)</div>
+      <div class="card-body">RegionMarker targets Embedding-as-a-Service (EaaS) providers. Instead of watermarking output text, it embeds a watermark in a trigger region of the low-dimensional embedding space. The embedding model maps certain semantic regions to predictable coordinates, enabling dataset-level attribution without modifying generated text at all.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== S6: PRODUCTION ====== -->
+<section class="section" id="s-production">
+  <div class="section-tag" style="color:#ef4444">Applications &middot; SynthID-Text &amp; Attribution</div>
+  <h1 class="section-title">Production &amp; Attribution at Scale</h1>
+  <p class="section-sub">From research prototype to 20 million texts: how Google's SynthID-Text closes the gap between watermarking theory and production deployment — and how attribution systems like WASA and Data Provenance Auditing handle the legal chain-of-custody problem.</p>
+
+  <div class="phase-btn-row" id="prod-btn-row">
+    <button class="phase-btn active" onclick="setProdPhase('synthid',this)">SynthID-Text</button>
+    <button class="phase-btn" onclick="setProdPhase('wasa',this)">WASA Attribution</button>
+    <button class="phase-btn" onclick="setProdPhase('provenance',this)">Data Provenance</button>
+    <button class="phase-btn" onclick="setProdPhase('modelshield',this)">ModelShield IP</button>
+  </div>
+
+  <canvas id="canvas-production" width="700" height="200" style="margin-bottom:16px;"></canvas>
+
+  <div class="info-panel" id="prod-info">
+    <strong>SynthID-Text (Google DeepMind, Nature 2024)</strong><br><br>
+    Deployed across 20M+ Gemini API responses. Uses tournament-sampling: at each position, multiple candidate tokens are sampled and the one with the best score on a pseudorandom scoring function is selected. Unlike KGW which adds a logit bias, tournament sampling provably preserves the exact output distribution — there is no measurable quality degradation in human preference studies. Detection uses a likelihood-ratio test against the scoring function. Publicly available via Google Cloud Vertex AI.
+    <br><br>
+    <span class="badge badge-red">Nature 2024</span>
+    <span class="badge badge-sky">20M+ Texts</span>
+    <span class="badge badge-green">Zero Quality Loss</span>
+  </div>
+
+  <div class="grid2" style="margin-top:20px;">
+    <div class="card">
+      <div class="card-title" style="color:#ef4444">Speculative Sampling Integration</div>
+      <div class="card-body">SynthID-Text integrates with speculative decoding (which uses a small draft model to propose tokens, then a large model to verify). The watermark scoring function is applied during the verification step — no additional latency is added to the inference pipeline. This makes it compatible with production serving infrastructure without architectural changes.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#f97316">WASA: Who Are You Sampling?</div>
+      <div class="card-body">WASA (2023) focuses on source attribution for training data. If a model's output matches a particular dataset's style and vocabulary, WASA's attribution model identifies the source. Uses contrastive analysis across reference corpora, achieving meaningful attribution signals even for indirect memorisation where verbatim reproduction is absent.</div>
+    </div>
+  </div>
+
+  <div class="highlight-box red" style="margin-top:16px;">
+    <strong>ModelShield (IEEE TIFS 2025):</strong> Protects against model extraction attacks — where adversaries query an API model extensively to train a "stolen" clone. ModelShield embeds a self-watermark in the model's output that persists through fine-tuning and distillation. When the stolen model is later queried, the watermark is still detectable, proving the clone's lineage. This is the only scheme designed to survive model-to-model copying.
+  </div>
+
+  <div style="margin-top:16px;">
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        How does PersonaMark enable per-user attribution? <span class="accordion-chevron">&#9650;</span>
+      </div>
+      <div class="accordion-body">
+        PersonaMark (2024) assigns each user a unique secret key derived from their user ID via a one-way hash. This key seeds the green/red partition for that user's generations. When suspicious text is found, the operator runs detection with each registered user's key — only the actual generator's key will yield a significant z-score. The scheme uses sentence-level structure (not individual tokens) as the watermark medium, making it more robust to character-level attacks. Crucially, a user cannot detect or remove their own watermark because they do not know their key.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== S7: CHALLENGES ====== -->
+<section class="section" id="s-challenges">
+  <div class="section-tag" style="color:#6366f1">Open Challenges</div>
+  <h1 class="section-title">The Arms Race &amp; Open Problems</h1>
+  <p class="section-sub">Every watermarking scheme published since 2023 has been followed by an attack demonstrating its limitations. The field is in active adversarial competition — and several fundamental challenges remain unsolved as of 2025.</p>
+
+  <canvas id="canvas-timeline" width="700" height="160" style="margin-bottom:20px;"></canvas>
+
+  <div class="grid3" style="margin-top:4px;">
+    <div class="card" style="border-color:rgba(239,68,68,.4);">
+      <div class="card-title" style="color:#f87171">1. Paraphrase Fragility</div>
+      <div class="card-body">Token-level watermarks are destroyed by 2–3 rounds of paraphrase. Neural paraphrasers (GPT-4o, Claude 3) achieve near-native fluency while eliminating the green-token signal. No token-level scheme has shown reliable robustness to adaptive paraphrase attacks from frontier LLMs.</div>
+    </div>
+    <div class="card" style="border-color:rgba(249,115,22,.4);">
+      <div class="card-title" style="color:#fb923c">2. Spoofing Attacks</div>
+      <div class="card-body">An adversary who knows the watermark scheme (but not the key) can craft texts that appear watermarked using trial and error. Spoofing is particularly dangerous for attribution systems — false positives could wrongly attribute human writing to an AI, or frame a specific user.</div>
+    </div>
+    <div class="card" style="border-color:rgba(99,102,241,.4);">
+      <div class="card-title" style="color:#818cf8">3. Multi-Modal Gap</div>
+      <div class="card-body">Watermarking for text-to-image (SynthID-Image) and text-to-audio exists separately. There is no unified framework that watermarks multimodal outputs — an LLM that generates both text and image descriptions in the same response cannot be consistently watermarked across modalities.</div>
+    </div>
+    <div class="card" style="border-color:rgba(16,185,129,.4);">
+      <div class="card-title" style="color:#34d399">4. Quantization Brittleness</div>
+      <div class="card-body">4-bit quantization of LLMs changes token probability distributions — potentially destroying watermarks embedded via logit biasing. Research (from the machine unlearning domain) shows 4-bit quantization recovers 83% of "forgotten" knowledge, suggesting quantization similarly degrades watermark signals.</div>
+    </div>
+    <div class="card" style="border-color:rgba(14,165,233,.4);">
+      <div class="card-title" style="color:#38bdf8">5. Long-Document Detection</div>
+      <div class="card-body">Z-score tests require a minimum token count (~50–200) for statistical significance. Short outputs (tweets, code comments, single sentences) cannot be reliably watermarked with current token-level schemes. Semantic and attribution approaches have higher per-token overhead, making short-text watermarking an active research gap.</div>
+    </div>
+    <div class="card" style="border-color:rgba(245,158,11,.4);">
+      <div class="card-title" style="color:#fbbf24">6. Dataset-Level Watermarks</div>
+      <div class="card-body">Wei et al. (2024) demonstrated dataset-level watermarks on BLOOM-176B using hypothesis testing — detecting if a model was trained on a specific dataset, not just if individual texts were generated by it. This is the frontier for copyright enforcement: proving a model's training violated copyright without needing the model's weights.</div>
+    </div>
+  </div>
+
+  <div class="highlight-box" style="margin-top:24px;">
+    <strong>Research trajectory (2023–2025):</strong> The field began with Kirchenbauer's green/red token partition (2023) and has rapidly evolved through distribution-preserving variants (DiPmark), semantic embedding (REMARK-LLM), entropy-gated attribution (TRACE), and production deployment (SynthID-Text, Nature 2024). The next frontier is multi-modal and adversarially robust watermarking that can survive frontier-model paraphrase attacks while remaining legally admissible.
+  </div>
+
+  <div style="margin-top:20px;">
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        What does the EU AI Act require regarding watermarking? <span class="accordion-chevron">&#9650;</span>
+      </div>
+      <div class="accordion-body">
+        The EU AI Act (in force August 2024) requires providers of general-purpose AI systems to mark AI-generated content in a machine-readable format where "technically feasible." The Act does not mandate a specific watermarking scheme but establishes liability for providers who fail to implement disclosure mechanisms. SynthID-Text's deployment across Gemini ahead of the Act's enforcement timeline suggests major providers are already building compliance infrastructure. The challenge is that "technically feasible" has no clear threshold — a scheme that works for long-form text may not satisfy the requirement for short outputs.
+      </div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        Can watermarking replace membership inference for copyright enforcement? <span class="accordion-chevron">&#9650;</span>
+      </div>
+      <div class="accordion-body">
+        No — they answer different questions. Watermarking asks: "was this text <em>generated</em> by a watermarked model?" Membership Inference attacks ask: "was this text in the model's <em>training data</em>?" For copyright enforcement, you typically need both: first prove the model was trained on copyrighted data (MIA), then prove that specific outputs are derived from that data (watermarking for generation attribution). Data Provenance Auditing bridges this gap by using training-data watermarks that affect generation behaviour — but requires controlling the training process, making it inapplicable to existing deployed models.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== RELATED POSTS STRIP ====== -->
+<div class="related-strip">
+  <div class="related-strip-label" style="color:#f59e0b">&#9650; Prerequisites</div>
+  <div class="related-strip-grid">
+    <a class="rc" href="../31-copyright-llm/">
+      <div class="rc-type" style="color:#f59e0b">Prerequisite</div>
+      <div class="rc-num">Post 31</div>
+      <div class="rc-title">Copyright Detection &amp; Mitigation in LLMs</div>
+      <div class="rc-why">Full 286-paper landscape including all 4 detection paradigms (MIA, memorization, watermarking, dataset inference) and 5 mitigation strategies.</div>
+    </a>
+    <a class="rc" href="../22-nist-ai-rmf/">
+      <div class="rc-type" style="color:#f59e0b">Prerequisite</div>
+      <div class="rc-num">Post 22</div>
+      <div class="rc-title">NIST AI Risk Management Framework</div>
+      <div class="rc-why">Policy and governance context for AI transparency requirements that motivate watermarking deployment.</div>
+    </a>
+  </div>
+
+  <div class="related-strip-label" style="color:#7c3aed;margin-top:20px;">&#9654; Related Topics</div>
+  <div class="related-strip-grid">
+    <a class="rc" href="../24-agentic-mrm/">
+      <div class="rc-type" style="color:#7c3aed">Related</div>
+      <div class="rc-num">Post 24</div>
+      <div class="rc-title">Agentic Model Risk Management</div>
+      <div class="rc-why">Risk frameworks for AI systems — watermarking as a provenance control in agentic pipelines.</div>
+    </a>
+    <a class="rc" href="../16-contrastive-loss/">
+      <div class="rc-type" style="color:#7c3aed">Related</div>
+      <div class="rc-num">Post 16</div>
+      <div class="rc-title">Contrastive Loss &amp; Metric Learning</div>
+      <div class="rc-why">WASA source attribution uses contrastive analysis across corpora — the same embedding geometry explored here.</div>
+    </a>
+    <a class="rc" href="../30-semantic-collapse/">
+      <div class="rc-type" style="color:#7c3aed">Related</div>
+      <div class="rc-num">Post 30</div>
+      <div class="rc-title">Semantic Collapse</div>
+      <div class="rc-why">Embedding-space distortions from semantic watermarks connect to collapse phenomena in high-dimensional representations.</div>
+    </a>
+  </div>
+
+  <a class="map-link-btn" href="../learning-map/">&#9776; View on Learning Map</a>
+</div>
+
+</div><!-- end .main -->
+
+<script>
+// ===== PASSWORD GATE =====
+(function(){
+  if(localStorage.getItem('pg_unlocked_32')==='1'){
+    var g=document.getElementById('pg-gate');
+    if(g) g.style.display='none';
+    doInit();
+  } else {
+    document.getElementById('pg-input').addEventListener('keydown',function(e){if(e.key==='Enter')pgCheck();});
+  }
+})();
+function pgCheck(){
+  var v=document.getElementById('pg-input').value.trim();
+  if(v==='visual2025'){
+    localStorage.setItem('pg_unlocked_32','1');
+    document.getElementById('pg-gate').style.display='none';
+    doInit();
+  } else {
+    document.getElementById('pg-err').textContent='Incorrect password. Try again.';
+  }
+}
+
+// ===== SCROLL PROGRESS =====
+document.getElementById('main-scroll').addEventListener('scroll',function(){
+  var el=this;
+  var pct=el.scrollTop/(el.scrollHeight-el.clientHeight)*100;
+  document.getElementById('scroll-progress').style.width=pct+'%';
+  updateScrollspy(el.scrollTop);
+});
+
+// ===== SCROLLSPY =====
+var SECTIONS=['s-overview','s-token','s-schemes','s-detection','s-robustness','s-production','s-challenges'];
+function updateScrollspy(st){
+  var main=document.getElementById('main-scroll');
+  var current='s-overview';
+  for(var i=0;i<SECTIONS.length;i++){
+    var sec=document.getElementById(SECTIONS[i]);
+    if(sec&&sec.offsetTop-main.scrollTop<200)current=SECTIONS[i];
+  }
+  document.querySelectorAll('.nav-link').forEach(function(l){
+    l.classList.toggle('active',l.getAttribute('data-sec')===current);
+  });
+}
+function setActive(el,sec){
+  document.querySelectorAll('.nav-link').forEach(function(l){l.classList.remove('active');});
+  el.classList.add('active');
+}
+function scrollTo(sec){
+  var el=document.getElementById(sec);
+  if(el) document.getElementById('main-scroll').scrollTo({top:el.offsetTop,behavior:'smooth'});
+}
+
+// ===== ACCORDION =====
+function toggleAccordion(header){
+  var body=header.nextElementSibling;
+  var chevron=header.querySelector('.accordion-chevron');
+  if(body.style.display==='block'){
+    body.style.display='none';
+    chevron.style.transform='';
+  } else {
+    body.style.display='block';
+    chevron.style.transform='rotate(180deg)';
+  }
+}
+
+// ===== UTILITIES =====
+function lerp(a,b,t){return a+(b-a)*t;}
+function easeInOut(t){return t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;}
+function drawRoundedRect(ctx,x,y,w,h,r,fill,stroke){
+  ctx.beginPath();ctx.roundRect(x,y,w,h,r);
+  if(fill){ctx.fillStyle=fill;ctx.fill();}
+  if(stroke){ctx.strokeStyle=stroke;ctx.stroke();}
+}
+
+// ===== DATA =====
+var SCHEMES_DATA=[
+  {id:'kgw',name:'KGW',fullName:'Kirchenbauer (KGW)',year:2023,type:'Token-Level',color:'#f59e0b',
+   quality:72,detection:85,robustness:40,scalability:90,privacy:40,
+   info:'<strong>Kirchenbauer et al. (2023)</strong><br><br>The founding token-level watermark. Partitions vocabulary into green/red lists using a hash of the previous token as a pseudorandom seed. Adds +&delta; bias to green-token logits during sampling. Detection uses a z-score test over the fraction of green tokens.<br><br><span class="badge badge-amber">Token-Level</span><span class="badge badge-sky">Open Source</span><span class="badge badge-orange">White-box Detection</span>'},
+  {id:'dipmark',name:'DiPmark',fullName:'DiPmark',year:2023,type:'Token-Level',color:'#0ea5e9',
+   quality:92,detection:80,robustness:38,scalability:88,privacy:45,
+   info:'<strong>DiPmark (2023)</strong><br><br>Distribution-Preserving watermark. Uses a multiplicative reweighting scheme that preserves the original token probability distribution while still embedding a green-token bias. Near-zero MAUVE quality degradation. Same z-score detection as KGW but with no measurable output quality loss.<br><br><span class="badge badge-sky">Distribution-Preserving</span><span class="badge badge-amber">Token-Level</span><span class="badge badge-green">Quality-Focused</span>'},
+  {id:'remark',name:'REMARK',fullName:'REMARK-LLM',year:2023,type:'Semantic',color:'#7c3aed',
+   quality:80,detection:82,robustness:72,scalability:60,privacy:60,
+   info:'<strong>REMARK-LLM (2023)</strong><br><br>Semantic watermarking using Gumbel-Softmax resampling. Embeds watermark bits in semantic structure rather than surface tokens — 2× higher bit capacity than KGW. More robust to paraphrasing because semantic structure (word choice, sentence form) is preserved by paraphrasers while surface tokens change.<br><br><span class="badge badge-violet">Semantic</span><span class="badge badge-green">High Bit Capacity</span><span class="badge badge-sky">Paraphrase-Resistant</span>'},
+  {id:'personamark',name:'PersonaMark',fullName:'PersonaMark',year:2024,type:'Personalized',color:'#10b981',
+   quality:75,detection:80,robustness:65,scalability:62,privacy:88,
+   info:'<strong>PersonaMark (2024)</strong><br><br>Per-user watermarking using sentence structure as the embedding medium. Each user gets a unique hash-derived key embedded in syntactic patterns (sentence length, clause order, modifier placement). Enables user-level attribution — identifying which user\'s API key generated a specific text — without a central generation log.<br><br><span class="badge badge-green">Personalized</span><span class="badge badge-violet">Per-User Attribution</span><span class="badge badge-amber">Sentence-Structure</span>'},
+  {id:'trace',name:'TRACE',fullName:'TRACE',year:2025,type:'Attribution',color:'#f97316',
+   quality:83,detection:76,robustness:74,scalability:70,privacy:72,
+   info:'<strong>TRACE (2025)</strong><br><br>Entropy-gated black-box watermarking. Only injects watermark signal at high-entropy (uncertain) token positions, leaving committed low-entropy positions untouched. Works without model weight access — the authority re-runs the model on the same prompt to check entropy patterns. Achieves 72% attribution accuracy in black-box API settings.<br><br><span class="badge badge-orange">Black-box</span><span class="badge badge-sky">Entropy-Gated</span><span class="badge badge-violet">Attribution</span>'},
+  {id:'synthid',name:'SynthID',fullName:'SynthID-Text',year:2024,type:'Production',color:'#ef4444',
+   quality:96,detection:88,robustness:80,scalability:98,privacy:75,
+   info:'<strong>SynthID-Text (Google DeepMind, Nature 2024)</strong><br><br>Production watermarking deployed across 20M+ Gemini API responses. Uses tournament sampling (not logit biasing) — provably preserves the output distribution with zero measurable quality degradation in human preference studies. Integrates with speculative decoding. Available via Google Cloud Vertex AI. Highest scalability of any published scheme.<br><br><span class="badge badge-red">Nature 2024</span><span class="badge badge-sky">20M+ Texts</span><span class="badge badge-green">Zero Quality Loss</span><span class="badge badge-orange">Production</span>'}
+];
+
+var ATTACKS_DATA=[
+  {name:'Paraphrase (GPT-4o)',kgw:72,dipmark:68,remark:35,personamark:40,trace:30,synthid:22},
+  {name:'Synonym Substitution',kgw:55,dipmark:58,remark:28,personamark:32,trace:22,synthid:18},
+  {name:'Back-Translation',kgw:75,dipmark:72,remark:45,personamark:48,trace:40,synthid:28},
+  {name:'Span Removal',kgw:38,dipmark:40,remark:52,personamark:48,trace:44,synthid:20},
+  {name:'Tokenization Tricks',kgw:28,dipmark:32,remark:18,personamark:22,trace:14,synthid:10}
+];
+
+var PROD_PHASES={
+  synthid:{title:'SynthID-Text (Google DeepMind, Nature 2024)',
+    body:'Deployed across 20M+ Gemini API responses using tournament sampling. At each position, k candidate tokens are scored via a pseudorandom function (seeded by the model\'s internal state + a secret key). The highest-scoring token is selected — this provably preserves the marginal output distribution. Detection uses a likelihood-ratio test. Integrated with speculative decoding with no latency overhead. Published in Nature, August 2024.',
+    badges:['<span class="badge badge-red">Nature 2024</span>','<span class="badge badge-sky">20M+ Texts</span>','<span class="badge badge-green">Zero Quality Loss</span>','<span class="badge badge-orange">Speculative Sampling</span>']},
+  wasa:{title:'WASA: Source Attribution (2023)',
+    body:'WASA (Watermark-based Attribution System for AI) attributes generated text to its source training dataset using contrastive corpus analysis. When a model generates text that closely mirrors a particular dataset\'s vocabulary and style distribution, WASA\'s attribution model detects this. Operates without requiring the model\'s weights — only API access needed. Useful for proving which copyrighted corpus an LLM was trained on.',
+    badges:['<span class="badge badge-sky">Black-box</span>','<span class="badge badge-amber">Source Attribution</span>','<span class="badge badge-violet">Training Data</span>']},
+  provenance:{title:'Data Provenance Auditing (2025)',
+    body:'Embeds invisible Unicode character sequences into training documents as cue-reply pairs. After fine-tuning on watermarked data, the model learns to reproduce specific Unicode sequences when prompted with trigger cues. Detection: query the model with the cue, check for the Unicode reply. In controlled experiments: 100% TPR at 0% FPR — court-admissible authentication strength. Requires controlling the training corpus.',
+    badges:['<span class="badge badge-green">100% TPR @ 0% FPR</span>','<span class="badge badge-violet">Training Data</span>','<span class="badge badge-amber">Unicode Cue-Reply</span>']},
+  modelshield:{title:'ModelShield: IP Protection (IEEE TIFS 2025)',
+    body:'Designed to detect model extraction attacks (API scraping to train a "stolen" clone). Embeds a self-watermark in the model\'s output distribution that persists through fine-tuning, quantization, and distillation of the stolen model. When the adversary\'s clone is queried, ModelShield\'s detector identifies the lineage. The only scheme designed to survive model-to-model copying. Published in IEEE Transactions on Information Forensics and Security, 2025.',
+    badges:['<span class="badge badge-red">IEEE TIFS 2025</span>','<span class="badge badge-orange">Model Extraction</span>','<span class="badge badge-sky">IP Protection</span>']},
+};
+
+// ===== STATE =====
+var overviewT=0;
+var tokenTab='partition';
+var activeScheme='kgw';
+var attackView='heatmap';
+var prodPhase='synthid';
+var radarAnim=0;
+var radarTarget={quality:72,detection:85,robustness:40,scalability:90,privacy:40};
+var radarCurrent={quality:0,detection:0,robustness:0,scalability:0,privacy:0};
+var barAnimT=0;
+var barAnimStart=null;
+var prodT=0;
+
+// ===== SECTION 1: OVERVIEW CANVAS =====
+var ovCtx;
+var ovTokens=[];
+function initOverview(){
+  var canvas=document.getElementById('canvas-overview');
+  if(!canvas)return;
+  ovCtx=canvas.getContext('2d');
+  // create token stream
+  for(var i=0;i<30;i++){
+    ovTokens.push({x:Math.random()*680+10,y:Math.random()*220+20,
+      word:['the','model','generates','text','with','hidden','signal','every','token','carries','green','list','hash','seed'][Math.floor(Math.random()*14)],
+      green:Math.random()<0.55,speed:0.3+Math.random()*0.5,alpha:Math.random()});
+  }
+  setInterval(drawOverview,33);
+}
+function drawOverview(){
+  if(!ovCtx)return;
+  var W=700,H=260;
+  ovCtx.clearRect(0,0,W,H);
+  ovCtx.fillStyle='#161b22';
+  ovCtx.fillRect(0,0,W,H);
+
+  // Title panels
+  var panels=[{x:10,label:'Generate Token',color:'#0ea5e9'},{x:240,label:'Hash Previous Token',color:'#7c3aed'},{x:470,label:'Sample: Green Bias',color:'#10b981'}];
+  panels.forEach(function(p){
+    drawRoundedRect(ovCtx,p.x,10,210,50,8,null,p.color+'44');
+    ovCtx.fillStyle=p.color;
+    ovCtx.font='bold 11px Inter,sans-serif';
+    ovCtx.textAlign='center';
+    ovCtx.fillText(p.label,p.x+105,40);
+  });
+  // Arrows between panels
+  ovCtx.strokeStyle='#30363d';ovCtx.lineWidth=1.5;
+  [[220,35,240,35],[450,35,470,35]].forEach(function(a){
+    ovCtx.beginPath();ovCtx.moveTo(a[0],a[1]);ovCtx.lineTo(a[2],a[3]);
+    ovCtx.stroke();
+    ovCtx.fillStyle='#30363d';
+    ovCtx.beginPath();ovCtx.moveTo(a[2],a[3]);ovCtx.lineTo(a[2]-6,a[3]-4);ovCtx.lineTo(a[2]-6,a[3]+4);ovCtx.fill();
+  });
+
+  // Moving tokens
+  overviewT+=0.015;
+  ovTokens.forEach(function(t){
+    t.x-=t.speed;
+    t.alpha+=0.02;
+    if(t.x<-60){t.x=720;t.green=Math.random()<0.55;t.word=['the','model','output','token','green','red','hash','bias','sample','text'][Math.floor(Math.random()*10)];}
+    var a=Math.min(1,Math.abs(Math.sin(t.alpha)));
+    var col=t.green?'rgba(16,185,129,'+a*0.9+')':'rgba(239,68,68,'+a*0.5+')';
+    ovCtx.fillStyle=col;
+    ovCtx.font='11px JetBrains Mono,monospace';
+    ovCtx.textAlign='left';
+    ovCtx.fillText(t.word,t.x,80+Math.sin(t.alpha*2)*20+100);
+  });
+
+  // Legend
+  ovCtx.font='11px Inter,sans-serif';
+  ovCtx.fillStyle='rgba(16,185,129,.9)';ovCtx.textAlign='left';
+  ovCtx.fillRect(20,H-35,12,12);
+  ovCtx.fillStyle='var(--muted)';
+  ovCtx.fillText('Green list token (biased +δ)',38,H-25);
+  ovCtx.fillStyle='rgba(239,68,68,.7)';
+  ovCtx.fillRect(220,H-35,12,12);
+  ovCtx.fillStyle='#8b949e';
+  ovCtx.fillText('Red list token (suppressed)',238,H-25);
+}
+
+// ===== SECTION 2: TOKEN CANVAS =====
+var tokCtx;
+function initTokenCanvas(){
+  var canvas=document.getElementById('canvas-token');
+  if(!canvas)return;
+  tokCtx=canvas.getContext('2d');
+  drawTokenCanvas();
+}
+function setTokenTab(tab,btn){
+  tokenTab=tab;
+  document.querySelectorAll('#token-tab-row .btn-tab').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  drawTokenCanvas();
+  var info=document.getElementById('token-info');
+  if(tab==='partition'){
+    info.innerHTML='<strong>Green/Red Vocabulary Partition</strong><br><br>For each generated token position, a hash of the previous token seeds a PRNG that splits the full vocabulary into a green list (~50%) and a red list (~50%). The LM\'s logit distribution is then shifted: green-token logits receive +&delta; (hardness parameter). At inference the model still samples probabilistically — but green tokens are now more likely. Over a sequence of T tokens, the fraction of green tokens will be significantly above 0.5 if a watermark is present.';
+  } else if(tab==='zscore'){
+    info.innerHTML='<strong>Z-Score Detection</strong><br><br>The detector, knowing the secret key, reconstructs the green list at each position. It counts the observed number of green tokens |s|&#8330; in the candidate text. Under the null hypothesis (no watermark), this count follows Binomial(T, &gamma;). The z-score z = (|s|&#8330; &minus; &gamma;T) / &radic;(T&gamma;(1-&gamma;)) is compared to a threshold z* ≈ 4.0. If z > z*, the text is flagged as watermarked. This test has no false positives at z*=4 (p &lt; 0.00003).';
+  } else {
+    info.innerHTML='<strong>DiPmark: Distribution-Preserving Watermark</strong><br><br>KGW\'s flat +&delta; bias distorts the token probability distribution — red-list tokens are systematically underrepresented. DiPmark applies a multiplicative reweighting that keeps the expected marginal distribution identical to the original model. The key insight: within each green/red group, probabilities are rescaled proportionally, so the green/red bias emerges without any individual token becoming over- or under-represented relative to its original LM probability. Same z-score detection, near-zero MAUVE quality loss.';
+  }
+}
+function drawTokenCanvas(){
+  if(!tokCtx)return;
+  var W=700,H=280;
+  tokCtx.clearRect(0,0,W,H);
+  tokCtx.fillStyle='#161b22';tokCtx.fillRect(0,0,W,H);
+
+  if(tokenTab==='partition'){
+    // Vocabulary grid: green vs red
+    var cols=20,rows=8,cw=28,ch=20,ox=20,oy=30;
+    tokCtx.font='bold 12px Inter,sans-serif';
+    tokCtx.textAlign='center';
+    tokCtx.fillStyle='#c9d1d9';
+    tokCtx.fillText('Vocabulary Grid ('+cols*rows+' tokens)',W/2,20);
+    for(var r=0;r<rows;r++){
+      for(var c=0;c<cols;c++){
+        var idx=r*cols+c;
+        var isGreen=idx<cols*rows*0.5;
+        var col=isGreen?'rgba(16,185,129,.35)':'rgba(239,68,68,.25)';
+        var border=isGreen?'#10b981':'#ef4444';
+        drawRoundedRect(tokCtx,ox+c*(cw+2),oy+r*(ch+2),cw,ch,3,col,border+'66');
+      }
+    }
+    // Labels
+    tokCtx.fillStyle='#10b981';tokCtx.font='bold 10px Inter,sans-serif';tokCtx.textAlign='left';
+    tokCtx.fillText('Green List (50%)',20,H-50);
+    tokCtx.fillStyle='#ef4444';
+    tokCtx.fillText('Red List (50%)',200,H-50);
+
+    // Arrow showing bias
+    tokCtx.strokeStyle='#0ea5e9';tokCtx.lineWidth=2;
+    tokCtx.beginPath();tokCtx.moveTo(500,60);tokCtx.lineTo(500,220);tokCtx.stroke();
+    tokCtx.fillStyle='#0ea5e9';tokCtx.font='10px Inter,sans-serif';tokCtx.textAlign='center';
+    tokCtx.fillText('hash(prev_token)',540,140);
+    tokCtx.fillText('→ PRNG seed',540,155);
+    tokCtx.fillText('+δ bias →',460,100);
+    tokCtx.fillText('green tokens',460,115);
+
+  } else if(tokenTab==='zscore'){
+    // Distribution curve
+    var cx=350,cy=150,sw=300;
+    // H0 curve (normal distribution centered at 0)
+    tokCtx.strokeStyle='#8b949e';tokCtx.lineWidth=2;
+    tokCtx.beginPath();
+    for(var x=cx-sw;x<=cx+sw;x++){
+      var t2=(x-cx)/80;
+      var y=cy-80*Math.exp(-t2*t2/2);
+      if(x===cx-sw)tokCtx.moveTo(x,y);else tokCtx.lineTo(x,y);
+    }
+    tokCtx.stroke();
+
+    // H1 curve (shifted right - watermarked)
+    var shift=100;
+    tokCtx.strokeStyle='#0ea5e9';tokCtx.lineWidth=2;
+    tokCtx.beginPath();
+    for(var x=cx-sw+shift;x<=cx+sw+shift;x++){
+      var t2=(x-cx-shift)/70;
+      var y=cy-75*Math.exp(-t2*t2/2);
+      if(x===cx-sw+shift)tokCtx.moveTo(x,y);else tokCtx.lineTo(x,y);
+    }
+    tokCtx.stroke();
+
+    // threshold line
+    var threshX=cx+120;
+    tokCtx.strokeStyle='#ef4444';tokCtx.lineWidth=1.5;tokCtx.setLineDash([4,4]);
+    tokCtx.beginPath();tokCtx.moveTo(threshX,cy-100);tokCtx.lineTo(threshX,cy+30);tokCtx.stroke();
+    tokCtx.setLineDash([]);
+
+    // Labels
+    tokCtx.font='11px Inter,sans-serif';tokCtx.textAlign='center';
+    tokCtx.fillStyle='#8b949e';tokCtx.fillText('H₀ (no watermark)',cx-40,cy+45);
+    tokCtx.fillStyle='#0ea5e9';tokCtx.fillText('H₁ (watermarked)',cx+160,cy+45);
+    tokCtx.fillStyle='#ef4444';tokCtx.fillText('z* threshold',threshX,cy+50);
+    tokCtx.fillStyle='#c9d1d9';tokCtx.font='bold 12px Inter,sans-serif';
+    tokCtx.fillText('Watermark Detection as Hypothesis Test',W/2,22);
+
+  } else {
+    // DiPmark comparison
+    var bw=280,bh=160,by=60;
+    // KGW bars
+    tokCtx.fillStyle='#c9d1d9';tokCtx.font='bold 11px Inter,sans-serif';tokCtx.textAlign='center';
+    tokCtx.fillText('KGW: Additive Bias',160,50);
+    tokCtx.fillText('DiPmark: Multiplicative Reweight',490,50);
+
+    var kgwProbs=[0.35,0.25,0.18,0.12,0.07,0.03];
+    var dipProbs=[0.33,0.24,0.19,0.13,0.07,0.04];
+    var origProbs=[0.28,0.22,0.20,0.15,0.10,0.05];
+    var colors=['#10b981','#10b981','#10b981','#ef4444','#ef4444','#ef4444'];
+    var labels=['tok1','tok2','tok3','tok4','tok5','tok6'];
+
+    kgwProbs.forEach(function(p,i){
+      var bx=30+i*45,barH=p*350;
+      tokCtx.fillStyle=colors[i]+'aa';
+      tokCtx.fillRect(bx,230-barH,35,barH);
+      // Original
+      tokCtx.strokeStyle='#555';tokCtx.lineWidth=1;tokCtx.setLineDash([2,2]);
+      tokCtx.beginPath();tokCtx.moveTo(bx,230-origProbs[i]*350);tokCtx.lineTo(bx+35,230-origProbs[i]*350);tokCtx.stroke();
+      tokCtx.setLineDash([]);
+      tokCtx.fillStyle='#8b949e';tokCtx.font='9px Inter,sans-serif';tokCtx.textAlign='center';
+      tokCtx.fillText(labels[i],bx+17,245);
+    });
+
+    dipProbs.forEach(function(p,i){
+      var bx=360+i*45,barH=p*350;
+      tokCtx.fillStyle=colors[i]+'aa';
+      tokCtx.fillRect(bx,230-barH,35,barH);
+      tokCtx.strokeStyle='#555';tokCtx.lineWidth=1;tokCtx.setLineDash([2,2]);
+      tokCtx.beginPath();tokCtx.moveTo(bx,230-origProbs[i]*350);tokCtx.lineTo(bx+35,230-origProbs[i]*350);tokCtx.stroke();
+      tokCtx.setLineDash([]);
+      tokCtx.fillStyle='#8b949e';tokCtx.font='9px Inter,sans-serif';tokCtx.textAlign='center';
+      tokCtx.fillText(labels[i],bx+17,245);
+    });
+
+    tokCtx.fillStyle='#8b949e';tokCtx.font='9px Inter,sans-serif';tokCtx.textAlign='left';
+    tokCtx.fillText('Dashed = original distribution',30,265);
+    tokCtx.setLineDash([2,2]);tokCtx.strokeStyle='#555';
+    tokCtx.beginPath();tokCtx.moveTo(185,258);tokCtx.lineTo(210,258);tokCtx.stroke();
+    tokCtx.setLineDash([]);
+  }
+}
+
+// ===== TOKEN SLIDERS =====
+function updateTokenSliders(){
+  var gamma=document.getElementById('sl-gamma').value/100;
+  var delta=document.getElementById('sl-delta').value/10;
+  var T=parseInt(document.getElementById('sl-T').value);
+  document.getElementById('sv-gamma').textContent=gamma.toFixed(2);
+  document.getElementById('sv-delta').textContent=delta.toFixed(1);
+  document.getElementById('sv-T').textContent=T;
+  var expectedGreen=Math.round(T*gamma);
+  // With delta bias, effective green fraction ≈ gamma + delta*gamma*(1-gamma)/(1+delta*gamma*(1-gamma))... approximate
+  var effectiveGreen=gamma+(delta*0.1*gamma*(1-gamma));
+  effectiveGreen=Math.min(effectiveGreen,0.95);
+  var observedGreen=Math.round(T*effectiveGreen);
+  var zscore=(observedGreen-T*gamma)/Math.sqrt(T*gamma*(1-gamma));
+  document.getElementById('exp-green').textContent=expectedGreen;
+  document.getElementById('obs-green').textContent='~'+observedGreen;
+  document.getElementById('zscore-val').textContent=zscore.toFixed(2);
+  var fEl=document.getElementById('token-formula');
+  var detectable=zscore>4;
+  fEl.innerHTML='z-score ≈ <strong id="zscore-val">'+zscore.toFixed(2)+'</strong><br>Expected green tokens: <span id="exp-green">'+expectedGreen+'</span><br>Observed green (est.): <span id="obs-green">~'+observedGreen+'</span><br><br>'+(detectable?'<span style="color:#10b981">&#10003; Detectable</span> at z &gt; 4 threshold':'<span style="color:#ef4444">&#10007; Below threshold</span> — need longer text or higher &delta;');
+}
+
+// ===== SECTION 3: RADAR =====
+var radarCtx;
+var RADAR_AXES=['Text Quality','Detection Rate','Robustness','Scalability','Privacy Safe'];
+var RADAR_KEYS=['quality','detection','robustness','scalability','privacy'];
+function initSchemes(){
+  // Populate grid
+  var grid=document.getElementById('scheme-grid');
+  grid.innerHTML='';
+  SCHEMES_DATA.forEach(function(s){
+    var card=document.createElement('div');
+    card.className='scheme-card'+(s.id===activeScheme?' active':'');
+    card.innerHTML='<div class="scheme-meta"><span class="scheme-type" style="background:'+s.color+'22;color:'+s.color+'">'+s.type+'</span><span class="scheme-year">'+s.year+'</span></div><div class="scheme-name">'+s.fullName+'</div>';
+    card.onclick=function(){selectScheme(s.id);};
+    grid.appendChild(card);
+  });
+
+  var canvas=document.getElementById('canvas-radar');
+  if(canvas){radarCtx=canvas.getContext('2d');drawRadar();}
+  selectScheme('kgw');
+}
+function selectScheme(id){
+  activeScheme=id;
+  document.querySelectorAll('.scheme-card').forEach(function(c,i){c.classList.toggle('active',SCHEMES_DATA[i].id===id);});
+  var s=SCHEMES_DATA.find(function(x){return x.id===id;});
+  if(!s)return;
+  radarTarget={quality:s.quality,detection:s.detection,robustness:s.robustness,scalability:s.scalability,privacy:s.privacy};
+  document.getElementById('scheme-info').innerHTML=s.info;
+  animateRadar();
+}
+var radarAnimId;
+function animateRadar(){
+  if(radarAnimId)cancelAnimationFrame(radarAnimId);
+  function step(){
+    var done=true;
+    RADAR_KEYS.forEach(function(k){
+      radarCurrent[k]=lerp(radarCurrent[k],radarTarget[k],0.12);
+      if(Math.abs(radarCurrent[k]-radarTarget[k])>0.5)done=false;
+    });
+    drawRadar();
+    if(!done)radarAnimId=requestAnimationFrame(step);
+  }
+  radarAnimId=requestAnimationFrame(step);
+}
+function drawRadar(){
+  if(!radarCtx)return;
+  var W=500,H=420,cx=250,cy=210,R=140;
+  radarCtx.clearRect(0,0,W,H);
+  radarCtx.fillStyle='#161b22';radarCtx.fillRect(0,0,W,H);
+
+  var n=RADAR_AXES.length;
+  var angles=RADAR_AXES.map(function(_,i){return(i/n)*Math.PI*2-Math.PI/2;});
+
+  // Grid circles
+  [0.25,0.5,0.75,1].forEach(function(f){
+    radarCtx.beginPath();
+    angles.forEach(function(a,i){
+      var px=cx+Math.cos(a)*R*f,py=cy+Math.sin(a)*R*f;
+      if(i===0)radarCtx.moveTo(px,py);else radarCtx.lineTo(px,py);
+    });
+    radarCtx.closePath();
+    radarCtx.strokeStyle='#30363d';radarCtx.lineWidth=1;radarCtx.stroke();
+    if(f<1){radarCtx.fillStyle='rgba(48,54,61,.2)';radarCtx.fill();}
+  });
+
+  // Axes
+  angles.forEach(function(a,i){
+    radarCtx.strokeStyle='#30363d';radarCtx.lineWidth=1;
+    radarCtx.beginPath();radarCtx.moveTo(cx,cy);radarCtx.lineTo(cx+Math.cos(a)*R,cy+Math.sin(a)*R);radarCtx.stroke();
+    var lx=cx+Math.cos(a)*(R+22),ly=cy+Math.sin(a)*(R+22);
+    radarCtx.fillStyle='#8b949e';radarCtx.font='11px Inter,sans-serif';radarCtx.textAlign='center';radarCtx.textBaseline='middle';
+    radarCtx.fillText(RADAR_AXES[i],lx,ly);
+  });
+
+  // Data polygon
+  radarCtx.beginPath();
+  RADAR_KEYS.forEach(function(k,i){
+    var val=radarCurrent[k]/100;
+    var px=cx+Math.cos(angles[i])*R*val,py=cy+Math.sin(angles[i])*R*val;
+    if(i===0)radarCtx.moveTo(px,py);else radarCtx.lineTo(px,py);
+  });
+  radarCtx.closePath();
+  var s=SCHEMES_DATA.find(function(x){return x.id===activeScheme;})||SCHEMES_DATA[0];
+  radarCtx.fillStyle=s.color+'33';radarCtx.fill();
+  radarCtx.strokeStyle=s.color;radarCtx.lineWidth=2.5;radarCtx.stroke();
+
+  // Dots
+  RADAR_KEYS.forEach(function(k,i){
+    var val=radarCurrent[k]/100;
+    var px=cx+Math.cos(angles[i])*R*val,py=cy+Math.sin(angles[i])*R*val;
+    radarCtx.beginPath();radarCtx.arc(px,py,4,0,Math.PI*2);radarCtx.fillStyle=s.color;radarCtx.fill();
+    radarCtx.fillStyle='#c9d1d9';radarCtx.font='bold 10px JetBrains Mono,monospace';radarCtx.textAlign='center';radarCtx.textBaseline='middle';
+    radarCtx.fillText(Math.round(radarCurrent[k]),px,py-12);
+  });
+
+  // Center label
+  radarCtx.fillStyle='#c9d1d9';radarCtx.font='bold 12px Inter,sans-serif';radarCtx.textAlign='center';radarCtx.textBaseline='middle';
+  radarCtx.fillText(s.name,cx,cy);
+  radarCtx.fillStyle=s.color;radarCtx.font='10px Inter,sans-serif';
+  radarCtx.fillText(s.year,cx,cy+15);
+}
+
+// ===== SECTION 4: DETECTION =====
+var detCtx;
+function initDetection(){
+  var canvas=document.getElementById('canvas-detection');
+  if(canvas){detCtx=canvas.getContext('2d');drawDetection();}
+}
+function updateDetection(){
+  var thresh=document.getElementById('sl-thresh').value/10;
+  var seqlen=parseInt(document.getElementById('sl-seqlen').value);
+  document.getElementById('sv-thresh').textContent=thresh.toFixed(1);
+  document.getElementById('sv-seqlen').textContent=seqlen;
+  // FPR = P(Z > thresh | H0) ≈ erfc(thresh/√2)/2
+  var fpr=(Math.exp(-thresh*thresh/2)/(thresh*Math.sqrt(2*Math.PI))*100).toFixed(4);
+  // TPR estimate: depends on signal strength (assume delta=2.0, gamma=0.5)
+  var signal=2.0*0.5*(1-0.5)*Math.sqrt(seqlen/(0.5*0.5));
+  var tpr=Math.min(99,Math.max(1,Math.round(50*(1+Math.tanh((signal-thresh*2)/3)))));
+  var minTokens=Math.round(Math.pow(thresh*0.5/(0.5*0.5*2),2)/0.5/0.5);
+  document.getElementById('dp-fpr').textContent='~'+fpr+'%';
+  document.getElementById('dp-tpr').textContent='~'+tpr+'%';
+  document.getElementById('dp-mintokens').textContent=minTokens;
+  document.getElementById('detect-panel').innerHTML='At z* = <strong>'+thresh.toFixed(1)+'</strong> and T = '+seqlen+':<br>False Positive Rate: <span id="dp-fpr" style="color:#ef4444">~'+fpr+'%</span><br>True Positive Rate: <span id="dp-tpr" style="color:#10b981">~'+tpr+'%</span><br><br>Detection requires ~<span id="dp-mintokens">'+minTokens+'</span> tokens minimum at this threshold.';
+  drawDetection();
+}
+function drawDetection(){
+  if(!detCtx)return;
+  var W=700,H=300,cx=200,cy=160,sw=250;
+  var thresh=(document.getElementById('sl-thresh')?document.getElementById('sl-thresh').value/10:4.0);
+  detCtx.clearRect(0,0,W,H);
+  detCtx.fillStyle='#161b22';detCtx.fillRect(0,0,W,H);
+
+  // Axis
+  detCtx.strokeStyle='#30363d';detCtx.lineWidth=1;
+  detCtx.beginPath();detCtx.moveTo(40,cy+60);detCtx.lineTo(W-40,cy+60);detCtx.stroke();
+  detCtx.beginPath();detCtx.moveTo(40,30);detCtx.lineTo(40,cy+60);detCtx.stroke();
+
+  var sigma0=60,sigma1=55,shift2=thresh*25;
+  function gauss(x,mu,sig){return Math.exp(-(x-mu)*(x-mu)/(2*sig*sig));}
+
+  // Fill rejection region
+  var threshPx=cx+thresh*25;
+  detCtx.fillStyle='rgba(239,68,68,.12)';
+  detCtx.beginPath();detCtx.moveTo(threshPx,cy+60);
+  for(var x=threshPx;x<=W-50;x++){
+    var y=cy+60-100*gauss(x,cx,sigma0);
+    detCtx.lineTo(x,y);
+  }
+  detCtx.lineTo(W-50,cy+60);detCtx.closePath();detCtx.fill();
+
+  // H0 curve
+  detCtx.strokeStyle='#8b949e';detCtx.lineWidth=2.5;
+  detCtx.beginPath();
+  for(var x=40;x<=W-40;x++){
+    var y=cy+60-100*gauss(x,cx,sigma0);
+    if(x===40)detCtx.moveTo(x,y);else detCtx.lineTo(x,y);
+  }
+  detCtx.stroke();
+
+  // H1 curve (watermarked, shifted right)
+  var mu1=cx+shift2;
+  // TPR fill
+  detCtx.fillStyle='rgba(16,185,129,.15)';
+  detCtx.beginPath();detCtx.moveTo(threshPx,cy+60);
+  for(var x=threshPx;x<=W-40;x++){
+    var y=cy+60-95*gauss(x,mu1,sigma1);
+    detCtx.lineTo(x,y);
+  }
+  detCtx.lineTo(W-40,cy+60);detCtx.closePath();detCtx.fill();
+
+  detCtx.strokeStyle='#0ea5e9';detCtx.lineWidth=2.5;
+  detCtx.beginPath();
+  for(var x=40;x<=W-40;x++){
+    var y=cy+60-95*gauss(x,mu1,sigma1);
+    if(x===40)detCtx.moveTo(x,y);else detCtx.lineTo(x,y);
+  }
+  detCtx.stroke();
+
+  // Threshold line
+  detCtx.strokeStyle='#ef4444';detCtx.lineWidth=1.5;detCtx.setLineDash([4,4]);
+  detCtx.beginPath();detCtx.moveTo(threshPx,30);detCtx.lineTo(threshPx,cy+60);detCtx.stroke();
+  detCtx.setLineDash([]);
+
+  // Labels
+  detCtx.font='11px Inter,sans-serif';detCtx.textAlign='center';
+  detCtx.fillStyle='#8b949e';detCtx.fillText('H₀ (no watermark)',cx,cy+80);
+  detCtx.fillStyle='#0ea5e9';detCtx.fillText('H₁ (watermarked)',mu1,cy+80);
+  detCtx.fillStyle='#ef4444';detCtx.fillText('z* = '+thresh.toFixed(1),threshPx,25);
+
+  detCtx.fillStyle='rgba(239,68,68,.5)';detCtx.font='10px Inter,sans-serif';
+  detCtx.textAlign='right';detCtx.fillText('FPR →',W-50,cy+40);
+  detCtx.fillStyle='rgba(16,185,129,.8)';detCtx.textAlign='left';
+  detCtx.fillText('← TPR',threshPx+5,cy-10);
+
+  detCtx.fillStyle='#c9d1d9';detCtx.font='bold 12px Inter,sans-serif';detCtx.textAlign='center';
+  detCtx.fillText('Watermark Detection: Hypothesis Test Visualisation',W/2,18);
+}
+
+// ===== SECTION 5: ATTACK HEATMAP =====
+function setAttackView(view,btn){
+  attackView=view;
+  document.querySelectorAll('#attack-tab-row .btn-tab').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  document.getElementById('attack-heatmap-view').style.display=(view==='heatmap'?'block':'none');
+  document.getElementById('canvas-bars').style.display=(view==='bars'?'block':'none');
+  if(view==='bars')drawAttackBars();
+}
+function initHeatmap(){
+  var tbody=document.getElementById('heatmap-body');
+  if(!tbody)return;
+  var keys=['kgw','dipmark','remark','personamark','trace','synthid'];
+  ATTACKS_DATA.forEach(function(a){
+    var tr=document.createElement('tr');
+    var td0=document.createElement('td');
+    td0.style.textAlign='left';td0.style.fontWeight='600';td0.style.color='#c9d1d9';td0.style.padding='8px 10px';
+    td0.textContent=a.name;tr.appendChild(td0);
+    keys.forEach(function(k){
+      var td=document.createElement('td');
+      var v=a[k];
+      td.textContent=v+'%';
+      td.className=v>=65?'hm-high':v>=40?'hm-mid':'hm-low';
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+}
+var barsCtx;
+function drawAttackBars(){
+  var canvas=document.getElementById('canvas-bars');
+  if(!canvas)return;
+  if(!barsCtx)barsCtx=canvas.getContext('2d');
+  var W=700,H=300;
+  barsCtx.clearRect(0,0,W,H);
+  barsCtx.fillStyle='#161b22';barsCtx.fillRect(0,0,W,H);
+
+  var cols=['kgw','dipmark','remark','personamark','trace','synthid'];
+  var colors=['#f59e0b','#0ea5e9','#7c3aed','#10b981','#f97316','#ef4444'];
+  var names=['KGW','DiPmark','REMARK','Persona','TRACE','SynthID'];
+  var barW=80,gap=10,ox=60,oy=H-40;
+  var avgByScheme=cols.map(function(k){
+    var sum=ATTACKS_DATA.reduce(function(acc,a){return acc+a[k];},0);
+    return sum/ATTACKS_DATA.length;
+  });
+
+  barsCtx.fillStyle='#c9d1d9';barsCtx.font='bold 12px Inter,sans-serif';barsCtx.textAlign='center';
+  barsCtx.fillText('Average Attack Success Rate by Scheme (%)',W/2,18);
+
+  var maxV=80;
+  cols.forEach(function(k,i){
+    var bx=ox+i*(barW+gap);
+    var barH=(avgByScheme[i]/maxV)*(H-80);
+    barsCtx.fillStyle=colors[i]+'88';
+    barsCtx.fillRect(bx,oy-barH,barW,barH);
+    barsCtx.strokeStyle=colors[i];barsCtx.lineWidth=1.5;
+    barsCtx.strokeRect(bx,oy-barH,barW,barH);
+    barsCtx.fillStyle='#c9d1d9';barsCtx.font='bold 11px JetBrains Mono,monospace';barsCtx.textAlign='center';
+    barsCtx.fillText(avgByScheme[i].toFixed(1)+'%',bx+barW/2,oy-barH-6);
+    barsCtx.fillStyle='#8b949e';barsCtx.font='10px Inter,sans-serif';
+    barsCtx.fillText(names[i],bx+barW/2,oy+14);
+  });
+}
+
+// ===== SECTION 6: PRODUCTION =====
+var prodCtx;
+function initProduction(){
+  var canvas=document.getElementById('canvas-production');
+  if(canvas){prodCtx=canvas.getContext('2d');drawProductionCanvas();}
+  setInterval(function(){prodT+=0.02;drawProductionCanvas();},40);
+}
+function setProdPhase(phase,btn){
+  prodPhase=phase;
+  document.querySelectorAll('#prod-btn-row .phase-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  var d=PROD_PHASES[phase];
+  document.getElementById('prod-info').innerHTML='<strong>'+d.title+'</strong><br><br>'+d.body+'<br><br>'+d.badges.join('');
+  drawProductionCanvas();
+}
+function drawProductionCanvas(){
+  if(!prodCtx)return;
+  var W=700,H=200;
+  prodCtx.clearRect(0,0,W,H);
+  prodCtx.fillStyle='#161b22';prodCtx.fillRect(0,0,W,H);
+
+  var phases_prod=[
+    {label:'Prompt',color:'#8b949e'},
+    {label:'Sample Tokens',color:'#0ea5e9'},
+    {label:'Score via PRF',color:'#7c3aed'},
+    {label:'Select Best',color:'#10b981'},
+    {label:'Output (Watermarked)',color:'#f59e0b'}
+  ];
+  var pw=110,ph=50,gap=20,oy=75,ox=20;
+  phases_prod.forEach(function(p,i){
+    var bx=ox+i*(pw+gap);
+    drawRoundedRect(prodCtx,bx,oy,pw,ph,8,p.color+'22',p.color+'88');
+    prodCtx.fillStyle=p.color;prodCtx.font='bold 10px Inter,sans-serif';prodCtx.textAlign='center';
+    prodCtx.fillText(p.label,bx+pw/2,oy+ph/2+4);
+    if(i<phases_prod.length-1){
+      // Animated particle
+      var t2=((prodT+i*0.3)%1);
+      var px2=bx+pw+gap*t2;
+      prodCtx.beginPath();prodCtx.arc(px2,oy+ph/2,4,0,Math.PI*2);
+      prodCtx.fillStyle=p.color;prodCtx.fill();
+      // Arrow
+      prodCtx.strokeStyle=p.color+'44';prodCtx.lineWidth=1;
+      prodCtx.beginPath();prodCtx.moveTo(bx+pw,oy+ph/2);prodCtx.lineTo(bx+pw+gap,oy+ph/2);prodCtx.stroke();
+    }
+  });
+
+  // Caption
+  prodCtx.fillStyle='#8b949e';prodCtx.font='10px Inter,sans-serif';prodCtx.textAlign='center';
+  prodCtx.fillText('SynthID-Text: Tournament Sampling Pipeline (Google DeepMind, Nature 2024)',W/2,H-12);
+}
+
+// ===== SECTION 7: TIMELINE CANVAS =====
+var tlCtx;
+var TL_EVENTS=[
+  {year:'2023',label:'KGW\nGreen/Red Tokens',color:'#f59e0b'},
+  {year:'2023',label:'REMARK-LLM\nSemantic 2× bits',color:'#7c3aed'},
+  {year:'2023',label:'DiPmark\nDist-Preserving',color:'#0ea5e9'},
+  {year:'2024',label:'SynthID\nNature, 20M+',color:'#ef4444'},
+  {year:'2024',label:'PersonaMark\nPer-User Keys',color:'#10b981'},
+  {year:'2025',label:'TRACE\nEntropy-Gated',color:'#f97316'},
+  {year:'2025',label:'ModelShield\nModel IP',color:'#6366f1'},
+];
+function initTimeline(){
+  var canvas=document.getElementById('canvas-timeline');
+  if(canvas){tlCtx=canvas.getContext('2d');drawTimeline();}
+}
+function drawTimeline(){
+  if(!tlCtx)return;
+  var W=700,H=160;
+  tlCtx.clearRect(0,0,W,H);
+  tlCtx.fillStyle='#161b22';tlCtx.fillRect(0,0,W,H);
+
+  // Timeline bar
+  tlCtx.strokeStyle='#30363d';tlCtx.lineWidth=2;
+  tlCtx.beginPath();tlCtx.moveTo(30,H/2);tlCtx.lineTo(W-20,H/2);tlCtx.stroke();
+
+  var n=TL_EVENTS.length;
+  TL_EVENTS.forEach(function(ev,i){
+    var x=40+i*(W-60)/(n-1);
+    var above=i%2===0;
+    var y=H/2;
+
+    tlCtx.beginPath();tlCtx.arc(x,y,7,0,Math.PI*2);
+    tlCtx.fillStyle=ev.color;tlCtx.fill();
+    tlCtx.strokeStyle='#161b22';tlCtx.lineWidth=2;tlCtx.stroke();
+
+    tlCtx.strokeStyle=ev.color+'66';tlCtx.lineWidth=1;
+    tlCtx.beginPath();
+    tlCtx.moveTo(x,y+(above?-7:7));
+    tlCtx.lineTo(x,y+(above?-30:30));
+    tlCtx.stroke();
+
+    tlCtx.fillStyle=ev.color;tlCtx.font='bold 9px Inter,sans-serif';tlCtx.textAlign='center';
+    var lines=ev.label.split('\n');
+    var baseY=above?y-35:y+40;
+    lines.forEach(function(line,li){tlCtx.fillText(line,x,baseY+li*11);});
+
+    tlCtx.fillStyle='#8b949e';tlCtx.font='9px JetBrains Mono,monospace';
+    tlCtx.fillText(ev.year,x,above?y+20:y-14);
+  });
+}
+
+// ===== doInit =====
+function doInit(){
+  initOverview();
+  initTokenCanvas();
+  initSchemes();
+  initDetection();
+  initHeatmap();
+  initProduction();
+  initTimeline();
+  drawTimeline();
+}
+</script>
+</body>
+</html>

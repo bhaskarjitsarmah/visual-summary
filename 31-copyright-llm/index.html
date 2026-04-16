@@ -508,6 +508,12 @@ code{background:#0d1117;border:1px solid var(--border);border-radius:4px;padding
         <div class="rc-title">LLM-as-a-Verifier</div>
         <div class="rc-why">Logprob-based scoring methods that underpin membership inference attacks.</div>
       </a>
+      <a class="rc" href="../32-llm-watermarking/" style="border-color:rgba(14,165,233,.4)">
+        <div class="rc-type" style="color:#38bdf8">&#9654; Next</div>
+        <div class="rc-num">Post 32</div>
+        <div class="rc-title">LLM Watermarking</div>
+        <div class="rc-why">Deep dive into 12+ watermarking schemes — from KGW green/red tokens to SynthID-Text at 20M+ scale — with interactive attack robustness analysis.</div>
+      </a>
     </div>
     <a class="map-link-btn" href="../learning-map/">&#128506; See Post 31 in the Learning Map &rarr;</a>
   </div>
@@ -585,26 +591,26 @@ function hexToRgba(hex, a){
 // ── DATA ──────────────────────────────────────────────────────────────────────
 var LANDSCAPE_DATA = {
   years: [2020, 2021, 2022, 2023, 2024, 2025],
-  detect:  [12, 18, 28, 54, 61, 22],
-  mitigate:[3,  6,  14, 28, 38, 14],
-  both:    [2,  4,  8,  18, 22, 8],
-  survey:  [1,  2,  4,  8,  12, 5]
+  detect:  [5,  7,  15, 34, 46, 42],
+  mitigate:[2,  3,   8, 16, 25, 22],
+  both:    [1,  2,   4,  7, 10, 10],
+  survey:  [0,  1,   2,  5,  9,  9]
 };
 
 var DETECT_DATA = {
   MIA:         {acc:65, bb:85, sc:80, la:55, de:70,
-    info:'<strong>Membership Inference Attacks (MIA)</strong><br><br>Probe model output probabilities to determine if a specific text was in the training set. Key approaches: LOSS attack (threshold on perplexity), zlib compression ratio, MIN-K% (focus on low-probability tokens), neighbourhood comparison.<br><br><span class="badge badge-detect">Black-box Friendly</span><span class="badge badge-sky">High Scalability</span>'},
+    info:'<strong>Membership Inference Attacks (MIA)</strong><br><br>Probe model output probabilities to determine if a specific text was in the training set. Key approaches: LOSS attack (threshold on perplexity), zlib compression ratio, MIN-K% (focus on low-probability tokens), neighbourhood comparison, and ReCaLL (conditional log-likelihood ratio — SOTA on WikiMIA benchmark).<br><br>MIA-Tuner (AAAI 2025) automatically optimises adversarial prompts to amplify membership signals — boosting AUC from ~0.70 to 0.90 on RLHF-aligned LLMs that resist standard attacks. A key emerging finding: newer frontier models like GPT-4o show markedly higher resistance to MIA than earlier models, suggesting architectural or training changes are improving privacy incidentally.<br><br><span class="badge badge-detect">Black-box Friendly</span><span class="badge badge-sky">High Scalability</span>'},
   Memorization:{acc:82, bb:55, sc:60, la:78, de:65,
-    info:'<strong>Memorization Detection</strong><br><br>Directly probe the model to extract memorised sequences using greedy decoding from prompts drawn from the target document. Carlini et al. (2021) extracted 100+ verbatim passages from GPT-2. MemHunter extends this to RLHF-tuned models.<br><br><span class="badge badge-detect">High Accuracy</span><span class="badge badge-amber">White-box Required</span>'},
+    info:'<strong>Memorization Detection</strong><br><br>Directly probe the model to extract memorised sequences using greedy decoding from prompts drawn from the target document. Carlini et al. (2021) extracted 100+ verbatim passages from GPT-2. MemHunter (2024) achieves dataset-level detection using hypothesis testing on Pythia and Llama-2, extracting up to 40% more training data than prior methods while reducing search time by 80%.<br><br><span class="badge badge-detect">High Accuracy</span><span class="badge badge-amber">White-box Required</span>'},
   Watermarking: {acc:90, bb:70, la:88, sc:45, de:40,
-    info:'<strong>Watermarking</strong><br><br>Embed invisible statistical signatures into training data or model outputs. If reproduced, ownership is provable. RegionMarker (2024) achieves near-zero false positive rate for book passages. Data Watermarks (2023) use n-gram modifications invisible to humans.<br><br><span class="badge badge-detect">High Accuracy</span><span class="badge badge-mitigate">Legally Strong</span>'},
+    info:'<strong>Watermarking</strong><br><br>Embed invisible statistical signatures into training data or model outputs. If reproduced, ownership is provable. The field is now highly active with several distinct sub-approaches:<br><br><strong>Token-level:</strong> Kirchenbauer et al. (2023) partition vocabulary into "green" and "red" token lists at generation time — the most widely cited watermarking scheme. DiPmark improves on this with a distribution-preserving variant that maintains text quality.<br><br><strong>Region-level:</strong> RegionMarker (2024) targets specific high-salience regions (chapter openings, key passages), achieving near-zero false positive rate (0.003%) at 95% TPR.<br><br><strong>Attribution:</strong> TRACE (2025) uses entropy-gated watermarking for multi-dataset attribution under fully black-box conditions. Data Provenance Auditing (2025) achieves 100% TPR at 0% FPR using invisible Unicode markers — detectable with as few as 50 marked documents.<br><br><span class="badge badge-detect">High Accuracy</span><span class="badge badge-mitigate">Legally Strong</span>'},
   Dataset:      {acc:75, bb:75, sc:70, la:82, de:55,
-    info:'<strong>Dataset Inference</strong><br><br>Rather than inferring individual sample membership, test if a model was trained on an <em>entire dataset</em>. Uses statistical hypothesis testing across many samples. ISACL (2024) achieves dataset-level attribution with p<0.01 confidence.<br><br><span class="badge badge-detect">Dataset-level</span><span class="badge badge-sky">Scalable</span>'}
+    info:'<strong>Dataset Inference</strong><br><br>Rather than inferring individual sample membership, test if a model was trained on an <em>entire dataset</em>. Uses statistical hypothesis testing across many samples. ISACL (2025) achieves dataset-level attribution at p&lt;0.01 confidence without white-box access.<br><br><strong>Recent advances:</strong> SURP (2024) identifies "surprising" tokens — those the model assigns lower probability than expected — achieving up to 29.5% better detection than baselines without requiring access to pre-training data. N-Gram Coverage (2025) reveals that newer models like GPT-4o show substantially increased resistance to n-gram MIA methods, highlighting an arms-race dynamic. DE-COP (2024) uses a decoding-based approach to achieve 72% detection accuracy on fully black-box models, where prior methods achieve only ~4% — a breakthrough for commercial API settings.<br><br><span class="badge badge-detect">Dataset-level</span><span class="badge badge-sky">Scalable</span>'}
 };
 
 var MITIG_DATA = [
   {name:'Machine\nUnlearning',  x:72, y:58, r:32, color:'#10b981',
-   info:'<strong>Machine Unlearning</strong><br><br>Fine-tune model using gradient ascent on target data (opposite of normal training) to erase memorisation. SCRUB (2023) and MeMIT achieve state-of-the-art forgetting but require access to original training data and reduce perplexity by 8-15% on general tasks. 72+ papers make this the most-studied approach.'},
+   info:'<strong>Machine Unlearning</strong><br><br>Fine-tune model using gradient ascent on target data (opposite of normal training) to erase memorisation. SCRUB (2023) and gradient-ascent variants achieve state-of-the-art forgetting but require access to original training data and reduce perplexity by 8–15% on general tasks. 86+ papers make this the most-studied mitigation approach.<br><br><strong>Critical fragility finding (2025):</strong> A comprehensive survey reveals that 4-bit quantization alone recovers 83% of "unlearned" knowledge — meaning a model that appears to have forgotten copyrighted text can be trivially restored by an adversary simply by quantizing it. This fundamentally challenges whether any gradient-based unlearning provides meaningful legal protection.<br><br><strong>Obliviate (2025):</strong> LoRA-based targeted unlearning achieves a 100× reduction in verbatim reproduction (longest common subsequence drops from 270–380 words to under 12 words), with &lt;5% degradation on standard benchmarks.'},
   {name:'Differential\nPrivacy', x:40, y:88, r:22, color:'#0ea5e9',
    info:'<strong>Differential Privacy</strong><br><br>Train with DP-SGD: add calibrated Gaussian noise to gradients to guarantee any single document has ε-bounded influence on outputs. Provides formal mathematical guarantee but requires full retraining from scratch — prohibitively expensive for models >7B parameters. Best for new model training, not post-hoc fixes.'},
   {name:'Data\nFiltering',      x:55, y:72, r:26, color:'#f97316',
@@ -612,7 +618,7 @@ var MITIG_DATA = [
   {name:'Model\nFusion',        x:60, y:80, r:18, color:'#7c3aed',
    info:'<strong>Model Fusion / Merging</strong><br><br>Blend model weights with a "safety-tuned" version trained on copyright-free data. TIES-Merging and DARE (Drop And REscale) can surgically reduce memorisation in specific weight subspaces without full retraining. Emerging technique with promising utility-forgetting tradeoffs.'},
   {name:'Inference-\ntime',     x:35, y:92, r:14, color:'#ef4444',
-   info:'<strong>Inference-time Suppression</strong><br><br>At generation time, detect and block verbatim reproduction using n-gram overlap filters or canary-token detection. ModelShield (2024) and CopyrightShield implement API-level filtering. Does NOT remove memorisation from weights — the model still knows the text, it just cannot output it. Cheapest but weakest guarantee.'}
+   info:'<strong>Inference-time Suppression</strong><br><br>At generation time, detect and block verbatim reproduction using n-gram overlap filters or canary-token detection. CopyrightShield implements API-level filtering. ModelShield (2025, IEEE TIFS) takes a different approach — adaptive watermarking to protect model IP against extraction attacks via a self-watermarking mechanism requiring no retraining. Does NOT remove memorisation from weights — the model still knows the text, it just cannot output it. Cheapest but weakest guarantee.'}
 ];
 
 var TIMELINE_EVENTS = [
@@ -621,14 +627,19 @@ var TIMELINE_EVENTS = [
   {year:2021, side:'detect',   x:148, label:'Carlini\nExtraction',     info:'Carlini et al. directly extract 100+ verbatim passages from GPT-2 using targeted prompting. First demonstration that LLMs can reproduce copyrighted text on demand.'},
   {year:2022, side:'mitigate', x:242, label:'SISA\nUnlearning',        info:'Bourtoule et al. propose SISA training: shard training data so unlearning requires retraining only a fraction of the model. First scalable unlearning framework.'},
   {year:2022, side:'detect',   x:242, label:'Min-K%\nProbing',         info:'Shi et al. introduce MIN-K%: focus on the k% of tokens with lowest probability. Outperforms perplexity-based MIA by 12% AUC. Becomes the de-facto baseline.'},
+  {year:2023, side:'detect',   x:340, label:'Kirchenbauer\nWatermark',  info:'Kirchenbauer et al. introduce the green/red token watermarking scheme: vocabulary is partitioned per context into "green" (preferred) and "red" (suppressed) lists at generation time. Statistically detectable via z-score test. The most widely cited LLM watermarking paper, foundational to all subsequent token-level methods.'},
   {year:2023, side:'detect',   x:340, label:'NYT\nLawsuit',            info:'The New York Times v. OpenAI filed. Times demonstrates GPT-4 reproduces article passages verbatim. Converts academic research problem into active legal dispute.'},
   {year:2023, side:'mitigate', x:340, label:'SCRUB\nUnlearning',       info:'Kurmanji et al. propose SCRUB: model "remembers" general patterns while "forgetting" specific examples. Best utility-forgetting tradeoff to date. Requires white-box access.'},
   {year:2023, side:'detect',   x:340, label:'Data\nWatermarks',        info:'Zhao et al. introduce dataset watermarking: modify training data with invisible n-gram substitutions. If model reproduces them, provable evidence of training data membership.'},
-  {year:2024, side:'detect',   x:436, label:'MemHunter\n(RLHF)',       info:'MemHunter extends extraction attacks to RLHF-tuned models. Shows that instruction tuning and RLHF do NOT remove memorisation — they may amplify it for high-value content.'},
+  {year:2024, side:'detect',   x:436, label:'ReCaLL\nMIA',             info:'ReCaLL: conditional log-likelihood ratio attack for membership inference. Conditions the target model on a prefix and measures log-likelihood ratio between member and reference model outputs. Achieves state-of-the-art AUC on WikiMIA benchmark, outperforming MIN-K% and zlib baselines, particularly on deduplicated training corpora.'},
+  {year:2024, side:'detect',   x:436, label:'DE-COP\nBlack-box',       info:'DE-COP (Detect Copyrighted content via Output Paraphrasing): uses a model\'s own paraphrasing tendency to detect training data membership in fully black-box settings. Achieves 72% detection accuracy where prior methods give ~4% on black-box APIs. Introduces BookTection benchmark for evaluating book-level copyright detection. No access to model weights or logits required.'},
+  {year:2024, side:'detect',   x:436, label:'MemHunter\n(Dataset)',     info:'MemHunter: first method for dataset-level memorization detection. Uses hypothesis testing on Pythia and Llama-2 to determine if an LLM trained on an entire dataset. Extracts 40% more training data than prior methods while reducing search time by 80%.'},
   {year:2024, side:'mitigate', x:436, label:'Model\nFusion',           info:'TIES-Merging and DARE demonstrate surgical weight editing to reduce copyright-specific memorisation. Opens new direction: targeted weight-space interventions without full retraining.'},
   {year:2024, side:'detect',   x:436, label:'RegionMarker',            info:'RegionMarker (2024): watermark specific regions of copyright-protected content (chapter openings, key passages). Near-zero false positive rate for attribution. Used by several publishers in ongoing litigation.'},
   {year:2025, side:'detect',   x:530, label:'ISACL\nAttribution',      info:'ISACL achieves dataset-level copyright attribution with statistical confidence p<0.01. Can prove a model was trained on an entire book collection without sample-level access.'},
-  {year:2025, side:'mitigate', x:530, label:'ModelShield\nAPI',        info:'ModelShield deploys inference-time copyright protection as a managed API service. First production-grade copyright compliance layer for LLM providers.'}
+  {year:2025, side:'detect',   x:530, label:'MIA-Tuner\n(AAAI)',       info:'MIA-Tuner (AAAI 2025): adversarial prompt optimisation for membership inference on aligned LLMs. Boosts AUC from ~0.70 to 0.90 on RLHF-tuned models that resist standard attacks. Introduces WIKIMIA-24 evaluation benchmark. Demonstrates that safety-aligned models retain full membership signals — alignment does not provide privacy.'},
+  {year:2025, side:'detect',   x:530, label:'N-Gram / SURP\nTrends',   info:'N-Gram Coverage (2025) reveals GPT-4o shows substantially higher resistance to n-gram MIA than earlier models — privacy is improving incidentally with scale. SURP (2024) identifies surprising tokens (unexpectedly low model probability) to achieve 29.5% better detection than baselines without pre-training data access. Together these define the frontier of the detection arms race.'},
+  {year:2025, side:'detect',   x:530, label:'ModelShield\nWatermark',  info:'ModelShield (IEEE TIFS 2025): adaptive and robust watermarking to protect LLM intellectual property against model extraction attacks. Self-watermarking mechanism — LLMs autonomously embed watermarks into generated content. Plug-and-play, no retraining required. Reduces watermark quality degradation by 29%; ~100% watermark embedding success.'}
 ];
 
 var GAP_DATA = [
@@ -645,12 +656,12 @@ var GAP_DATA = [
 ];
 
 var PAPERS = [
-  {title:'Quantifying Memorization Across Neural Language Models',         year:2022, score:89, focus:'Detection',
-   abstract:'Carlini et al. define and quantify memorization in LLMs using an extractability metric. Shows 1 in 10 training documents can be extracted from GPT-3-scale models. Larger models memorise more: memorisation scales with log(model size). Key baseline for the entire field.',
+  {title:'LLMs and Memorization: On Quality and Specificity of Copyright Compliance', year:2024, score:89, focus:'Detection',
+   abstract:'Mueller et al. evaluate 7 LLMs on European books for copyright compliance under the German Copyright Service Provider Act. Uses fuzzy text matching with a 160-character threshold — mirroring the legal standard — to detect verbatim and near-verbatim reproduction. Finds significant variance in compliance quality across models. First study directly grounding LLM copyright detection in enforceable EU law thresholds.',
    badges:['badge-detect']},
-  {title:'ModelShield: Scalable API-Level Copyright Protection',            year:2024, score:86, focus:'Detection',
-   abstract:'Inference-time copyright protection deployed as a managed API proxy. Uses streaming n-gram matching against a copyright index with <2ms latency overhead. Blocks verbatim reproduction without model retraining. Deployed by 3 major LLM providers in 2024.',
-   badges:['badge-detect','badge-mitigate']},
+  {title:'ModelShield: Adaptive and Robust Watermark against Model Extraction Attack', year:2025, score:86, focus:'Detection',
+   abstract:'Introduces ModelShield, an adaptive watermarking method to protect LLM intellectual property against model extraction attacks. Uses a self-watermarking mechanism so LLMs autonomously embed watermarks into generated content, plus robust detection under adversarial interference. Plug-and-play: no additional model training required. Reduces watermark quality degradation by 29% compared to prior methods; achieves ~100% watermark embedding success rate. Published IEEE TIFS 2025.',
+   badges:['badge-detect']},
   {title:'Unlearning Copyrighted Content from LLMs via Gradient Ascent',   year:2023, score:78, focus:'Mitigation',
    abstract:'First comprehensive study of gradient ascent unlearning for copyright removal. Identifies three failure modes: catastrophic forgetting, relearning from adjacent passages, and knowledge entanglement. Proposes regularized unlearning objective that preserves 92% of general capability while removing 78% of target memorisation.',
    badges:['badge-mitigate']},
@@ -660,11 +671,11 @@ var PAPERS = [
   {title:'ISACL: Dataset-Level Attribution with Statistical Confidence',    year:2025, score:72, focus:'Both',
    abstract:'Achieves copyright attribution at the dataset level (did this model train on this collection?) rather than individual samples. Statistical hypothesis testing framework achieves p<0.01 confidence with 100-sample probing sets. Does not require white-box access to the model.',
    badges:['badge-both']},
-  {title:'MIA-Tuner: Amplifying Membership Signals via Prompt Optimization', year:2024, score:72, focus:'Detection',
-   abstract:'Automatically optimises prompts to maximally distinguish member from non-member text in LLMs. Achieves 18% AUC improvement over baseline MIN-K% attacks. Applicable to black-box API access. Shows that RLHF-tuned models retain membership signal despite alignment training.',
+  {title:'MIA-Tuner: Amplifying Membership Signals via Prompt Optimization', year:2025, score:72, focus:'Detection',
+   abstract:'AAAI 2025. Automatically optimises adversarial prompts to amplify membership inference signals in aligned LLMs. Boosts AUC from ~0.70 to 0.90 on models fine-tuned with RLHF — demonstrating that alignment training does not remove membership signals, it only obscures them from naive attacks. Introduces the WIKIMIA-24 benchmark for reproducible MIA evaluation. Applicable to black-box API access with no model internals required.',
    badges:['badge-detect']},
-  {title:'A Survey of Machine Unlearning Methods for Large Language Models', year:2024, score:72, focus:'Survey',
-   abstract:'Systematic review of 86 unlearning papers. Taxonomises methods into exact unlearning (retraining), approximate unlearning (gradient-based), and amnesiac unlearning (memorisation suppression). Identifies the "goldfish loss" problem: unlearning one passage may increase memorisation of nearby text.',
+  {title:'A Survey of Machine Unlearning Methods for Large Language Models', year:2025, score:72, focus:'Survey',
+   abstract:'Systematic review of 86 unlearning papers. Taxonomises methods into exact unlearning (retraining), approximate unlearning (gradient-based), and amnesiac unlearning (memorisation suppression). Identifies the "goldfish loss" problem: unlearning one passage may increase memorisation of nearby text. Critical finding: 4-bit quantization of an unlearned model recovers 83% of the supposedly erased knowledge — a fundamental challenge for any gradient-based unlearning approach used as a legal remedy.',
    badges:['badge-survey']},
   {title:'Data Watermarks for Copyright Attribution in Neural Networks',    year:2023, score:71, focus:'Detection',
    abstract:'Proposes dataset watermarking via invisible n-gram substitutions in training data. If a model trained on watermarked data reproduces the substitutions, provable training data membership follows. Survives paraphrasing with 74% recall. First method admissible as forensic evidence in EU data courts.',
@@ -672,8 +683,8 @@ var PAPERS = [
   {title:'Min-K++ Improved Membership Inference for Language Models',       year:2024, score:71, focus:'Detection',
    abstract:'Improves on MIN-K% by normalising against a reference language model. Reduces false positive rate from 12% to 4% at 80% true positive rate. Works on deduplicated corpora where original MIN-K% fails. Open-source implementation in MIMIR benchmark.',
    badges:['badge-detect']},
-  {title:'MemHunter: Extracting Memorised Content from RLHF Models',       year:2024, score:66, focus:'Detection',
-   abstract:'Extends direct extraction attacks to instruction-tuned and RLHF-aligned models. Finds that RLHF does not remove memorisation but displaces it: content that cannot be extracted via direct prompting is retrievable via jailbreak-adjacent prompts. Tested on Llama-2, Mistral, GPT-4.',
+  {title:'MemHunter: Automated Dataset-Scale Memorization Detection in LLMs', year:2024, score:66, focus:'Detection',
+   abstract:'First method for dataset-level memorization detection in LLMs. Trains a memory-inducing LLM and uses hypothesis testing to efficiently detect whether an LLM memorized an entire dataset — without per-sample prompting. Experiments on Pythia and Llama-2 show MemHunter extracts up to 40% more training data than existing methods and reduces search time by up to 80%. Addresses prohibitive computational cost of sample-level detection on web-scale datasets.',
    badges:['badge-detect']},
   {title:'Adversarial Compression Attacks on Copyright Detection',          year:2024, score:66, focus:'Detection',
    abstract:'Shows that paraphrase models and summarisers can evade all current n-gram-based copyright detection while preserving creative expression. Argues that legal copyright tests (substantial similarity) require semantic rather than syntactic detection. Proposes embedding-space copyright distance metric.',
