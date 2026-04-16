@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Agent Harness Engineering — The Infrastructure Beneath LLM Agents</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#070b14;--surface:#0d1524;--border:#1a2840;
+  --text:#cfd8e8;--muted:#6b839f;
+  --accent:#6366f1;--accent2:#818cf8;--accent3:#c7d2fe;
+  --teal:#14b8a6;--teal2:#2dd4bf;
+  --green:#22c55e;--green2:#4ade80;
+  --gold:#f59e0b;--gold2:#fbbf24;
+  --red:#ef4444;--red2:#fca5a5;
+  --orange:#f97316;--orange2:#fb923c;
+  --purple:#a855f7;--purple2:#c084fc;
+  --c-E:#6366f1;--c-T:#14b8a6;--c-C:#f59e0b;--c-S:#22c55e;--c-L:#f97316;--c-V:#a855f7;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+/* ── Gate ─────────────────────────────────────────────── */
+#gate{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.gate-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 44px;text-align:center;max-width:380px;width:90%;}
+.gate-icon{font-size:36px;margin-bottom:12px;}
+.gate-title{font-size:20px;font-weight:800;color:var(--accent3);margin-bottom:4px;}
+.gate-sub{font-size:12px;color:var(--muted);margin-bottom:24px;}
+.gate-input{width:100%;background:#060d1f;border:1px solid var(--border);border-radius:8px;padding:11px 14px;font-size:14px;color:var(--text);outline:none;margin-bottom:12px;}
+.gate-input:focus{border-color:var(--accent);}
+.gate-btn{width:100%;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s;}
+.gate-btn:hover{opacity:.85;}
+.gate-err{font-size:11px;color:var(--red);margin-top:6px;display:none;}
+/* ── Layout ───────────────────────────────────────────── */
+.sidebar{width:240px;min-width:240px;height:100vh;position:sticky;top:0;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:0 0 40px;flex-shrink:0;}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.sidebar-logo-title{font-size:13px;font-weight:700;color:var(--accent2);}
+.sidebar-logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.nav-group-title{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;padding:10px 16px 4px;}
+.nav-link{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;}
+.nav-link:hover,.nav-link.active{color:var(--text);background:rgba(99,102,241,.08);}
+.nav-link.active{color:var(--accent3);}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.main{flex:1;overflow-y:auto;height:100vh;scroll-behavior:smooth;}
+/* ── Pipeline bar ─────────────────────────────────────── */
+.pipeline-map{position:sticky;top:0;z-index:50;background:rgba(7,11,20,.96);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+.pipe-step{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);padding:2px 6px;border-radius:4px;cursor:pointer;transition:color .15s;}
+.pipe-step:hover{color:var(--text);}
+.pipe-dot{width:6px;height:6px;border-radius:50%;}
+.pipe-arrow{color:var(--border);font-size:12px;}
+/* ── Sections ─────────────────────────────────────────── */
+.section{min-height:100vh;padding:60px 48px 80px;border-bottom:1px solid var(--border);}
+.section-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;}
+.section-title{font-size:28px;font-weight:800;color:var(--text);margin-bottom:8px;line-height:1.25;}
+.section-sub{font-size:14px;color:var(--muted);margin-bottom:28px;max-width:700px;}
+/* ── Cards ────────────────────────────────────────────── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:16px;}
+.card-title{font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px;}
+.card-body{font-size:13px;color:var(--muted);line-height:1.6;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;}
+canvas{display:block;border-radius:10px;background:var(--surface);border:1px solid var(--border);}
+/* ── Buttons ──────────────────────────────────────────── */
+.btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s;}
+.btn:hover{opacity:.85;}
+.btn-tab{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+/* ── Formula ──────────────────────────────────────────── */
+.formula{background:#040810;border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-family:'JetBrains Mono','Courier New',monospace;font-size:11px;color:#c7d2fe;line-height:1.8;margin-bottom:16px;white-space:pre;overflow-x:auto;}
+/* ── Stats ────────────────────────────────────────────── */
+.stats-row{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:28px;}
+.stat{text-align:center;}
+.stat-val{font-size:28px;font-weight:800;color:var(--gold2);}
+.stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;}
+/* ── Highlights ───────────────────────────────────────── */
+.highlight-box{border-left:3px solid var(--accent);padding:12px 16px;background:rgba(99,102,241,.06);border-radius:0 8px 8px 0;margin-bottom:16px;font-size:13px;color:var(--muted);}
+.highlight-box.teal{border-color:var(--teal);background:rgba(20,184,166,.06);}
+.highlight-box.gold{border-color:var(--gold);background:rgba(245,158,11,.06);}
+.highlight-box.green{border-color:var(--green);background:rgba(34,197,94,.06);}
+.highlight-box.red{border-color:var(--red);background:rgba(239,68,68,.06);}
+.highlight-box.purple{border-color:var(--purple);background:rgba(168,85,247,.06);}
+.highlight-box.orange{border-color:var(--orange);background:rgba(249,115,22,.06);}
+/* ── Accordion ────────────────────────────────────────── */
+.accordion-item{border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+.accordion-header{padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;background:var(--surface);}
+.accordion-header:hover{background:#111d30;}
+.accordion-chevron{transition:transform .2s;font-size:10px;color:var(--muted);}
+.accordion-item.open .accordion-chevron{transform:rotate(90deg);}
+.accordion-body{padding:14px 16px;font-size:12px;color:var(--muted);display:none;border-top:1px solid var(--border);line-height:1.7;}
+.accordion-item.open .accordion-body{display:block;}
+/* ── Component pills ──────────────────────────────────── */
+.comp-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;margin:4px;}
+/* ── Matrix ───────────────────────────────────────────── */
+.matrix-table{width:100%;border-collapse:collapse;font-size:11px;}
+.matrix-table th{padding:8px 10px;text-align:left;background:rgba(255,255,255,.03);color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border);}
+.matrix-table td{padding:8px 10px;border-bottom:1px solid rgba(26,40,64,.6);vertical-align:middle;}
+.matrix-table tr:hover td{background:rgba(99,102,241,.04);}
+.cell-full{width:12px;height:12px;border-radius:3px;margin:auto;}
+.cell-part{width:12px;height:12px;border-radius:3px;margin:auto;opacity:.5;}
+.cell-no{width:12px;height:12px;border-radius:3px;margin:auto;background:var(--border);}
+/* ── Era timeline ─────────────────────────────────────── */
+.era-row{display:flex;gap:0;margin-bottom:28px;}
+.era-block{flex:1;padding:20px 18px;position:relative;}
+.era-block::after{content:'';position:absolute;top:50%;right:-1px;transform:translateY(-50%);width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-left:14px solid var(--bg);z-index:2;}
+.era-block:last-child::after{display:none;}
+.era-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+.era-years{font-size:13px;font-weight:800;margin-bottom:8px;}
+.era-desc{font-size:11px;color:var(--muted);line-height:1.5;}
+/* ── Challenge cards ──────────────────────────────────── */
+.challenge-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.challenge-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;}
+.challenge-num{font-size:22px;font-weight:800;opacity:.15;margin-bottom:2px;}
+.challenge-name{font-size:12px;font-weight:700;margin-bottom:6px;}
+.challenge-desc{font-size:11px;color:var(--muted);line-height:1.5;}
+/* ── Harness explorer ─────────────────────────────────── */
+.h-explorer{display:grid;grid-template-columns:260px 1fr;gap:20px;margin-top:20px;}
+.h-comp-list{display:flex;flex-direction:column;gap:8px;}
+.h-comp-btn{padding:12px 16px;border-radius:10px;border:2px solid transparent;cursor:pointer;transition:all .2s;background:var(--surface);text-align:left;}
+.h-comp-btn:hover{border-color:rgba(255,255,255,.15);}
+.h-comp-btn.active{border-color:var(--active-color,var(--accent));}
+.h-comp-letter{font-size:20px;font-weight:800;font-family:'JetBrains Mono',monospace;margin-bottom:2px;}
+.h-comp-name{font-size:11px;font-weight:600;margin-bottom:2px;}
+.h-comp-short{font-size:10px;color:var(--muted);}
+.h-detail{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;min-height:340px;}
+.h-detail-letter{font-size:48px;font-weight:800;font-family:'JetBrains Mono',monospace;line-height:1;margin-bottom:8px;}
+.h-detail-title{font-size:18px;font-weight:700;margin-bottom:12px;}
+.h-detail-desc{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:16px;}
+.h-detail-props{display:flex;flex-direction:column;gap:8px;}
+.h-prop{display:flex;gap:10px;font-size:12px;}
+.h-prop-key{color:var(--muted);min-width:110px;flex-shrink:0;font-size:11px;}
+.h-prop-val{color:var(--text);}
+/* ── System category ──────────────────────────────────── */
+.sys-category{margin-bottom:24px;}
+.sys-cat-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+.sys-cards{display:flex;flex-wrap:wrap;gap:10px;}
+.sys-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;flex:1;min-width:160px;}
+.sys-card-name{font-size:12px;font-weight:700;margin-bottom:4px;}
+.sys-card-comp{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;}
+.sys-card-desc{font-size:10px;color:var(--muted);}
+.comp-dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+/* ── Research directions ──────────────────────────────── */
+.rd-group{margin-bottom:24px;}
+.rd-group-title{font-size:13px;font-weight:700;margin-bottom:12px;padding:6px 12px;border-radius:6px;display:inline-block;}
+.rd-items{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.rd-item{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;}
+.rd-item-num{font-size:10px;font-weight:700;color:var(--muted);margin-bottom:4px;}
+.rd-item-title{font-size:12px;font-weight:700;margin-bottom:4px;}
+.rd-item-desc{font-size:11px;color:var(--muted);line-height:1.5;}
+/* ── Paper source ─────────────────────────────────────── */
+.paper-source{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px 26px;margin-top:0;}
+.paper-source-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:14px;}
+.paper-ref{font-size:13px;line-height:1.7;color:var(--text);margin-bottom:14px;}
+.paper-ref span{color:var(--accent3);}
+.paper-btns{display:flex;gap:10px;flex-wrap:wrap;}
+.paper-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid var(--border);background:var(--bg);color:var(--muted);transition:all .15s;cursor:pointer;}
+.paper-btn:hover{border-color:var(--accent);color:var(--accent3);}
+/* ── Continue Learning ────────────────────────────────── */
+.continue-strip{background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:24px 48px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.continue-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-right:4px;}
+.continue-link{display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--muted);transition:all .15s;cursor:pointer;}
+.continue-link:hover{border-color:var(--accent);color:var(--accent3);}
+.continue-dir{font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);}
+</style>
+</head>
+<body>
+
+<!-- Password Gate -->
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-icon">⚙️</div>
+    <div class="gate-title">Agent Harness Engineering</div>
+    <div class="gate-sub">Visual Summary — Post 35</div>
+    <input class="gate-input" type="password" id="pw" placeholder="Enter password" onkeydown="if(event.key==='Enter')unlock()">
+    <button class="gate-btn" onclick="unlock()">Unlock</button>
+    <div class="gate-err" id="pw-err">Incorrect password</div>
+  </div>
+</div>
+
+<!-- Sidebar -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-title">Agent Harness Engineering</div>
+    <div class="sidebar-logo-sub">Post 35 · Meng et al., 2026</div>
+  </div>
+  <div class="nav-group-title">Contents</div>
+  <div class="nav-link" onclick="scrollTo('s-intro')"><span class="dot" style="background:var(--accent)"></span>Introduction</div>
+  <div class="nav-link" onclick="scrollTo('s-thesis')"><span class="dot" style="background:var(--gold)"></span>Binding Constraint Thesis</div>
+  <div class="nav-link" onclick="scrollTo('s-framework')"><span class="dot" style="background:var(--teal)"></span>H = (E,T,C,S,L,V) Framework</div>
+  <div class="nav-link" onclick="scrollTo('s-evidence')"><span class="dot" style="background:var(--green)"></span>Empirical Evidence</div>
+  <div class="nav-link" onclick="scrollTo('s-eras')"><span class="dot" style="background:var(--orange)"></span>Three Engineering Eras</div>
+  <div class="nav-link" onclick="scrollTo('s-taxonomy')"><span class="dot" style="background:var(--purple)"></span>22-System Taxonomy</div>
+  <div class="nav-link" onclick="scrollTo('s-challenges')"><span class="dot" style="background:var(--red)"></span>9 Open Challenges</div>
+  <div class="nav-link" onclick="scrollTo('s-directions')"><span class="dot" style="background:var(--accent2)"></span>Research Directions</div>
+  <div class="nav-link" onclick="scrollTo('s-paper')"><span class="dot" style="background:var(--muted)"></span>Paper Source</div>
+</nav>
+
+<!-- Main content -->
+<div class="main" id="main-content">
+
+<!-- Sticky pipeline -->
+<div class="pipeline-map">
+  <span class="pipe-step" onclick="scrollTo('s-intro')"><span class="pipe-dot" style="background:var(--accent)"></span>Intro</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="scrollTo('s-thesis')"><span class="pipe-dot" style="background:var(--gold)"></span>Thesis</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="scrollTo('s-framework')"><span class="pipe-dot" style="background:var(--teal)"></span>H=(E,T,C,S,L,V)</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="scrollTo('s-evidence')"><span class="pipe-dot" style="background:var(--green)"></span>Evidence</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="scrollTo('s-eras')"><span class="pipe-dot" style="background:var(--orange)"></span>Eras</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="scrollTo('s-taxonomy')"><span class="pipe-dot" style="background:var(--purple)"></span>Taxonomy</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="scrollTo('s-challenges')"><span class="pipe-dot" style="background:var(--red)"></span>Challenges</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="scrollTo('s-directions')"><span class="pipe-dot" style="background:var(--accent2)"></span>Directions</span>
+</div>
+
+<!-- ── Section 1: Introduction ──────────────────────── -->
+<div class="section" id="s-intro">
+  <div class="section-tag" style="color:var(--accent2)">Post 35 · Agent Infrastructure</div>
+  <h1 class="section-title">Agent Harness Engineering</h1>
+  <p class="section-sub">The infrastructure layer that wraps large language model agents — determining reliability, capability, and performance far more than the underlying model itself.</p>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val">10×</div><div class="stat-lbl">Benchmark gain, no model change</div></div>
+    <div class="stat"><div class="stat-val">22</div><div class="stat-lbl">Systems analyzed</div></div>
+    <div class="stat"><div class="stat-val">6</div><div class="stat-lbl">Harness components</div></div>
+    <div class="stat"><div class="stat-val">3</div><div class="stat-lbl">Engineering eras</div></div>
+    <div class="stat"><div class="stat-val">9</div><div class="stat-lbl">Open challenges</div></div>
+  </div>
+
+  <div class="highlight-box">
+    <strong style="color:var(--accent3)">What is an Agent Harness?</strong><br>
+    An agent harness is the runtime infrastructure that surrounds an LLM — managing its execution loop, tool calls, context, state, lifecycle events, and evaluation. It is the difference between a model that can reason and a system that reliably acts.
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title" style="color:var(--accent2)">The Central Question</div>
+      <div class="card-body">When benchmark scores jump 10× with zero model changes, what explains the gain? This survey's answer: the harness. The infrastructure wrapping the model — not the model weights themselves — is the primary determinant of agent reliability in production.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--gold2)">Scope of the Survey</div>
+      <div class="card-body">Meng et al. (Xiaohongshu Inc., 2026) survey 22 systems across 5 categories, derive a formal 6-component framework H = (E,T,C,S,L,V), trace the history of harness engineering, and map 12 research directions across two planning horizons.</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:4px;">
+    <div class="card-title" style="color:var(--teal2)">Paper at a Glance</div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:4px;">
+        <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;">Authors</div><div style="font-size:12px;">Meng et al.<br>Xiaohongshu Inc.</div></div>
+        <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;">Published</div><div style="font-size:12px;">April 9, 2026<br>preprints202604.0428.v2</div></div>
+        <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;">Coverage</div><div style="font-size:12px;">101 pages · 22 systems<br>9 challenges · 12 directions</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 2: Binding Constraint Thesis ──────────── -->
+<div class="section" id="s-thesis">
+  <div class="section-tag" style="color:var(--gold2)">Core Argument</div>
+  <h2 class="section-title">The Binding Constraint Thesis</h2>
+  <p class="section-sub">The harness — not the model — is the primary determinant of agent reliability. This is the central empirical claim of the survey, backed by three independent experiments.</p>
+
+  <div class="highlight-box gold">
+    <strong style="color:var(--gold2)">Thesis:</strong> In agentic systems, the binding constraint on reliability and performance is the harness architecture, not the LLM weights. Improving the harness without changing the model routinely produces larger gains than model upgrades.
+  </div>
+
+  <!-- Evidence cards -->
+  <div class="grid3" style="margin-bottom:20px;">
+    <div class="card" style="border-color:rgba(99,102,241,.3);">
+      <div class="card-title" style="color:var(--accent2)">Pi Research</div>
+      <div style="font-size:32px;font-weight:800;color:var(--accent2);margin:8px 0;">~10×</div>
+      <div class="card-body">Benchmark score improved from <strong>6.7% → 68.3%</strong> through harness-only redesign. Same model, same task, same evaluation — entirely different infrastructure.</div>
+    </div>
+    <div class="card" style="border-color:rgba(20,184,166,.3);">
+      <div class="card-title" style="color:var(--teal2)">LangChain DeepAgents</div>
+      <div style="font-size:32px;font-weight:800;color:var(--teal2);margin:8px 0;">+26%</div>
+      <div class="card-body">26 percentage-point improvement on multi-step reasoning benchmarks after restructuring the harness execution loop and tool registry. No model fine-tuning.</div>
+    </div>
+    <div class="card" style="border-color:rgba(34,197,94,.3);">
+      <div class="card-title" style="color:var(--green2)">Meta-Harness</div>
+      <div style="font-size:32px;font-weight:800;color:var(--green2);margin:8px 0;">+4.7pp</div>
+      <div class="card-body">Meta's internal harness framework achieved +4.7 percentage-point gains on agentic benchmarks, further validating the harness-first hypothesis across a large-scale deployment.</div>
+    </div>
+  </div>
+
+  <canvas id="evidenceChart" width="820" height="220"></canvas>
+
+  <div class="grid2" style="margin-top:20px;">
+    <div class="card">
+      <div class="card-title" style="color:var(--orange2)">Why Models Alone Fall Short</div>
+      <div class="card-body">Even the most capable LLM, when invoked naively, fails on multi-step tasks. Without structured state, tool retry logic, context pruning, and evaluation hooks, the model exhausts its context window, loses track of goals, or silently fails mid-task.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--purple2)">Harness vs. Prompt Engineering</div>
+      <div class="card-body">Prompt engineering optimizes the model's input. Harness engineering optimizes the system around the model. The gains from harness changes are structural — they persist across prompt variations, model updates, and task distributions.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 3: H = (E,T,C,S,L,V) Framework ────────── -->
+<div class="section" id="s-framework">
+  <div class="section-tag" style="color:var(--teal2)">Formal Framework</div>
+  <h2 class="section-title">H = (E, T, C, S, L, V)</h2>
+  <p class="section-sub">A formal 6-tuple definition of the agent harness. Each component is independently measurable, independently improvable, and independently contributes to system reliability.</p>
+
+  <div class="formula">H = (E, T, C, S, L, V)
+
+  E — Execution loop (run/step/pause/abort semantics)
+  T — Tool registry (discovery, invocation, sandboxing)
+  C — Context manager (compression, retrieval, window mgmt)
+  S — State store (persistence, checkpointing, rollback)
+  L — Lifecycle hooks (pre/post-tool, error, milestone events)
+  V — Evaluation interface (metrics, oracles, scoring)</div>
+
+  <!-- Interactive explorer -->
+  <div class="h-explorer" id="h-explorer">
+    <div class="h-comp-list">
+      <button class="h-comp-btn active" onclick="selectComp('E')" id="btn-E" style="--active-color:var(--c-E);border-color:var(--c-E);">
+        <div class="h-comp-letter" style="color:var(--c-E)">E</div>
+        <div class="h-comp-name">Execution Loop</div>
+        <div class="h-comp-short">run · step · pause · abort</div>
+      </button>
+      <button class="h-comp-btn" onclick="selectComp('T')" id="btn-T" style="--active-color:var(--c-T);">
+        <div class="h-comp-letter" style="color:var(--c-T)">T</div>
+        <div class="h-comp-name">Tool Registry</div>
+        <div class="h-comp-short">discovery · invocation · sandbox</div>
+      </button>
+      <button class="h-comp-btn" onclick="selectComp('C')" id="btn-C" style="--active-color:var(--c-C);">
+        <div class="h-comp-letter" style="color:var(--c-C)">C</div>
+        <div class="h-comp-name">Context Manager</div>
+        <div class="h-comp-short">compression · retrieval · window</div>
+      </button>
+      <button class="h-comp-btn" onclick="selectComp('S')" id="btn-S" style="--active-color:var(--c-S);">
+        <div class="h-comp-letter" style="color:var(--c-S)">S</div>
+        <div class="h-comp-name">State Store</div>
+        <div class="h-comp-short">persist · checkpoint · rollback</div>
+      </button>
+      <button class="h-comp-btn" onclick="selectComp('L')" id="btn-L" style="--active-color:var(--c-L);">
+        <div class="h-comp-letter" style="color:var(--c-L)">L</div>
+        <div class="h-comp-name">Lifecycle Hooks</div>
+        <div class="h-comp-short">pre/post-tool · error · events</div>
+      </button>
+      <button class="h-comp-btn" onclick="selectComp('V')" id="btn-V" style="--active-color:var(--c-V);">
+        <div class="h-comp-letter" style="color:var(--c-V)">V</div>
+        <div class="h-comp-name">Evaluation Interface</div>
+        <div class="h-comp-short">metrics · oracles · scoring</div>
+      </button>
+    </div>
+    <div class="h-detail" id="h-detail"></div>
+  </div>
+
+  <div class="highlight-box teal" style="margin-top:20px;">
+    <strong style="color:var(--teal2)">LTS Semantics:</strong> The E-component is formally specified as a Labeled Transition System — a set of states Q, input alphabet Σ, transition function δ: Q×Σ→Q, initial state q₀, and accepting states F. This enables formal verification of execution properties.
+  </div>
+
+  <div class="card" style="margin-top:8px;">
+    <div class="card-title" style="color:var(--accent2)">Three System Classes Defined by E</div>
+    <div class="grid3" style="margin-top:10px;">
+      <div style="background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.2);border-radius:8px;padding:14px;">
+        <div style="font-size:11px;font-weight:700;color:var(--accent2);margin-bottom:6px;">Primitive Non-Harness</div>
+        <div style="font-size:11px;color:var(--muted);">Single-pass execution. No persistent state. Example: vanilla ReAct chains. No recovery, no retry, no checkpoints.</div>
+      </div>
+      <div style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:14px;">
+        <div style="font-size:11px;font-weight:700;color:var(--gold2);margin-bottom:6px;">Monolithic Harness</div>
+        <div style="font-size:11px;color:var(--muted);">Fixed loop with integrated state. Example: AutoGPT. All components tightly coupled — powerful but brittle when any component needs customization.</div>
+      </div>
+      <div style="background:rgba(20,184,166,.06);border:1px solid rgba(20,184,166,.2);border-radius:8px;padding:14px;">
+        <div style="font-size:11px;font-weight:700;color:var(--teal2);margin-bottom:6px;">Topology-Encoded Harness</div>
+        <div style="font-size:11px;color:var(--muted);">Explicit graph of states and transitions. Example: LangGraph. Harness topology is first-class — inspectable, testable, and verifiable.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 4: Empirical Evidence ─────────────────── -->
+<div class="section" id="s-evidence">
+  <div class="section-tag" style="color:var(--green2)">Data & Evidence</div>
+  <h2 class="section-title">Harness Gains Across Systems</h2>
+  <p class="section-sub">Cross-system empirical evidence that harness redesign, without model changes, produces consistent and substantial benchmark improvements.</p>
+
+  <canvas id="gainChart" width="820" height="300" style="margin-bottom:20px;"></canvas>
+
+  <div class="grid2">
+    <div>
+      <div class="accordion-item open">
+        <div class="accordion-header" onclick="toggleAcc(this)">
+          <span>Pi Research: 6.7% → 68.3%</span><span class="accordion-chevron">›</span>
+        </div>
+        <div class="accordion-body">
+          The most dramatic example in the survey. A research team at Pi rebuilt the agent harness around an existing LLM — same model, same benchmark, same evaluation protocol. By redesigning the execution loop, adding context compression, and implementing proper state checkpointing, the task completion rate jumped from <strong style="color:var(--green2)">6.7% to 68.3%</strong>. A 10× improvement with zero model changes.
+        </div>
+      </div>
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAcc(this)">
+          <span>LangChain DeepAgents: +26pp</span><span class="accordion-chevron">›</span>
+        </div>
+        <div class="accordion-body">
+          LangChain's DeepAgents framework achieved a 26 percentage-point improvement on multi-step reasoning tasks. The key changes: structured tool registry with schema validation, execution loop with explicit retry semantics, and lifecycle hooks that intercept tool failures before they propagate.
+        </div>
+      </div>
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAcc(this)">
+          <span>Meta-Harness: +4.7pp</span><span class="accordion-chevron">›</span>
+        </div>
+        <div class="accordion-body">
+          Meta's internal harness framework, deployed at scale, showed consistent +4.7 percentage-point gains across their agentic benchmark suite. At Meta's scale, even a 4.7pp improvement represents an enormous absolute gain in reliable task completions.
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-title" style="color:var(--green2)">What Changed in Each Case?</div>
+        <div class="card-body">
+          <div style="display:flex;flex-direction:column;gap:10px;margin-top:6px;">
+            <div style="display:flex;gap:10px;align-items:flex-start;">
+              <span style="background:rgba(99,102,241,.15);color:var(--accent3);font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;white-space:nowrap;margin-top:2px;">E</span>
+              <span style="font-size:12px;color:var(--muted);">Restructured execution loop with proper termination and retry semantics</span>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;">
+              <span style="background:rgba(20,184,166,.15);color:var(--teal2);font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;white-space:nowrap;margin-top:2px;">C</span>
+              <span style="font-size:12px;color:var(--muted);">Context compression preventing window exhaustion on long tasks</span>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;">
+              <span style="background:rgba(34,197,94,.15);color:var(--green2);font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;white-space:nowrap;margin-top:2px;">S</span>
+              <span style="font-size:12px;color:var(--muted);">State checkpointing enabling mid-task recovery from failures</span>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;">
+              <span style="background:rgba(249,115,22,.15);color:var(--orange2);font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;white-space:nowrap;margin-top:2px;">L</span>
+              <span style="font-size:12px;color:var(--muted);">Lifecycle hooks intercepting and handling tool failures gracefully</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="highlight-box green" style="margin-top:16px;">
+        <strong style="color:var(--green2)">Key insight:</strong> In all three cases, no model weights were changed, no fine-tuning occurred, and no new training data was used. The entire performance delta came from harness infrastructure changes.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 5: Three Engineering Eras ─────────────── -->
+<div class="section" id="s-eras">
+  <div class="section-tag" style="color:var(--orange2)">Historical Context</div>
+  <h2 class="section-title">Three Eras of LLM Engineering</h2>
+  <p class="section-sub">The discipline of building with LLMs has passed through three distinct phases — each defined by where practitioners focus their engineering effort.</p>
+
+  <div class="era-row">
+    <div class="era-block" style="background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.2);border-radius:12px 0 0 12px;">
+      <div class="era-label" style="color:var(--accent2)">Era 1</div>
+      <div class="era-years" style="color:var(--accent2)">2022 – 2024</div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:8px;">Prompt Engineering</div>
+      <div class="era-desc">The dominant paradigm was crafting better prompts. Chain-of-thought, few-shot examples, system messages, and instruction tuning. The model was treated as the bottleneck — get the prompt right and the model would deliver.</div>
+    </div>
+    <div class="era-block" style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);">
+      <div class="era-label" style="color:var(--gold2)">Era 2</div>
+      <div class="era-years" style="color:var(--gold2)">2025</div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:8px;">Context Engineering</div>
+      <div class="era-desc">Practitioners realized the information in context — RAG, memory systems, tool outputs — mattered as much as the prompt itself. The focus shifted to what the model sees, not just how it's instructed. KV cache management, long-context retrieval, and structured outputs.</div>
+    </div>
+    <div class="era-block" style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.2);border-radius:0 12px 12px 0;">
+      <div class="era-label" style="color:var(--green2)">Era 3</div>
+      <div class="era-years" style="color:var(--green2)">2026</div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:8px;">Harness Engineering</div>
+      <div class="era-desc">The current frontier. The full runtime surrounding the model — execution loop, tool management, state persistence, lifecycle events — is now recognized as the primary lever for reliability. The term "Harness Engineering" was coined in 2026 by this survey.</div>
+    </div>
+  </div>
+
+  <!-- Timeline milestones -->
+  <div class="card">
+    <div class="card-title" style="color:var(--orange2)">Key Milestones</div>
+    <div style="display:flex;flex-direction:column;gap:0;margin-top:8px;">
+      <div style="display:flex;gap:16px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:11px;font-weight:700;color:var(--muted);min-width:55px;font-family:'JetBrains Mono',monospace;">1990s</span>
+        <span style="font-size:12px;color:var(--muted);">JUnit establishes test harness as infrastructure pattern in software engineering</span>
+      </div>
+      <div style="display:flex;gap:16px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:11px;font-weight:700;color:var(--muted);min-width:55px;font-family:'JetBrains Mono',monospace;">2016</span>
+        <span style="font-size:12px;color:var(--muted);">OpenAI Gym introduces standardized environment harness for RL agents</span>
+      </div>
+      <div style="display:flex;gap:16px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:11px;font-weight:700;color:var(--accent3);min-width:55px;font-family:'JetBrains Mono',monospace;">2022</span>
+        <span style="font-size:12px;color:var(--muted);">ReAct (Yao et al.) and AutoGPT introduce structured reasoning loops for LLMs</span>
+      </div>
+      <div style="display:flex;gap:16px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:11px;font-weight:700;color:var(--gold2);min-width:55px;font-family:'JetBrains Mono',monospace;">2024</span>
+        <span style="font-size:12px;color:var(--muted);">MCP (Anthropic) standardizes agent-to-tool protocol; AIOS introduces OS-level harness</span>
+      </div>
+      <div style="display:flex;gap:16px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:11px;font-weight:700;color:var(--green2);min-width:55px;font-family:'JetBrains Mono',monospace;">2025</span>
+        <span style="font-size:12px;color:var(--muted);">A2A protocol (Google) enables agent-to-agent coordination; HAL framework emerges</span>
+      </div>
+      <div style="display:flex;gap:16px;align-items:flex-start;padding:10px 0;">
+        <span style="font-size:11px;font-weight:700;color:var(--orange2);min-width:55px;font-family:'JetBrains Mono',monospace;">2026</span>
+        <span style="font-size:12px;color:var(--text);">Term "Harness Engineering" coined; H=(E,T,C,S,L,V) formal framework published by Meng et al.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 6: 22-System Taxonomy ─────────────────── -->
+<div class="section" id="s-taxonomy">
+  <div class="section-tag" style="color:var(--purple2)">System Survey</div>
+  <h2 class="section-title">22-System Taxonomy</h2>
+  <p class="section-sub">The survey classifies 22 systems across five categories using a completeness matrix — showing which of the six harness components each system implements fully, partially, or not at all.</p>
+
+  <!-- Category filter -->
+  <div class="btn-row">
+    <button class="btn-tab active" onclick="filterCat('all',this)">All Systems</button>
+    <button class="btn-tab" onclick="filterCat('fullstack',this)">Full-Stack</button>
+    <button class="btn-tab" onclick="filterCat('multiagent',this)">Multi-Agent</button>
+    <button class="btn-tab" onclick="filterCat('framework',this)">Frameworks</button>
+    <button class="btn-tab" onclick="filterCat('module',this)">Modules</button>
+    <button class="btn-tab" onclick="filterCat('eval',this)">Eval Infra</button>
+  </div>
+
+  <!-- Completeness matrix -->
+  <div style="overflow-x:auto;margin-bottom:20px;">
+    <table class="matrix-table" id="matrix-table">
+      <thead>
+        <tr>
+          <th>System</th>
+          <th>Category</th>
+          <th style="color:var(--c-E)">E</th>
+          <th style="color:var(--c-T)">T</th>
+          <th style="color:var(--c-C)">C</th>
+          <th style="color:var(--c-S)">S</th>
+          <th style="color:var(--c-L)">L</th>
+          <th style="color:var(--c-V)">V</th>
+          <th>Score</th>
+        </tr>
+      </thead>
+      <tbody id="matrix-body"></tbody>
+    </table>
+  </div>
+
+  <!-- Category descriptions -->
+  <div class="grid2">
+    <div>
+      <div class="sys-category">
+        <div class="sys-cat-title">Full-Stack Harnesses</div>
+        <div class="sys-cards">
+          <div class="sys-card">
+            <div class="sys-card-name">Claude Code</div>
+            <div class="sys-card-comp">
+              <span class="comp-dot" style="background:var(--c-E)" title="E"></span>
+              <span class="comp-dot" style="background:var(--c-T)" title="T"></span>
+              <span class="comp-dot" style="background:var(--c-C)" title="C"></span>
+              <span class="comp-dot" style="background:var(--c-S)" title="S"></span>
+              <span class="comp-dot" style="background:var(--c-L)" title="L"></span>
+              <span class="comp-dot" style="background:var(--c-V)" title="V"></span>
+            </div>
+            <div class="sys-card-desc">Anthropic's full-stack coding agent. Complete harness with all 6 components. Integrates file system tools, terminal execution, and IDE hooks.</div>
+          </div>
+          <div class="sys-card">
+            <div class="sys-card-name">OpenHands</div>
+            <div class="sys-card-comp">
+              <span class="comp-dot" style="background:var(--c-E)"></span>
+              <span class="comp-dot" style="background:var(--c-T)"></span>
+              <span class="comp-dot" style="background:var(--c-C)"></span>
+              <span class="comp-dot" style="background:var(--c-S)"></span>
+              <span class="comp-dot" style="background:var(--c-L)"></span>
+              <span class="comp-dot" style="background:var(--c-V)" style="opacity:.4"></span>
+            </div>
+            <div class="sys-card-desc">Open-source software development agent. Strong E/T/C/S/L implementation. Evaluation interface partially implemented.</div>
+          </div>
+          <div class="sys-card">
+            <div class="sys-card-name">AIOS</div>
+            <div class="sys-card-comp">
+              <span class="comp-dot" style="background:var(--c-E)"></span>
+              <span class="comp-dot" style="background:var(--c-T)"></span>
+              <span class="comp-dot" style="background:var(--c-C)"></span>
+              <span class="comp-dot" style="background:var(--c-S)"></span>
+              <span class="comp-dot" style="background:var(--c-L)"></span>
+              <span class="comp-dot" style="background:var(--c-V)"></span>
+            </div>
+            <div class="sys-card-desc">OS-level agent harness. Manages LLM calls as OS processes with scheduling, memory management, and resource isolation.</div>
+          </div>
+          <div class="sys-card">
+            <div class="sys-card-name">OpenClaw</div>
+            <div class="sys-card-comp">
+              <span class="comp-dot" style="background:var(--c-E)"></span>
+              <span class="comp-dot" style="background:var(--c-T)"></span>
+              <span class="comp-dot" style="background:var(--c-C)"></span>
+              <span class="comp-dot" style="background:var(--c-S)"></span>
+              <span class="comp-dot" style="background:var(--c-L)"></span>
+              <span class="comp-dot" style="background:var(--c-V)" style="opacity:.4"></span>
+            </div>
+            <div class="sys-card-desc">Open-source Claude Code alternative with full harness support and multi-model compatibility.</div>
+          </div>
+        </div>
+      </div>
+      <div class="sys-category">
+        <div class="sys-cat-title">Multi-Agent Frameworks</div>
+        <div class="sys-cards">
+          <div class="sys-card">
+            <div class="sys-card-name">MetaGPT</div>
+            <div class="sys-card-comp">
+              <span class="comp-dot" style="background:var(--c-E)"></span>
+              <span class="comp-dot" style="background:var(--c-T)"></span>
+              <span class="comp-dot" style="background:var(--c-C)"></span>
+              <span class="comp-dot" style="background:var(--c-S)"></span>
+              <span class="comp-dot" style="background:var(--border)"></span>
+              <span class="comp-dot" style="background:var(--border)"></span>
+            </div>
+            <div class="sys-card-desc">Role-based multi-agent framework. Strong execution and tool support, weak lifecycle hooks and evaluation.</div>
+          </div>
+          <div class="sys-card">
+            <div class="sys-card-name">AutoGen</div>
+            <div class="sys-card-comp">
+              <span class="comp-dot" style="background:var(--c-E)"></span>
+              <span class="comp-dot" style="background:var(--c-T)"></span>
+              <span class="comp-dot" style="background:var(--c-C)" style="opacity:.4"></span>
+              <span class="comp-dot" style="background:var(--c-S)" style="opacity:.4"></span>
+              <span class="comp-dot" style="background:var(--c-L)"></span>
+              <span class="comp-dot" style="background:var(--border)"></span>
+            </div>
+            <div class="sys-card-desc">Microsoft's conversational multi-agent framework. Strong E and L, partial C/S, minimal V.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="sys-category">
+        <div class="sys-cat-title">Graph Frameworks</div>
+        <div class="sys-cards">
+          <div class="sys-card">
+            <div class="sys-card-name">LangGraph</div>
+            <div class="sys-card-comp">
+              <span class="comp-dot" style="background:var(--c-E)"></span>
+              <span class="comp-dot" style="background:var(--c-T)"></span>
+              <span class="comp-dot" style="background:var(--c-C)"></span>
+              <span class="comp-dot" style="background:var(--c-S)"></span>
+              <span class="comp-dot" style="background:var(--c-L)"></span>
+              <span class="comp-dot" style="background:var(--c-V)" style="opacity:.4"></span>
+            </div>
+            <div class="sys-card-desc">Topology-encoded harness with explicit state graph. Best-in-class for E and S components. Used as the canonical example of topology-encoded harnesses.</div>
+          </div>
+          <div class="sys-card">
+            <div class="sys-card-name">CrewAI</div>
+            <div class="sys-card-comp">
+              <span class="comp-dot" style="background:var(--c-E)"></span>
+              <span class="comp-dot" style="background:var(--c-T)"></span>
+              <span class="comp-dot" style="background:var(--c-C)" style="opacity:.4"></span>
+              <span class="comp-dot" style="background:var(--c-S)" style="opacity:.4"></span>
+              <span class="comp-dot" style="background:var(--border)"></span>
+              <span class="comp-dot" style="background:var(--border)"></span>
+            </div>
+            <div class="sys-card-desc">Role-oriented crew framework. Good E/T, weak on context management and lifecycle hooks.</div>
+          </div>
+        </div>
+      </div>
+      <div class="sys-category">
+        <div class="sys-cat-title">Capability Modules</div>
+        <div class="sys-cards">
+          <div class="sys-card">
+            <div class="sys-card-name">MemGPT</div>
+            <div class="sys-card-comp">
+              <span class="comp-dot" style="background:var(--border)"></span>
+              <span class="comp-dot" style="background:var(--border)"></span>
+              <span class="comp-dot" style="background:var(--c-C)"></span>
+              <span class="comp-dot" style="background:var(--c-S)"></span>
+              <span class="comp-dot" style="background:var(--border)"></span>
+              <span class="comp-dot" style="background:var(--border)"></span>
+            </div>
+            <div class="sys-card-desc">Memory module only. Excellent C and S implementation. Not a full harness — designed to plug into other systems.</div>
+          </div>
+          <div class="sys-card">
+            <div class="sys-card-name">Voyager</div>
+            <div class="sys-card-comp">
+              <span class="comp-dot" style="background:var(--c-E)"></span>
+              <span class="comp-dot" style="background:var(--c-T)"></span>
+              <span class="comp-dot" style="background:var(--c-C)"></span>
+              <span class="comp-dot" style="background:var(--c-S)"></span>
+              <span class="comp-dot" style="background:var(--border)"></span>
+              <span class="comp-dot" style="background:var(--border)"></span>
+            </div>
+            <div class="sys-card-desc">Minecraft-domain lifelong learning agent. Strong execution and skill library (T), weak L and V for general deployment.</div>
+          </div>
+        </div>
+      </div>
+      <div class="sys-category">
+        <div class="sys-cat-title">Eval Infrastructure</div>
+        <div class="sys-cards">
+          <div class="sys-card">
+            <div class="sys-card-name">SWE-bench</div>
+            <div class="sys-card-comp">
+              <span class="comp-dot" style="background:var(--border)"></span>
+              <span class="comp-dot" style="background:var(--border)"></span>
+              <span class="comp-dot" style="background:var(--border)"></span>
+              <span class="comp-dot" style="background:var(--border)"></span>
+              <span class="comp-dot" style="background:var(--border)"></span>
+              <span class="comp-dot" style="background:var(--c-V)"></span>
+            </div>
+            <div class="sys-card-desc">Software engineering benchmark. Pure V component — standardized evaluation for coding agents against real GitHub issues.</div>
+          </div>
+          <div class="sys-card">
+            <div class="sys-card-name">HAL</div>
+            <div class="sys-card-comp">
+              <span class="comp-dot" style="background:var(--border)"></span>
+              <span class="comp-dot" style="background:var(--border)"></span>
+              <span class="comp-dot" style="background:var(--border)"></span>
+              <span class="comp-dot" style="background:var(--border)"></span>
+              <span class="comp-dot" style="background:var(--border)"></span>
+              <span class="comp-dot" style="background:var(--c-V)"></span>
+            </div>
+            <div class="sys-card-desc">Harness Abstraction Layer for evaluation. Standardized V interface for comparing harness implementations across systems.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 7: 9 Open Challenges ──────────────────── -->
+<div class="section" id="s-challenges">
+  <div class="section-tag" style="color:var(--red2)">Open Problems</div>
+  <h2 class="section-title">9 Open Challenges</h2>
+  <p class="section-sub">Despite rapid progress, harness engineering faces nine unresolved challenges. Each represents a gap between current capabilities and production-grade agent reliability.</p>
+
+  <div class="challenge-grid">
+    <div class="challenge-card">
+      <div class="challenge-num">01</div>
+      <div class="challenge-name" style="color:var(--red2)">Sandboxing</div>
+      <div class="challenge-desc">Isolating agent tool calls to prevent unintended side effects. Current approaches either over-restrict (reducing capability) or under-isolate (creating security risks). No consensus on the right abstraction layer.</div>
+    </div>
+    <div class="challenge-card">
+      <div class="challenge-num">02</div>
+      <div class="challenge-name" style="color:var(--orange2)">Evaluation</div>
+      <div class="challenge-desc">Measuring agent performance reliably. Task completion metrics miss partial progress; trajectory metrics are expensive to label; LLM-as-judge introduces its own biases. Ground-truth is hard to define for open-ended tasks.</div>
+    </div>
+    <div class="challenge-card">
+      <div class="challenge-num">03</div>
+      <div class="challenge-name" style="color:var(--gold2)">Protocols</div>
+      <div class="challenge-desc">Standardizing communication between agents and tools (MCP) and between agents (A2A). Protocol versioning, capability negotiation, and backward compatibility remain unsolved across the emerging ecosystem.</div>
+    </div>
+    <div class="challenge-card">
+      <div class="challenge-num">04</div>
+      <div class="challenge-name" style="color:var(--green2)">Context Management</div>
+      <div class="challenge-desc">Managing the context window across long-running tasks. Compression loses information; retrieval adds latency; summarization introduces errors. No single approach works well across all task types.</div>
+    </div>
+    <div class="challenge-card">
+      <div class="challenge-num">05</div>
+      <div class="challenge-name" style="color:var(--teal2)">Tool Use</div>
+      <div class="challenge-desc">Enabling agents to reliably use heterogeneous tools. Schema mismatch, error propagation, partial failure handling, and tool composition remain engineering pain points without standard solutions.</div>
+    </div>
+    <div class="challenge-card">
+      <div class="challenge-num">06</div>
+      <div class="challenge-name" style="color:var(--accent2)">Memory</div>
+      <div class="challenge-desc">Designing persistent memory systems that scale. Episodic, semantic, and procedural memory require different storage and retrieval strategies. Cross-session memory introduces privacy and consistency challenges.</div>
+    </div>
+    <div class="challenge-card">
+      <div class="challenge-num">07</div>
+      <div class="challenge-name" style="color:var(--purple2)">Planning</div>
+      <div class="challenge-desc">Generating and executing reliable multi-step plans. Plans go stale as the environment changes; replanning is expensive; commitment vs. flexibility tradeoff is task-dependent and hard to automate.</div>
+    </div>
+    <div class="challenge-card">
+      <div class="challenge-num">08</div>
+      <div class="challenge-name" style="color:var(--accent3)">Multi-Agent</div>
+      <div class="challenge-desc">Coordinating multiple agents reliably. Shared state consistency, work allocation, deadlock prevention, and result aggregation across agent boundaries are fundamental distributed systems problems now appearing in AI contexts.</div>
+    </div>
+    <div class="challenge-card">
+      <div class="challenge-num">09</div>
+      <div class="challenge-name" style="color:var(--muted)">Compute Economics</div>
+      <div class="challenge-desc">Managing the cost of agentic workloads. Multi-step tasks with large context windows are orders of magnitude more expensive than single inferences. Cost attribution, budget management, and efficiency-quality tradeoffs lack standard solutions.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 8: Research Directions ────────────────── -->
+<div class="section" id="s-directions">
+  <div class="section-tag" style="color:var(--accent2)">Future Work</div>
+  <h2 class="section-title">12 Research Directions</h2>
+  <p class="section-sub">The survey identifies 12 research directions organized into two groups: Group A for immediate (0–18 months) impact and Group B for longer-term foundational work.</p>
+
+  <div class="btn-row">
+    <button class="btn-tab active" onclick="filterRD('all',this)">All Directions</button>
+    <button class="btn-tab" onclick="filterRD('A',this)">Group A — Immediate</button>
+    <button class="btn-tab" onclick="filterRD('B',this)">Group B — Long-term</button>
+  </div>
+
+  <div class="rd-group" id="rd-A">
+    <div class="rd-group-title" style="background:rgba(34,197,94,.1);color:var(--green2);">Group A — Immediate Impact (0–18 months)</div>
+    <div class="rd-items">
+      <div class="rd-item">
+        <div class="rd-item-num" style="color:var(--green2)">A1</div>
+        <div class="rd-item-title">Harness Completeness Benchmarks</div>
+        <div class="rd-item-desc">Standardized benchmarks that measure each of the 6 harness components independently, enabling fair comparison across systems and identifying component-level bottlenecks.</div>
+      </div>
+      <div class="rd-item">
+        <div class="rd-item-num" style="color:var(--green2)">A2</div>
+        <div class="rd-item-title">Lightweight Sandboxing Primitives</div>
+        <div class="rd-item-desc">Develop tool isolation mechanisms that impose minimal overhead while providing strong security guarantees. Target: sub-10ms isolation setup for common tool categories.</div>
+      </div>
+      <div class="rd-item">
+        <div class="rd-item-num" style="color:var(--green2)">A3</div>
+        <div class="rd-item-title">Protocol Standardization (MCP + A2A)</div>
+        <div class="rd-item-desc">Converge MCP (agent-to-tool) and A2A (agent-to-agent) into a unified protocol stack with versioning, capability negotiation, and backward compatibility guarantees.</div>
+      </div>
+      <div class="rd-item">
+        <div class="rd-item-num" style="color:var(--green2)">A4</div>
+        <div class="rd-item-title">Context Compression Evaluation</div>
+        <div class="rd-item-desc">Rigorous benchmarks for context compression algorithms — measuring information retention, downstream task impact, and latency across different task types and context lengths.</div>
+      </div>
+      <div class="rd-item">
+        <div class="rd-item-num" style="color:var(--green2)">A5</div>
+        <div class="rd-item-title">State Store Portability</div>
+        <div class="rd-item-desc">Define a portable state serialization format enabling checkpoint migration across harness implementations. Critical for hybrid deployments and harness upgrades in production.</div>
+      </div>
+      <div class="rd-item">
+        <div class="rd-item-num" style="color:var(--green2)">A6</div>
+        <div class="rd-item-title">Harness Observability Stack</div>
+        <div class="rd-item-desc">OpenTelemetry-compatible instrumentation for all 6 harness components — enabling distributed tracing, component-level latency attribution, and failure root cause analysis.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="rd-group" id="rd-B">
+    <div class="rd-group-title" style="background:rgba(99,102,241,.1);color:var(--accent2);">Group B — Long-term Foundations</div>
+    <div class="rd-items">
+      <div class="rd-item">
+        <div class="rd-item-num" style="color:var(--accent2)">B1</div>
+        <div class="rd-item-title">Formal Harness Verification</div>
+        <div class="rd-item-desc">Extend LTS semantics to cover the full H=(E,T,C,S,L,V) tuple. Enable formal verification of harness properties (termination, safety, liveness) for high-stakes deployments.</div>
+      </div>
+      <div class="rd-item">
+        <div class="rd-item-num" style="color:var(--accent2)">B2</div>
+        <div class="rd-item-title">Self-Modifying Harnesses</div>
+        <div class="rd-item-desc">Harnesses that adapt their own topology based on task performance. The harness learns which execution patterns, tool combinations, and context strategies work best for different task classes.</div>
+      </div>
+      <div class="rd-item">
+        <div class="rd-item-num" style="color:var(--accent2)">B3</div>
+        <div class="rd-item-title">Cross-Harness Agent Portability</div>
+        <div class="rd-item-desc">Agent definitions that are portable across harness implementations — a "write once, run anywhere" standard for agent logic, analogous to Docker containers for compute workloads.</div>
+      </div>
+      <div class="rd-item">
+        <div class="rd-item-num" style="color:var(--accent2)">B4</div>
+        <div class="rd-item-title">Adversarial Harness Testing</div>
+        <div class="rd-item-desc">Red-teaming methodologies specific to harness components — testing E for infinite loops, T for tool injection, C for context poisoning, S for state corruption, and L for hook bypass.</div>
+      </div>
+      <div class="rd-item">
+        <div class="rd-item-num" style="color:var(--accent2)">B5</div>
+        <div class="rd-item-title">Distributed Harness Theory</div>
+        <div class="rd-item-desc">Formal theory for multi-agent harnesses where components E, S, and L are distributed across agents. Consensus protocols, CAP theorem implications, and eventual consistency for agent state.</div>
+      </div>
+      <div class="rd-item">
+        <div class="rd-item-num" style="color:var(--accent2)">B6</div>
+        <div class="rd-item-title">Harness-Native Fine-tuning</div>
+        <div class="rd-item-desc">Training LLMs jointly with harness context — teaching models to reason about their own harness state, proactively request lifecycle events, and reason about tool registry capabilities.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 9: Paper Source ────────────────────────── -->
+<div class="section" id="s-paper" style="min-height:auto;padding-bottom:60px;">
+  <div class="section-tag" style="color:var(--muted)">Citation</div>
+  <h2 class="section-title">Paper Source</h2>
+  <p class="section-sub">This visual summary is based on the following survey paper.</p>
+
+  <div class="paper-source">
+    <div class="paper-source-title">Primary Reference</div>
+    <div class="paper-ref">
+      <span>Meng et al.</span> (Xiaohongshu Inc.) — "<strong>Agent Harness for Large Language Model Agents: A Survey</strong>" — <span>April 9, 2026</span>. DOI: <span>10.20944/preprints202604.0428.v2</span>. 101 pages. Introduces the term "Harness Engineering," derives the formal H=(E,T,C,S,L,V) framework, analyzes 22 systems across 5 categories, and maps 9 challenges and 12 research directions.
+    </div>
+    <div class="paper-btns">
+      <a class="paper-btn" href="https://doi.org/10.20944/preprints202604.0428.v2" target="_blank">
+        ↗ DOI Link
+      </a>
+      <a class="paper-btn" href="https://www.preprints.org/manuscript/202604.0428/v2" target="_blank">
+        ↗ Preprints.org
+      </a>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <div class="card-title" style="color:var(--accent2)">Related Concepts Explored in This Series</div>
+    <div class="card-body" style="margin-top:8px;">
+      <div class="grid3">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--teal2);margin-bottom:4px;">Protocols</div>
+          <div style="font-size:11px;color:var(--muted);">MCP (Model Context Protocol) by Anthropic — standardizes agent-to-tool communication. A2A (Agent-to-Agent) by Google — standardizes agent-to-agent coordination.</div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--gold2);margin-bottom:4px;">Evaluation</div>
+          <div style="font-size:11px;color:var(--muted);">The V component of the harness. See MASEval (Post 25) for multi-agent evaluation frameworks and MAS Metrics (Post 26) for concrete measurement methodologies.</div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--orange2);margin-bottom:4px;">Agentic Systems</div>
+          <div style="font-size:11px;color:var(--muted);">The Agentic MRM framework (Post 24) shows how harness components map to model risk management for regulated enterprise deployments.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Continue Learning -->
+<div class="continue-strip">
+  <span class="continue-label">Continue Learning</span>
+  <a class="continue-link" href="../25-maseval/">
+    <div class="continue-dir">Related</div>
+    <div>MASEval — Multi-Agent Evaluation</div>
+  </a>
+  <a class="continue-link" href="../26-mas-metrics/">
+    <div class="continue-dir">Related</div>
+    <div>MAS Metrics — Harness V Component</div>
+  </a>
+  <a class="continue-link" href="../24-agentic-mrm/">
+    <div class="continue-dir">Related</div>
+    <div>Agentic MRM — Enterprise Harness</div>
+  </a>
+  <a class="continue-link" href="../34-finmaseval/">
+    <div class="continue-dir">Related</div>
+    <div>FinMASEval — Financial Agent Eval</div>
+  </a>
+  <a class="continue-link" href="../20-managed-agents/">
+    <div class="continue-dir">Related</div>
+    <div>Managed Agents — Multi-Agent Systems</div>
+  </a>
+  <a class="continue-link" href="../">
+    <div class="continue-dir">All Posts</div>
+    <div>Visual Summary Home</div>
+  </a>
+</div>
+
+</div><!-- /main -->
+
+<script>
+// ── Gate ─────────────────────────────────────────────────
+(function(){
+  const KEY='pg_unlocked_35', PASS='visual2025';
+  if(localStorage.getItem(KEY)==='1'){
+    document.getElementById('gate').style.display='none';
+    return;
+  }
+  window.unlock=function(){
+    const v=document.getElementById('pw').value;
+    if(v===PASS){localStorage.setItem(KEY,'1');document.getElementById('gate').style.display='none';}
+    else{const e=document.getElementById('pw-err');e.style.display='block';setTimeout(()=>e.style.display='none',2000);}
+  };
+})();
+
+// ── Scroll ────────────────────────────────────────────────
+function scrollTo(id){
+  document.getElementById(id).scrollIntoView({behavior:'smooth'});
+  document.querySelectorAll('.nav-link').forEach(l=>l.classList.remove('active'));
+}
+
+// ── Accordion ────────────────────────────────────────────
+function toggleAcc(header){
+  const item=header.parentElement;
+  item.classList.toggle('open');
+}
+
+// ── Harness Explorer ─────────────────────────────────────
+const COMP_DATA={
+  E:{
+    color:'var(--c-E)',
+    title:'Execution Loop',
+    subtitle:'Run · Step · Pause · Abort',
+    desc:'The execution loop governs the agent\'s action-observation cycle. It defines the fundamental semantics of how the agent transitions between states, handles interrupts, manages retries on failure, and knows when to terminate. The E component is formalized as a Labeled Transition System (LTS): a tuple (Q, Σ, δ, q₀, F) where Q is the set of execution states, Σ is the event alphabet, δ is the transition function, q₀ is the initial state, and F is the set of terminal states.',
+    props:[
+      ['Formal model','Labeled Transition System (LTS)'],
+      ['Key states','Idle, Running, Waiting, Recovering, Terminal'],
+      ['Critical semantics','Retry with backoff, timeout handling, abort signal'],
+      ['System classes','Primitive (ReAct) → Monolithic (AutoGPT) → Topology-Encoded (LangGraph)'],
+      ['Pi Research gain','6.7% → 68.3% via E redesign alone'],
+    ]
+  },
+  T:{
+    color:'var(--c-T)',
+    title:'Tool Registry',
+    subtitle:'Discovery · Invocation · Sandboxing',
+    desc:'The tool registry manages the set of tools available to the agent — their schemas, invocation semantics, sandboxing constraints, and error behaviors. T defines not just what tools exist but how they are discovered, validated, called, and how failures propagate. A well-designed tool registry enforces input/output schemas, isolates tool side effects, and provides retry and fallback logic that the model should not need to implement itself.',
+    props:[
+      ['Core responsibility','Tool discovery, schema validation, invocation'],
+      ['Safety concern','Sandboxing to prevent unintended side effects (Challenge #1)'],
+      ['Protocol layer','MCP (Anthropic) standardizes agent-to-tool communication'],
+      ['Best practice','Schema-validated inputs prevent silent tool failures'],
+      ['LangChain gain','+26pp via structured tool registry with schema validation'],
+    ]
+  },
+  C:{
+    color:'var(--c-C)',
+    title:'Context Manager',
+    subtitle:'Compression · Retrieval · Window Management',
+    desc:'The context manager controls what the model sees at each step of execution. For long-running agentic tasks, this is critical: without active context management, the model\'s context window fills with intermediate observations and the task fails. The C component implements compression (summarizing older context), retrieval (fetching relevant memories or documents), and window management (prioritizing the most useful information within token limits).',
+    props:[
+      ['Core tension','Compression loses info vs. full context exceeds window'],
+      ['Approaches','Summarization, sliding window, RAG retrieval, hierarchical memory'],
+      ['Era relevance','Central to Context Engineering (Era 2, 2025)'],
+      ['MemGPT','A C+S module-only system — no E/T/L/V'],
+      ['Open challenge','Challenge #4: no single approach works across all task types'],
+    ]
+  },
+  S:{
+    color:'var(--c-S)',
+    title:'State Store',
+    subtitle:'Persistence · Checkpointing · Rollback',
+    desc:'The state store persists agent progress across steps, enabling recovery from failures and resumption of long-running tasks. S encompasses both working memory (within a single session) and long-term memory (across sessions). Checkpointing allows the agent to roll back to a known-good state when a branch of execution fails. Without S, any tool failure or context overflow requires restarting from scratch — making long tasks unreliable.',
+    props:[
+      ['Key capability','Mid-task recovery via checkpointing'],
+      ['Memory types','Working (session), episodic (past events), semantic (facts), procedural (skills)'],
+      ['Pi Research','State checkpointing was key to 6.7% → 68.3% improvement'],
+      ['Portability goal','Research direction A5: portable state serialization format'],
+      ['LangGraph','Best-in-class S implementation via explicit state graph'],
+    ]
+  },
+  L:{
+    color:'var(--c-L)',
+    title:'Lifecycle Hooks',
+    subtitle:'Pre/Post-Tool · Error · Milestone Events',
+    desc:'Lifecycle hooks are callback points in the execution loop that allow the harness to intercept, transform, or react to events without the model explicitly managing them. Pre-tool hooks can validate inputs or inject context; post-tool hooks can normalize outputs or detect failures; error hooks can implement retry logic or escalation; milestone hooks can trigger checkpointing or notifications. L is what makes the harness observable and controllable.',
+    props:[
+      ['Hook types','pre_tool, post_tool, on_error, on_milestone, on_terminate'],
+      ['Key use case','Intercepting tool failures before they propagate to the model'],
+      ['Observability','Foundation for harness tracing and debugging (Direction A6)'],
+      ['LangChain gain','Lifecycle hooks for error handling contributed to +26pp improvement'],
+      ['HITL integration','Human-in-the-loop checkpoints implemented as L hooks'],
+    ]
+  },
+  V:{
+    color:'var(--c-V)',
+    title:'Evaluation Interface',
+    subtitle:'Metrics · Oracles · Scoring',
+    desc:'The evaluation interface defines how the agent\'s performance is measured. V is not just a testing layer — it is a runtime component that can influence execution (early stopping when quality thresholds are met, escalation when quality falls below thresholds). The V component encompasses task completion metrics, trajectory quality scores, LLM-as-judge evaluations, and human feedback integration. It is the least mature component across current systems.',
+    props:[
+      ['Challenge','#2: measuring agent performance reliably — open problem'],
+      ['Approaches','Task completion, trajectory scoring, LLM-as-judge, human eval'],
+      ['Runtime role','Can stop/escalate/retry based on inline quality scoring'],
+      ['HAL framework','Standardized V interface for comparing harness implementations'],
+      ['Related posts','MASEval (Post 25) and MAS Metrics (Post 26) focus on V design'],
+    ]
+  }
+};
+
+function selectComp(letter){
+  document.querySelectorAll('.h-comp-btn').forEach(b=>{
+    b.classList.remove('active');
+    b.style.borderColor='transparent';
+  });
+  const btn=document.getElementById('btn-'+letter);
+  btn.classList.add('active');
+  btn.style.borderColor=`var(--c-${letter})`;
+  const d=COMP_DATA[letter];
+  const detail=document.getElementById('h-detail');
+  detail.innerHTML=`
+    <div class="h-detail-letter" style="color:${d.color}">${letter}</div>
+    <div class="h-detail-title">${d.title}</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:12px;">${d.subtitle}</div>
+    <div class="h-detail-desc">${d.desc}</div>
+    <div class="h-detail-props">
+      ${d.props.map(([k,v])=>`<div class="h-prop"><span class="h-prop-key">${k}</span><span class="h-prop-val">${v}</span></div>`).join('')}
+    </div>
+  `;
+}
+selectComp('E');
+
+// ── Matrix Data ───────────────────────────────────────────
+const MATRIX=[
+  {name:'Claude Code',cat:'fullstack',E:2,T:2,C:2,S:2,L:2,V:2},
+  {name:'AIOS',cat:'fullstack',E:2,T:2,C:2,S:2,L:2,V:2},
+  {name:'OpenHands',cat:'fullstack',E:2,T:2,C:2,S:2,L:2,V:1},
+  {name:'OpenClaw',cat:'fullstack',E:2,T:2,C:2,S:2,L:2,V:1},
+  {name:'LangGraph',cat:'framework',E:2,T:2,C:2,S:2,L:2,V:1},
+  {name:'MetaGPT',cat:'multiagent',E:2,T:2,C:2,S:2,L:0,V:0},
+  {name:'AutoGen',cat:'multiagent',E:2,T:2,C:1,S:1,L:2,V:0},
+  {name:'CrewAI',cat:'framework',E:2,T:2,C:1,S:1,L:0,V:0},
+  {name:'AutoGPT',cat:'framework',E:2,T:2,C:1,S:1,L:1,V:0},
+  {name:'BabyAGI',cat:'framework',E:2,T:1,C:1,S:1,L:0,V:0},
+  {name:'ReAct',cat:'module',E:1,T:1,C:0,S:0,L:0,V:0},
+  {name:'Voyager',cat:'module',E:2,T:2,C:2,S:2,L:0,V:0},
+  {name:'MemGPT',cat:'module',E:0,T:0,C:2,S:2,L:0,V:0},
+  {name:'Reflexion',cat:'module',E:1,T:0,C:1,S:1,L:1,V:1},
+  {name:'CAMEL',cat:'multiagent',E:2,T:1,C:1,S:1,L:1,V:1},
+  {name:'AgentVerse',cat:'multiagent',E:2,T:1,C:1,S:1,L:1,V:1},
+  {name:'ChatDev',cat:'multiagent',E:2,T:1,C:1,S:1,L:0,V:0},
+  {name:'SWE-bench',cat:'eval',E:0,T:0,C:0,S:0,L:0,V:2},
+  {name:'HAL',cat:'eval',E:0,T:0,C:0,S:0,L:0,V:2},
+  {name:'AgentBench',cat:'eval',E:0,T:0,C:0,S:0,L:0,V:2},
+  {name:'WebArena',cat:'eval',E:0,T:0,C:0,S:0,L:0,V:2},
+  {name:'MINT',cat:'eval',E:0,T:0,C:0,S:0,L:1,V:2},
+];
+
+const CAT_LABELS={fullstack:'Full-Stack',multiagent:'Multi-Agent',framework:'Framework',module:'Module',eval:'Eval Infra'};
+
+function scoreColor(s){
+  if(s>=10)return'var(--green2)';
+  if(s>=7)return'var(--gold2)';
+  if(s>=4)return'var(--orange2)';
+  return'var(--muted)';
+}
+
+function cellHtml(v,color){
+  if(v===2)return`<td><div class="cell-full" style="background:${color}"></div></td>`;
+  if(v===1)return`<td><div class="cell-part" style="background:${color}"></div></td>`;
+  return`<td><div class="cell-no"></div></td>`;
+}
+
+function renderMatrix(filter){
+  const tbody=document.getElementById('matrix-body');
+  const colors={E:'var(--c-E)',T:'var(--c-T)',C:'var(--c-C)',S:'var(--c-S)',L:'var(--c-L)',V:'var(--c-V)'};
+  tbody.innerHTML=MATRIX.filter(r=>filter==='all'||r.cat===filter).map(r=>{
+    const score=r.E+r.T+r.C+r.S+r.L+r.V;
+    return`<tr>
+      <td style="font-weight:600;font-size:12px;">${r.name}</td>
+      <td><span style="font-size:10px;color:var(--muted);background:rgba(255,255,255,.04);padding:2px 8px;border-radius:10px;">${CAT_LABELS[r.cat]}</span></td>
+      ${cellHtml(r.E,colors.E)}${cellHtml(r.T,colors.T)}${cellHtml(r.C,colors.C)}${cellHtml(r.S,colors.S)}${cellHtml(r.L,colors.L)}${cellHtml(r.V,colors.V)}
+      <td style="font-weight:700;color:${scoreColor(score)};font-family:'JetBrains Mono',monospace;">${score}/12</td>
+    </tr>`;
+  }).join('');
+}
+renderMatrix('all');
+
+function filterCat(cat,btn){
+  document.querySelectorAll('.btn-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderMatrix(cat);
+}
+
+// ── Research Directions Filter ────────────────────────────
+function filterRD(group,btn){
+  document.querySelectorAll('.btn-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const showA=group==='all'||group==='A';
+  const showB=group==='all'||group==='B';
+  document.getElementById('rd-A').style.display=showA?'':'none';
+  document.getElementById('rd-B').style.display=showB?'':'none';
+}
+
+// ── Evidence Chart ────────────────────────────────────────
+(function(){
+  const canvas=document.getElementById('evidenceChart');
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width, H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0d1524';
+  ctx.fillRect(0,0,W,H);
+
+  const data=[
+    {label:'Pi Research\n(Before)',val:6.7,color:'rgba(99,102,241,.3)'},
+    {label:'Pi Research\n(After)',val:68.3,color:'rgba(99,102,241,.9)'},
+  ];
+  const note='Same model. Same task. Same benchmark. Harness-only redesign.';
+
+  const pad={l:80,r:40,t:30,b:60};
+  const cw=W-pad.l-pad.r, ch=H-pad.t-pad.b;
+  const maxVal=100;
+
+  // Grid lines
+  ctx.strokeStyle='rgba(26,40,64,.8)';ctx.lineWidth=1;
+  [0,25,50,75,100].forEach(v=>{
+    const y=pad.t+ch*(1-v/maxVal);
+    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+cw,y);ctx.stroke();
+    ctx.fillStyle='rgba(107,131,159,.6)';ctx.font='10px Inter';ctx.textAlign='right';
+    ctx.fillText(v+'%',pad.l-8,y+4);
+  });
+
+  // Bars
+  const bw=80, gap=40;
+  const totalW=data.length*(bw+gap)-gap;
+  const startX=pad.l+(cw-totalW)/2;
+
+  data.forEach((d,i)=>{
+    const x=startX+i*(bw+gap);
+    const bh=ch*d.val/maxVal;
+    const y=pad.t+ch-bh;
+    ctx.fillStyle=d.color;
+    ctx.beginPath();ctx.roundRect(x,y,bw,bh,4);ctx.fill();
+
+    ctx.fillStyle='#fff';ctx.font='bold 18px Inter';ctx.textAlign='center';
+    ctx.fillText(d.val+'%',x+bw/2,y-10);
+
+    ctx.fillStyle='rgba(107,131,159,.8)';ctx.font='10px Inter';
+    const lines=d.label.split('\n');
+    lines.forEach((l,li)=>ctx.fillText(l,x+bw/2,pad.t+ch+20+li*14));
+  });
+
+  // Annotation arrow
+  const x1=startX+bw, x2=startX+bw+gap;
+  const yA=pad.t+ch*(1-68.3/maxVal)+30;
+  ctx.strokeStyle='rgba(34,197,94,.6)';ctx.lineWidth=2;
+  ctx.setLineDash([4,3]);
+  ctx.beginPath();ctx.moveTo(x1+4,yA);ctx.lineTo(x2-4,yA);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='var(--green2)';ctx.font='bold 12px Inter';ctx.textAlign='center';
+  ctx.fillText('~10×',x1+(x2-x1)/2,yA-8);
+
+  ctx.fillStyle='rgba(107,131,159,.6)';ctx.font='11px Inter';ctx.textAlign='center';
+  ctx.fillText(note,W/2,H-8);
+})();
+
+// ── Gain Chart ────────────────────────────────────────────
+(function(){
+  const canvas=document.getElementById('gainChart');
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height;
+  ctx.fillStyle='#0d1524';ctx.fillRect(0,0,W,H);
+
+  const systems=[
+    {name:'Pi Research',before:6.7,after:68.3,color:'#6366f1'},
+    {name:'LangChain DeepAgents',before:54,after:80,color:'#14b8a6'},
+    {name:'Meta-Harness',before:72,after:76.7,color:'#22c55e'},
+  ];
+
+  const pad={l:180,r:40,t:30,b:40};
+  const cw=W-pad.l-pad.r,ch=H-pad.t-pad.b;
+  const rowH=ch/systems.length;
+  const maxVal=100;
+
+  ctx.strokeStyle='rgba(26,40,64,.8)';ctx.lineWidth=1;
+  [0,25,50,75,100].forEach(v=>{
+    const x=pad.l+cw*v/maxVal;
+    ctx.beginPath();ctx.moveTo(x,pad.t);ctx.lineTo(x,pad.t+ch);ctx.stroke();
+    ctx.fillStyle='rgba(107,131,159,.5)';ctx.font='10px Inter';ctx.textAlign='center';
+    ctx.fillText(v+'%',x,pad.t+ch+16);
+  });
+
+  systems.forEach((s,i)=>{
+    const y=pad.t+i*rowH;
+    const bh=rowH*0.35;
+    const beforeW=cw*s.before/maxVal;
+    const afterW=cw*s.after/maxVal;
+
+    // Before bar
+    ctx.fillStyle='rgba(107,131,159,.2)';
+    ctx.fillRect(pad.l,y+rowH*0.08,beforeW,bh);
+
+    // After bar
+    ctx.fillStyle=s.color+'cc';
+    ctx.fillRect(pad.l,y+rowH*0.52,afterW,bh);
+
+    // Labels
+    ctx.fillStyle='rgba(207,216,232,.85)';ctx.font='bold 12px Inter';ctx.textAlign='right';
+    ctx.fillText(s.name,pad.l-12,y+rowH/2+4);
+
+    ctx.fillStyle='rgba(107,131,159,.7)';ctx.font='10px Inter';ctx.textAlign='left';
+    ctx.fillText(s.before+'%',pad.l+beforeW+6,y+rowH*0.08+bh/2+4);
+    ctx.fillStyle=s.color;ctx.font='bold 11px Inter';
+    ctx.fillText(s.after+'%',pad.l+afterW+6,y+rowH*0.52+bh/2+4);
+  });
+
+  // Legend
+  ctx.fillStyle='rgba(107,131,159,.7)';ctx.fillRect(pad.l,pad.t-18,12,8);
+  ctx.fillStyle='rgba(107,131,159,.6)';ctx.font='10px Inter';ctx.textAlign='left';
+  ctx.fillText('Before harness redesign',pad.l+16,pad.t-12);
+  ctx.fillStyle='rgba(99,102,241,.7)';ctx.fillRect(pad.l+200,pad.t-18,12,8);
+  ctx.fillText('After harness redesign',pad.l+216,pad.t-12);
+})();
+</script>
+</body>
+</html>
