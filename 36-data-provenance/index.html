@@ -171,6 +171,7 @@ canvas{display:block;border-radius:10px;background:var(--surface);border:1px sol
   <div class="nav-link" onclick="goTo('s-timeline')"><span class="dot" style="background:var(--amber)"></span>2023 Shift</div>
   <div class="nav-link" onclick="goTo('s-legal')"><span class="dot" style="background:var(--red)"></span>Legal Landscape</div>
   <div class="nav-link" onclick="goTo('s-cards')"><span class="dot" style="background:var(--blue)"></span>Provenance Cards</div>
+  <div class="nav-link" onclick="goTo('s-aqc')"><span class="dot" style="background:var(--teal)"></span>Agentic Data QC</div>
   <div class="nav-link" onclick="goTo('s-paper')"><span class="dot" style="background:var(--muted)"></span>Paper Source</div>
 </nav>
 
@@ -196,6 +197,8 @@ canvas{display:block;border-radius:10px;background:var(--surface);border:1px sol
   <span class="pipe-step" onclick="goTo('s-legal')"><span class="pipe-dot" style="background:var(--red)"></span>Legal</span>
   <span class="pipe-arrow">›</span>
   <span class="pipe-step" onclick="goTo('s-cards')"><span class="pipe-dot" style="background:var(--blue)"></span>Cards</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-aqc')"><span class="pipe-dot" style="background:var(--teal)"></span>Agentic QC</span>
 </div>
 
 <!-- ── Section 1: Overview ────────────────────────────── -->
@@ -926,7 +929,291 @@ canvas{display:block;border-radius:10px;background:var(--surface);border:1px sol
   </div>
 </div>
 
-<!-- ── Section 10: Paper Source ───────────────────────── -->
+<!-- ── Section 10: Agentic Data QC ───────────────────────── -->
+<div class="section" id="s-aqc">
+  <div class="section-tag" style="color:var(--teal2)">Applied Context</div>
+  <h2 class="section-title">Provenance in Agentic Data QC</h2>
+  <p class="section-sub">Data quality and data provenance solve adjacent problems. An agentic QC pipeline that catches quality issues but ignores license restrictions is only half the solution. Here's how provenance becomes a native feature — not an afterthought.</p>
+
+  <div class="highlight-box teal">
+    <strong style="color:var(--teal2)">Core insight:</strong> QC asks <em>"is this data correct?"</em> Provenance asks <em>"is this data usable?"</em> A QC agent needs both answers before a dataset can be trusted in a training pipeline.
+  </div>
+
+  <!-- ── Pipeline diagram ── -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-title" style="color:var(--teal2)">Agentic Data QC Pipeline with Provenance Gates</div>
+    <canvas id="qcPipelineCanvas" width="780" height="200" style="margin-top:14px;border:none;background:transparent;"></canvas>
+  </div>
+
+  <!-- ── Four integration points ── -->
+  <div style="margin-bottom:20px;">
+    <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">4 Integration Points</div>
+    <div style="display:flex;flex-direction:column;gap:0;">
+
+      <!-- Step 1 -->
+      <div class="qc-step" id="qcs-1" onclick="selectQCStep(1)" style="border:1px solid var(--border);border-radius:10px 10px 0 0;padding:14px 18px;cursor:pointer;background:var(--surface);border-bottom:none;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:32px;height:32px;border-radius:50%;background:rgba(20,184,166,.15);border:1px solid rgba(20,184,166,.3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--teal2);flex-shrink:0;">1</div>
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:700;color:var(--teal2);">Upstream License Audit</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px;">Before QC runs — check if the dataset is legally usable for the intended purpose</div>
+          </div>
+          <div style="font-size:10px;color:var(--muted);">▼</div>
+        </div>
+        <div class="qc-body" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+          <div class="grid2">
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:6px;">What the agent does</div>
+              <div style="font-size:11px;color:var(--muted);line-height:1.6;">
+                1. Receives dataset identifier (HuggingFace ID, GitHub URL, or local path)<br>
+                2. Looks up the Data Provenance Collection metadata<br>
+                3. Compares license category against the configured <em>use-intent</em> (commercial / research / academic)<br>
+                4. Flags non-compliant datasets <strong style="color:var(--red2)">before</strong> any QC computation begins
+              </div>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:6px;">Why this matters</div>
+              <div style="font-size:11px;color:var(--muted);line-height:1.6;">
+                Running QC on a non-commercial dataset wastes compute and creates false confidence. Teams have shipped products trained on datasets they were never permitted to use commercially — because QC passed but provenance was never checked.
+              </div>
+              <div style="margin-top:8px;padding:8px 10px;background:rgba(239,68,68,.06);border-radius:6px;border:1px solid rgba(239,68,68,.15);font-size:10px;color:var(--red2);">
+                Real example: Alpaca (52K examples) — passes every QC check. Fails commercial use: inherits OpenAI ToU non-commercial restriction.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="qc-step" id="qcs-2" onclick="selectQCStep(2)" style="border:1px solid var(--border);padding:14px 18px;cursor:pointer;background:var(--surface);border-bottom:none;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:32px;height:32px;border-radius:50%;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--amber2);flex-shrink:0;">2</div>
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:700;color:var(--amber2);">Lineage Tracking During QC</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px;">Every filter, transformation, and augmentation is logged with the original source license</div>
+          </div>
+          <div style="font-size:10px;color:var(--muted);">▼</div>
+        </div>
+        <div class="qc-body" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+          <div class="grid2">
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:6px;">What the agent logs</div>
+              <div style="font-size:11px;color:var(--muted);line-height:1.6;">
+                For each QC operation (dedup, filter, augment, translate, reformat):<br>
+                — Input dataset + its license<br>
+                — Operation type and parameters<br>
+                — Output row count and format<br>
+                — Any new data injected (e.g., synthetic augmentation) and its source license<br>
+                — Timestamp and agent version
+              </div>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:6px;">The lineage chain</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--teal2);background:rgba(20,184,166,.05);border:1px solid rgba(20,184,166,.15);border-radius:6px;padding:10px;line-height:1.8;">
+                raw_dataset (CC-BY 4.0)<br>
+                  → dedup(threshold=0.85) → 42K rows<br>
+                  → filter(lang=en) → 38K rows<br>
+                  → augment(gpt-4o) → +12K rows<br>
+                    ⚠ augmented subset: OpenAI ToU<br>
+                  → split → train/val/test
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="qc-step" id="qcs-3" onclick="selectQCStep(3)" style="border:1px solid var(--border);padding:14px 18px;cursor:pointer;background:var(--surface);border-bottom:none;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:32px;height:32px;border-radius:50%;background:rgba(139,92,246,.15);border:1px solid rgba(139,92,246,.3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--purple2);flex-shrink:0;">3</div>
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:700;color:var(--purple2);">Attribution Propagation</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px;">When datasets are merged, the most restrictive license propagates to the output</div>
+          </div>
+          <div style="font-size:10px;color:var(--muted);">▼</div>
+        </div>
+        <div class="qc-body" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+          <div class="grid2">
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:6px;">The propagation rule</div>
+              <div style="font-size:11px;color:var(--muted);line-height:1.6;">
+                When QC merges N datasets into a single training corpus, the output corpus inherits the <strong>intersection</strong> of what is permitted across all constituent licenses. The agent automatically computes this and warns if constituents are incompatible.
+              </div>
+              <div style="margin-top:10px;">
+                <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">Example merge</div>
+                <div style="display:flex;flex-direction:column;gap:4px;font-size:11px;">
+                  <div style="display:flex;gap:8px;align-items:center;"><span class="lic-badge lic-comm" style="font-size:9px;">Commercial</span><span style="color:var(--muted);">OpenAssistant (Apache 2.0)</span></div>
+                  <div style="display:flex;gap:8px;align-items:center;"><span class="lic-badge lic-comm" style="font-size:9px;">Commercial</span><span style="color:var(--muted);">Dolly-15k (CC-BY-SA)</span></div>
+                  <div style="display:flex;gap:8px;align-items:center;"><span class="lic-badge lic-nc" style="font-size:9px;">Non-Comm</span><span style="color:var(--muted);">Alpaca (OpenAI ToU)</span></div>
+                  <div style="height:1px;background:var(--border);margin:4px 0;"></div>
+                  <div style="display:flex;gap:8px;align-items:center;"><span class="lic-badge lic-nc" style="font-size:9px;">⚠ Non-Comm</span><span style="color:var(--red2);font-weight:600;">Merged corpus — restricted</span></div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:6px;">Share-alike conflict detection</div>
+              <div style="font-size:11px;color:var(--muted);line-height:1.6;">
+                The agent detects when a mix of share-alike (e.g. CC-BY-SA) and non-share-alike datasets are combined — a conflict that cannot be legally resolved without separating the corpora. It suggests remediation: split the corpus or replace the offending constituent.
+              </div>
+              <div style="margin-top:8px;padding:8px 10px;background:rgba(245,158,11,.06);border-radius:6px;border:1px solid rgba(245,158,11,.15);font-size:10px;color:var(--amber2);">
+                Dolly-15k (CC-BY-SA) + OpenAssistant (Apache 2.0) = share-alike conflict. Agent recommends: use only one, or release merged corpus under CC-BY-SA.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="qc-step" id="qcs-4" onclick="selectQCStep(4)" style="border:1px solid var(--border);border-radius:0 0 10px 10px;padding:14px 18px;cursor:pointer;background:var(--surface);">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:32px;height:32px;border-radius:50%;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--green2);flex-shrink:0;">4</div>
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:700;color:var(--green2);">Compliance Gate at Pipeline Exit</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px;">Final check before the cleaned dataset is released or used for training</div>
+          </div>
+          <div style="font-size:10px;color:var(--muted);">▼</div>
+        </div>
+        <div class="qc-body" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+          <div class="grid2">
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:6px;">What the gate checks</div>
+              <div style="font-size:11px;color:var(--muted);line-height:1.6;">
+                — Final corpus license vs. declared use intent (commercial / research)<br>
+                — Attribution requirements: are all constituent datasets credited?<br>
+                — Share-alike: if triggered, is the release plan compatible?<br>
+                — Geographic restrictions: any datasets with jurisdiction-specific terms?<br>
+                — Synthetic data: does any augmented content carry upstream API terms?
+              </div>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:6px;">Output: Auto-generated Provenance Card</div>
+              <div style="font-size:11px;color:var(--muted);line-height:1.6;">
+                At pipeline exit, the agent generates a Data Provenance Card for the cleaned corpus — covering every constituent dataset, all transformations applied, the resulting combined license, and the attribution credits required. This card travels with the dataset to downstream consumers.
+              </div>
+              <div style="margin-top:8px;padding:8px 10px;background:rgba(34,197,94,.06);border-radius:6px;border:1px solid rgba(34,197,94,.15);font-size:10px;color:var(--green2);">
+                Output card is machine-readable JSON — can be consumed by model training pipelines, model cards generators, and regulatory audit tools.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── QC + Provenance signal comparison ── -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-title" style="color:var(--amber2)">QC Signals vs. Provenance Signals — What Each Catches</div>
+    <div style="overflow-x:auto;margin-top:12px;">
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>Issue Type</th>
+            <th style="color:var(--green2)">QC Catches It?</th>
+            <th style="color:var(--teal2)">Provenance Catches It?</th>
+            <th>Risk if Missed</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="font-weight:600;">Duplicate examples</td>
+            <td style="color:var(--green2);">✓ Yes — dedup metrics</td>
+            <td style="color:var(--muted);">— Not applicable</td>
+            <td style="color:var(--muted);">Training overfitting</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600;">Label noise / wrong annotations</td>
+            <td style="color:var(--green2);">✓ Yes — annotation QC</td>
+            <td style="color:var(--muted);">— Not applicable</td>
+            <td style="color:var(--muted);">Model misbehavior</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600;">Non-commercial license on dataset</td>
+            <td style="color:var(--red2);">✗ No — invisible to QC</td>
+            <td style="color:var(--teal2);">✓ Yes — upstream audit</td>
+            <td style="color:var(--red2);">Legal infringement</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600;">Platform license mismatch (66% rate)</td>
+            <td style="color:var(--red2);">✗ No</td>
+            <td style="color:var(--teal2);">✓ Yes — cross-ref source</td>
+            <td style="color:var(--red2);">False compliance confidence</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600;">GPT-generated data inheriting OpenAI ToU</td>
+            <td style="color:var(--red2);">✗ No</td>
+            <td style="color:var(--teal2);">✓ Yes — synthetic provenance</td>
+            <td style="color:var(--red2);">Violates OpenAI ToU at scale</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600;">Share-alike conflict in merged corpus</td>
+            <td style="color:var(--red2);">✗ No</td>
+            <td style="color:var(--teal2);">✓ Yes — propagation check</td>
+            <td style="color:var(--red2);">Closed-source release at risk</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600;">Missing attribution credits</td>
+            <td style="color:var(--red2);">✗ No</td>
+            <td style="color:var(--teal2);">✓ Yes — exit gate</td>
+            <td style="color:var(--muted);">License violation (85% require it)</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600;">Low-quality text / toxic content</td>
+            <td style="color:var(--green2);">✓ Yes — quality filters</td>
+            <td style="color:var(--muted);">— Not applicable</td>
+            <td style="color:var(--muted);">Safety / model quality</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600;">Language / geographic coverage gaps</td>
+            <td style="color:var(--amber2);">~ Partial — distribution stats</td>
+            <td style="color:var(--teal2);">✓ Yes — language metadata</td>
+            <td style="color:var(--muted);">Bias / underrepresentation</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Interactive compliance simulator ── -->
+  <div class="card">
+    <div class="card-title" style="color:var(--green2)">Compliance Simulator — Build Your Training Corpus</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">Select datasets and a use intent to see what the compliance gate would flag.</div>
+
+    <div style="margin-bottom:14px;">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:8px;">Step 1 — Select Datasets</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;" id="dataset-picker">
+        <label class="ds-chip" style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border:1px solid var(--border);border-radius:20px;cursor:pointer;font-size:11px;background:var(--surface);">
+          <input type="checkbox" value="openassistant" onchange="runSim()" style="accent-color:var(--green);">OpenAssistant <span class="lic-badge lic-comm" style="font-size:9px;">Commercial</span>
+        </label>
+        <label class="ds-chip" style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border:1px solid var(--border);border-radius:20px;cursor:pointer;font-size:11px;background:var(--surface);">
+          <input type="checkbox" value="dolly" onchange="runSim()" style="accent-color:var(--green);">Dolly-15k <span class="lic-badge lic-comm" style="font-size:9px;">Comm+SA</span>
+        </label>
+        <label class="ds-chip" style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border:1px solid var(--border);border-radius:20px;cursor:pointer;font-size:11px;background:var(--surface);">
+          <input type="checkbox" value="alpaca" onchange="runSim()" style="accent-color:var(--purple);">Alpaca <span class="lic-badge lic-nc" style="font-size:9px;">Non-Comm</span>
+        </label>
+        <label class="ds-chip" style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border:1px solid var(--border);border-radius:20px;cursor:pointer;font-size:11px;background:var(--surface);">
+          <input type="checkbox" value="squad" onchange="runSim()" style="accent-color:var(--amber);">SQuAD <span class="lic-badge lic-nc" style="font-size:9px;">Ambiguous</span>
+        </label>
+        <label class="ds-chip" style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border:1px solid var(--border);border-radius:20px;cursor:pointer;font-size:11px;background:var(--surface);">
+          <input type="checkbox" value="flan" onchange="runSim()" style="accent-color:var(--orange);">FLAN <span class="lic-badge lic-nc" style="font-size:9px;">Mixed</span>
+        </label>
+      </div>
+    </div>
+
+    <div style="margin-bottom:14px;">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:8px;">Step 2 — Select Use Intent</div>
+      <div class="btn-row" id="intent-btns" style="margin-bottom:0;">
+        <button class="btn-tab active" onclick="setIntent('commercial',this)">Commercial Product</button>
+        <button class="btn-tab" onclick="setIntent('research',this)">Academic Research</button>
+        <button class="btn-tab" onclick="setIntent('internal',this)">Internal Tools Only</button>
+      </div>
+    </div>
+
+    <div id="sim-result" style="margin-top:4px;"></div>
+  </div>
+</div>
+
+<!-- ── Section 11: Paper Source ───────────────────────── -->
 <div class="section" id="s-paper" style="min-height:auto;padding-bottom:60px;">
   <div class="section-tag" style="color:var(--muted)">Citations</div>
   <h2 class="section-title">Paper Sources</h2>
@@ -1290,6 +1577,142 @@ function showCard(id,btn){
   `;
 }
 showCard('alpaca',document.querySelector('.btn-tab.active'));
+
+// ── QC Pipeline Canvas ────────────────────────────────────
+(function(){
+  const c=document.getElementById('qcPipelineCanvas');if(!c)return;
+  const ctx=c.getContext('2d');
+  const W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+
+  const steps=[
+    {label:'Raw\nDataset',color:'#6278a0',icon:'📦'},
+    {label:'Upstream\nLicense Audit',color:'#14b8a6',icon:'🔍',prov:true},
+    {label:'QC\nFiltering',color:'#22c55e',icon:'⚙'},
+    {label:'Lineage\nTracking',color:'#f59e0b',icon:'🔗',prov:true},
+    {label:'Merge &\nAugment',color:'#8b5cf6',icon:'🔀'},
+    {label:'Attribution\nPropagation',color:'#a855f7',icon:'📋',prov:true},
+    {label:'Compliance\nGate',color:'#ef4444',icon:'🚦',prov:true},
+    {label:'Clean\nCorpus + Card',color:'#3b82f6',icon:'✅'},
+  ];
+
+  const boxW=80,boxH=60,gap=(W-steps.length*boxW)/(steps.length+1);
+  const y0=(H-boxH)/2;
+
+  steps.forEach((s,i)=>{
+    const x=gap*(i+1)+i*boxW;
+    // connector
+    if(i<steps.length-1){
+      const nx=gap*(i+2)+(i+1)*boxW;
+      ctx.strokeStyle='rgba(98,120,160,.4)';ctx.lineWidth=1.5;ctx.setLineDash([3,3]);
+      ctx.beginPath();ctx.moveTo(x+boxW,y0+boxH/2);ctx.lineTo(nx,y0+boxH/2);ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    // box
+    ctx.fillStyle=s.color+(s.prov?'33':'18');
+    ctx.strokeStyle=s.color+(s.prov?'cc':'66');
+    ctx.lineWidth=s.prov?2:1;
+    ctx.beginPath();ctx.roundRect(x,y0,boxW,boxH,8);ctx.fill();ctx.stroke();
+
+    // prov badge
+    if(s.prov){
+      ctx.fillStyle=s.color;
+      ctx.beginPath();ctx.roundRect(x+boxW-22,y0-8,22,14,4);ctx.fill();
+      ctx.fillStyle='#fff';ctx.font='bold 8px Inter';ctx.textAlign='center';
+      ctx.fillText('PROV',x+boxW-11,y0+0);
+    }
+
+    // label
+    const lines=s.label.split('\n');
+    ctx.fillStyle='rgba(208,218,240,.9)';ctx.font='bold 9px Inter';ctx.textAlign='center';
+    lines.forEach((l,li)=>ctx.fillText(l,x+boxW/2,y0+boxH/2+(li-(lines.length-1)/2)*12));
+  });
+
+  // legend
+  ctx.fillStyle=s=>'';
+  ctx.fillStyle='rgba(20,184,166,.7)';ctx.fillRect(10,H-16,10,10);
+  ctx.fillStyle='rgba(208,218,240,.6)';ctx.font='10px Inter';ctx.textAlign='left';
+  ctx.fillText('= Provenance checkpoint',24,H-8);
+})();
+
+// ── QC Step accordion ────────────────────────────────────
+function selectQCStep(n){
+  const el=document.getElementById('qcs-'+n);
+  const body=el.querySelector('.qc-body');
+  const isOpen=body.style.display==='block';
+  // close all
+  [1,2,3,4].forEach(i=>{
+    const b=document.getElementById('qcs-'+i)?.querySelector('.qc-body');
+    if(b)b.style.display='none';
+  });
+  if(!isOpen)body.style.display='block';
+}
+
+// ── Compliance Simulator ──────────────────────────────────
+const DS_META={
+  openassistant:{name:'OpenAssistant',comm:true,sa:false,ambig:false,nc:false},
+  dolly:{name:'Dolly-15k',comm:true,sa:true,ambig:false,nc:false},
+  alpaca:{name:'Alpaca',comm:false,sa:false,ambig:false,nc:true},
+  squad:{name:'SQuAD',comm:false,sa:true,ambig:true,nc:false},
+  flan:{name:'FLAN',comm:false,sa:false,ambig:true,nc:false},
+};
+let simIntent='commercial';
+
+function setIntent(v,btn){
+  simIntent=v;
+  document.querySelectorAll('#intent-btns .btn-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  runSim();
+}
+
+function runSim(){
+  const boxes=document.querySelectorAll('#dataset-picker input:checked');
+  const selected=[...boxes].map(b=>b.value);
+  const el=document.getElementById('sim-result');
+  if(selected.length===0){el.innerHTML='<div style="font-size:12px;color:var(--muted);padding:12px;">Select at least one dataset to see results.</div>';return;}
+
+  const items=selected.map(k=>DS_META[k]);
+  const issues=[];
+  const warnings=[];
+
+  // Check non-commercial
+  const ncItems=items.filter(d=>d.nc);
+  if(simIntent==='commercial'&&ncItems.length>0){
+    issues.push(`<strong style="color:var(--red2)">BLOCKED:</strong> ${ncItems.map(d=>d.name).join(', ')} ${ncItems.length>1?'are':'is'} non-commercial — cannot be used for a commercial product.`);
+  }
+
+  // Check ambiguous
+  const ambigItems=items.filter(d=>d.ambig);
+  if(ambigItems.length>0){
+    warnings.push(`<strong style="color:var(--amber2)">REVIEW REQUIRED:</strong> ${ambigItems.map(d=>d.name).join(', ')} ${ambigItems.length>1?'have':'has'} ambiguous license terms. Consult legal counsel before ${simIntent==='commercial'?'commercial':'any'} use.`);
+  }
+
+  // Check share-alike
+  const saItems=items.filter(d=>d.sa);
+  if(saItems.length>0&&selected.length>1){
+    warnings.push(`<strong style="color:var(--amber2)">SHARE-ALIKE CONFLICT:</strong> ${saItems.map(d=>d.name).join(', ')} require share-alike. Merged corpus may need to be released under compatible open license.`);
+  }
+
+  // Attribution
+  const attrItems=items.filter(d=>d.comm||d.sa);
+  if(attrItems.length>0){
+    warnings.push(`<strong style="color:var(--blue2)">ATTRIBUTION REQUIRED:</strong> Credit ${attrItems.map(d=>d.name).join(', ')} in your model card and dataset documentation.`);
+  }
+
+  const allComm=items.every(d=>d.comm&&!d.nc&&!d.ambig);
+  const resultColor=issues.length>0?'var(--red)':warnings.length>0?'var(--amber)':'var(--green)';
+  const resultText=issues.length>0?'BLOCKED — resolve issues before use':warnings.length>0?'CONDITIONAL — review warnings':'CLEAR — corpus approved for '+simIntent+' use';
+  const resultBg=issues.length>0?'rgba(239,68,68,.06)':warnings.length>0?'rgba(245,158,11,.06)':'rgba(34,197,94,.06)';
+
+  el.innerHTML=`
+    <div style="border:1px solid ${resultColor};border-radius:8px;padding:14px 16px;background:${resultBg};">
+      <div style="font-size:13px;font-weight:800;color:${resultColor};margin-bottom:${(issues.length+warnings.length)>0?'12px':'0'};">${resultText}</div>
+      ${[...issues,...warnings].map(m=>`<div style="font-size:11px;color:var(--muted);margin-bottom:6px;padding-left:8px;border-left:2px solid var(--border);">${m}</div>`).join('')}
+    </div>
+    <div style="font-size:10px;color:var(--muted);margin-top:8px;">Selected: ${selected.length} dataset${selected.length>1?'s':''} · ${items.filter(d=>d.comm&&!d.nc).length} commercially permissive · Intent: ${simIntent}</div>
+  `;
+}
+runSim();
 </script>
 </body>
 </html>
