@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Knowledge Distillation — Teaching Small Models to Think Like Large Ones</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#06080f;--surface:#0c1120;--border:#1a2540;
+  --text:#ccd6f0;--muted:#617090;
+  --indigo:#6366f1;--indigo2:#818cf8;--indigo3:#c7d2fe;
+  --orange:#f97316;--orange2:#fb923c;--orange3:#fed7aa;
+  --green:#22c55e;--green2:#4ade80;
+  --red:#ef4444;--red2:#fca5a5;
+  --amber:#f59e0b;--amber2:#fbbf24;
+  --teal:#14b8a6;--teal2:#2dd4bf;
+  --purple:#a855f7;--purple2:#c084fc;
+  --T1:'#ef4444';--T2:'#f97316';--T5:'#f59e0b';--T10:'#22c55e';
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+/* Gate */
+#gate{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.gate-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 44px;text-align:center;max-width:380px;width:90%;}
+.gate-icon{font-size:36px;margin-bottom:12px;}
+.gate-title{font-size:20px;font-weight:800;color:var(--indigo3);margin-bottom:4px;}
+.gate-sub{font-size:12px;color:var(--muted);margin-bottom:24px;}
+.gate-input{width:100%;background:#04060d;border:1px solid var(--border);border-radius:8px;padding:11px 14px;font-size:14px;color:var(--text);outline:none;margin-bottom:12px;}
+.gate-input:focus{border-color:var(--indigo);}
+.gate-btn{width:100%;background:var(--indigo);color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s;}
+.gate-btn:hover{opacity:.85;}
+.gate-err{font-size:11px;color:var(--red);margin-top:6px;display:none;}
+/* Layout */
+.sidebar{width:240px;min-width:240px;height:100vh;position:sticky;top:0;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:0 0 40px;flex-shrink:0;}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.sidebar-logo-title{font-size:13px;font-weight:700;color:var(--indigo2);}
+.sidebar-logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.nav-group-title{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;padding:10px 16px 4px;}
+.nav-link{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;}
+.nav-link:hover,.nav-link.active{color:var(--text);background:rgba(99,102,241,.08);}
+.nav-link.active{color:var(--indigo3);}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.main{flex:1;overflow-y:auto;height:100vh;scroll-behavior:smooth;}
+/* Pipeline */
+.pipeline-map{position:sticky;top:0;z-index:50;background:rgba(6,8,15,.96);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+.pipe-step{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);padding:2px 6px;border-radius:4px;cursor:pointer;transition:color .15s;}
+.pipe-step:hover{color:var(--text);}
+.pipe-dot{width:6px;height:6px;border-radius:50%;}
+.pipe-arrow{color:var(--border);font-size:12px;}
+/* Sections */
+.section{min-height:100vh;padding:60px 48px 80px;border-bottom:1px solid var(--border);}
+.section-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;}
+.section-title{font-size:28px;font-weight:800;color:var(--text);margin-bottom:8px;line-height:1.25;}
+.section-sub{font-size:14px;color:var(--muted);margin-bottom:28px;max-width:700px;}
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:16px;}
+.card-title{font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px;}
+.card-body{font-size:13px;color:var(--muted);line-height:1.6;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;}
+canvas{display:block;border-radius:10px;background:var(--surface);border:1px solid var(--border);}
+/* Buttons */
+.btn-tab{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-tab.active{background:var(--indigo);color:#fff;border-color:var(--indigo);}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+/* Stats */
+.stats-row{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:28px;}
+.stat{text-align:center;}
+.stat-val{font-size:28px;font-weight:800;color:var(--indigo2);}
+.stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;}
+/* Highlights */
+.highlight-box{border-left:3px solid var(--indigo);padding:12px 16px;background:rgba(99,102,241,.06);border-radius:0 8px 8px 0;margin-bottom:16px;font-size:13px;color:var(--muted);}
+.highlight-box.orange{border-color:var(--orange);background:rgba(249,115,22,.06);}
+.highlight-box.green{border-color:var(--green);background:rgba(34,197,94,.06);}
+.highlight-box.amber{border-color:var(--amber);background:rgba(245,158,11,.06);}
+.highlight-box.red{border-color:var(--red);background:rgba(239,68,68,.06);}
+.highlight-box.teal{border-color:var(--teal);background:rgba(20,184,166,.06);}
+/* Formula */
+.formula{background:#03050b;border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-family:'JetBrains Mono','Courier New',monospace;font-size:12px;color:var(--indigo3);line-height:2;margin-bottom:16px;overflow-x:auto;}
+/* Accordion */
+.accordion-item{border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+.accordion-header{padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;background:var(--surface);}
+.accordion-header:hover{background:#111b2e;}
+.accordion-chevron{transition:transform .2s;font-size:10px;color:var(--muted);}
+.accordion-item.open .accordion-chevron{transform:rotate(90deg);}
+.accordion-body{padding:14px 16px;font-size:12px;color:var(--muted);display:none;border-top:1px solid var(--border);line-height:1.7;}
+.accordion-item.open .accordion-body{display:block;}
+/* Slider */
+.slider-wrap{display:flex;align-items:center;gap:14px;margin-bottom:16px;}
+.slider-label{font-size:12px;color:var(--muted);min-width:80px;}
+input[type=range]{flex:1;accent-color:var(--orange);height:4px;}
+.slider-val{font-size:14px;font-weight:800;min-width:40px;text-align:right;}
+/* Knowledge type cards */
+.ktype-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;cursor:pointer;transition:all .2s;}
+.ktype-card:hover,.ktype-card.active{border-color:var(--active-color,var(--indigo));}
+.ktype-card.active{background:rgba(99,102,241,.06);}
+.ktype-icon{font-size:28px;margin-bottom:8px;}
+.ktype-title{font-size:13px;font-weight:700;margin-bottom:4px;}
+.ktype-sub{font-size:11px;color:var(--muted);}
+/* Arch diagram */
+.arch-row{display:flex;align-items:center;gap:0;margin-bottom:28px;}
+.arch-box{flex:1;padding:20px 16px;text-align:center;border-radius:12px;}
+.arch-arrow{font-size:24px;color:var(--border);padding:0 8px;flex-shrink:0;}
+/* Results bar */
+.result-row{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+.result-model{font-size:12px;font-weight:600;min-width:130px;}
+.result-bar-wrap{flex:1;height:8px;background:rgba(26,37,64,.8);border-radius:4px;overflow:hidden;}
+.result-bar{height:100%;border-radius:4px;transition:width .4s;}
+.result-val{font-size:11px;font-weight:700;min-width:50px;text-align:right;}
+/* Paper source */
+.paper-source{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px 26px;margin-bottom:16px;}
+.paper-source-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:14px;}
+.paper-ref{font-size:13px;line-height:1.7;color:var(--text);margin-bottom:14px;}
+.paper-ref span{color:var(--indigo2);}
+.paper-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid var(--border);background:var(--bg);color:var(--muted);transition:all .15s;margin-right:8px;margin-bottom:8px;}
+.paper-btn:hover{border-color:var(--indigo);color:var(--indigo2);}
+/* Continue strip */
+.continue-strip{background:var(--surface);border-top:1px solid var(--border);padding:24px 48px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.continue-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-right:4px;}
+.continue-link{display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--muted);transition:all .15s;}
+.continue-link:hover{border-color:var(--indigo);color:var(--indigo3);}
+.continue-dir{font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);}
+</style>
+</head>
+<body>
+
+<!-- Gate -->
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-icon">🧠</div>
+    <div class="gate-title">Knowledge Distillation</div>
+    <div class="gate-sub">Visual Summary — Post 37</div>
+    <input class="gate-input" type="password" id="pw" placeholder="Enter password" onkeydown="if(event.key==='Enter')unlock()">
+    <button class="gate-btn" onclick="unlock()">Unlock</button>
+    <div class="gate-err" id="pw-err">Incorrect password</div>
+  </div>
+</div>
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-title">Knowledge Distillation</div>
+    <div class="sidebar-logo-sub">Post 37 · Hinton et al., 2015</div>
+  </div>
+  <div class="nav-group-title">Contents</div>
+  <div class="nav-link" onclick="goTo('s-intro')"><span class="dot" style="background:var(--indigo)"></span>Overview</div>
+  <div class="nav-link" onclick="goTo('s-core')"><span class="dot" style="background:var(--orange)"></span>Teacher → Student</div>
+  <div class="nav-link" onclick="goTo('s-temperature')"><span class="dot" style="background:var(--amber)"></span>Temperature Scaling</div>
+  <div class="nav-link" onclick="goTo('s-math')"><span class="dot" style="background:var(--indigo2)"></span>The Math</div>
+  <div class="nav-link" onclick="goTo('s-types')"><span class="dot" style="background:var(--purple)"></span>Types of Knowledge</div>
+  <div class="nav-link" onclick="goTo('s-modes')"><span class="dot" style="background:var(--teal)"></span>Training Modes</div>
+  <div class="nav-link" onclick="goTo('s-results')"><span class="dot" style="background:var(--green)"></span>Real-World Results</div>
+  <div class="nav-link" onclick="goTo('s-llm')"><span class="dot" style="background:var(--indigo2)"></span>LLM Distillation</div>
+  <div class="nav-link" onclick="goTo('s-paper')"><span class="dot" style="background:var(--muted)"></span>Paper Source</div>
+</nav>
+
+<!-- Main -->
+<div class="main">
+
+<div class="pipeline-map">
+  <span class="pipe-step" onclick="goTo('s-intro')"><span class="pipe-dot" style="background:var(--indigo)"></span>Overview</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-core')"><span class="pipe-dot" style="background:var(--orange)"></span>Teacher→Student</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-temperature')"><span class="pipe-dot" style="background:var(--amber)"></span>Temperature</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-math')"><span class="pipe-dot" style="background:var(--indigo2)"></span>Math</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-types')"><span class="pipe-dot" style="background:var(--purple)"></span>Types</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-modes')"><span class="pipe-dot" style="background:var(--teal)"></span>Modes</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-results')"><span class="pipe-dot" style="background:var(--green)"></span>Results</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-llm')"><span class="pipe-dot" style="background:var(--indigo2)"></span>LLMs</span>
+</div>
+
+<!-- ── Section 1: Overview ────────────────────────────── -->
+<div class="section" id="s-intro">
+  <div class="section-tag" style="color:var(--indigo2)">Post 37 · Training & Alignment</div>
+  <h1 class="section-title">Knowledge Distillation</h1>
+  <p class="section-sub">Teaching a small, fast student model to think like a large, slow teacher — by learning not just the right answers, but the teacher's confidence patterns across all possible answers.</p>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val">40%</div><div class="stat-lbl">DistilBERT size reduction</div></div>
+    <div class="stat"><div class="stat-val">97%</div><div class="stat-lbl">Performance retained</div></div>
+    <div class="stat"><div class="stat-val">7.5×</div><div class="stat-lbl">TinyBERT compression</div></div>
+    <div class="stat"><div class="stat-val">60%</div><div class="stat-lbl">Faster inference</div></div>
+    <div class="stat"><div class="stat-val">2015</div><div class="stat-lbl">Hinton et al. paper</div></div>
+  </div>
+
+  <div class="highlight-box">
+    <strong style="color:var(--indigo3)">Core idea:</strong> A large teacher model has learned rich internal representations — not just which class is correct, but <em>how similar</em> different classes are to each other. A student model trained on hard labels (one-hot targets) misses all of this. Knowledge distillation lets the student learn from the teacher's soft probability distribution — capturing the full picture of what the teacher has learned.
+  </div>
+
+  <div class="grid3">
+    <div class="card">
+      <div class="card-title" style="color:var(--orange2)">The Problem</div>
+      <div class="card-body">Large models achieve high accuracy but are too slow and memory-intensive for deployment. Smaller models trained from scratch fail to match their performance — they lack the rich representations the large model developed.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--indigo2)">The Solution</div>
+      <div class="card-body">Train the small student to mimic the large teacher — not by copying weights, but by learning from the teacher's output distribution. The teacher's soft probabilities carry far more information than hard one-hot labels.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--green2)">The Result</div>
+      <div class="card-body">Students that approach — and sometimes match — teacher performance at a fraction of the size. DistilBERT is 40% smaller, 60% faster, and retains 97% of BERT's language understanding. TinyBERT is 7.5× smaller with 9.4× faster inference.</div>
+    </div>
+  </div>
+
+  <!-- Analogy card -->
+  <div class="card" style="margin-top:4px;">
+    <div class="card-title" style="color:var(--amber2)">The Human Analogy</div>
+    <div class="grid2">
+      <div class="card-body">
+        <strong style="color:var(--text)">Hard label learning</strong> is like a student who only learns the final exam answers — "the answer to Q3 is C." No understanding of <em>why</em> C is right or how close B was.<br><br>
+        <strong style="color:var(--text)">Knowledge distillation</strong> is like learning from an expert teacher who says "C is clearly right (70%), but B is also plausible (20%) because these two concepts overlap in this way." The student learns the structure of the problem, not just the answer.
+      </div>
+      <div class="card-body">
+        <strong style="color:var(--text)">Hinton's original example:</strong> An image of a "2" in MNIST. Hard label: [0,0,1,0,...]. Teacher's soft output: <span style="color:var(--green2)">2: 0.91</span>, <span style="color:var(--muted)">3: 0.06</span>, <span style="color:var(--muted)">7: 0.02</span>...<br><br>
+        The soft output reveals that <em>2s look somewhat like 3s and 7s</em> — a structural relationship the student would never learn from one-hot labels alone. This is what Hinton calls <strong style="color:var(--orange2)">"dark knowledge"</strong> — the information hidden in the near-zero probabilities.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 2: Teacher → Student ──────────────────── -->
+<div class="section" id="s-core">
+  <div class="section-tag" style="color:var(--orange2)">Core Mechanism</div>
+  <h2 class="section-title">Teacher → Student</h2>
+  <p class="section-sub">The fundamental setup: a trained teacher generates soft targets that the student learns from — alongside (or instead of) the original hard labels.</p>
+
+  <!-- Architecture diagram -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-title" style="color:var(--orange2)">The Distillation Setup</div>
+    <canvas id="archCanvas" width="780" height="180" style="margin-top:14px;border:none;background:transparent;"></canvas>
+  </div>
+
+  <!-- Hard vs Soft targets interactive -->
+  <div class="grid2" style="margin-bottom:20px;">
+    <div class="card">
+      <div class="card-title" style="color:var(--red2)">Hard Labels (One-Hot)</div>
+      <canvas id="hardLabelCanvas" width="340" height="180" style="margin-top:10px;border:none;background:transparent;width:100%;"></canvas>
+      <div style="font-size:11px;color:var(--muted);margin-top:10px;">
+        Training signal: <strong style="color:var(--red2)">1.0</strong> for the correct class, <strong style="color:var(--muted)">0.0</strong> for all others. The student learns nothing about the relationship between classes — only which one is right.
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--green2)">Soft Targets (Teacher Output, T=4)</div>
+      <canvas id="softLabelCanvas" width="340" height="180" style="margin-top:10px;border:none;background:transparent;width:100%;"></canvas>
+      <div style="font-size:11px;color:var(--muted);margin-top:10px;">
+        The teacher distributes probability across similar classes. Every near-zero value is a signal: <em>"class 3 is somewhat plausible, class 7 less so."</em> This is the <strong style="color:var(--green2)">dark knowledge</strong> that makes distillation work.
+      </div>
+    </div>
+  </div>
+
+  <div class="highlight-box orange">
+    <strong style="color:var(--orange2)">Why soft targets work better than hard labels for the student:</strong> Soft labels provide an O(C²) information signal per example — encoding the full similarity structure between C classes — while hard labels provide only O(C) bits per example. For a 1000-class problem, that's potentially 1,000,000× more information per training example.
+  </div>
+
+  <!-- Dark knowledge -->
+  <div class="card">
+    <div class="card-title" style="color:var(--indigo2)">Dark Knowledge — What Hides in Near-Zero Probabilities</div>
+    <div class="grid3" style="margin-top:10px;">
+      <div style="padding:14px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.2);border-radius:8px;">
+        <div style="font-size:11px;font-weight:700;color:var(--indigo3);margin-bottom:6px;">Class similarity</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.5;">A "2" is more likely to be confused with "3" than with "8". The teacher's soft probabilities encode this — and the student learns it implicitly.</div>
+      </div>
+      <div style="padding:14px;background:rgba(249,115,22,.06);border:1px solid rgba(249,115,22,.2);border-radius:8px;">
+        <div style="font-size:11px;font-weight:700;color:var(--orange2);margin-bottom:6px;">Uncertainty</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.5;">The teacher's confidence level on a given example tells the student how hard the example is — enabling the student to weight its attention appropriately.</div>
+      </div>
+      <div style="padding:14px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:8px;">
+        <div style="font-size:11px;font-weight:700;color:var(--amber2);margin-bottom:6px;">Generalization structure</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.5;">The patterns of confusion across the training set encode the geometry of the decision space — which the student absorbs as inductive bias without seeing the teacher's internals.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 3: Temperature Scaling ────────────────── -->
+<div class="section" id="s-temperature">
+  <div class="section-tag" style="color:var(--amber2)">Key Mechanism</div>
+  <h2 class="section-title">Temperature Scaling</h2>
+  <p class="section-sub">Temperature T controls how "soft" the teacher's output probabilities are. Higher T spreads probability more evenly — revealing more dark knowledge. Lower T sharpens toward a hard prediction.</p>
+
+  <div class="formula">Soft softmax:  p_i = exp(z_i / T) / Σ_j exp(z_j / T)
+
+  T = 1   →  standard softmax  (sharp, close to one-hot)
+  T > 1   →  softer distribution  (more information in near-zero classes)
+  T → ∞  →  uniform distribution  (maximum entropy)
+  T < 1   →  sharper than standard  (more confident)</div>
+
+  <!-- Interactive temperature explorer -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-title" style="color:var(--amber2)">Interactive Temperature Explorer</div>
+    <div class="slider-wrap" style="margin-top:14px;">
+      <span class="slider-label">Temperature T</span>
+      <input type="range" id="tempSlider" min="1" max="20" value="1" step="1" oninput="updateTemp()">
+      <span class="slider-val" id="tempVal" style="color:var(--orange2);">T = 1</span>
+    </div>
+    <canvas id="tempCanvas" width="780" height="220" style="border:none;background:transparent;"></canvas>
+    <div style="display:flex;gap:20px;margin-top:12px;flex-wrap:wrap;">
+      <div style="font-size:11px;color:var(--muted);">
+        <span id="temp-entropy-label" style="font-weight:700;color:var(--amber2);">Entropy:</span>
+        <span id="temp-entropy-val" style="color:var(--text);">—</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);">
+        <span style="font-weight:700;color:var(--indigo2);">Top class confidence:</span>
+        <span id="temp-top-val" style="color:var(--text);">—</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);">
+        <span style="font-weight:700;color:var(--green2);">Dark knowledge visible:</span>
+        <span id="temp-dark-val" style="color:var(--text);">—</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid3">
+    <div class="card" style="border-color:rgba(239,68,68,.3);">
+      <div style="font-size:22px;font-weight:800;color:var(--red2);margin-bottom:4px;">T = 1</div>
+      <div class="card-title" style="color:var(--red2);">Standard Softmax</div>
+      <div class="card-body">The teacher behaves as in inference — one class dominates. Near-zero probabilities carry almost no gradient signal. The student essentially learns from hard labels.</div>
+    </div>
+    <div class="card" style="border-color:rgba(245,158,11,.3);">
+      <div style="font-size:22px;font-weight:800;color:var(--amber2);margin-bottom:4px;">T = 3–7</div>
+      <div class="card-title" style="color:var(--amber2);">Hinton's Sweet Spot</div>
+      <div class="card-body">The original paper uses T=3–8 for most experiments. Probability spreads enough to make class similarities visible while maintaining useful signal. The gradient scaling t² ensures proper weighting.</div>
+    </div>
+    <div class="card" style="border-color:rgba(34,197,94,.3);">
+      <div style="font-size:22px;font-weight:800;color:var(--green2);margin-bottom:4px;">T → ∞</div>
+      <div class="card-title" style="color:var(--green2);">Uniform Limit</div>
+      <div class="card-body">At very high T, all classes approach equal probability. At this limit, distillation reduces to directly matching the teacher's logits — equivalent to the logit matching in Bucilua et al. (2006) model compression.</div>
+    </div>
+  </div>
+
+  <div class="highlight-box amber">
+    <strong style="color:var(--amber2)">Important implementation note:</strong> When using temperature T during training, the distillation loss must be multiplied by T² to compensate for the reduced gradient magnitude at higher temperatures. This keeps the effective gradient scale constant regardless of temperature choice.
+  </div>
+</div>
+
+<!-- ── Section 4: The Math ─────────────────────────────── -->
+<div class="section" id="s-math">
+  <div class="section-tag" style="color:var(--indigo2)">Formalism</div>
+  <h2 class="section-title">The Math</h2>
+  <p class="section-sub">Three equations define the full distillation framework. Each has an intuitive interpretation alongside the formalism.</p>
+
+  <!-- Loss components interactive -->
+  <div class="btn-row">
+    <button class="btn-tab active" onclick="showLoss('soft',this)">Soft Loss (L_KD)</button>
+    <button class="btn-tab" onclick="showLoss('hard',this)">Hard Loss (L_CE)</button>
+    <button class="btn-tab" onclick="showLoss('combined',this)">Combined Loss</button>
+  </div>
+  <div id="loss-display" style="margin-bottom:20px;"></div>
+
+  <!-- Loss weighting visualizer -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-title" style="color:var(--indigo2)">Loss Weight Tuning — α controls the teacher/label balance</div>
+    <div class="slider-wrap" style="margin-top:14px;">
+      <span class="slider-label">α (teacher weight)</span>
+      <input type="range" id="alphaSlider" min="0" max="100" value="70" step="5" oninput="updateAlpha()">
+      <span class="slider-val" id="alphaVal" style="color:var(--indigo2);">α = 0.7</span>
+    </div>
+    <canvas id="alphaCanvas" width="780" height="100" style="border:none;background:transparent;margin-top:8px;"></canvas>
+    <div style="font-size:11px;color:var(--muted);margin-top:10px;" id="alpha-desc"></div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title" style="color:var(--orange2)">The t² Scaling Factor — Why It's Necessary</div>
+      <div class="card-body">
+        When the temperature T is raised, the soft softmax outputs become smaller in magnitude. This means the gradients flowing back to the student are also smaller — by a factor of 1/T².<br><br>
+        Multiplying the distillation loss by T² compensates for this: it keeps the gradient magnitude consistent regardless of the temperature setting, letting you compare results across different T values fairly.
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--green2)">High-Temperature Limit → Logit Matching</div>
+      <div class="card-body">
+        At very high T, the soft distillation loss approaches:<br><br>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--indigo3);">L_KD ≈ (1/2N) Σ (z_i − ẑ_i)²</span><br><br>
+        This is exactly the mean squared error between student and teacher logits — identical to the earlier model compression approach (Bucilua et al., 2006). KD at high T is therefore a principled generalization of direct logit matching.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 5: Types of Knowledge ─────────────────── -->
+<div class="section" id="s-types">
+  <div class="section-tag" style="color:var(--purple2)">Taxonomy</div>
+  <h2 class="section-title">Three Types of Knowledge</h2>
+  <p class="section-sub">The Hinton paper focuses on response-based knowledge. But subsequent work identified two additional types — what the teacher's intermediate layers know, and how inputs relate to each other.</p>
+
+  <div class="grid3" style="margin-bottom:20px;">
+    <div class="ktype-card active" id="kt-resp" onclick="selectKtype('resp')" style="--active-color:var(--indigo);">
+      <div class="ktype-icon">📤</div>
+      <div class="ktype-title" style="color:var(--indigo2);">Response-Based</div>
+      <div class="ktype-sub">Learn from the teacher's final output layer — soft probabilities or logits. This is Hinton's original formulation.</div>
+    </div>
+    <div class="ktype-card" id="kt-feat" onclick="selectKtype('feat')" style="--active-color:var(--orange);">
+      <div class="ktype-icon">🔬</div>
+      <div class="ktype-title" style="color:var(--orange2);">Feature-Based</div>
+      <div class="ktype-sub">Match intermediate layer activations — not just final outputs. TinyBERT uses this to distill attention maps and hidden states.</div>
+    </div>
+    <div class="ktype-card" id="kt-rel" onclick="selectKtype('rel')" style="--active-color:var(--teal);">
+      <div class="ktype-icon">🔗</div>
+      <div class="ktype-title" style="color:var(--teal2);">Relation-Based</div>
+      <div class="ktype-sub">Match the relationships between different examples or layers — correlation matrices, flow of solution, inter-class distances.</div>
+    </div>
+  </div>
+
+  <div id="ktype-detail" style="margin-bottom:20px;"></div>
+
+  <!-- Comparison table -->
+  <div class="card">
+    <div class="card-title" style="color:var(--amber2)">Which Type to Use?</div>
+    <div style="overflow-x:auto;margin-top:12px;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead>
+          <tr>
+            <th style="padding:8px 12px;text-align:left;background:rgba(255,255,255,.03);color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border);">Property</th>
+            <th style="padding:8px 12px;text-align:left;background:rgba(255,255,255,.03);color:var(--indigo2);font-size:9px;text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border);">Response-Based</th>
+            <th style="padding:8px 12px;text-align:left;background:rgba(255,255,255,.03);color:var(--orange2);font-size:9px;text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border);">Feature-Based</th>
+            <th style="padding:8px 12px;text-align:left;background:rgba(255,255,255,.03);color:var(--teal2);font-size:9px;text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border);">Relation-Based</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td style="padding:8px 12px;border-bottom:1px solid rgba(26,37,64,.5);font-weight:600;">Teacher access needed</td><td style="padding:8px 12px;border-bottom:1px solid rgba(26,37,64,.5);color:var(--green2);">Output only</td><td style="padding:8px 12px;border-bottom:1px solid rgba(26,37,64,.5);color:var(--amber2);">Internal layers</td><td style="padding:8px 12px;border-bottom:1px solid rgba(26,37,64,.5);color:var(--amber2);">Internal layers</td></tr>
+          <tr><td style="padding:8px 12px;border-bottom:1px solid rgba(26,37,64,.5);font-weight:600;">Architecture constraint</td><td style="padding:8px 12px;border-bottom:1px solid rgba(26,37,64,.5);color:var(--green2);">None — any student</td><td style="padding:8px 12px;border-bottom:1px solid rgba(26,37,64,.5);color:var(--red2);">Same/similar architecture</td><td style="padding:8px 12px;border-bottom:1px solid rgba(26,37,64,.5);color:var(--amber2);">Partial constraint</td></tr>
+          <tr><td style="padding:8px 12px;border-bottom:1px solid rgba(26,37,64,.5);font-weight:600;">Information richness</td><td style="padding:8px 12px;border-bottom:1px solid rgba(26,37,64,.5);color:var(--amber2);">Medium</td><td style="padding:8px 12px;border-bottom:1px solid rgba(26,37,64,.5);color:var(--green2);">High</td><td style="padding:8px 12px;border-bottom:1px solid rgba(26,37,64,.5);color:var(--green2);">High</td></tr>
+          <tr><td style="padding:8px 12px;border-bottom:1px solid rgba(26,37,64,.5);font-weight:600;">Implementation complexity</td><td style="padding:8px 12px;border-bottom:1px solid rgba(26,37,64,.5);color:var(--green2);">Simple</td><td style="padding:8px 12px;border-bottom:1px solid rgba(26,37,64,.5);color:var(--red2);">Complex</td><td style="padding:8px 12px;border-bottom:1px solid rgba(26,37,64,.5);color:var(--red2);">Complex</td></tr>
+          <tr><td style="padding:8px 12px;font-weight:600;">Best for</td><td style="padding:8px 12px;color:var(--muted);">API-only teachers, cross-architecture</td><td style="padding:8px 12px;color:var(--muted);">Transformer-to-Transformer (TinyBERT)</td><td style="padding:8px 12px;color:var(--muted);">Few-shot, graph, metric learning</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 6: Training Modes ─────────────────────── -->
+<div class="section" id="s-modes">
+  <div class="section-tag" style="color:var(--teal2)">Training Schemes</div>
+  <h2 class="section-title">Three Training Modes</h2>
+  <p class="section-sub">How and when the teacher is used during student training defines three distinct distillation paradigms — each with different requirements, advantages, and use cases.</p>
+
+  <div class="grid3" style="margin-bottom:24px;">
+    <div class="card" style="border-color:rgba(99,102,241,.3);">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--indigo2);margin-bottom:8px;">Offline Distillation</div>
+      <div style="font-size:28px;margin-bottom:8px;">📚</div>
+      <div class="card-body">
+        <strong style="color:var(--text);">Process:</strong> Train the teacher fully, freeze it, then train the student on teacher-generated soft labels.<br><br>
+        <strong style="color:var(--text);">Advantage:</strong> Simple, decoupled — teacher and student training are independent.<br><br>
+        <strong style="color:var(--text);">Disadvantage:</strong> Teacher's knowledge is static. Student cannot influence what the teacher attends to.<br><br>
+        <strong style="color:var(--green2);">Used by:</strong> Original Hinton (2015), DistilBERT
+      </div>
+    </div>
+    <div class="card" style="border-color:rgba(249,115,22,.3);">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--orange2);margin-bottom:8px;">Online Distillation</div>
+      <div style="font-size:28px;margin-bottom:8px;">⚡</div>
+      <div class="card-body">
+        <strong style="color:var(--text);">Process:</strong> Teacher and student train simultaneously. The teacher updates based on the student's progress, creating a dynamic curriculum.<br><br>
+        <strong style="color:var(--text);">Advantage:</strong> No pre-training overhead. Teacher adapts to student's learning state.<br><br>
+        <strong style="color:var(--text);">Disadvantage:</strong> More complex training setup. Unstable if teacher isn't significantly stronger than student.<br><br>
+        <strong style="color:var(--green2);">Used by:</strong> Deep Mutual Learning (DML), online ensemble methods
+      </div>
+    </div>
+    <div class="card" style="border-color:rgba(20,184,166,.3);">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--teal2);margin-bottom:8px;">Self-Distillation</div>
+      <div style="font-size:28px;margin-bottom:8px;">🪞</div>
+      <div class="card-body">
+        <strong style="color:var(--text);">Process:</strong> The model teaches itself — either earlier layers teach later ones, or later epochs teach earlier ones. No separate teacher needed.<br><br>
+        <strong style="color:var(--text);">Advantage:</strong> No teacher model required. Can regularize and improve any network.<br><br>
+        <strong style="color:var(--text);">Disadvantage:</strong> Limited by the model's own knowledge — cannot exceed its capacity.<br><br>
+        <strong style="color:var(--green2);">Used by:</strong> Born-Again Networks, Progressive Self-Distillation
+      </div>
+    </div>
+  </div>
+
+  <!-- Specialist networks -->
+  <div class="card">
+    <div class="card-title" style="color:var(--amber2)">Hinton's Specialist Networks — Ensemble Distillation at Scale</div>
+    <div class="grid2" style="margin-top:10px;">
+      <div class="card-body">
+        The original paper also introduces a novel ensemble type: one full generalist model + many small specialist models, each trained to distinguish fine-grained subsets of classes.<br><br>
+        <strong style="color:var(--text);">Example:</strong> For ImageNet with 1,000 classes, specialists each focus on confusable subsets — e.g., specialist for dog breeds, specialist for bird species. Each trains fast in parallel.<br><br>
+        <strong style="color:var(--text);">Distillation role:</strong> The ensemble of specialists is then distilled into a single student that captures the fine-grained discrimination of all specialists.
+      </div>
+      <div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:11px;">
+          <div style="padding:10px;background:rgba(99,102,241,.06);border-radius:6px;border:1px solid rgba(99,102,241,.2);">
+            <div style="font-weight:700;color:var(--indigo2);margin-bottom:3px;">Generalist model</div>
+            <div style="color:var(--muted);">Trained on all 1,000 classes. Handles most inputs. Routes uncertain cases to specialists.</div>
+          </div>
+          <div style="padding:10px;background:rgba(249,115,22,.06);border-radius:6px;border:1px solid rgba(249,115,22,.2);">
+            <div style="font-weight:700;color:var(--orange2);margin-bottom:3px;">Specialist models (×K)</div>
+            <div style="color:var(--muted);">Each trained on a confusable subset + a halved "dustbin" of other classes. Trains on 1/K of total data — rapid parallel training.</div>
+          </div>
+          <div style="padding:10px;background:rgba(34,197,94,.06);border-radius:6px;border:1px solid rgba(34,197,94,.2);">
+            <div style="font-weight:700;color:var(--green2);margin-bottom:3px;">Distilled student</div>
+            <div style="color:var(--muted);">Single model trained on the combined soft targets of the full ensemble — capturing both generalist and specialist knowledge.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 7: Real-World Results ─────────────────── -->
+<div class="section" id="s-results">
+  <div class="section-tag" style="color:var(--green2)">Empirical Evidence</div>
+  <h2 class="section-title">Real-World Results</h2>
+  <p class="section-sub">From Hinton's original MNIST experiments to production speech models to BERT compression — knowledge distillation consistently delivers near-teacher performance at student-model cost.</p>
+
+  <canvas id="resultsChart" width="820" height="300" style="margin-bottom:24px;"></canvas>
+
+  <div class="grid2" style="margin-bottom:20px;">
+    <div>
+      <div class="accordion-item open">
+        <div class="accordion-header" onclick="toggleAcc(this)">
+          <span>MNIST — Hinton's Surprising Result</span>
+          <span class="accordion-chevron">›</span>
+        </div>
+        <div class="accordion-body">
+          Hinton's original experiment trained a student on MNIST with <strong>no knowledge that 3 exists as a digit</strong> — the student never saw a "3" in its training data. Yet after distillation from a teacher that had seen 3s, the student correctly classified most "3" test examples. The soft targets from the teacher — which showed that "2"s and "8"s look somewhat like "3"s — transferred enough information about the "3" manifold for the student to generalize. This is the clearest demonstration of dark knowledge transfer.
+        </div>
+      </div>
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAcc(this)">
+          <span>Speech Recognition — Commercial Scale</span>
+          <span class="accordion-chevron">›</span>
+        </div>
+        <div class="accordion-body">
+          Hinton et al. applied distillation to Google's commercial speech recognition system. A single distilled acoustic model matched the performance of an ensemble of 10 models — while being 10× smaller. The distilled model achieved a Word Error Rate (WER) that was significantly better than any single model trained from scratch, and matched the ensemble on held-out test sets.
+        </div>
+      </div>
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAcc(this)">
+          <span>DistilBERT — 40% smaller, 97% performance</span>
+          <span class="accordion-chevron">›</span>
+        </div>
+        <div class="accordion-body">
+          Sanh et al. (2019) distilled BERT-base (110M params) into DistilBERT (66M params) using offline response-based distillation with a triple loss: language modeling + distillation + cosine distance. Result: 40% smaller, 60% faster at inference, 97% of BERT's GLUE benchmark performance retained. Crucially, distillation happened at <em>pre-training time</em> — not just fine-tuning — allowing knowledge transfer of the full language model, not just task-specific behavior.
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAcc(this)">
+          <span>TinyBERT — 7.5× compression, 9.4× faster</span>
+          <span class="accordion-chevron">›</span>
+        </div>
+        <div class="accordion-body">
+          Jiao et al. (2019) used <strong>feature-based distillation</strong> (matching attention matrices and hidden states layer-by-layer) plus a two-stage approach: general pre-training distillation + task-specific distillation. The 4-layer TinyBERT (14.5M params vs BERT-base 110M) achieves 96.8% of BERT-base performance on GLUE while being 7.5× smaller and 9.4× faster. Layer-wise distillation is key — the student learns the structure of each transformer layer, not just the final output.
+        </div>
+      </div>
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAcc(this)">
+          <span>MobileNet / EfficientNet — Vision Models</span>
+          <span class="accordion-chevron">›</span>
+        </div>
+        <div class="accordion-body">
+          Distillation has been central to deploying vision models on mobile devices. MobileNet variants trained with distillation from ResNet/EfficientNet teachers achieve near-teacher accuracy at 4–10× compression. Google's use of distillation in production computer vision pipelines — image search, photo organization, OCR — represents billions of daily inference calls running on compressed student models.
+        </div>
+      </div>
+      <div class="highlight-box green" style="margin-top:8px;">
+        <strong style="color:var(--green2)">Consistent pattern:</strong> Across domains (vision, NLP, speech), distillation students trained on soft targets consistently outperform students of the same size trained on hard labels — often matching teachers 3–10× their size.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 8: LLM Distillation ───────────────────── -->
+<div class="section" id="s-llm">
+  <div class="section-tag" style="color:var(--indigo2)">Modern Context</div>
+  <h2 class="section-title">Knowledge Distillation in the LLM Era</h2>
+  <p class="section-sub">Distillation has evolved significantly for large language models — where the "teacher" may be an API-only model, the student architecture differs substantially, and the knowledge to transfer is generative rather than classificatory.</p>
+
+  <!-- LLM distillation types -->
+  <div class="btn-row">
+    <button class="btn-tab active" onclick="showLLMMode('standard',this)">Standard KD</button>
+    <button class="btn-tab" onclick="showLLMMode('seq',this)">Sequence-Level KD</button>
+    <button class="btn-tab" onclick="showLLMMode('rlhf',this)">RLHF + KD</button>
+    <button class="btn-tab" onclick="showLLMMode('speculative',this)">Speculative Decoding</button>
+  </div>
+  <div id="llm-mode-display" style="margin-bottom:20px;"></div>
+
+  <!-- Model comparison -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-title" style="color:var(--indigo2)">LLM Distillation Results — Size vs. Performance</div>
+    <canvas id="llmChart" width="780" height="260" style="margin-top:14px;border:none;background:transparent;"></canvas>
+  </div>
+
+  <!-- Challenges -->
+  <div class="card">
+    <div class="card-title" style="color:var(--red2)">Challenges Unique to LLM Distillation</div>
+    <div class="grid3" style="margin-top:10px;">
+      <div style="padding:14px;background:rgba(239,68,68,.05);border:1px solid rgba(239,68,68,.15);border-radius:8px;">
+        <div style="font-size:11px;font-weight:700;color:var(--red2);margin-bottom:6px;">Vocabulary mismatch</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.5;">Teacher and student may use different tokenizers — making direct token-level KD impossible. Requires mapping or using teacher-generated text as training data rather than raw logits.</div>
+      </div>
+      <div style="padding:14px;background:rgba(249,115,22,.05);border:1px solid rgba(249,115,22,.15);border-radius:8px;">
+        <div style="font-size:11px;font-weight:700;color:var(--orange2);margin-bottom:6px;">API-only teachers</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.5;">GPT-4, Claude, Gemini expose only sampled outputs — not logits. Students must learn from sequences rather than probability distributions, losing the soft target advantage.</div>
+      </div>
+      <div style="padding:14px;background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.15);border-radius:8px;">
+        <div style="font-size:11px;font-weight:700;color:var(--amber2);margin-bottom:6px;">Exposure bias</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.5;">In generation tasks, the student is trained on teacher-generated sequences but must generate its own at inference — creating a train/test distribution mismatch that doesn't exist in classification KD.</div>
+      </div>
+      <div style="padding:14px;background:rgba(139,92,246,.05);border:1px solid rgba(139,92,246,.15);border-radius:8px;">
+        <div style="font-size:11px;font-weight:700;color:var(--purple2);margin-bottom:6px;">Capacity gap</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.5;">When the teacher is 100× larger than the student, the student simply cannot represent everything the teacher knows. Too large a gap leads to "student confusion" — the soft targets are too spread to be useful signals.</div>
+      </div>
+      <div style="padding:14px;background:rgba(20,184,166,.05);border:1px solid rgba(20,184,166,.15);border-radius:8px;">
+        <div style="font-size:11px;font-weight:700;color:var(--teal2);margin-bottom:6px;">Data provenance</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.5;">Using a commercial API's outputs (e.g., GPT-4) to train a smaller model may violate the API's Terms of Use — exactly the issue identified in the Data Provenance blog. Alpaca was trained on GPT-3 outputs and carries this restriction.</div>
+      </div>
+      <div style="padding:14px;background:rgba(99,102,241,.05);border:1px solid rgba(99,102,241,.15);border-radius:8px;">
+        <div style="font-size:11px;font-weight:700;color:var(--indigo2);margin-bottom:6px;">Hallucination transfer</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.5;">A student that faithfully learns from a teacher also learns the teacher's hallucinations and biases. If the teacher confabulates, the student learns to confabulate — often more confidently than the teacher did.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 9: Paper Source ────────────────────────── -->
+<div class="section" id="s-paper" style="min-height:auto;padding-bottom:60px;">
+  <div class="section-tag" style="color:var(--muted)">Citations</div>
+  <h2 class="section-title">Paper Sources</h2>
+  <p class="section-sub">This visual summary is based on the following papers.</p>
+
+  <div class="paper-source">
+    <div class="paper-source-title">Primary Reference</div>
+    <div class="paper-ref">
+      <span>Hinton, Vinyals & Dean</span> (Google Brain) — "<strong>Distilling the Knowledge in a Neural Network</strong>" — <span>NIPS 2014 Deep Learning Workshop</span>, arXiv: <span>1503.02531</span> (2015). Introduces temperature scaling, soft targets, dark knowledge, and specialist network ensembles. The foundational paper that named and formalized knowledge distillation.
+    </div>
+    <a class="paper-btn" href="https://arxiv.org/abs/1503.02531" target="_blank">↗ arXiv 1503.02531</a>
+  </div>
+
+  <div class="paper-source">
+    <div class="paper-source-title">Key Follow-on Papers</div>
+    <div class="paper-ref" style="margin-bottom:10px;">
+      <span>Sanh et al.</span> — "<strong>DistilBERT, a distilled version of BERT: smaller, faster, cheaper and lighter</strong>" — NeurIPS 2019 Workshop. arXiv: <span>1910.01108</span>. 40% size reduction, 97% performance, 60% faster. Introduces pre-training-time distillation for language models.
+    </div>
+    <div class="paper-ref" style="margin-bottom:10px;">
+      <span>Jiao et al.</span> — "<strong>TinyBERT: Distilling BERT for Natural Language Understanding</strong>" — EMNLP 2020. arXiv: <span>1909.10351</span>. Layer-wise Transformer distillation. 7.5× smaller, 9.4× faster, 96.8% of BERT-base GLUE performance.
+    </div>
+    <div class="paper-ref" style="margin-bottom:0;">
+      <span>Gou et al.</span> — "<strong>Knowledge Distillation: A Survey</strong>" — IJCV 2021. arXiv: <span>2006.05525</span>. Comprehensive taxonomy of response-based, feature-based, and relation-based distillation. Covers offline, online, and self-distillation training schemes.
+    </div>
+  </div>
+</div>
+
+<!-- Continue Learning -->
+<div class="continue-strip">
+  <span class="continue-label">Continue Learning</span>
+  <a class="continue-link" href="../36-data-provenance/">
+    <div class="continue-dir">Related</div>
+    <div>Data Provenance — Training Data Licensing</div>
+  </a>
+  <a class="continue-link" href="../35-agent-harness/">
+    <div class="continue-dir">Related</div>
+    <div>Agent Harness Engineering</div>
+  </a>
+  <a class="continue-link" href="../15-dspy/">
+    <div class="continue-dir">Related</div>
+    <div>DSPy — Programmatic LLM Pipelines</div>
+  </a>
+  <a class="continue-link" href="../">
+    <div class="continue-dir">All Posts</div>
+    <div>Visual Summary Home</div>
+  </a>
+</div>
+
+</div><!-- /main -->
+
+<script>
+// ── Gate ─────────────────────────────────────────────────
+(function(){
+  const KEY='pg_unlocked_37',PASS='visual2025';
+  if(localStorage.getItem(KEY)==='1'){document.getElementById('gate').style.display='none';return;}
+  window.unlock=function(){
+    const v=document.getElementById('pw').value;
+    if(v===PASS){localStorage.setItem(KEY,'1');document.getElementById('gate').style.display='none';}
+    else{const e=document.getElementById('pw-err');e.style.display='block';setTimeout(()=>e.style.display='none',2200);}
+  };
+})();
+function goTo(id){document.getElementById(id)?.scrollIntoView({behavior:'smooth'});}
+function toggleAcc(h){h.parentElement.classList.toggle('open');}
+
+// ── Architecture Canvas ───────────────────────────────────
+(function(){
+  const c=document.getElementById('archCanvas');if(!c)return;
+  const ctx=c.getContext('2d'),W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+
+  const boxes=[
+    {label:'Training\nData',x:20,y:60,w:90,h:60,color:'#617090'},
+    {label:'Teacher\nModel\n(Large)',x:160,y:40,w:110,h:100,color:'#6366f1'},
+    {label:'Soft\nTargets\n(T>1)',x:330,y:55,w:90,h:70,color:'#f59e0b'},
+    {label:'Student\nModel\n(Small)',x:480,y:40,w:110,h:100,color:'#22c55e'},
+    {label:'Deployed\nModel',x:660,y:60,w:100,h:60,color:'#14b8a6'},
+  ];
+  const arrows=[[0,1],[1,2],[2,3],[3,4]];
+
+  function drawBox(b){
+    ctx.fillStyle=b.color+'22';ctx.strokeStyle=b.color+'99';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.roundRect(b.x,b.y,b.w,b.h,8);ctx.fill();ctx.stroke();
+    const lines=b.label.split('\n');
+    ctx.fillStyle='rgba(208,218,240,.9)';ctx.font='bold 11px Inter';ctx.textAlign='center';
+    lines.forEach((l,i)=>ctx.fillText(l,b.x+b.w/2,b.y+b.h/2+(i-(lines.length-1)/2)*14));
+  }
+
+  arrows.forEach(([a,b])=>{
+    const from=boxes[a],to=boxes[b];
+    const x1=from.x+from.w,y1=from.y+from.h/2;
+    const x2=to.x,y2=to.y+to.h/2;
+    ctx.strokeStyle='rgba(98,112,144,.5)';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='rgba(98,112,144,.7)';ctx.beginPath();ctx.moveTo(x2,y2-4);ctx.lineTo(x2+8,y2);ctx.lineTo(x2,y2+4);ctx.fill();
+  });
+  boxes.forEach(drawBox);
+
+  // Annotation: hard label path
+  ctx.strokeStyle='rgba(239,68,68,.4)';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+  ctx.beginPath();ctx.moveTo(55,60);ctx.lineTo(55,20);ctx.lineTo(535,20);ctx.lineTo(535,40);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='rgba(239,68,68,.7)';ctx.font='10px Inter';ctx.textAlign='center';
+  ctx.fillText('Hard labels (direct)',295,14);
+
+  ctx.fillStyle='rgba(245,158,11,.8)';ctx.font='bold 9px Inter';ctx.textAlign='center';
+  ctx.fillText('Soft targets (distillation)',375,130);
+})();
+
+// ── Hard / Soft label canvases ────────────────────────────
+const LOGITS=[3.2,-1.1,5.8,0.4,-0.9,1.2,-1.8,0.6,-0.3,0.1];
+const CLASSES=['0','1','2','3','4','5','6','7','8','9'];
+
+function softmax(logits,T){
+  const s=logits.map(z=>Math.exp(z/T));
+  const sum=s.reduce((a,b)=>a+b,0);
+  return s.map(v=>v/sum);
+}
+
+function drawProbs(canvasId,probs,color,title){
+  const c=document.getElementById(canvasId);if(!c)return;
+  const ctx=c.getContext('2d');
+  const W=c.offsetWidth||c.width,H=c.height;
+  c.width=W;
+  ctx.clearRect(0,0,W,H);
+  const pad={l:28,r:10,t:24,b:28};
+  const cw=W-pad.l-pad.r,ch=H-pad.t-pad.b;
+  const bw=cw/probs.length-4;
+
+  ctx.fillStyle='rgba(98,112,144,.4)';ctx.font='10px Inter';ctx.textAlign='left';
+  ctx.fillText(title,pad.l,16);
+
+  probs.forEach((p,i)=>{
+    const x=pad.l+i*(bw+4);
+    const bh=ch*p;
+    const y=pad.t+ch-bh;
+    ctx.fillStyle=i===2?color:color+'55';
+    ctx.beginPath();ctx.roundRect(x,y,bw,bh,3);ctx.fill();
+    ctx.fillStyle='rgba(208,218,240,.7)';ctx.font='9px Inter';ctx.textAlign='center';
+    ctx.fillText(CLASSES[i],x+bw/2,pad.t+ch+14);
+    if(p>0.03){
+      ctx.fillStyle='rgba(208,218,240,.8)';ctx.font='bold 8px Inter';
+      ctx.fillText((p*100).toFixed(0)+'%',x+bw/2,y-3);
+    }
+  });
+}
+
+const hardProbs=[0,0,1,0,0,0,0,0,0,0];
+drawProbs('hardLabelCanvas',hardProbs,'#ef4444','Hard label: class "2" only');
+drawProbs('softLabelCanvas',softmax(LOGITS,4),'#22c55e','Teacher soft targets at T=4');
+
+// ── Temperature Explorer ──────────────────────────────────
+function updateTemp(){
+  const T=parseInt(document.getElementById('tempSlider').value);
+  document.getElementById('tempVal').textContent='T = '+T;
+  const probs=softmax(LOGITS,T);
+  const top=Math.max(...probs);
+  const entropy=-probs.reduce((s,p)=>p>1e-9?s+p*Math.log2(p):s,0);
+  const dark=probs.filter((p,i)=>i!==2).reduce((s,p)=>s+p,0);
+  document.getElementById('temp-entropy-val').textContent=entropy.toFixed(2)+' bits';
+  document.getElementById('temp-top-val').textContent=(top*100).toFixed(1)+'%';
+  document.getElementById('temp-dark-val').textContent=(dark*100).toFixed(1)+'% in non-top classes';
+
+  const c=document.getElementById('tempCanvas');if(!c)return;
+  const ctx=c.getContext('2d');const W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  const pad={l:30,r:20,t:30,b:28};
+  const cw=W-pad.l-pad.r,ch=H-pad.t-pad.b;
+  const bw=cw/probs.length-5;
+  const hue=T===1?'#ef4444':T<=5?'#f59e0b':T<=10?'#22c55e':'#6366f1';
+
+  probs.forEach((p,i)=>{
+    const x=pad.l+i*(bw+5);
+    const bh=ch*p;
+    const y=pad.t+ch-bh;
+    ctx.fillStyle=i===2?hue:hue+'77';
+    ctx.beginPath();ctx.roundRect(x,y,bw,bh,4);ctx.fill();
+    ctx.fillStyle='rgba(208,218,240,.7)';ctx.font='bold 10px Inter';ctx.textAlign='center';
+    ctx.fillText(CLASSES[i],x+bw/2,pad.t+ch+16);
+    if(p>0.015){
+      ctx.fillStyle='rgba(208,218,240,.85)';ctx.font='bold 9px Inter';
+      ctx.fillText((p*100).toFixed(1)+'%',x+bw/2,y-4);
+    }
+  });
+  ctx.fillStyle='rgba(98,112,144,.5)';ctx.font='10px Inter';ctx.textAlign='left';
+  ctx.fillText('Temperature T='+T+' — probability distribution across 10 MNIST classes',pad.l,16);
+}
+updateTemp();
+
+// ── Loss display ──────────────────────────────────────────
+const LOSSES={
+  soft:{
+    title:'Soft Distillation Loss — L_KD',color:'var(--indigo2)',
+    formula:'L_KD = −T² · Σᵢ  p̂ᵢ(T) · log pᵢ(T)\n\n  p̂ᵢ(T) = teacher soft probability for class i at temperature T\n  pᵢ(T)  = student soft probability for class i at temperature T\n  T²     = gradient scaling factor to compensate for softened outputs',
+    desc:'The student minimizes the KL divergence to the teacher\'s soft distribution. The T² factor ensures the gradient magnitude is temperature-invariant. This is the core KD loss — it captures all the dark knowledge in the teacher\'s probability distribution.',
+    use:'Use when: teacher is available as a model (not just API), and you want maximum knowledge transfer.'
+  },
+  hard:{
+    title:'Hard Label Loss — L_CE',color:'var(--orange2)',
+    formula:'L_CE = −Σᵢ  yᵢ · log pᵢ(1)\n\n  yᵢ   = one-hot ground truth label (1 for correct class, 0 otherwise)\n  pᵢ(1) = student probability at T=1 (standard softmax)\n\nStandard cross-entropy loss — identical to training without distillation.',
+    desc:'The standard supervised learning loss. Trains the student on the ground truth labels alone. Used alongside L_KD in Hinton\'s combined loss — ensures the student also learns from the labeled data, not only from the teacher.',
+    use:'Use when: you want to keep the student grounded on true labels alongside teacher soft targets.'
+  },
+  combined:{
+    title:'Combined Loss — Full Distillation Objective',color:'var(--green2)',
+    formula:'L = α · T² · L_KD  +  (1−α) · L_CE\n\n  α      = weight balancing teacher vs. ground truth (typically 0.7–0.9)\n  T²·L_KD = distillation loss (scaled for temperature invariance)\n  L_CE   = cross-entropy on hard labels (T=1)\n\nHinton notes: when labels are reliable, α can be set high (≈0.9).\nWhen labels are noisy, lower α and trust the teacher more.',
+    desc:'The full training objective balances two signals: the teacher\'s soft knowledge (carrying dark knowledge) and the ground truth labels (providing correct grounding). The hyperparameter α controls which matters more.',
+    use:'Use in practice: start with α=0.7, T=4. Tune based on validation performance — higher T for more compression, higher α when teacher is reliable.'
+  }
+};
+
+function showLoss(k,btn){
+  document.querySelectorAll('.btn-row .btn-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const d=LOSSES[k];
+  document.getElementById('loss-display').innerHTML=`
+    <div class="card" style="border-color:rgba(99,102,241,.2);">
+      <div class="card-title" style="color:${d.color}">${d.title}</div>
+      <div class="formula" style="margin-top:10px;">${d.formula}</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">${d.desc}</div>
+      <div style="font-size:11px;padding:8px 12px;background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.15);border-radius:6px;color:var(--green2);">${d.use}</div>
+    </div>
+  `;
+}
+showLoss('soft',document.querySelector('.btn-tab.active'));
+
+// ── Alpha slider ──────────────────────────────────────────
+function updateAlpha(){
+  const a=parseInt(document.getElementById('alphaSlider').value)/100;
+  document.getElementById('alphaVal').textContent='α = '+a.toFixed(2);
+  const c=document.getElementById('alphaCanvas');if(!c)return;
+  const ctx=c.getContext('2d');const W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  const pad={l:20,r:20,t:20,b:20};
+  const cw=W-pad.l-pad.r;
+
+  ctx.fillStyle='rgba(99,102,241,.7)';
+  ctx.fillRect(pad.l,pad.t,cw*a,H-pad.t-pad.b);
+  ctx.fillStyle='rgba(249,115,22,.7)';
+  ctx.fillRect(pad.l+cw*a,pad.t,cw*(1-a),H-pad.t-pad.b);
+
+  ctx.fillStyle='#fff';ctx.font='bold 11px Inter';ctx.textAlign='center';
+  if(a>0.12)ctx.fillText('Distillation L_KD  (α='+a.toFixed(2)+')',pad.l+cw*a/2,H/2+4);
+  if((1-a)>0.12)ctx.fillText('Hard labels L_CE  (1−α='+(1-a).toFixed(2)+')',pad.l+cw*a+cw*(1-a)/2,H/2+4);
+
+  const descs={
+    lo:'α < 0.3 — Ground truth dominates. Use when teacher is unreliable or labels are very clean.',
+    mid:'α ≈ 0.5–0.7 — Balanced. Good starting point for most distillation tasks.',
+    hi:'α > 0.8 — Teacher dominates. Use when teacher is strong and labels may be noisy. Hinton\'s recommended range.',
+  };
+  document.getElementById('alpha-desc').textContent=a<0.3?descs.lo:a<=0.7?descs.mid:descs.hi;
+}
+updateAlpha();
+
+// ── Knowledge Type explorer ───────────────────────────────
+const KTYPES={
+  resp:{
+    color:'var(--indigo)',
+    title:'Response-Based Distillation',
+    desc:'The student mimics the teacher\'s final output layer — the logits or soft probabilities. This is the original Hinton formulation. The teacher\'s posterior distribution across all classes carries rich information about the decision boundary geometry.',
+    how:'Student loss = KL divergence between student output and teacher output (both at temperature T). The teacher can be frozen — only its output is needed, not its internal activations.',
+    examples:'Original KD (Hinton 2015), DistilBERT (Sanh 2019), Alpaca (Stanford 2023)',
+    pros:'Works with any teacher-student architecture pair. Teacher accessible via API (just need logits). Simplest to implement.',
+    cons:'Only uses final layer — misses rich intermediate representations. Less effective when architectures differ significantly.'
+  },
+  feat:{
+    color:'var(--orange)',
+    title:'Feature-Based Distillation',
+    desc:'The student is trained to match not just the teacher\'s outputs but also its intermediate layer activations — attention maps, hidden states, and feature representations at multiple depths in the network.',
+    how:'Loss includes terms matching teacher and student activations at corresponding layers. A "hint" layer in the student is trained to match a "guided" layer in the teacher. For transformers: match attention weight matrices and feed-forward hidden states layer by layer.',
+    examples:'TinyBERT (Jiao 2019), FitNets (Romero 2015), BERT-PKD (Sun 2019)',
+    pros:'Transfers much richer knowledge — the full internal structure of the teacher. Students learn the geometry of the representation space, not just the final output.',
+    cons:'Requires access to teacher internals (not just outputs). Student and teacher architectures must be at least partially compatible. More complex training setup.'
+  },
+  rel:{
+    color:'var(--teal)',
+    title:'Relation-Based Distillation',
+    desc:'The student learns to reproduce the relationships between different examples or different layers — correlation matrices, inter-instance distances, and flow-of-solution patterns. Rather than matching absolute activations, it matches structural patterns.',
+    how:'Compute a relationship matrix between examples in a batch (e.g., cosine similarity matrix). Train the student to match this matrix from the teacher. The student learns which examples are "close" in the teacher\'s representation space.',
+    examples:'RKD (Park 2019), CRD (Tian 2019), Graph-based KD methods',
+    pros:'Does not require architecture compatibility. Captures higher-order structure (inter-sample relationships) that single-instance distillation misses. Effective for metric learning and few-shot tasks.',
+    cons:'Batch-level computation is expensive. Relationship matrices are quadratic in batch size. Less intuitive to tune than response-based methods.'
+  }
+};
+
+function selectKtype(k){
+  ['resp','feat','rel'].forEach(id=>{
+    document.getElementById('kt-'+id).classList.toggle('active',id===k);
+  });
+  const d=KTYPES[k];
+  document.getElementById('ktype-detail').innerHTML=`
+    <div class="card" style="border-color:rgba(99,102,241,.2);">
+      <div class="card-title" style="color:${d.color}">${d.title}</div>
+      <div class="grid2" style="margin-top:12px;">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:6px;">Core idea</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px;">${d.desc}</div>
+          <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:6px;">How it works</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.6;">${d.how}</div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--green2);margin-bottom:6px;">Strengths</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:10px;">${d.pros}</div>
+          <div style="font-size:11px;font-weight:700;color:var(--red2);margin-bottom:6px;">Limitations</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:10px;">${d.cons}</div>
+          <div style="font-size:11px;font-weight:700;color:var(--amber2);margin-bottom:6px;">Used in</div>
+          <div style="font-size:12px;color:var(--muted);">${d.examples}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+selectKtype('resp');
+
+// ── LLM Mode display ──────────────────────────────────────
+const LLM_MODES={
+  standard:{
+    title:'Standard Token-Level KD',color:'var(--indigo2)',
+    desc:'The teacher LLM generates soft probability distributions over vocabulary tokens at each decoding step. The student is trained to minimize KL divergence to these distributions — exactly Hinton\'s method applied token by token to autoregressive generation.',
+    req:'Requires logit access to teacher — works for open-weight models (Llama, Mistral, Qwen) but not API-only models.',
+    example:'Llama → smaller Llama variant. Teacher passes full vocabulary distributions at each token position. Student learns both the correct token AND which other tokens were plausible.'
+  },
+  seq:{
+    title:'Sequence-Level KD',color:'var(--orange2)',
+    desc:'Instead of token-level distributions, the teacher generates complete output sequences. The student is fine-tuned on these sequences as if they were ground truth. This works with API-only teachers that expose only sampled outputs — no logit access needed.',
+    req:'Only needs teacher text outputs — works with any API. Used to create datasets like Alpaca (GPT-3 outputs), Dolly (human-written teacher sequences), OpenAssistant.',
+    example:'Use GPT-4 to generate 50K instruction-response pairs. Fine-tune a smaller open-weight model on these sequences. Result: student trained on rich, diverse GPT-4 outputs without needing GPT-4\'s logits.'
+  },
+  rlhf:{
+    title:'RLHF + Distillation',color:'var(--teal2)',
+    desc:'Combine RLHF (learning human preferences) with distillation from a large reward model or reference model. The student policy is trained to maximize reward while staying close to the teacher policy via KL divergence — a KD term embedded in the RLHF objective.',
+    req:'Requires a trained reward model and a reference policy. The KL term prevents the student from collapsing to reward-gaming behaviors by staying close to teacher distribution.',
+    example:'InstructGPT-style training: student maximizes reward model score while KL(student || teacher) < ε. The teacher acts as a "behavioral anchor" preventing mode collapse.'
+  },
+  speculative:{
+    title:'Speculative Decoding — KD at Inference Time',color:'var(--green2)',
+    desc:'Not traditional training-time KD — but the same idea applied at inference. A small "draft" student model generates k tokens speculatively. A large teacher model verifies them in parallel. Tokens the teacher accepts are committed; rejected tokens trigger teacher regeneration.',
+    req:'Requires both models available at inference. The student must share vocabulary with the teacher. Speedup: 2–3× at no quality cost because verification is parallelizable while sequential generation is not.',
+    example:'Google\'s Medusa, Anthropic\'s speculative decoding in Claude. Student (1-3B) drafts 4-8 tokens. Teacher (70B+) accepts ~80% of them in one forward pass — net speedup ≈ 3× with identical output distribution.'
+  }
+};
+
+function showLLMMode(k,btn){
+  document.querySelectorAll('#llm-mode-display').forEach(()=>{});
+  document.querySelectorAll('.btn-row .btn-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const d=LLM_MODES[k];
+  document.getElementById('llm-mode-display').innerHTML=`
+    <div class="card" style="border-color:rgba(99,102,241,.2);">
+      <div class="card-title" style="color:${d.color}">${d.title}</div>
+      <div class="grid2" style="margin-top:10px;">
+        <div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:10px;">${d.desc}</div>
+          <div style="font-size:11px;padding:8px 12px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.15);border-radius:6px;color:var(--amber2);">${d.req}</div>
+        </div>
+        <div style="background:rgba(99,102,241,.04);border:1px solid rgba(99,102,241,.12);border-radius:8px;padding:14px;">
+          <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">Example</div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.6;">${d.example}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+showLLMMode('standard',document.querySelector('#s-llm .btn-tab'));
+
+// ── Results Chart ─────────────────────────────────────────
+(function(){
+  const c=document.getElementById('resultsChart');if(!c)return;
+  const ctx=c.getContext('2d'),W=c.width,H=c.height;
+  ctx.fillStyle='#0c1120';ctx.fillRect(0,0,W,H);
+
+  const models=[
+    {name:'BERT-base (Teacher)',params:110,glue:84.6,color:'#6366f1',speedx:1},
+    {name:'DistilBERT',params:66,glue:82.2,color:'#22c55e',speedx:1.6},
+    {name:'TinyBERT-4L',params:14.5,glue:82.5,color:'#14b8a6',speedx:9.4},
+    {name:'BERT-PKD-6',params:67,glue:81.7,color:'#f59e0b',speedx:2},
+    {name:'Student (scratch)',params:66,glue:78.0,color:'#ef4444',speedx:1.6},
+  ];
+
+  const pad={l:170,r:20,t:40,b:30};
+  const cw=W-pad.l-pad.r,ch=H-pad.t-pad.b;
+  const rowH=ch/models.length;
+  const maxGlue=88;const minGlue=75;
+
+  ctx.fillStyle='rgba(98,112,144,.5)';ctx.font='bold 10px Inter';ctx.textAlign='center';
+  ctx.fillText('GLUE Score',pad.l+cw/2,pad.t-16);
+
+  [76,78,80,82,84,86].forEach(v=>{
+    const x=pad.l+cw*(v-minGlue)/(maxGlue-minGlue);
+    ctx.strokeStyle='rgba(26,37,64,.8)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(x,pad.t);ctx.lineTo(x,pad.t+ch);ctx.stroke();
+    ctx.fillStyle='rgba(98,112,144,.5)';ctx.font='10px Inter';ctx.textAlign='center';
+    ctx.fillText(v,x,pad.t+ch+16);
+  });
+
+  models.forEach((m,i)=>{
+    const y=pad.t+i*rowH;
+    const bh=rowH*0.5;const by=y+(rowH-bh)/2;
+    const bw=cw*(m.glue-minGlue)/(maxGlue-minGlue);
+    ctx.fillStyle=m.color+'bb';
+    ctx.beginPath();ctx.roundRect(pad.l,by,bw,bh,4);ctx.fill();
+    ctx.fillStyle='rgba(204,214,240,.85)';ctx.font='bold 12px Inter';ctx.textAlign='right';
+    ctx.fillText(m.name,pad.l-10,by+bh/2+4);
+    ctx.fillStyle=m.color;ctx.font='bold 11px Inter';ctx.textAlign='left';
+    ctx.fillText(m.glue+'  ('+m.params+'M params)',pad.l+bw+8,by+bh/2+4);
+  });
+})();
+
+// ── LLM Chart ─────────────────────────────────────────────
+(function(){
+  const c=document.getElementById('llmChart');if(!c)return;
+  const ctx=c.getContext('2d'),W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+
+  const models=[
+    {name:'GPT-4 (Teacher)',size:'>1T',perf:95,color:'#6366f1',note:'API only'},
+    {name:'Claude 3.5 Sonnet',size:'~20B?',perf:91,color:'#818cf8',note:'API only'},
+    {name:'Llama 3.1 70B',size:'70B',perf:85,color:'#22c55e',note:'Open weights'},
+    {name:'Llama 3.1 8B',size:'8B',perf:73,color:'#4ade80',note:'Distilled'},
+    {name:'DistilBERT',size:'66M',perf:65,color:'#14b8a6',note:'KD from BERT'},
+    {name:'TinyBERT-4L',size:'14.5M',perf:62,color:'#2dd4bf',note:'Layer-wise KD'},
+  ];
+
+  const pad={l:180,r:80,t:30,b:20};
+  const cw=W-pad.l-pad.r,ch=H-pad.t-pad.b;
+  const rowH=ch/models.length;
+
+  models.forEach((m,i)=>{
+    const y=pad.t+i*rowH;
+    const bh=rowH*0.5;const by=y+(rowH-bh)/2;
+    const bw=cw*m.perf/100;
+    ctx.fillStyle=m.color+'99';
+    ctx.beginPath();ctx.roundRect(pad.l,by,bw,bh,4);ctx.fill();
+    ctx.fillStyle='rgba(204,214,240,.85)';ctx.font='bold 11px Inter';ctx.textAlign='right';
+    ctx.fillText(m.name,pad.l-10,by+bh/2+4);
+    ctx.fillStyle=m.color;ctx.font='bold 10px Inter';ctx.textAlign='left';
+    ctx.fillText(m.size+'  '+m.note,pad.l+bw+8,by+bh/2+4);
+  });
+
+  ctx.fillStyle='rgba(98,112,144,.5)';ctx.font='10px Inter';ctx.textAlign='left';
+  ctx.fillText('← Relative capability / MMLU-style benchmark performance (illustrative)',pad.l,H-4);
+})();
+</script>
+</body>
+</html>
