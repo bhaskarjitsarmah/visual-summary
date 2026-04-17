@@ -1,0 +1,1295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>The Data Provenance Crisis — Auditing 1,858 AI Training Datasets</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#07090f;--surface:#0d1220;--border:#1c2640;
+  --text:#d0daf0;--muted:#6278a0;
+  --amber:#f59e0b;--amber2:#fbbf24;--amber3:#fef3c7;
+  --green:#22c55e;--green2:#4ade80;
+  --red:#ef4444;--red2:#fca5a5;
+  --purple:#8b5cf6;--purple2:#a78bfa;
+  --teal:#14b8a6;--teal2:#2dd4bf;
+  --blue:#3b82f6;--blue2:#93c5fd;
+  --orange:#f97316;--orange2:#fb923c;
+  --c-comm:var(--green);--c-nc:var(--purple);--c-acad:var(--blue);--c-unspec:var(--muted);
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+/* ── Gate ─────────────────────────────────────────────── */
+#gate{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.gate-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 44px;text-align:center;max-width:380px;width:90%;}
+.gate-icon{font-size:36px;margin-bottom:12px;}
+.gate-title{font-size:20px;font-weight:800;color:var(--amber2);margin-bottom:4px;}
+.gate-sub{font-size:12px;color:var(--muted);margin-bottom:24px;}
+.gate-input{width:100%;background:#060810;border:1px solid var(--border);border-radius:8px;padding:11px 14px;font-size:14px;color:var(--text);outline:none;margin-bottom:12px;}
+.gate-input:focus{border-color:var(--amber);}
+.gate-btn{width:100%;background:var(--amber);color:#000;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s;}
+.gate-btn:hover{opacity:.85;}
+.gate-err{font-size:11px;color:var(--red);margin-top:6px;display:none;}
+/* ── Layout ───────────────────────────────────────────── */
+.sidebar{width:240px;min-width:240px;height:100vh;position:sticky;top:0;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:0 0 40px;flex-shrink:0;}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.sidebar-logo-title{font-size:13px;font-weight:700;color:var(--amber2);}
+.sidebar-logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.nav-group-title{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;padding:10px 16px 4px;}
+.nav-link{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;}
+.nav-link:hover,.nav-link.active{color:var(--text);background:rgba(245,158,11,.08);}
+.nav-link.active{color:var(--amber2);}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.main{flex:1;overflow-y:auto;height:100vh;scroll-behavior:smooth;}
+/* ── Pipeline bar ─────────────────────────────────────── */
+.pipeline-map{position:sticky;top:0;z-index:50;background:rgba(7,9,15,.96);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+.pipe-step{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);padding:2px 6px;border-radius:4px;cursor:pointer;transition:color .15s;}
+.pipe-step:hover{color:var(--text);}
+.pipe-dot{width:6px;height:6px;border-radius:50%;}
+.pipe-arrow{color:var(--border);font-size:12px;}
+/* ── Sections ─────────────────────────────────────────── */
+.section{min-height:100vh;padding:60px 48px 80px;border-bottom:1px solid var(--border);}
+.section-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;}
+.section-title{font-size:28px;font-weight:800;color:var(--text);margin-bottom:8px;line-height:1.25;}
+.section-sub{font-size:14px;color:var(--muted);margin-bottom:28px;max-width:700px;}
+/* ── Cards ────────────────────────────────────────────── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:16px;}
+.card-title{font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px;}
+.card-body{font-size:13px;color:var(--muted);line-height:1.6;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;}
+canvas{display:block;border-radius:10px;background:var(--surface);border:1px solid var(--border);}
+/* ── Buttons ──────────────────────────────────────────── */
+.btn{background:var(--amber);color:#000;border:none;border-radius:8px;padding:9px 18px;font-size:12px;font-weight:700;cursor:pointer;transition:opacity .15s;}
+.btn:hover{opacity:.85;}
+.btn-tab{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-tab.active{background:var(--amber);color:#000;border-color:var(--amber);}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+/* ── Stats ────────────────────────────────────────────── */
+.stats-row{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:28px;}
+.stat{text-align:center;}
+.stat-val{font-size:28px;font-weight:800;color:var(--amber2);}
+.stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;}
+/* ── Highlights ───────────────────────────────────────── */
+.highlight-box{border-left:3px solid var(--amber);padding:12px 16px;background:rgba(245,158,11,.06);border-radius:0 8px 8px 0;margin-bottom:16px;font-size:13px;color:var(--muted);}
+.highlight-box.red{border-color:var(--red);background:rgba(239,68,68,.06);}
+.highlight-box.green{border-color:var(--green);background:rgba(34,197,94,.06);}
+.highlight-box.purple{border-color:var(--purple);background:rgba(139,92,246,.06);}
+.highlight-box.teal{border-color:var(--teal);background:rgba(20,184,166,.06);}
+.highlight-box.blue{border-color:var(--blue);background:rgba(59,130,246,.06);}
+/* ── Accordion ────────────────────────────────────────── */
+.accordion-item{border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+.accordion-header{padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;background:var(--surface);}
+.accordion-header:hover{background:#111d30;}
+.accordion-chevron{transition:transform .2s;font-size:10px;color:var(--muted);}
+.accordion-item.open .accordion-chevron{transform:rotate(90deg);}
+.accordion-body{padding:14px 16px;font-size:12px;color:var(--muted);display:none;border-top:1px solid var(--border);line-height:1.7;}
+.accordion-item.open .accordion-body{display:block;}
+/* ── License badge ────────────────────────────────────── */
+.lic-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700;}
+.lic-comm{background:rgba(34,197,94,.15);color:var(--green2);}
+.lic-nc{background:rgba(139,92,246,.15);color:var(--purple2);}
+.lic-acad{background:rgba(59,130,246,.15);color:var(--blue2);}
+.lic-unspec{background:rgba(98,120,160,.15);color:var(--muted);}
+/* ── Platform rows ────────────────────────────────────── */
+.platform-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(28,38,64,.6);}
+.platform-name{font-size:12px;font-weight:600;min-width:140px;}
+.platform-bar-wrap{flex:1;height:8px;background:rgba(28,38,64,.8);border-radius:4px;overflow:hidden;}
+.platform-bar{height:100%;border-radius:4px;}
+.platform-pct{font-size:11px;font-weight:700;min-width:36px;text-align:right;}
+/* ── Provenance card ──────────────────────────────────── */
+.prov-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;font-family:'JetBrains Mono',monospace;font-size:11px;}
+.prov-card-header{font-size:13px;font-weight:700;color:var(--amber2);margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border);font-family:'Inter',sans-serif;}
+.prov-row{display:flex;gap:12px;margin-bottom:8px;}
+.prov-key{color:var(--muted);min-width:140px;flex-shrink:0;}
+.prov-val{color:var(--text);}
+/* ── Compare table ────────────────────────────────────── */
+.compare-table{width:100%;border-collapse:collapse;font-size:12px;}
+.compare-table th{padding:9px 12px;text-align:left;background:rgba(255,255,255,.03);color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border);}
+.compare-table td{padding:9px 12px;border-bottom:1px solid rgba(28,38,64,.5);vertical-align:middle;}
+.compare-table tr:hover td{background:rgba(245,158,11,.03);}
+/* ── Timeline ─────────────────────────────────────────── */
+.timeline{position:relative;padding-left:28px;}
+.timeline::before{content:'';position:absolute;left:7px;top:0;bottom:0;width:2px;background:var(--border);}
+.tl-item{position:relative;padding-bottom:24px;}
+.tl-dot{position:absolute;left:-24px;top:3px;width:14px;height:14px;border-radius:50%;border:2px solid var(--bg);}
+.tl-year{font-size:10px;font-weight:700;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:2px;}
+.tl-title{font-size:13px;font-weight:700;margin-bottom:4px;}
+.tl-desc{font-size:12px;color:var(--muted);line-height:1.6;}
+/* ── Geo bar ──────────────────────────────────────────── */
+.geo-item{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.geo-lang{font-size:11px;min-width:140px;font-weight:600;}
+.geo-bar-wrap{flex:1;height:6px;background:rgba(28,38,64,.8);border-radius:3px;overflow:hidden;}
+.geo-bar{height:100%;border-radius:3px;}
+.geo-pct{font-size:10px;min-width:36px;text-align:right;color:var(--muted);}
+/* ── Paper source ─────────────────────────────────────── */
+.paper-source{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px 26px;}
+.paper-source-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:14px;}
+.paper-ref{font-size:13px;line-height:1.7;color:var(--text);margin-bottom:14px;}
+.paper-ref span{color:var(--amber2);}
+.paper-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid var(--border);background:var(--bg);color:var(--muted);transition:all .15s;cursor:pointer;margin-right:8px;margin-bottom:8px;}
+.paper-btn:hover{border-color:var(--amber);color:var(--amber2);}
+/* ── Continue strip ───────────────────────────────────── */
+.continue-strip{background:var(--surface);border-top:1px solid var(--border);padding:24px 48px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.continue-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-right:4px;}
+.continue-link{display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--muted);transition:all .15s;}
+.continue-link:hover{border-color:var(--amber);color:var(--amber2);}
+.continue-dir{font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);}
+</style>
+</head>
+<body>
+
+<!-- Password Gate -->
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-icon">🔍</div>
+    <div class="gate-title">Data Provenance</div>
+    <div class="gate-sub">Visual Summary — Post 36</div>
+    <input class="gate-input" type="password" id="pw" placeholder="Enter password" onkeydown="if(event.key==='Enter')unlock()">
+    <button class="gate-btn" onclick="unlock()">Unlock</button>
+    <div class="gate-err" id="pw-err">Incorrect password</div>
+  </div>
+</div>
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-title">Data Provenance</div>
+    <div class="sidebar-logo-sub">Post 36 · Longpre et al., 2023</div>
+  </div>
+  <div class="nav-group-title">Contents</div>
+  <div class="nav-link" onclick="goTo('s-intro')"><span class="dot" style="background:var(--amber)"></span>Overview</div>
+  <div class="nav-link" onclick="goTo('s-crisis')"><span class="dot" style="background:var(--red)"></span>The License Crisis</div>
+  <div class="nav-link" onclick="goTo('s-landscape')"><span class="dot" style="background:var(--green)"></span>Dataset Landscape</div>
+  <div class="nav-link" onclick="goTo('s-licenses')"><span class="dot" style="background:var(--purple)"></span>License Categories</div>
+  <div class="nav-link" onclick="goTo('s-divide')"><span class="dot" style="background:var(--orange)"></span>The Data Divide</div>
+  <div class="nav-link" onclick="goTo('s-languages')"><span class="dot" style="background:var(--teal)"></span>Language Coverage</div>
+  <div class="nav-link" onclick="goTo('s-timeline')"><span class="dot" style="background:var(--amber)"></span>2023 Shift</div>
+  <div class="nav-link" onclick="goTo('s-legal')"><span class="dot" style="background:var(--red)"></span>Legal Landscape</div>
+  <div class="nav-link" onclick="goTo('s-cards')"><span class="dot" style="background:var(--blue)"></span>Provenance Cards</div>
+  <div class="nav-link" onclick="goTo('s-paper')"><span class="dot" style="background:var(--muted)"></span>Paper Source</div>
+</nav>
+
+<!-- Main -->
+<div class="main" id="main-content">
+
+<!-- Sticky pipeline -->
+<div class="pipeline-map">
+  <span class="pipe-step" onclick="goTo('s-intro')"><span class="pipe-dot" style="background:var(--amber)"></span>Overview</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-crisis')"><span class="pipe-dot" style="background:var(--red)"></span>Crisis</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-landscape')"><span class="pipe-dot" style="background:var(--green)"></span>Landscape</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-licenses')"><span class="pipe-dot" style="background:var(--purple)"></span>Licenses</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-divide')"><span class="pipe-dot" style="background:var(--orange)"></span>Divide</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-languages')"><span class="pipe-dot" style="background:var(--teal)"></span>Languages</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-timeline')"><span class="pipe-dot" style="background:var(--amber)"></span>2023 Shift</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-legal')"><span class="pipe-dot" style="background:var(--red)"></span>Legal</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-cards')"><span class="pipe-dot" style="background:var(--blue)"></span>Cards</span>
+</div>
+
+<!-- ── Section 1: Overview ────────────────────────────── -->
+<div class="section" id="s-intro">
+  <div class="section-tag" style="color:var(--amber2)">Post 36 · Data & Governance</div>
+  <h1 class="section-title">The Data Provenance Crisis</h1>
+  <p class="section-sub">Auditing 1,858 AI training datasets reveals a systemic breakdown in licensing transparency — where 70%+ of datasets have no documented license and more than half of reported licenses are wrong.</p>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val">1,858</div><div class="stat-lbl">Datasets audited</div></div>
+    <div class="stat"><div class="stat-val">44</div><div class="stat-lbl">Collections analyzed</div></div>
+    <div class="stat"><div class="stat-val">70%+</div><div class="stat-lbl">License omission rate</div></div>
+    <div class="stat"><div class="stat-val">66%</div><div class="stat-lbl">HuggingFace mismatch rate</div></div>
+    <div class="stat"><div class="stat-val">17</div><div class="stat-lbl">Authors (legal + ML)</div></div>
+  </div>
+
+  <div class="highlight-box">
+    <strong style="color:var(--amber2)">What is Data Provenance?</strong><br>
+    Data provenance tracks the complete lineage of a dataset — its original source, who created it, under what license, with what conditions, and how it has been transformed or repackaged. For AI training data, this determines what you are legally and ethically permitted to do with a trained model.
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title" style="color:var(--amber2)">Why It Matters Now</div>
+      <div class="card-body">Every foundation model and fine-tuned LLM was trained on datasets with licensing conditions. If those conditions prohibit commercial use — and you didn't check — your deployed product may be in violation. With 70%+ of datasets having undocumented licenses, most AI teams are flying blind.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--red2)">The Scale of the Problem</div>
+      <div class="card-body">The Data Provenance Initiative (Longpre et al., 2023) is the first large-scale audit of AI fine-tuning datasets. It brings together legal and ML experts to trace 1,858 datasets across 44 major collections — examining licenses, sources, creators, and downstream use restrictions.</div>
+    </div>
+  </div>
+
+  <div class="grid3" style="margin-top:4px;">
+    <div class="card">
+      <div class="card-title" style="color:var(--green2)">What Was Built</div>
+      <div class="card-body">The Data Provenance Explorer — an interactive interface at dataprovenance.org — lets practitioners filter and examine provenance metadata for any of the 1,858 audited datasets before using them in training.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--purple2)">Who Is at Risk</div>
+      <div class="card-body">Any team fine-tuning an LLM on open-source instruction datasets. The most popular datasets on HuggingFace have 100s to 10M+ monthly downloads — most without their users checking license conditions.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--teal2)">The Fix</div>
+      <div class="card-body">Data Provenance Cards — machine-readable metadata records that travel with datasets — capturing license, source, creator, attribution requirements, and share-alike conditions at scale.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 2: The License Crisis ─────────────────── -->
+<div class="section" id="s-crisis">
+  <div class="section-tag" style="color:var(--red2)">The Core Problem</div>
+  <h2 class="section-title">The License Crisis</h2>
+  <p class="section-sub">Across every major dataset hosting platform, the majority of datasets either have no documented license or have a license that misrepresents the actual terms.</p>
+
+  <div class="highlight-box red">
+    <strong style="color:var(--red2)">Root finding:</strong> The Data Provenance Initiative reduced unspecified license rates from 70%+ to 30% through manual auditing — meaning roughly 40% of "unlicensed" datasets actually had discoverable licenses that platforms simply failed to document.
+  </div>
+
+  <!-- Platform mismatch chart -->
+  <div class="grid2" style="margin-bottom:20px;">
+    <div class="card">
+      <div class="card-title" style="color:var(--red2)">License Omission by Platform</div>
+      <div class="card-body" style="margin-top:10px;">
+        <div class="platform-row">
+          <span class="platform-name">GitHub</span>
+          <div class="platform-bar-wrap"><div class="platform-bar" style="width:72%;background:var(--red);"></div></div>
+          <span class="platform-pct" style="color:var(--red2)">72%</span>
+        </div>
+        <div class="platform-row">
+          <span class="platform-name">Papers with Code</span>
+          <div class="platform-bar-wrap"><div class="platform-bar" style="width:70%;background:var(--red);"></div></div>
+          <span class="platform-pct" style="color:var(--red2)">70%</span>
+        </div>
+        <div class="platform-row">
+          <span class="platform-name">HuggingFace</span>
+          <div class="platform-bar-wrap"><div class="platform-bar" style="width:69%;background:var(--red);"></div></div>
+          <span class="platform-pct" style="color:var(--red2)">69%</span>
+        </div>
+        <div class="platform-row" style="border:none;">
+          <span class="platform-name">After DPI Audit</span>
+          <div class="platform-bar-wrap"><div class="platform-bar" style="width:30%;background:var(--green);"></div></div>
+          <span class="platform-pct" style="color:var(--green2)">30%</span>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:10px;">% of datasets with unspecified/missing license</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--orange2)">License Mismatch Rates</div>
+      <div class="card-body" style="margin-top:10px;">
+        <div class="platform-row">
+          <span class="platform-name">HuggingFace</span>
+          <div class="platform-bar-wrap"><div class="platform-bar" style="width:66%;background:var(--orange);"></div></div>
+          <span class="platform-pct" style="color:var(--orange2)">66%</span>
+        </div>
+        <div class="platform-row">
+          <span class="platform-name">GitHub (too permissive)</span>
+          <div class="platform-bar-wrap"><div class="platform-bar" style="width:29%;background:var(--orange);"></div></div>
+          <span class="platform-pct" style="color:var(--orange2)">29%</span>
+        </div>
+        <div class="platform-row">
+          <span class="platform-name">HuggingFace (too permissive)</span>
+          <div class="platform-bar-wrap"><div class="platform-bar" style="width:27%;background:var(--orange);"></div></div>
+          <span class="platform-pct" style="color:var(--orange2)">27%</span>
+        </div>
+        <div class="platform-row" style="border:none;">
+          <span class="platform-name">Papers with Code</span>
+          <div class="platform-bar-wrap"><div class="platform-bar" style="width:16%;background:var(--orange);"></div></div>
+          <span class="platform-pct" style="color:var(--orange2)">16%</span>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:10px;">% of datasets where platform license differs from author's intent</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top licenses -->
+  <div class="card">
+    <div class="card-title" style="color:var(--amber2)">Most Common Licenses Found</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px;">
+      <div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.2);border-radius:10px;padding:14px;text-align:center;">
+        <div style="font-size:18px;font-weight:800;color:var(--green2);margin-bottom:4px;">15.7%</div>
+        <div style="font-size:11px;font-weight:700;margin-bottom:4px;">CC-BY-SA 4.0</div>
+        <div style="font-size:10px;color:var(--muted);">Attribution + Share-Alike required</div>
+      </div>
+      <div style="background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:14px;text-align:center;">
+        <div style="font-size:18px;font-weight:800;color:var(--red2);margin-bottom:4px;">12.3%</div>
+        <div style="font-size:11px;font-weight:700;margin-bottom:4px;">OpenAI ToU</div>
+        <div style="font-size:10px;color:var(--muted);">Prohibits competing model training</div>
+      </div>
+      <div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.2);border-radius:10px;padding:14px;text-align:center;">
+        <div style="font-size:18px;font-weight:800;color:var(--green2);margin-bottom:4px;">11.6%</div>
+        <div style="font-size:11px;font-weight:700;margin-bottom:4px;">CC-BY 4.0</div>
+        <div style="font-size:10px;color:var(--muted);">Attribution only — commercially permissive</div>
+      </div>
+      <div style="background:rgba(98,120,160,.06);border:1px solid rgba(98,120,160,.2);border-radius:10px;padding:14px;text-align:center;">
+        <div style="font-size:18px;font-weight:800;color:var(--muted);margin-bottom:4px;">9.6%</div>
+        <div style="font-size:11px;font-weight:700;margin-bottom:4px;">Custom Licenses</div>
+        <div style="font-size:10px;color:var(--muted);">Bespoke terms — requires legal review</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid2" style="margin-top:8px;">
+    <div class="highlight-box">
+      <strong style="color:var(--amber2)">Attribution requirements:</strong> 85% of datasets require attribution — meaning you must credit the dataset creator. Most AI training pipelines do not do this.
+    </div>
+    <div class="highlight-box purple">
+      <strong style="color:var(--purple2)">Share-alike clauses:</strong> 30% of datasets require share-alike — meaning any model trained on them must be released under the same or compatible license. This directly conflicts with closed-source model releases.
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 3: Dataset Landscape ──────────────────── -->
+<div class="section" id="s-landscape">
+  <div class="section-tag" style="color:var(--green2)">Dataset Landscape</div>
+  <h2 class="section-title">What 1,858 Datasets Look Like</h2>
+  <p class="section-sub">The audit covers fine-tuning and alignment datasets — instruction-following, QA, classification, and generation tasks across 44 major collections.</p>
+
+  <canvas id="taskChart" width="820" height="260" style="margin-bottom:20px;"></canvas>
+
+  <div class="grid2" style="margin-bottom:20px;">
+    <div class="card">
+      <div class="card-title" style="color:var(--green2)">Primary Data Sources</div>
+      <div style="margin-top:10px;">
+        <div class="platform-row">
+          <span class="platform-name">Encyclopedias (Wikipedia)</span>
+          <div class="platform-bar-wrap"><div class="platform-bar" style="width:100%;background:var(--blue);"></div></div>
+          <span class="platform-pct" style="color:var(--blue2)">21.5%</span>
+        </div>
+        <div class="platform-row">
+          <span class="platform-name">Social Media (Reddit/Twitter)</span>
+          <div class="platform-bar-wrap"><div class="platform-bar" style="width:74%;background:var(--purple);"></div></div>
+          <span class="platform-pct" style="color:var(--purple2)">15.9%</span>
+        </div>
+        <div class="platform-row">
+          <span class="platform-name">General Web</span>
+          <div class="platform-bar-wrap"><div class="platform-bar" style="width:52%;background:var(--teal);"></div></div>
+          <span class="platform-pct" style="color:var(--teal2)">11.2%</span>
+        </div>
+        <div class="platform-row">
+          <span class="platform-name">News</span>
+          <div class="platform-bar-wrap"><div class="platform-bar" style="width:51%;background:var(--orange);"></div></div>
+          <span class="platform-pct" style="color:var(--orange2)">11.1%</span>
+        </div>
+        <div class="platform-row">
+          <span class="platform-name">Entertainment</span>
+          <div class="platform-bar-wrap"><div class="platform-bar" style="width:40%;background:var(--amber);"></div></div>
+          <span class="platform-pct" style="color:var(--amber2)">8.5%</span>
+        </div>
+        <div class="platform-row">
+          <span class="platform-name">Code (GitHub)</span>
+          <div class="platform-bar-wrap"><div class="platform-bar" style="width:26%;background:var(--green);"></div></div>
+          <span class="platform-pct" style="color:var(--green2)">5.7%</span>
+        </div>
+        <div class="platform-row" style="border:none;">
+          <span class="platform-name">Exams / Academic</span>
+          <div class="platform-bar-wrap"><div class="platform-bar" style="width:26%;background:var(--red);"></div></div>
+          <span class="platform-pct" style="color:var(--red2)">5.6%</span>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--amber2)">Creator Distribution</div>
+      <div style="margin-top:10px;">
+        <div class="platform-row">
+          <span class="platform-name">Academic institutions</span>
+          <div class="platform-bar-wrap"><div class="platform-bar" style="width:100%;background:var(--blue);"></div></div>
+          <span class="platform-pct" style="color:var(--blue2)">68.7%</span>
+        </div>
+        <div class="platform-row">
+          <span class="platform-name">Industry labs</span>
+          <div class="platform-bar-wrap"><div class="platform-bar" style="width:31%;background:var(--teal);"></div></div>
+          <span class="platform-pct" style="color:var(--teal2)">21.4%</span>
+        </div>
+        <div class="platform-row">
+          <span class="platform-name">Research groups</span>
+          <div class="platform-bar-wrap"><div class="platform-bar" style="width:25%;background:var(--green);"></div></div>
+          <span class="platform-pct" style="color:var(--green2)">17.1%</span>
+        </div>
+        <div class="platform-row">
+          <span class="platform-name">Corporations</span>
+          <div class="platform-bar-wrap"><div class="platform-bar" style="width:23%;background:var(--orange);"></div></div>
+          <span class="platform-pct" style="color:var(--orange2)">15.8%</span>
+        </div>
+        <div class="platform-row" style="border:none;">
+          <span class="platform-name">Startups</span>
+          <div class="platform-bar-wrap"><div class="platform-bar" style="width:6%;background:var(--purple);"></div></div>
+          <span class="platform-pct" style="color:var(--purple2)">4.0%</span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:14px;line-height:1.5;">Top academic contributors: UW (8.9%), Stanford (6.8%), NYU (5.4%). Top industry: FAIR (8.4%), MSR (4.1%), AI2 (12.3%).</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Format breakdown -->
+  <div class="card">
+    <div class="card-title" style="color:var(--teal2)">Dataset Format Types</div>
+    <div class="grid4" style="margin-top:12px;">
+      <div style="text-align:center;padding:12px;background:rgba(20,184,166,.06);border:1px solid rgba(20,184,166,.15);border-radius:8px;">
+        <div style="font-size:16px;font-weight:800;color:var(--teal2)">Zero-shot</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;">Direct instruction, no examples</div>
+      </div>
+      <div style="text-align:center;padding:12px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.15);border-radius:8px;">
+        <div style="font-size:16px;font-weight:800;color:var(--amber2)">Few-shot</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;">Instruction + k examples</div>
+      </div>
+      <div style="text-align:center;padding:12px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:8px;">
+        <div style="font-size:16px;font-weight:800;color:var(--blue2)">Chain-of-Thought</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;">Reasoning trace included</div>
+      </div>
+      <div style="text-align:center;padding:12px;background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.15);border-radius:8px;">
+        <div style="font-size:16px;font-weight:800;color:var(--purple2)">Multi-turn</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;">Conversational dialogue format</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 4: License Categories ─────────────────── -->
+<div class="section" id="s-licenses">
+  <div class="section-tag" style="color:var(--purple2)">License Taxonomy</div>
+  <h2 class="section-title">Four License Categories</h2>
+  <p class="section-sub">The audit classifies every dataset into one of four use-permission categories. Only 46% can be used commercially without restrictions.</p>
+
+  <canvas id="licenseChart" width="820" height="260" style="margin-bottom:24px;"></canvas>
+
+  <div class="grid4" style="margin-bottom:20px;">
+    <div class="card" style="border-color:rgba(34,197,94,.3);">
+      <div style="font-size:28px;font-weight:800;color:var(--green2);margin-bottom:4px;">46.1%</div>
+      <div class="card-title" style="color:var(--green2)">Commercial</div>
+      <div class="card-body">856 datasets. Can be used for any purpose including building commercial products. Examples: CC-BY 4.0, MIT, Apache 2.0, CC0.</div>
+    </div>
+    <div class="card" style="border-color:rgba(98,120,160,.3);">
+      <div style="font-size:28px;font-weight:800;color:var(--muted);margin-bottom:4px;">30.7%</div>
+      <div class="card-title" style="color:var(--muted)">Unspecified</div>
+      <div class="card-body">570 datasets. No license documented. Legally, all rights reserved by default — most restrictive interpretation is that commercial use is prohibited.</div>
+    </div>
+    <div class="card" style="border-color:rgba(139,92,246,.3);">
+      <div style="font-size:28px;font-weight:800;color:var(--purple2);margin-bottom:4px;">19.0%</div>
+      <div class="card-title" style="color:var(--purple2)">Non-Commercial</div>
+      <div class="card-body">352 datasets. Research and personal use only. Examples: CC-BY-NC 4.0, OpenAI ToU. Building a product on these may constitute infringement.</div>
+    </div>
+    <div class="card" style="border-color:rgba(59,130,246,.3);">
+      <div style="font-size:28px;font-weight:800;color:var(--blue2);margin-bottom:4px;">4.3%</div>
+      <div class="card-title" style="color:var(--blue2)">Academic-Only</div>
+      <div class="card-body">80 datasets. Restricted to academic research institutions. Cannot be used by industry teams, regardless of whether use is commercial.</div>
+    </div>
+  </div>
+
+  <!-- Attribution/share-alike -->
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title" style="color:var(--amber2)">Attribution Requirements</div>
+      <div style="margin-top:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:13px;">Require attribution</span>
+          <span style="font-size:20px;font-weight:800;color:var(--amber2)">85%</span>
+        </div>
+        <div style="background:rgba(28,38,64,.8);border-radius:6px;height:10px;overflow:hidden;">
+          <div style="width:85%;height:100%;background:var(--amber);border-radius:6px;"></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px;">Attribution means crediting the dataset creator in your model documentation, paper, and release notes. Most model cards do not do this.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--purple2)">Share-Alike Obligations</div>
+      <div style="margin-top:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:13px;">Include share-alike clause</span>
+          <span style="font-size:20px;font-weight:800;color:var(--purple2)">30%</span>
+        </div>
+        <div style="background:rgba(28,38,64,.8);border-radius:6px;height:10px;overflow:hidden;">
+          <div style="width:30%;height:100%;background:var(--purple);border-radius:6px;"></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px;">Share-alike requires releasing trained models under the same license. This is fundamentally incompatible with proprietary model releases — yet these datasets are widely used.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- License accordion -->
+  <div style="margin-top:16px;">
+    <div class="accordion-item open">
+      <div class="accordion-header" onclick="toggleAcc(this)">
+        <span>What does CC-BY-SA 4.0 actually mean for AI training?</span>
+        <span class="accordion-chevron">›</span>
+      </div>
+      <div class="accordion-body">
+        CC-BY-SA 4.0 (Creative Commons Attribution-ShareAlike) requires: (1) you credit the original creator, and (2) anything you create using this work must also be released under CC-BY-SA or a compatible license. For AI training, this means a model trained on CC-BY-SA data could be argued to require open-sourcing under the same terms. This is actively litigated — no definitive court ruling exists yet.
+      </div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAcc(this)">
+        <span>Why is the OpenAI Terms of Use (12.3%) so significant?</span>
+        <span class="accordion-chevron">›</span>
+      </div>
+      <div class="accordion-body">
+        The OpenAI ToU prohibits using outputs to "develop models that compete with OpenAI." This affects all datasets derived from ChatGPT/GPT-4 outputs — including widely-used instruction-following datasets like Alpaca, Dolly, and others built from GPT-generated data. Any model fine-tuned on these datasets carries this restriction transitively, whether or not the fine-tuner was aware.
+      </div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAcc(this)">
+        <span>What happens with Unspecified licenses?</span>
+        <span class="accordion-chevron">›</span>
+      </div>
+      <div class="accordion-body">
+        Under most copyright law, if no license is specified, all rights are reserved by default. This means the creator retains full copyright and no one has permission to use, copy, or distribute the work — including for AI training. Practitioners often treat "no license" as "free to use," which is legally incorrect and potentially infringes the creator's copyright.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 5: The Data Divide ────────────────────── -->
+<div class="section" id="s-divide">
+  <div class="section-tag" style="color:var(--orange2)">Structural Inequality</div>
+  <h2 class="section-title">The Data Availability Divide</h2>
+  <p class="section-sub">Non-commercial and academic-only datasets are systematically richer — more diverse, longer, and more multi-source — than commercially licensed datasets. This creates a capability gap for open commercial AI.</p>
+
+  <div class="highlight-box" style="border-color:var(--orange);background:rgba(249,115,22,.06);">
+    <strong style="color:var(--orange2)">The structural problem:</strong> The most capable and diverse datasets are locked behind non-commercial restrictions. Teams building commercial products are forced to use a subset of the data landscape that is shallower, less diverse, and more synthetic-data-poor.
+  </div>
+
+  <canvas id="divideChart" width="820" height="300" style="margin-bottom:24px;"></canvas>
+
+  <div class="grid2">
+    <div>
+      <div class="accordion-item open">
+        <div class="accordion-header" onclick="toggleAcc(this)">
+          <span style="display:flex;align-items:center;gap:8px;"><span style="color:var(--purple2)">■</span> Task Diversity: NC datasets have 2× more</span>
+          <span class="accordion-chevron">›</span>
+        </div>
+        <div class="accordion-body">
+          Non-commercial datasets average <strong>3.4±0.2 task types per dataset</strong> vs. <strong>1.7±0.1 for commercial</strong>. Creative tasks (brainstorming, creative writing, explanation) are disproportionately concentrated in non-commercial datasets. Commercial datasets skew heavily toward QA and classification.
+        </div>
+      </div>
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAcc(this)">
+          <span style="display:flex;align-items:center;gap:8px;"><span style="color:var(--red2)">■</span> Source Diversity: NC datasets have 2.6× more</span>
+          <span class="accordion-chevron">›</span>
+        </div>
+        <div class="accordion-body">
+          Non-commercial datasets average <strong>4.2±1.3 distinct data sources</strong> vs. <strong>1.6±0.1 for commercial</strong>. This reflects that academic dataset creators pull from wider pools (web, books, exams, social media) while commercial datasets are more focused and single-source.
+        </div>
+      </div>
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAcc(this)">
+          <span style="display:flex;align-items:center;gap:8px;"><span style="color:var(--amber2)">■</span> Text Length: NC datasets are 15× longer</span>
+          <span class="accordion-chevron">›</span>
+        </div>
+        <div class="accordion-body">
+          Non-commercial datasets have a mean target text length of <strong>1,580.7±965.6 tokens</strong> vs. <strong>102.7±14.6 for commercial</strong>. Long-form generation (essays, reports, summaries) is a non-commercial-only capability in the current dataset landscape.
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAcc(this)">
+          <span style="display:flex;align-items:center;gap:8px;"><span style="color:var(--teal2)">■</span> Synthetic Data: NC datasets have 3.5× more</span>
+          <span class="accordion-chevron">›</span>
+        </div>
+        <div class="accordion-body">
+          <strong>45.5%±3.4 of non-commercial dataset content is model-generated</strong> vs. <strong>12.8%±2.1 for commercial</strong>. This may appear counterintuitive — synthetic data is easier to generate commercially — but most synthetic datasets use GPT-4/ChatGPT outputs, which carry the OpenAI ToU non-commercial restriction.
+        </div>
+      </div>
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAcc(this)">
+          <span style="display:flex;align-items:center;gap:8px;"><span style="color:var(--green2)">■</span> Code datasets are the exception</span>
+          <span class="accordion-chevron">›</span>
+        </div>
+        <div class="accordion-body">
+          <strong>78% of code datasets are commercially viable</strong> — significantly higher than the overall average. GitHub's filtering by code license is easier (MIT, Apache, GPL are well-understood), and most code is written by individuals rather than organizations that impose non-commercial restrictions.
+        </div>
+      </div>
+      <div class="highlight-box" style="margin-top:12px;border-color:var(--orange);background:rgba(249,115,22,.06);">
+        <strong style="color:var(--orange2)">Implication for foundation models:</strong> The capability frontier — reasoning, creativity, long-form generation — is primarily trained on non-commercial datasets. Commercial fine-tuning is working with a structurally inferior subset.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 6: Language Coverage ──────────────────── -->
+<div class="section" id="s-languages">
+  <div class="section-tag" style="color:var(--teal2)">Geographic Coverage</div>
+  <h2 class="section-title">Language & Geographic Coverage</h2>
+  <p class="section-sub">English and Western European languages dominate the audited datasets. Low-resource languages are not only underrepresented — they are disproportionately locked behind non-commercial restrictions.</p>
+
+  <div class="grid2" style="margin-bottom:20px;">
+    <div class="card">
+      <div class="card-title" style="color:var(--teal2)">Language Family Coverage</div>
+      <div style="margin-top:10px;">
+        <div class="geo-item">
+          <span class="geo-lang">Germanic (English)</span>
+          <div class="geo-bar-wrap"><div class="geo-bar" style="width:100%;background:var(--blue);"></div></div>
+          <span class="geo-pct">Dominant</span>
+        </div>
+        <div class="geo-item">
+          <span class="geo-lang">Romance languages</span>
+          <div class="geo-bar-wrap"><div class="geo-bar" style="width:65%;background:var(--teal);"></div></div>
+          <span class="geo-pct">Moderate</span>
+        </div>
+        <div class="geo-item">
+          <span class="geo-lang">Sino-Tibetan (Chinese)</span>
+          <div class="geo-bar-wrap"><div class="geo-bar" style="width:28%;background:var(--amber);"></div></div>
+          <span class="geo-pct">Sparse</span>
+        </div>
+        <div class="geo-item">
+          <span class="geo-lang">Japonic</span>
+          <div class="geo-bar-wrap"><div class="geo-bar" style="width:18%;background:var(--amber);"></div></div>
+          <span class="geo-pct">Sparse</span>
+        </div>
+        <div class="geo-item">
+          <span class="geo-lang">Indo-Aryan</span>
+          <div class="geo-bar-wrap"><div class="geo-bar" style="width:14%;background:var(--orange);"></div></div>
+          <span class="geo-pct">Very sparse</span>
+        </div>
+        <div class="geo-item">
+          <span class="geo-lang">Turkic languages</span>
+          <div class="geo-bar-wrap"><div class="geo-bar" style="width:8%;background:var(--red);"></div></div>
+          <span class="geo-pct">Critical gap</span>
+        </div>
+        <div class="geo-item">
+          <span class="geo-lang">Niger-Congo (African)</span>
+          <div class="geo-bar-wrap"><div class="geo-bar" style="width:4%;background:var(--red);"></div></div>
+          <span class="geo-pct">Critical gap</span>
+        </div>
+        <div class="geo-item" style="margin-bottom:0;">
+          <span class="geo-lang">Indigenous Americas</span>
+          <div class="geo-bar-wrap"><div class="geo-bar" style="width:1%;background:var(--red);"></div></div>
+          <span class="geo-pct">Near absent</span>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:12px;">
+        <div class="card-title" style="color:var(--red2)">The Double Exclusion Problem</div>
+        <div class="card-body">Low-resource languages face two barriers: <br><br>
+          <strong style="color:var(--red2)">1. Underrepresentation</strong> — Fewer datasets exist in Turkic, Japonic, Sino-Tibetan, and African language families.<br><br>
+          <strong style="color:var(--purple2)">2. Commercial restriction</strong> — More than 35% of available low-resource language datasets are non-commercial or academic-only — a higher restriction rate than for English datasets.<br><br>
+          This means the communities with the least AI capability also face the most access barriers to building it.
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--green2)">The Code Exception (Again)</div>
+        <div class="card-body">Code datasets show the most balanced multilingual coverage because programming languages themselves are language-agnostic, and GitHub hosts code from developers worldwide. Python, JavaScript, Java, and C++ datasets are commercially available and globally contributed.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="highlight-box teal">
+    <strong style="color:var(--teal2)">The Bender Rule:</strong> The paper follows the "Bender Rule" of always documenting which languages a dataset covers — making language coverage a first-class attribute in every Data Provenance Card. Most existing dataset documentation fails this basic standard.
+  </div>
+</div>
+
+<!-- ── Section 7: 2023 Shift ──────────────────────────── -->
+<div class="section" id="s-timeline">
+  <div class="section-tag" style="color:var(--amber2)">Temporal Analysis</div>
+  <h2 class="section-title">The 2023 Licensing Shift</h2>
+  <p class="section-sub">Something changed in 2023. The proportion of new datasets with restrictive licenses jumped dramatically — likely in response to growing awareness of AI training data concerns and high-profile legal disputes.</p>
+
+  <canvas id="timelineChart" width="820" height="260" style="margin-bottom:24px;"></canvas>
+
+  <div class="grid3">
+    <div class="card" style="border-color:rgba(239,68,68,.3);">
+      <div class="card-title" style="color:var(--red2)">Pre-2023 Baseline</div>
+      <div style="font-size:24px;font-weight:800;color:var(--red2);margin:8px 0;">50–80%</div>
+      <div class="card-body">of datasets released before 2023 had no license at all. The ecosystem treated "open" as the default — no one expected their NLP dataset to become AI training fodder at scale.</div>
+    </div>
+    <div class="card" style="border-color:rgba(245,158,11,.3);">
+      <div class="card-title" style="color:var(--amber2)">2023 Unlicensed Rate</div>
+      <div style="font-size:24px;font-weight:800;color:var(--amber2);margin:8px 0;">Only 12%</div>
+      <div class="card-body">of new datasets released in 2023 had no license — a dramatic improvement. Dataset creators became aware that licensing their work mattered for AI use.</div>
+    </div>
+    <div class="card" style="border-color:rgba(139,92,246,.3);">
+      <div class="card-title" style="color:var(--purple2)">2023 NC/Academic Rate</div>
+      <div style="font-size:24px;font-weight:800;color:var(--purple2);margin:8px 0;">61%</div>
+      <div class="card-body">of new datasets in 2023 were released as non-commercial or academic-only — vs. ~20% in prior years. The reaction to commercialization of AI drove a sharp restriction turn.</div>
+    </div>
+  </div>
+
+  <div style="margin-top:20px;">
+    <div class="timeline">
+      <div class="tl-item">
+        <div class="tl-dot" style="background:var(--muted)"></div>
+        <div class="tl-year">2018–2021</div>
+        <div class="tl-title">The Wild West Era</div>
+        <div class="tl-desc">NLP datasets released primarily for academic benchmarking. Licensing treated as an afterthought — 50–80% have no license. No one anticipated billion-parameter models scraping everything in sight.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot" style="background:var(--amber)"></div>
+        <div class="tl-year">2022</div>
+        <div class="tl-title">ChatGPT Changes Everything</div>
+        <div class="tl-desc">GPT-3.5, ChatGPT, and instruction-following models go mainstream. Dataset creators begin to realize their work is being used in commercial products. First wave of CC-BY-NC restrictions on new releases.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot" style="background:var(--red)"></div>
+        <div class="tl-year">2023 Q1–Q2</div>
+        <div class="tl-title">Legal Disputes and Awareness Spike</div>
+        <div class="tl-desc">High-profile lawsuits (Authors Guild vs. OpenAI, Getty Images vs. Stability AI) bring copyright and licensing to mainstream attention. 61% of new 2023 datasets adopt NC/academic restrictions.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot" style="background:var(--green)"></div>
+        <div class="tl-year">2023 Q3</div>
+        <div class="tl-title">Data Provenance Initiative Published</div>
+        <div class="tl-desc">Longpre et al. publish the first large-scale audit of 1,858 datasets. DPExplorer launches at dataprovenance.org. The field finally has a reference for what the actual license situation looks like.</div>
+      </div>
+      <div class="tl-item" style="padding-bottom:0;">
+        <div class="tl-dot" style="background:var(--blue)"></div>
+        <div class="tl-year">2024–Present</div>
+        <div class="tl-title">New Licensing Frameworks Emerge</div>
+        <div class="tl-desc">RAIL licenses (Responsible AI Licenses), AI2 ImpACT licenses, and BigScience OpenRAIL offer middle-ground options — commercially usable but with behavioral restrictions on downstream use.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 8: Legal Landscape ────────────────────── -->
+<div class="section" id="s-legal">
+  <div class="section-tag" style="color:var(--red2)">Legal Context</div>
+  <h2 class="section-title">The Legal Landscape</h2>
+  <p class="section-sub">Data provenance exists at the intersection of copyright law, contract law, and AI policy — with different rules in every jurisdiction and fundamental questions still unresolved.</p>
+
+  <div class="highlight-box red">
+    <strong style="color:var(--red2)">Disclaimer:</strong> The following is educational context from the paper's legal analysis. It is not legal advice. Consult qualified legal counsel before making licensing decisions for your specific jurisdiction.
+  </div>
+
+  <div class="grid2" style="margin-bottom:20px;">
+    <div class="card">
+      <div class="card-title" style="color:var(--blue2)">Jurisdictional Differences</div>
+      <div class="card-body">
+        <div style="margin-bottom:10px;padding:10px;background:rgba(59,130,246,.06);border-radius:6px;border:1px solid rgba(59,130,246,.15);">
+          <div style="font-size:11px;font-weight:700;color:var(--blue2);margin-bottom:4px;">United States</div>
+          <div style="font-size:11px;color:var(--muted);">Fair use doctrine may protect some AI training. Four-factor test considers: purpose, nature of work, amount used, market effect. No definitive ruling yet on whether scraping for training is fair use.</div>
+        </div>
+        <div style="margin-bottom:10px;padding:10px;background:rgba(34,197,94,.06);border-radius:6px;border:1px solid rgba(34,197,94,.15);">
+          <div style="font-size:11px;font-weight:700;color:var(--green2);margin-bottom:4px;">European Union</div>
+          <div style="font-size:11px;color:var(--muted);">Text and Data Mining (TDM) exceptions under DSM Directive allow research mining. Commercial TDM is allowed unless rights holders explicitly opt out. Sui generis database rights add an additional layer.</div>
+        </div>
+        <div style="padding:10px;background:rgba(245,158,11,.06);border-radius:6px;border:1px solid rgba(245,158,11,.15);">
+          <div style="font-size:11px;font-weight:700;color:var(--amber2);margin-bottom:4px;">Rest of World</div>
+          <div style="font-size:11px;color:var(--muted);">Highly fragmented. Japan has broad TDM exceptions. China has evolving AI regulations. Most jurisdictions lack AI-specific guidance — default copyright law applies.</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--red2)">The 4 Unresolved Questions</div>
+      <div class="card-body">
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:6px;">
+          <div style="padding:10px;background:rgba(239,68,68,.05);border-radius:6px;border-left:3px solid var(--red);">
+            <div style="font-size:11px;font-weight:700;color:var(--red2);margin-bottom:3px;">1. Is scraping infringement?</div>
+            <div style="font-size:11px;color:var(--muted);">Courts are split. HiQ v. LinkedIn (scraping allowed), but AI training use cases are different. No definitive ruling.</div>
+          </div>
+          <div style="padding:10px;background:rgba(239,68,68,.05);border-radius:6px;border-left:3px solid var(--red);">
+            <div style="font-size:11px;font-weight:700;color:var(--red2);margin-bottom:3px;">2. Are trained models derivative works?</div>
+            <div style="font-size:11px;color:var(--muted);">If yes, share-alike clauses would require open-sourcing trained models. If no, training is non-infringing. Completely unresolved.</div>
+          </div>
+          <div style="padding:10px;background:rgba(239,68,68,.05);border-radius:6px;border-left:3px solid var(--red);">
+            <div style="font-size:11px;font-weight:700;color:var(--red2);margin-bottom:3px;">3. Does OpenAI ToU bind downstream users?</div>
+            <div style="font-size:11px;color:var(--muted);">When a dataset is built from ChatGPT outputs, does the ToU follow the data to third parties who never agreed to it?</div>
+          </div>
+          <div style="padding:10px;background:rgba(239,68,68,.05);border-radius:6px;border-left:3px solid var(--red);">
+            <div style="font-size:11px;font-weight:700;color:var(--red2);margin-bottom:3px;">4. Do software licenses apply to data?</div>
+            <div style="font-size:11px;color:var(--muted);">MIT and Apache were designed for code. "Derivative works" in ML is unclear. Share-alike obligations on data conflict when mixing datasets with incompatible licenses.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SQuAD case study -->
+  <div class="card">
+    <div class="card-title" style="color:var(--amber2)">Case Study: SQuAD — The Wikipedia Question</div>
+    <div class="card-body">
+      <div class="grid3" style="margin-top:8px;">
+        <div>
+          <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">Data Source</div>
+          <div style="font-size:12px;">539 Wikipedia articles under CC-BY-SA. Wikipedia requires share-alike. Does this propagate to the QA annotations?</div>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">Annotations</div>
+          <div style="font-size:12px;">100,000+ crowd-sourced QA pairs. Crowd workers hold copyright in their annotations — but derived from copyrighted Wikipedia text.</div>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">The Question</div>
+          <div style="font-size:12px; color:var(--amber2)">Can SQuAD be used for commercial fine-tuning? It's one of the most widely used QA datasets — and the answer is genuinely unclear.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 9: Data Provenance Cards ───────────────── -->
+<div class="section" id="s-cards">
+  <div class="section-tag" style="color:var(--blue2)">The Solution</div>
+  <h2 class="section-title">Data Provenance Cards</h2>
+  <p class="section-sub">Machine-readable metadata records that travel with datasets — capturing everything needed to make an informed licensing decision, designed to scale to hundreds of datasets simultaneously.</p>
+
+  <div class="highlight-box blue">
+    <strong style="color:var(--blue2)">Design principle:</strong> A Data Provenance Card is like a bibliography entry for training data — standardized, machine-readable, filterable, and composable when combining multiple datasets. Unlike Model Cards or Datasheets, it is specifically designed for scale.
+  </div>
+
+  <!-- Interactive card explorer -->
+  <div class="btn-row">
+    <button class="btn-tab active" onclick="showCard('alpaca',this)">Alpaca</button>
+    <button class="btn-tab" onclick="showCard('dolly',this)">Dolly-15k</button>
+    <button class="btn-tab" onclick="showCard('squad',this)">SQuAD</button>
+    <button class="btn-tab" onclick="showCard('flan',this)">FLAN</button>
+    <button class="btn-tab" onclick="showCard('openassistant',this)">OpenAssistant</button>
+  </div>
+
+  <div class="prov-card" id="prov-card-display"></div>
+
+  <!-- Comparison: Datasheets vs Provenance Cards -->
+  <div style="margin-top:20px;">
+    <div class="card">
+      <div class="card-title" style="color:var(--teal2)">Provenance Cards vs. Existing Documentation</div>
+      <div style="overflow-x:auto;margin-top:12px;">
+        <table class="compare-table">
+          <thead>
+            <tr>
+              <th>Property</th>
+              <th>Datasheets for Datasets</th>
+              <th>Model Cards</th>
+              <th style="color:var(--amber2)">Provenance Cards</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="font-weight:600;">Format</td>
+              <td style="color:var(--muted);">Free-form prose</td>
+              <td style="color:var(--muted);">Structured prose</td>
+              <td style="color:var(--amber2);">Machine-readable schema</td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;">Scales to 100s of datasets?</td>
+              <td style="color:var(--red2);">No — manual per dataset</td>
+              <td style="color:var(--red2);">No — per model</td>
+              <td style="color:var(--green2);">Yes — concatenable</td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;">Filterable / searchable?</td>
+              <td style="color:var(--red2);">No</td>
+              <td style="color:var(--red2);">No</td>
+              <td style="color:var(--green2);">Yes — by license, language, task</td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;">License tracking</td>
+              <td style="color:var(--muted);">Sometimes mentioned</td>
+              <td style="color:var(--muted);">Rarely detailed</td>
+              <td style="color:var(--green2);">Explicit — permitted use, attribution, share-alike</td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;">Repackaging support</td>
+              <td style="color:var(--red2);">Breaks on remix</td>
+              <td style="color:var(--red2);">N/A</td>
+              <td style="color:var(--green2);">Preserved through repackaging</td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;">Auto-generated?</td>
+              <td style="color:var(--red2);">No — manual</td>
+              <td style="color:var(--red2);">No — manual</td>
+              <td style="color:var(--green2);">Yes — via DPExplorer</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recommendations -->
+  <div class="card" style="margin-top:16px;">
+    <div class="card-title" style="color:var(--amber2)">Recommendations by Stakeholder</div>
+    <div class="grid4" style="margin-top:12px;">
+      <div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.2);border-radius:8px;padding:14px;">
+        <div style="font-size:11px;font-weight:700;color:var(--green2);margin-bottom:6px;">Practitioners</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.5;">Use DPExplorer to filter datasets by your risk tolerance before including them in training pipelines. Never assume "no license = free to use."</div>
+      </div>
+      <div style="background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:14px;">
+        <div style="font-size:11px;font-weight:700;color:var(--blue2);margin-bottom:6px;">Dataset Creators</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.5;">Apply explicit licenses at release. Consider RAIL or AI2 ImpACT licenses for middle-ground options. Always document language coverage and data sources.</div>
+      </div>
+      <div style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:14px;">
+        <div style="font-size:11px;font-weight:700;color:var(--amber2);margin-bottom:6px;">Policymakers</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.5;">Clarify fair use and TDM exceptions for AI training. Consider dataset-specific legal frameworks rather than applying code copyright law to training data.</div>
+      </div>
+      <div style="background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.2);border-radius:8px;padding:14px;">
+        <div style="font-size:11px;font-weight:700;color:var(--purple2);margin-bottom:6px;">Researchers</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.5;">Focus on under-resourced languages and non-commercial licensing gaps. Releasing commercially-usable datasets for low-resource languages is a high-impact contribution.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 10: Paper Source ───────────────────────── -->
+<div class="section" id="s-paper" style="min-height:auto;padding-bottom:60px;">
+  <div class="section-tag" style="color:var(--muted)">Citations</div>
+  <h2 class="section-title">Paper Sources</h2>
+  <p class="section-sub">This visual summary is based on the following papers and resources.</p>
+
+  <div class="paper-source" style="margin-bottom:16px;">
+    <div class="paper-source-title">Primary Reference</div>
+    <div class="paper-ref">
+      <span>Longpre et al.</span> (17 authors, CMU / MIT / Hugging Face / Allen AI) — "<strong>The Data Provenance Initiative: A Large Scale Audit of Dataset Licensing & Attribution in AI</strong>" — <span>2023</span>. arXiv: <span>2310.16787</span>. Audits 1,858 text datasets across 44 collections. Introduces Data Provenance Cards and releases the DPExplorer tool.
+    </div>
+    <div>
+      <a class="paper-btn" href="https://arxiv.org/abs/2310.16787" target="_blank">↗ arXiv 2310.16787</a>
+      <a class="paper-btn" href="https://www.dataprovenance.org/" target="_blank">↗ dataprovenance.org</a>
+      <a class="paper-btn" href="https://github.com/Data-Provenance-Initiative/Data-Provenance-Collection" target="_blank">↗ GitHub Repository</a>
+    </div>
+  </div>
+
+  <div class="paper-source" style="margin-bottom:16px;">
+    <div class="paper-source-title">Related Works</div>
+    <div class="paper-ref" style="margin-bottom:10px;">
+      <span>Gebru et al.</span> — "<strong>Datasheets for Datasets</strong>" — <span>2021</span>. Communications of the ACM. The original dataset documentation framework that Provenance Cards extend for scale. arXiv: <span>1803.09010</span>.
+    </div>
+    <div class="paper-ref" style="margin-bottom:10px;">
+      <span>Mitchell et al.</span> — "<strong>Model Cards for Model Reporting</strong>" — <span>2019</span>. FAccT. Establishes transparency standards for model releases — the model-side complement to dataset provenance.
+    </div>
+    <div class="paper-ref" style="margin-bottom:0;">
+      <span>Bender et al.</span> — "<strong>On the Dangers of Stochastic Parrots</strong>" — <span>2021</span>. FAccT. Introduces the "Bender Rule" for language documentation and raises foundational concerns about undocumented training data.
+    </div>
+  </div>
+</div>
+
+<!-- Continue Learning -->
+<div class="continue-strip">
+  <span class="continue-label">Continue Learning</span>
+  <a class="continue-link" href="../35-agent-harness/">
+    <div class="continue-dir">Related</div>
+    <div>Agent Harness — H=(E,T,C,S,L,V)</div>
+  </a>
+  <a class="continue-link" href="../34-finmaseval/">
+    <div class="continue-dir">Related</div>
+    <div>FinMASEval — AI Evaluation</div>
+  </a>
+  <a class="continue-link" href="../28-eu-ai-act/">
+    <div class="continue-dir">Related</div>
+    <div>EU AI Act — Governance</div>
+  </a>
+  <a class="continue-link" href="../24-agentic-mrm/">
+    <div class="continue-dir">Related</div>
+    <div>Agentic MRM — Risk Management</div>
+  </a>
+  <a class="continue-link" href="../">
+    <div class="continue-dir">All Posts</div>
+    <div>Visual Summary Home</div>
+  </a>
+</div>
+
+</div><!-- /main -->
+
+<script>
+// ── Gate ─────────────────────────────────────────────────
+(function(){
+  const KEY='pg_unlocked_36', PASS='visual2025';
+  if(localStorage.getItem(KEY)==='1'){document.getElementById('gate').style.display='none';return;}
+  window.unlock=function(){
+    const v=document.getElementById('pw').value;
+    if(v===PASS){localStorage.setItem(KEY,'1');document.getElementById('gate').style.display='none';}
+    else{const e=document.getElementById('pw-err');e.style.display='block';setTimeout(()=>e.style.display='none',2200);}
+  };
+})();
+
+function goTo(id){document.getElementById(id)?.scrollIntoView({behavior:'smooth'});}
+function toggleAcc(h){h.parentElement.classList.toggle('open');}
+
+// ── Task Distribution Chart ───────────────────────────────
+(function(){
+  const c=document.getElementById('taskChart');if(!c)return;
+  const ctx=c.getContext('2d');
+  const W=c.width,H=c.height;
+  ctx.fillStyle='#0d1220';ctx.fillRect(0,0,W,H);
+  const tasks=[
+    {label:'Question Answering',pct:36.0,color:'#3b82f6'},
+    {label:'Text Classification',pct:29.9,color:'#14b8a6'},
+    {label:'Natural Language Inference',pct:21.1,color:'#8b5cf6'},
+    {label:'Open-form Text Generation',pct:11.3,color:'#f59e0b'},
+    {label:'Short Text Generation',pct:10.9,color:'#22c55e'},
+  ];
+  const pad={l:220,r:60,t:30,b:40};
+  const cw=W-pad.l-pad.r,ch=H-pad.t-pad.b;
+  const rowH=ch/tasks.length;
+  const maxPct=40;
+
+  [0,10,20,30,40].forEach(v=>{
+    const x=pad.l+cw*v/maxPct;
+    ctx.strokeStyle='rgba(28,38,64,.8)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(x,pad.t);ctx.lineTo(x,pad.t+ch);ctx.stroke();
+    ctx.fillStyle='rgba(98,120,160,.5)';ctx.font='10px Inter';ctx.textAlign='center';
+    ctx.fillText(v+'%',x,pad.t+ch+16);
+  });
+
+  tasks.forEach((t,i)=>{
+    const y=pad.t+i*rowH;
+    const bh=rowH*0.55;
+    const by=y+(rowH-bh)/2;
+    const bw=cw*t.pct/maxPct;
+    ctx.fillStyle=t.color+'cc';
+    ctx.beginPath();ctx.roundRect(pad.l,by,bw,bh,4);ctx.fill();
+    ctx.fillStyle='rgba(208,218,240,.85)';ctx.font='bold 12px Inter';ctx.textAlign='right';
+    ctx.fillText(t.label,pad.l-10,by+bh/2+4);
+    ctx.fillStyle=t.color;ctx.font='bold 12px Inter';ctx.textAlign='left';
+    ctx.fillText(t.pct+'%',pad.l+bw+8,by+bh/2+4);
+  });
+  ctx.fillStyle='rgba(98,120,160,.6)';ctx.font='11px Inter';ctx.textAlign='center';
+  ctx.fillText('Task type distribution across 1,858 audited datasets',W/2,H-4);
+})();
+
+// ── License Category Chart ────────────────────────────────
+(function(){
+  const c=document.getElementById('licenseChart');if(!c)return;
+  const ctx=c.getContext('2d');
+  const W=c.width,H=c.height;
+  ctx.fillStyle='#0d1220';ctx.fillRect(0,0,W,H);
+  const data=[
+    {label:'Commercial',pct:46.1,count:856,color:'#22c55e'},
+    {label:'Unspecified',pct:30.7,count:570,color:'#6278a0'},
+    {label:'Non-Commercial',pct:19.0,count:352,color:'#8b5cf6'},
+    {label:'Academic-Only',pct:4.3,count:80,color:'#3b82f6'},
+  ];
+  const pad={l:40,r:40,t:30,b:50};
+  const cw=W-pad.l-pad.r,ch=H-pad.t-pad.b;
+  const bw=cw/data.length-20;
+  const maxPct=50;
+
+  [0,10,20,30,40,50].forEach(v=>{
+    const y=pad.t+ch*(1-v/maxPct);
+    ctx.strokeStyle='rgba(28,38,64,.8)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+cw,y);ctx.stroke();
+    ctx.fillStyle='rgba(98,120,160,.5)';ctx.font='10px Inter';ctx.textAlign='right';
+    ctx.fillText(v+'%',pad.l-6,y+4);
+  });
+
+  data.forEach((d,i)=>{
+    const x=pad.l+i*(bw+20)+10;
+    const barH=ch*d.pct/maxPct;
+    const y=pad.t+ch-barH;
+    ctx.fillStyle=d.color+'cc';
+    ctx.beginPath();ctx.roundRect(x,y,bw,barH,6);ctx.fill();
+    ctx.fillStyle='#fff';ctx.font='bold 16px Inter';ctx.textAlign='center';
+    ctx.fillText(d.pct+'%',x+bw/2,y-12);
+    ctx.fillStyle='rgba(208,218,240,.85)';ctx.font='bold 11px Inter';
+    ctx.fillText(d.label,x+bw/2,pad.t+ch+16);
+    ctx.fillStyle='rgba(98,120,160,.7)';ctx.font='10px Inter';
+    ctx.fillText('n='+d.count.toLocaleString(),x+bw/2,pad.t+ch+30);
+  });
+})();
+
+// ── Data Divide Chart ─────────────────────────────────────
+(function(){
+  const c=document.getElementById('divideChart');if(!c)return;
+  const ctx=c.getContext('2d');
+  const W=c.width,H=c.height;
+  ctx.fillStyle='#0d1220';ctx.fillRect(0,0,W,H);
+
+  const metrics=[
+    {label:'Tasks per dataset',nc:3.4,comm:1.7,max:4,unit:'avg'},
+    {label:'Sources per dataset',nc:4.2,comm:1.6,max:5,unit:'avg'},
+    {label:'% Synthetic data',nc:45.5,comm:12.8,max:50,unit:'%'},
+    {label:'Text length (÷100)',nc:15.8,comm:1.0,max:18,unit:'×100 tokens'},
+  ];
+
+  const pad={l:160,r:20,t:40,b:20};
+  const cw=W-pad.l-pad.r,ch=H-pad.t-pad.b;
+  const rowH=ch/metrics.length;
+  const bh=rowH*0.28;
+
+  ctx.fillStyle='rgba(98,120,160,.5)';ctx.font='bold 10px Inter';ctx.textAlign='center';
+  ctx.fillRect(pad.l+20,pad.t-22,12,10);ctx.fillStyle='rgba(98,120,160,.7)';
+  ctx.fillText('Commercial',pad.l+100,pad.t-14);
+  ctx.fillStyle='rgba(139,92,246,.7)';ctx.fillRect(pad.l+190,pad.t-22,12,10);
+  ctx.fillStyle='rgba(139,92,246,.7)';ctx.fillText('Non-Commercial',pad.l+280,pad.t-14);
+
+  metrics.forEach((m,i)=>{
+    const y=pad.t+i*rowH;
+    const commW=cw*m.comm/m.max;
+    const ncW=cw*m.nc/m.max;
+
+    ctx.fillStyle='rgba(98,120,160,.25)';
+    ctx.fillRect(pad.l,y+rowH*0.1,commW,bh);
+    ctx.fillStyle='rgba(139,92,246,.6)';
+    ctx.fillRect(pad.l,y+rowH*0.52,ncW,bh);
+
+    ctx.fillStyle='rgba(208,218,240,.8)';ctx.font='bold 12px Inter';ctx.textAlign='right';
+    ctx.fillText(m.label,pad.l-10,y+rowH/2+4);
+    ctx.fillStyle='rgba(98,120,160,.9)';ctx.font='bold 11px Inter';ctx.textAlign='left';
+    ctx.fillText(m.comm+(m.unit==='%'?'%':''),pad.l+commW+6,y+rowH*0.1+bh/2+4);
+    ctx.fillStyle='#a78bfa';ctx.font='bold 11px Inter';
+    ctx.fillText(m.nc+(m.unit==='%'?'%':''),pad.l+ncW+6,y+rowH*0.52+bh/2+4);
+  });
+})();
+
+// ── Timeline Chart ────────────────────────────────────────
+(function(){
+  const c=document.getElementById('timelineChart');if(!c)return;
+  const ctx=c.getContext('2d');
+  const W=c.width,H=c.height;
+  ctx.fillStyle='#0d1220';ctx.fillRect(0,0,W,H);
+
+  const years=['2018','2019','2020','2021','2022','2023'];
+  const unlicensed=[75,72,68,63,52,12];
+  const nc=[8,10,12,15,20,61];
+
+  const pad={l:50,r:40,t:40,b:40};
+  const cw=W-pad.l-pad.r,ch=H-pad.t-pad.b;
+  const pts=years.length;
+  const xStep=cw/(pts-1);
+
+  [0,20,40,60,80].forEach(v=>{
+    const y=pad.t+ch*(1-v/100);
+    ctx.strokeStyle='rgba(28,38,64,.8)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+cw,y);ctx.stroke();
+    ctx.fillStyle='rgba(98,120,160,.5)';ctx.font='10px Inter';ctx.textAlign='right';
+    ctx.fillText(v+'%',pad.l-6,y+4);
+  });
+
+  years.forEach((y,i)=>{
+    const x=pad.l+i*xStep;
+    ctx.fillStyle='rgba(98,120,160,.6)';ctx.font='10px Inter';ctx.textAlign='center';
+    ctx.fillText(y,x,pad.t+ch+16);
+  });
+
+  // Draw unlicensed line
+  ctx.strokeStyle='#ef4444';ctx.lineWidth=2.5;ctx.setLineDash([]);
+  ctx.beginPath();
+  unlicensed.forEach((v,i)=>{
+    const x=pad.l+i*xStep;const y=pad.t+ch*(1-v/100);
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });ctx.stroke();
+  unlicensed.forEach((v,i)=>{
+    const x=pad.l+i*xStep;const y=pad.t+ch*(1-v/100);
+    ctx.fillStyle='#ef4444';ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill();
+  });
+
+  // Draw NC line
+  ctx.strokeStyle='#8b5cf6';ctx.lineWidth=2.5;
+  ctx.beginPath();
+  nc.forEach((v,i)=>{
+    const x=pad.l+i*xStep;const y=pad.t+ch*(1-v/100);
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });ctx.stroke();
+  nc.forEach((v,i)=>{
+    const x=pad.l+i*xStep;const y=pad.t+ch*(1-v/100);
+    ctx.fillStyle='#8b5cf6';ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill();
+  });
+
+  // Legend
+  ctx.strokeStyle='#ef4444';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(pad.l,pad.t-20);ctx.lineTo(pad.l+20,pad.t-20);ctx.stroke();
+  ctx.fillStyle='rgba(208,218,240,.8)';ctx.font='10px Inter';ctx.textAlign='left';ctx.fillText('% Unlicensed datasets',pad.l+26,pad.t-16);
+  ctx.strokeStyle='#8b5cf6';ctx.beginPath();ctx.moveTo(pad.l+200,pad.t-20);ctx.lineTo(pad.l+220,pad.t-20);ctx.stroke();
+  ctx.fillText('% Non-commercial / academic-only',pad.l+226,pad.t-16);
+})();
+
+// ── Provenance Cards ──────────────────────────────────────
+const CARDS={
+  alpaca:{
+    name:'Stanford Alpaca',
+    desc:'52K instruction-following examples generated by GPT-3 text-davinci-003 from seed tasks',
+    license:'⚠️ Non-Commercial (OpenAI ToU)',licenseClass:'lic-nc',
+    permitted:'Research only — prohibits competing model training',
+    source:'GPT-3 (OpenAI API) outputs',
+    creator:'Stanford CRFM',
+    attribution:'Required',
+    shareAlike:'No',
+    language:'English',
+    tasks:'Instruction following',
+    synthetic:'100% (GPT-generated)',
+    size:'52,000 examples',
+    warning:'Built from GPT-3 outputs → inherits OpenAI ToU non-commercial restriction'
+  },
+  dolly:{
+    name:'Databricks Dolly-15k',
+    desc:'15K high-quality human-generated instruction examples covering 8 behavioral categories',
+    license:'✅ Commercial (CC-BY-SA 4.0)',licenseClass:'lic-comm',
+    permitted:'Commercial use allowed — but share-alike required',
+    source:'Human annotations by Databricks employees',
+    creator:'Databricks',
+    attribution:'Required',
+    shareAlike:'Yes — models trained on this should be released under compatible license',
+    language:'English',
+    tasks:'QA, generation, classification, summarization, brainstorming',
+    synthetic:'0% (human-written)',
+    size:'15,011 examples',
+    warning:'Share-alike clause may conflict with proprietary model releases'
+  },
+  squad:{
+    name:'SQuAD 1.1',
+    desc:'100K+ crowd-sourced QA pairs from 539 Wikipedia articles',
+    license:'⚠️ Ambiguous (CC-BY-SA 4.0 via Wikipedia)',licenseClass:'lic-nc',
+    permitted:'Likely requires share-alike — legally contested',
+    source:'Wikipedia (CC-BY-SA) + crowd annotations',
+    creator:'Stanford NLP',
+    attribution:'Required',
+    shareAlike:'Likely yes (inherited from Wikipedia source)',
+    language:'English',
+    tasks:'Extractive question answering',
+    synthetic:'0% (human-annotated)',
+    size:'107,785 QA pairs',
+    warning:'Wikipedia source is CC-BY-SA — share-alike may propagate to trained models'
+  },
+  flan:{
+    name:'FLAN Collection',
+    desc:'Large instruction-tuning collection aggregating 1,800+ NLP datasets across tasks',
+    license:'⚠️ Mixed — inherits from constituent datasets',licenseClass:'lic-nc',
+    permitted:'Varies by task — check constituent dataset licenses',
+    source:'Aggregated from academic NLP benchmarks',
+    creator:'Google Research',
+    attribution:'Required (per constituent)',
+    shareAlike:'Varies — some constituents include share-alike',
+    language:'Multiple (English-dominant)',
+    tasks:'62+ task types across classification, QA, generation',
+    synthetic:'Mixed',
+    size:'15M+ examples across collections',
+    warning:'Composite license: each constituent dataset carries its own terms'
+  },
+  openassistant:{
+    name:'OpenAssistant Conversations',
+    desc:'161K human-generated conversation trees in 35 languages, crowd-sourced via LAION',
+    license:'✅ Commercial (Apache 2.0)',licenseClass:'lic-comm',
+    permitted:'Commercial use allowed — no share-alike',
+    source:'Human contributors via crowd-sourcing platform',
+    creator:'LAION / OpenAssistant Project',
+    attribution:'Required',
+    shareAlike:'No',
+    language:'35 languages',
+    tasks:'Dialogue, instruction following, multi-turn conversation',
+    synthetic:'0% (human-written)',
+    size:'161,443 messages / 66,497 conversation trees',
+    warning:'None — one of the most permissive large dialogue datasets available'
+  }
+};
+
+function showCard(id,btn){
+  document.querySelectorAll('.btn-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const d=CARDS[id];
+  const warnColor=d.licenseClass==='lic-comm'?'#22c55e':'#ef4444';
+  document.getElementById('prov-card-display').innerHTML=`
+    <div class="prov-card-header">Data Provenance Card — ${d.name}</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">${d.desc}</div>
+    <div class="prov-row"><span class="prov-key">License</span><span class="prov-val"><span class="lic-badge ${d.licenseClass}">${d.license}</span></span></div>
+    <div class="prov-row"><span class="prov-key">Permitted Use</span><span class="prov-val" style="color:var(--text)">${d.permitted}</span></div>
+    <div class="prov-row"><span class="prov-key">Data Source</span><span class="prov-val">${d.source}</span></div>
+    <div class="prov-row"><span class="prov-key">Creator</span><span class="prov-val">${d.creator}</span></div>
+    <div class="prov-row"><span class="prov-key">Attribution</span><span class="prov-val">${d.attribution}</span></div>
+    <div class="prov-row"><span class="prov-key">Share-Alike</span><span class="prov-val">${d.shareAlike}</span></div>
+    <div class="prov-row"><span class="prov-key">Languages</span><span class="prov-val">${d.language}</span></div>
+    <div class="prov-row"><span class="prov-key">Task Types</span><span class="prov-val">${d.tasks}</span></div>
+    <div class="prov-row"><span class="prov-key">Synthetic %</span><span class="prov-val">${d.synthetic}</span></div>
+    <div class="prov-row"><span class="prov-key">Size</span><span class="prov-val">${d.size}</span></div>
+    <div style="margin-top:12px;padding:10px 14px;background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.15);border-radius:6px;font-size:11px;color:${warnColor}">
+      ⚠ ${d.warning}
+    </div>
+  `;
+}
+showCard('alpaca',document.querySelector('.btn-tab.active'));
+</script>
+</body>
+</html>
