@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Speculative Decoding — Fast Inference via Draft-Then-Verify</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#04080f;--surface:#080e1c;--border:#132035;
+  --text:#cde8ff;--muted:#5a7a99;
+  --cyan:#06b6d4;--cyan2:#22d3ee;--cyan3:#a5f3fc;
+  --purple:#8b5cf6;--purple2:#a78bfa;--purple3:#ddd6fe;
+  --emerald:#10b981;--emerald2:#34d399;
+  --amber:#f59e0b;--amber2:#fbbf24;--amber3:#fde68a;
+  --red:#ef4444;--red2:#fca5a5;
+  --orange:#f97316;--orange2:#fb923c;
+  --indigo:#6366f1;--indigo2:#818cf8;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+/* Gate */
+#gate{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.gate-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 44px;text-align:center;max-width:380px;width:90%;}
+.gate-icon{font-size:36px;margin-bottom:12px;}
+.gate-title{font-size:20px;font-weight:800;color:var(--cyan3);margin-bottom:4px;}
+.gate-sub{font-size:12px;color:var(--muted);margin-bottom:24px;}
+.gate-input{width:100%;background:#02060e;border:1px solid var(--border);border-radius:8px;padding:11px 14px;font-size:14px;color:var(--text);outline:none;margin-bottom:12px;}
+.gate-input:focus{border-color:var(--cyan);}
+.gate-btn{width:100%;background:var(--cyan);color:#000;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s;}
+.gate-btn:hover{opacity:.85;}
+.gate-err{font-size:11px;color:var(--red);margin-top:6px;display:none;}
+/* Layout */
+.sidebar{width:240px;min-width:240px;height:100vh;position:sticky;top:0;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:0 0 40px;flex-shrink:0;}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.sidebar-logo-title{font-size:13px;font-weight:700;color:var(--cyan2);}
+.sidebar-logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.nav-group-title{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;padding:10px 16px 4px;}
+.nav-link{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;}
+.nav-link:hover,.nav-link.active{color:var(--text);background:rgba(6,182,212,.08);}
+.nav-link.active{color:var(--cyan3);}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.main{flex:1;overflow-y:auto;height:100vh;scroll-behavior:smooth;}
+/* Pipeline */
+.pipeline-map{position:sticky;top:0;z-index:50;background:rgba(4,8,15,.96);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+.pipe-step{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);padding:2px 6px;border-radius:4px;cursor:pointer;transition:color .15s;}
+.pipe-step:hover{color:var(--text);}
+.pipe-dot{width:6px;height:6px;border-radius:50%;}
+.pipe-arrow{color:var(--border);font-size:12px;}
+/* Sections */
+.section{min-height:100vh;padding:60px 48px 80px;border-bottom:1px solid var(--border);}
+.section-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;}
+.section-title{font-size:28px;font-weight:800;color:var(--text);margin-bottom:8px;line-height:1.25;}
+.section-sub{font-size:14px;color:var(--muted);margin-bottom:28px;max-width:700px;}
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:16px;}
+.card-title{font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px;}
+.card-body{font-size:13px;color:var(--muted);line-height:1.6;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;}
+canvas{display:block;border-radius:10px;background:var(--surface);border:1px solid var(--border);}
+/* Buttons */
+.btn-tab{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-tab.active{background:var(--cyan);color:#000;border-color:var(--cyan);}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+/* Stats */
+.stats-row{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:28px;}
+.stat{text-align:center;}
+.stat-val{font-size:28px;font-weight:800;color:var(--cyan2);}
+.stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;}
+/* Highlights */
+.highlight-box{border-left:3px solid var(--cyan);padding:12px 16px;background:rgba(6,182,212,.06);border-radius:0 8px 8px 0;margin-bottom:16px;font-size:13px;color:var(--muted);}
+.highlight-box.purple{border-color:var(--purple);background:rgba(139,92,246,.06);}
+.highlight-box.emerald{border-color:var(--emerald);background:rgba(16,185,129,.06);}
+.highlight-box.amber{border-color:var(--amber);background:rgba(245,158,11,.06);}
+.highlight-box.red{border-color:var(--red);background:rgba(239,68,68,.06);}
+.highlight-box.orange{border-color:var(--orange);background:rgba(249,115,22,.06);}
+/* Formula */
+.formula{background:#020609;border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-family:'JetBrains Mono','Courier New',monospace;font-size:12px;color:var(--cyan3);line-height:2;margin-bottom:16px;overflow-x:auto;}
+/* Accordion */
+.accordion-item{border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+.accordion-header{padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;background:var(--surface);}
+.accordion-header:hover{background:#0a1626;}
+.accordion-chevron{transition:transform .2s;font-size:10px;color:var(--muted);}
+.accordion-item.open .accordion-chevron{transform:rotate(90deg);}
+.accordion-body{padding:14px 16px;font-size:12px;color:var(--muted);display:none;border-top:1px solid var(--border);line-height:1.7;}
+.accordion-item.open .accordion-body{display:block;}
+/* Slider */
+.slider-wrap{display:flex;align-items:center;gap:14px;margin-bottom:16px;}
+.slider-label{font-size:12px;color:var(--muted);min-width:100px;}
+input[type=range]{flex:1;accent-color:var(--cyan);height:4px;}
+.slider-val{font-size:14px;font-weight:800;min-width:50px;text-align:right;}
+/* Token chips */
+.token-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:12px 0;}
+.token{display:inline-flex;align-items:center;justify-content:center;padding:5px 10px;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;border:1px solid;transition:all .3s;}
+.token.accepted{background:rgba(16,185,129,.12);border-color:var(--emerald);color:var(--emerald2);}
+.token.rejected{background:rgba(239,68,68,.12);border-color:var(--red);color:var(--red2);text-decoration:line-through;}
+.token.resampled{background:rgba(245,158,11,.12);border-color:var(--amber);color:var(--amber2);}
+.token.draft{background:rgba(6,182,212,.08);border-color:var(--cyan);color:var(--cyan2);}
+.token.context{background:rgba(139,92,246,.08);border-color:var(--purple);color:var(--purple2);}
+/* Results bar */
+.result-row{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+.result-label{font-size:12px;font-weight:600;min-width:160px;}
+.result-bar-wrap{flex:1;height:10px;background:rgba(19,32,53,.8);border-radius:5px;overflow:hidden;}
+.result-bar{height:100%;border-radius:5px;transition:width .6s;}
+.result-val{font-size:11px;font-weight:700;min-width:50px;text-align:right;}
+/* Paper source */
+.paper-source{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px 26px;margin-bottom:16px;}
+.paper-source-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:14px;}
+.paper-ref{font-size:13px;line-height:1.7;color:var(--text);margin-bottom:14px;}
+.paper-ref span{color:var(--cyan2);}
+.paper-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid var(--border);background:var(--bg);color:var(--muted);transition:all .15s;margin-right:8px;margin-bottom:8px;}
+.paper-btn:hover{border-color:var(--cyan);color:var(--cyan2);}
+/* Continue strip */
+.continue-strip{background:var(--surface);border-top:1px solid var(--border);padding:24px 48px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.continue-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-right:4px;}
+.continue-link{display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--muted);transition:all .15s;}
+.continue-link:hover{border-color:var(--cyan);color:var(--cyan3);}
+.continue-dir{font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);}
+/* Step diagram */
+.step-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 20px;position:relative;}
+.step-num{position:absolute;top:-10px;left:14px;background:var(--cyan);color:#000;font-size:10px;font-weight:800;padding:2px 8px;border-radius:10px;}
+.step-title{font-size:13px;font-weight:700;margin-bottom:6px;padding-top:4px;}
+.step-body{font-size:12px;color:var(--muted);line-height:1.6;}
+.step-connector{width:2px;height:20px;background:linear-gradient(to bottom,var(--cyan),var(--purple));margin:0 auto;}
+/* Comparison table */
+.compare-table{width:100%;border-collapse:collapse;font-size:12px;}
+.compare-table th{padding:8px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);border-bottom:1px solid var(--border);}
+.compare-table td{padding:9px 12px;border-bottom:1px solid rgba(19,32,53,.6);color:var(--muted);}
+.compare-table tr:hover td{background:rgba(6,182,212,.03);color:var(--text);}
+.compare-table .td-name{color:var(--text);font-weight:600;}
+.compare-table .td-speed{color:var(--emerald2);font-weight:700;}
+/* Sim UI */
+.sim-canvas-wrap{position:relative;}
+.sim-btn{background:var(--cyan);color:#000;border:none;border-radius:8px;padding:9px 22px;font-size:12px;font-weight:700;cursor:pointer;transition:opacity .15s;margin-right:8px;}
+.sim-btn:hover{opacity:.85;}
+.sim-btn.secondary{background:var(--surface);color:var(--muted);border:1px solid var(--border);}
+.sim-btn.secondary:hover{border-color:var(--cyan);color:var(--cyan2);}
+</style>
+</head>
+<body>
+
+<!-- Gate -->
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-icon">⚡</div>
+    <div class="gate-title">Speculative Decoding</div>
+    <div class="gate-sub">Visual Summary — Post 38</div>
+    <input class="gate-input" type="password" id="pw" placeholder="Enter password" onkeydown="if(event.key==='Enter')unlock()">
+    <button class="gate-btn" onclick="unlock()">Unlock</button>
+    <div class="gate-err" id="pw-err">Incorrect password</div>
+  </div>
+</div>
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-title">Speculative Decoding</div>
+    <div class="sidebar-logo-sub">Post 38 · Leviathan et al., 2022</div>
+  </div>
+  <div class="nav-group-title">Contents</div>
+  <div class="nav-link" onclick="goTo('s-intro')"><span class="dot" style="background:var(--cyan)"></span>Overview</div>
+  <div class="nav-link" onclick="goTo('s-bottleneck')"><span class="dot" style="background:var(--orange)"></span>The Bottleneck</div>
+  <div class="nav-link" onclick="goTo('s-algorithm')"><span class="dot" style="background:var(--purple)"></span>The Algorithm</div>
+  <div class="nav-link" onclick="goTo('s-sampling')"><span class="dot" style="background:var(--emerald)"></span>Acceptance Sampling</div>
+  <div class="nav-link" onclick="goTo('s-speedup')"><span class="dot" style="background:var(--amber)"></span>Expected Speedup</div>
+  <div class="nav-link" onclick="goTo('s-sim')"><span class="dot" style="background:var(--cyan2)"></span>Token Simulator</div>
+  <div class="nav-link" onclick="goTo('s-variants')"><span class="dot" style="background:var(--purple2)"></span>Variants</div>
+  <div class="nav-link" onclick="goTo('s-results')"><span class="dot" style="background:var(--emerald2)"></span>Results</div>
+  <div class="nav-link" onclick="goTo('s-paper')"><span class="dot" style="background:var(--muted)"></span>Paper Source</div>
+</nav>
+
+<!-- Main -->
+<div class="main">
+
+<div class="pipeline-map">
+  <span class="pipe-step" onclick="goTo('s-intro')"><span class="pipe-dot" style="background:var(--cyan)"></span>Overview</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-bottleneck')"><span class="pipe-dot" style="background:var(--orange)"></span>Bottleneck</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-algorithm')"><span class="pipe-dot" style="background:var(--purple)"></span>Algorithm</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-sampling')"><span class="pipe-dot" style="background:var(--emerald)"></span>Acceptance</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-speedup')"><span class="pipe-dot" style="background:var(--amber)"></span>Speedup</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-sim')"><span class="pipe-dot" style="background:var(--cyan2)"></span>Simulator</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-variants')"><span class="pipe-dot" style="background:var(--purple2)"></span>Variants</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-results')"><span class="pipe-dot" style="background:var(--emerald2)"></span>Results</span>
+</div>
+
+<!-- ── Section 1: Overview ─────────────────────────────── -->
+<div class="section" id="s-intro">
+  <div class="section-tag" style="color:var(--cyan2)">Post 38 · Inference & Serving</div>
+  <h1 class="section-title">Speculative Decoding</h1>
+  <p class="section-sub">Generate several tokens in one target-model call instead of one — by having a small, fast drafter propose candidates and the large model verify them all in parallel. Identical outputs, 2–3× faster.</p>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val">2–3×</div><div class="stat-lbl">Speedup on T5-XXL</div></div>
+    <div class="stat"><div class="stat-val">2.5×</div><div class="stat-lbl">Speedup on Chinchilla 70B</div></div>
+    <div class="stat"><div class="stat-val">10×</div><div class="stat-lbl">Speedup with memory offload</div></div>
+    <div class="stat"><div class="stat-val">0</div><div class="stat-lbl">Output quality loss</div></div>
+    <div class="stat"><div class="stat-val">2022</div><div class="stat-lbl">Leviathan et al. paper</div></div>
+  </div>
+
+  <div class="highlight-box">
+    <strong style="color:var(--cyan3)">The key insight:</strong> In autoregressive decoding, generating <em>K</em> tokens requires <em>K</em> serial forward passes through the large model — but the real bottleneck is <em>memory bandwidth</em>, not computation. Loading the model's weights once and running a forward pass over a batch of K tokens takes nearly the same wall-clock time as a single-token forward pass. Speculative decoding exploits this: a cheap drafter proposes K tokens, the large model validates all of them in one pass, and any accepted tokens are kept for free.
+  </div>
+
+  <div class="grid3">
+    <div class="card">
+      <div class="card-title" style="color:var(--orange2)">The Problem</div>
+      <div class="card-body">Autoregressive LLMs generate one token per forward pass. Producing 100 tokens requires 100 passes through the full model — sequential, slow, and memory-bandwidth-bound. There's no way to parallelize without changing the output distribution.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--cyan2)">The Solution</div>
+      <div class="card-body">Use a small draft model to speculatively generate K candidate tokens. The large target model then validates all K candidates in a single batched forward pass — accepting correct tokens and resampling the first wrong one.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--emerald2)">The Guarantee</div>
+      <div class="card-body">The acceptance–rejection sampling scheme is <em>lossless</em>: the distribution of final outputs is mathematically identical to sampling directly from the target model, token by token. No quality tradeoff.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="color:var(--amber2)">Why "Speculative"?</div>
+    <div class="grid2">
+      <div class="card-body">The name borrows from speculative execution in CPUs: predict the future ahead of time and do the work early. If the prediction was right, you've saved real time. If wrong, you discard and recover. The draft model is the CPU's branch predictor — fast and usually right.</div>
+      <div class="card-body">Leviathan et al. (2022) note that "hard language-modeling tasks often include easier subtasks that can be approximated well by more efficient models." The draft model handles the easy parts; the target model handles the hard ones — but both work together in one joint forward pass.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 2: The Bottleneck ──────────────────────── -->
+<div class="section" id="s-bottleneck">
+  <div class="section-tag" style="color:var(--orange2)">Section 2</div>
+  <h2 class="section-title">Why Is Decoding So Slow?</h2>
+  <p class="section-sub">The bottleneck is not arithmetic — it's memory bandwidth. Understanding this is why speculative decoding works at all.</p>
+
+  <div class="grid2" style="margin-bottom:24px;">
+    <div class="card">
+      <div class="card-title" style="color:var(--red2)">The Memory Bandwidth Bottleneck</div>
+      <div class="card-body">During a forward pass, the GPU must load every layer's weight matrix from high-bandwidth memory (HBM) into the processor's compute cores. For a 70B-parameter model at FP16, that's ~140 GB of data per forward pass.<br><br>The actual matrix multiplications — the "computation" — are trivially fast. The bottleneck is the memory read. This means generating 1 token or 8 tokens in a batch takes nearly identical wall-clock time.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--cyan2)">The Free Lunch</div>
+      <div class="card-body">If you pass a sequence of K tokens into the model instead of 1, the model's self-attention naturally produces logits for all K positions in that single forward pass — at essentially no extra latency cost.<br><br>This is the core free lunch speculative decoding exploits: the target model can <em>verify</em> K draft tokens in one pass almost as fast as generating 1 token. If even 3–4 of those K tokens are correct, you've generated 3–4× as fast.</div>
+    </div>
+  </div>
+
+  <!-- Bandwidth Canvas -->
+  <canvas id="bw-canvas" width="760" height="220" style="width:100%;max-width:760px;"></canvas>
+  <p style="font-size:11px;color:var(--muted);margin-top:8px;text-align:center;">Memory access vs. compute cost during inference (illustrative). The flat "load weights" bar dominates — adding tokens in a batch barely changes total time.</p>
+
+  <div style="margin-top:24px;" class="grid3">
+    <div class="card">
+      <div class="card-title" style="color:var(--muted)">Sequential Decoding</div>
+      <div class="card-body"><strong style="color:var(--text)">O(n)</strong> forward passes for n tokens.<br>Each pass: load full model weights, compute 1 token. Memory bandwidth cost paid n times.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--cyan2)">Speculative Decoding</div>
+      <div class="card-body"><strong style="color:var(--text)">O(n/k)</strong> target-model passes.<br>k ≈ average tokens accepted per call. Memory bandwidth cost paid n/k times.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--emerald2)">Perfect Draft Model</div>
+      <div class="card-body"><strong style="color:var(--text)">O(1)</strong> theoretical complexity.<br>If the drafter is always right, one target pass generates all remaining tokens.</div>
+    </div>
+  </div>
+
+  <div class="highlight-box amber" style="margin-top:8px;">
+    <strong style="color:var(--amber2)">Arithmetic intensity mismatch:</strong> Modern GPUs are compute-bound when doing large batch matrix multiplications (e.g., training). But autoregressive inference with batch size 1 is memory-bound — the GPU is mostly waiting for data, not doing math. Speculative decoding makes the memory access worth more by amortizing it over multiple tokens.
+  </div>
+</div>
+
+<!-- ── Section 3: The Algorithm ───────────────────────── -->
+<div class="section" id="s-algorithm">
+  <div class="section-tag" style="color:var(--purple2)">Section 3</div>
+  <h2 class="section-title">The Algorithm</h2>
+  <p class="section-sub">Two models, two phases, one loop. The draft model proposes, the target model judges.</p>
+
+  <div style="max-width:600px;margin:0 auto 32px;">
+    <div class="step-box">
+      <span class="step-num">Step 1</span>
+      <div class="step-title" style="color:var(--cyan2)">Draft Phase — Small Model Proposes K Tokens</div>
+      <div class="step-body">The small drafter model autoregressively generates K candidate tokens from the current context. It runs K serial forward passes — but these are fast because the model is tiny (e.g., 10–100× smaller than the target). The drafter stores the probability distribution p(xᵢ) it assigned to each draft token.</div>
+    </div>
+    <div class="step-connector"></div>
+    <div class="step-box">
+      <span class="step-num" style="background:var(--purple)">Step 2</span>
+      <div class="step-title" style="color:var(--purple2)">Verify Phase — Target Model Scores All K Tokens At Once</div>
+      <div class="step-body">The target model receives the current context plus all K draft tokens in a single batched forward pass. It outputs logits — and thus probability distributions q(xᵢ) — for each of the K positions simultaneously. This one pass replaces what would otherwise be K sequential target-model calls.</div>
+    </div>
+    <div class="step-connector" style="background:linear-gradient(to bottom,var(--purple),var(--emerald))"></div>
+    <div class="step-box">
+      <span class="step-num" style="background:var(--emerald)">Step 3</span>
+      <div class="step-title" style="color:var(--emerald2)">Accept / Reject — Modified Rejection Sampling</div>
+      <div class="step-body">Scan draft tokens left to right. For each token xᵢ: accept with probability min(1, q(xᵢ)/p(xᵢ)). If accepted, keep it and move to xᵢ₊₁. If rejected, <em>resample</em> one token from the corrected distribution normalize(max(0, q−p)) and discard all tokens after it. Always append one final token sampled from the target model's distribution.</div>
+    </div>
+    <div class="step-connector" style="background:linear-gradient(to bottom,var(--emerald),var(--amber))"></div>
+    <div class="step-box">
+      <span class="step-num" style="background:var(--amber)">Step 4</span>
+      <div class="step-title" style="color:var(--amber2)">Repeat — With Adaptive K</div>
+      <div class="step-body">Continue from the new context. Implementations typically adapt K dynamically: if all K tokens were accepted, increase K (the drafter is doing well); if most were rejected, decrease K (the drafter is unreliable for this context). Typical range: 3–12 draft tokens per iteration.</div>
+    </div>
+  </div>
+
+  <div class="highlight-box purple">
+    <strong style="color:var(--purple3)">Why one extra token?</strong> After accepting or rejecting the K draft tokens, the algorithm always generates exactly one more token directly from the target model's output distribution at the last verified position. This ensures the algorithm always makes progress (at least 1 new token per target-model call) and maintains the correct output distribution.
+  </div>
+
+  <div class="grid2" style="margin-top:8px;">
+    <div class="card">
+      <div class="card-title" style="color:var(--cyan2)">Greedy Decoding Case</div>
+      <div class="card-body">With greedy decoding (argmax), acceptance is deterministic: a draft token is accepted if and only if it equals the token the target model would have chosen (argmax of q). No randomness needed — just compare the two argmax tokens at each position.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--purple2)">Stochastic Sampling Case</div>
+      <div class="card-body">With temperature sampling, the acceptance probability is min(1, q(xᵢ)/p(xᵢ)) — the ratio of target to draft probability at the actual draft token. If the target agrees or would have been even more likely to produce xᵢ, accept. Otherwise accept probabilistically.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 4: Acceptance Sampling ─────────────────── -->
+<div class="section" id="s-sampling">
+  <div class="section-tag" style="color:var(--emerald2)">Section 4</div>
+  <h2 class="section-title">Acceptance Sampling — The Math</h2>
+  <p class="section-sub">The acceptance rule is designed to preserve the target distribution exactly. Here's how it works.</p>
+
+  <div class="formula">
+<span style="color:var(--muted)">// Draft probability of token x at position i</span>
+p(x) = drafter's probability for the proposed token
+
+<span style="color:var(--muted)">// Target probability of token x at position i</span>
+q(x) = target model's probability for the same token
+
+<span style="color:var(--muted)">// Acceptance probability</span>
+α(x) = min( 1,  q(x) / p(x) )
+
+<span style="color:var(--muted)">// If rejected: resample from corrected distribution</span>
+p'(x) = normalize( max(0, q(x) − p(x)) )
+  </div>
+
+  <div class="grid2" style="margin-bottom:24px;">
+    <div class="card">
+      <div class="card-title" style="color:var(--emerald2)">Case 1: q(x) ≥ p(x)</div>
+      <div class="card-body">The target model is <em>at least as likely</em> to produce this token as the drafter. Accept always (α = 1). The drafter was conservative — the target would have been happy with this choice or even more enthusiastic about it.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--amber2)">Case 2: q(x) &lt; p(x)</div>
+      <div class="card-body">The target model is <em>less likely</em> than the drafter to produce this token. Accept with probability q(x)/p(x) &lt; 1. The drafter was overconfident. Partial acceptance keeps the expected distribution correct.</div>
+    </div>
+  </div>
+
+  <!-- Interactive acceptance calculator -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title" style="color:var(--cyan2)">Interactive Acceptance Calculator</div>
+    <p class="card-body" style="margin-bottom:16px;">Set the draft and target probabilities for a token to see the acceptance decision.</p>
+
+    <div class="slider-wrap">
+      <span class="slider-label">Draft p(x)</span>
+      <input type="range" id="sl-draft" min="1" max="99" value="40" oninput="updateAccept()">
+      <span class="slider-val" id="val-draft" style="color:var(--orange2)">0.40</span>
+    </div>
+    <div class="slider-wrap">
+      <span class="slider-label">Target q(x)</span>
+      <input type="range" id="sl-target" min="1" max="99" value="60" oninput="updateAccept()">
+      <span class="slider-val" id="val-target" style="color:var(--cyan2)">0.60</span>
+    </div>
+
+    <div id="accept-result" style="margin-top:16px;padding:16px;background:rgba(6,182,212,.06);border:1px solid var(--border);border-radius:10px;">
+      <div style="display:flex;gap:32px;flex-wrap:wrap;">
+        <div><div class="stat-val" id="accept-prob" style="font-size:24px;color:var(--emerald2)">1.00</div><div class="stat-lbl">Acceptance prob α</div></div>
+        <div><div class="stat-val" id="accept-verdict" style="font-size:16px;margin-top:4px;color:var(--emerald2)">Always Accept</div><div class="stat-lbl">Decision</div></div>
+        <div><div class="stat-val" id="ratio-val" style="font-size:24px;color:var(--purple2)">1.50</div><div class="stat-lbl">q/p ratio</div></div>
+      </div>
+      <div id="corrected-dist" style="margin-top:12px;font-size:12px;color:var(--muted);display:none;">
+        <strong style="color:var(--amber2)">If rejected:</strong> resample from corrected distribution p'(x) = normalize(max(0, q(x) − p(x))).
+        Remaining probability mass redistributes to tokens the target prefers over the draft.
+      </div>
+    </div>
+
+    <div style="margin-top:16px;">
+      <canvas id="accept-canvas" width="600" height="120" style="width:100%;max-width:600px;"></canvas>
+    </div>
+  </div>
+
+  <!-- Distribution preservation proof sketch -->
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">
+      Why does this preserve the target distribution?
+      <span class="accordion-chevron">›</span>
+    </div>
+    <div class="accordion-body">
+      <strong style="color:var(--cyan3)">Proof sketch:</strong> Let x be any token. Its probability in the output is:<br><br>
+      P(output = x) = P(draft chose x) × P(accept x) + P(draft didn't choose x or rejected) × P(resample = x)<br><br>
+      = p(x) · min(1, q(x)/p(x)) + [1 − Σ_y p(y)·min(1, q(y)/p(y))] · p'(x)<br><br>
+      After algebra, this simplifies to exactly q(x). The corrected distribution p'(x) = normalize(max(0, q−p)) is precisely designed so this identity holds. The method is provably lossless.
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">
+      What happens at the boundary — when q and p are very different?
+      <span class="accordion-chevron">›</span>
+    </div>
+    <div class="accordion-body">
+      If the drafter and target are very different, almost every draft token gets rejected. The algorithm degrades gracefully back to standard sampling: in the worst case, every draft token is rejected, we resample one token from p'(x) ≈ q(x), and the next iteration starts fresh. No tokens are lost — but no speedup is gained either. The algorithm is safe even when the drafter is terrible.
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">
+      Does it work for temperature sampling and top-p/top-k?
+      <span class="accordion-chevron">›</span>
+    </div>
+    <div class="accordion-body">
+      Yes. The acceptance probability formula works for any distribution q(x) — including those produced by temperature scaling, top-p (nucleus) sampling, or top-k. The key is that both p(x) and q(x) are defined over the same vocabulary at each position. As long as the drafter uses the same tokenizer, any sampling strategy on the target model is compatible. However, high-temperature sampling (flat distributions) reduces acceptance rates because the target has lower certainty, making the draft less likely to match.
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 5: Expected Speedup ────────────────────── -->
+<div class="section" id="s-speedup">
+  <div class="section-tag" style="color:var(--amber2)">Section 5</div>
+  <h2 class="section-title">Expected Speedup Analysis</h2>
+  <p class="section-sub">How many tokens does speculative decoding generate per target-model call? The answer depends on the acceptance rate and K.</p>
+
+  <div class="formula">
+<span style="color:var(--muted)">// Let α = per-token acceptance rate (average), K = draft tokens</span>
+
+Expected tokens per target call:
+  E[tokens] = (1 − αᴷ⁺¹) / (1 − α)
+
+<span style="color:var(--muted)">// Example: α = 0.8, K = 5</span>
+  E[tokens] = (1 − 0.8⁶) / (1 − 0.8) = (1 − 0.262) / 0.2 ≈ <span style="color:var(--emerald2)">3.69 tokens per call</span>
+
+<span style="color:var(--muted)">// Effective speedup (ignoring draft model cost):</span>
+  Speedup ≈ E[tokens] = 3.69×  (if draft model is free)
+  </div>
+
+  <div class="highlight-box amber">
+    <strong style="color:var(--amber2)">Important caveat:</strong> The draft model is not free — it adds latency too. The real speedup is E[tokens] × (target latency) / (K × draft latency + target latency). Since the drafter is much smaller, its K passes are still fast. In practice: drafter is 10–100× faster per token, so the overhead is small relative to the savings.
+  </div>
+
+  <!-- Speedup slider simulator -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title" style="color:var(--amber2)">Speedup Calculator</div>
+
+    <div class="slider-wrap">
+      <span class="slider-label">Accept rate α</span>
+      <input type="range" id="sl-alpha" min="10" max="99" value="75" oninput="updateSpeedup()">
+      <span class="slider-val" id="val-alpha" style="color:var(--cyan2)">0.75</span>
+    </div>
+    <div class="slider-wrap">
+      <span class="slider-label">Draft tokens K</span>
+      <input type="range" id="sl-k" min="1" max="15" value="5" oninput="updateSpeedup()">
+      <span class="slider-val" id="val-k" style="color:var(--purple2)">5</span>
+    </div>
+    <div class="slider-wrap">
+      <span class="slider-label">Draft/target speed</span>
+      <input type="range" id="sl-ratio" min="5" max="50" value="20" oninput="updateSpeedup()">
+      <span class="slider-val" id="val-ratio" style="color:var(--orange2)">20×</span>
+    </div>
+
+    <canvas id="speedup-canvas" width="680" height="140" style="width:100%;max-width:680px;margin-top:12px;"></canvas>
+
+    <div style="display:flex;gap:24px;flex-wrap:wrap;margin-top:16px;">
+      <div class="stat"><div class="stat-val" id="exp-tokens" style="font-size:22px;color:var(--emerald2)">3.36</div><div class="stat-lbl">Expected tokens / call</div></div>
+      <div class="stat"><div class="stat-val" id="net-speedup" style="font-size:22px;color:var(--cyan2)">2.4×</div><div class="stat-lbl">Net speedup</div></div>
+      <div class="stat"><div class="stat-val" id="draft-overhead" style="font-size:22px;color:var(--muted)">12%</div><div class="stat-lbl">Draft overhead</div></div>
+    </div>
+  </div>
+
+  <div class="grid3">
+    <div class="card">
+      <div class="card-title" style="color:var(--emerald2)">Best Case: Code Generation</div>
+      <div class="card-body">Code has high predictability — keywords, variable names, boilerplate. Acceptance rates reach 80–90%. With K=7, E[tokens] ≈ 5–6×. Speculative decoding shines here.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--amber2)">Average Case: Summarization</div>
+      <div class="card-body">Input-grounded tasks give the drafter strong context clues. Typical acceptance rate 60–80%. E[tokens] ≈ 3–4×. Still a major win.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--red2)">Hard Case: High-Temperature Sampling</div>
+      <div class="card-body">Creative generation with high temperature randomises outputs. Acceptance rates drop to 40–50%. Speedup shrinks to 1.5–2×. The method still works, but benefits are reduced.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 6: Token Simulator ─────────────────────── -->
+<div class="section" id="s-sim">
+  <div class="section-tag" style="color:var(--cyan2)">Section 6</div>
+  <h2 class="section-title">Token Generation Simulator</h2>
+  <p class="section-sub">Watch speculative decoding in action. The drafter proposes tokens; the target model accepts or rejects each one.</p>
+
+  <div style="margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+    <button class="sim-btn" onclick="runSim()">▶ Run Step</button>
+    <button class="sim-btn secondary" onclick="resetSim()">↺ Reset</button>
+    <div style="display:flex;gap:16px;margin-left:8px;font-size:11px;flex-wrap:wrap;">
+      <span><span class="token context" style="font-size:10px;padding:2px 6px;">token</span> Context</span>
+      <span><span class="token draft" style="font-size:10px;padding:2px 6px;">draft</span> Draft (proposed)</span>
+      <span><span class="token accepted" style="font-size:10px;padding:2px 6px;">✓</span> Accepted</span>
+      <span><span class="token rejected" style="font-size:10px;padding:2px 6px;">✗</span> Rejected</span>
+      <span><span class="token resampled" style="font-size:10px;padding:2px 6px;">~</span> Resampled</span>
+    </div>
+  </div>
+
+  <div class="card" id="sim-display">
+    <div class="card-title" style="color:var(--cyan2)">Generated Sequence</div>
+    <div id="sim-tokens" class="token-row"></div>
+    <div id="sim-status" style="font-size:12px;color:var(--muted);margin-top:8px;min-height:18px;"></div>
+  </div>
+
+  <div class="card" style="margin-top:0;">
+    <div class="card-title" style="color:var(--purple2)">Step Log</div>
+    <div id="sim-log" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);line-height:1.8;max-height:180px;overflow-y:auto;"></div>
+  </div>
+
+  <div class="grid3" style="margin-top:16px;">
+    <div class="card">
+      <div class="card-title" style="color:var(--muted)">Steps so far</div>
+      <div id="sim-steps" class="stat-val" style="font-size:22px;color:var(--cyan2)">0</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--muted)">Total tokens generated</div>
+      <div id="sim-total" class="stat-val" style="font-size:22px;color:var(--emerald2)">0</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--muted)">Avg tokens / step</div>
+      <div id="sim-avg" class="stat-val" style="font-size:22px;color:var(--amber2)">—</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 7: Variants ─────────────────────────────── -->
+<div class="section" id="s-variants">
+  <div class="section-tag" style="color:var(--purple2)">Section 7</div>
+  <h2 class="section-title">Variants & Extensions</h2>
+  <p class="section-sub">Speculative decoding spawned a family of techniques. Each variant addresses a different limitation or extends the core idea.</p>
+
+  <div class="btn-row" id="variant-tabs">
+    <button class="btn-tab active" onclick="showVariant('original',this)">Original (Leviathan)</button>
+    <button class="btn-tab" onclick="showVariant('deepmind',this)">Speculative Sampling</button>
+    <button class="btn-tab" onclick="showVariant('medusa',this)">Medusa</button>
+    <button class="btn-tab" onclick="showVariant('eagle',this)">EAGLE</button>
+    <button class="btn-tab" onclick="showVariant('specinfer',this)">SpecInfer</button>
+  </div>
+
+  <div id="variant-display" class="card" style="min-height:200px;"></div>
+
+  <div style="margin-top:24px;">
+    <div class="card-title" style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px;">Variant Comparison</div>
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th>Variant</th>
+          <th>Drafter Type</th>
+          <th>Key Innovation</th>
+          <th>Speedup</th>
+          <th>Quality Loss</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="td-name">Leviathan et al. (2022)</td>
+          <td>Separate smaller model</td>
+          <td>Original draft-then-verify framework</td>
+          <td class="td-speed">2–3×</td>
+          <td style="color:var(--emerald2)">None</td>
+        </tr>
+        <tr>
+          <td class="td-name">Speculative Sampling (Chen et al.)</td>
+          <td>Separate smaller model</td>
+          <td>Modified rejection sampling proof for stochastic decoding</td>
+          <td class="td-speed">2–2.5×</td>
+          <td style="color:var(--emerald2)">None</td>
+        </tr>
+        <tr>
+          <td class="td-name">Medusa</td>
+          <td>Heads on target model</td>
+          <td>Lightweight prediction heads; no separate model needed</td>
+          <td class="td-speed">2.2–3.6×</td>
+          <td style="color:var(--emerald2)">None (with tree decoding)</td>
+        </tr>
+        <tr>
+          <td class="td-name">EAGLE</td>
+          <td>Autoregressor on features</td>
+          <td>Draft on internal feature space, not token space</td>
+          <td class="td-speed">2.7–6.5×</td>
+          <td style="color:var(--emerald2)">None</td>
+        </tr>
+        <tr>
+          <td class="td-name">SpecInfer</td>
+          <td>Multiple draft models</td>
+          <td>Token trees: multiple draft paths verified in one pass</td>
+          <td class="td-speed">1.5–3.5×</td>
+          <td style="color:var(--emerald2)">None</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="highlight-box" style="margin-top:20px;">
+    <strong style="color:var(--cyan3)">Common thread:</strong> Every variant preserves the core invariant — the output distribution matches the target model's distribution. The differences are in how draft candidates are generated (separate model, attached heads, feature-level autoregression, or token trees) and how those candidates are verified (single sequence vs. tree-structured batch).
+  </div>
+</div>
+
+<!-- ── Section 8: Results ──────────────────────────────── -->
+<div class="section" id="s-results">
+  <div class="section-tag" style="color:var(--emerald2)">Section 8</div>
+  <h2 class="section-title">Real-World Results</h2>
+  <p class="section-sub">Benchmarks from Leviathan et al. (2022), Chen et al. (2023), and HuggingFace production deployments.</p>
+
+  <div class="card-title" style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:16px;">Speedup vs Standard Decoding (relative wall-clock time)</div>
+
+  <div style="margin-bottom:28px;">
+    <div class="result-row">
+      <div class="result-label">T5-XXL (11B) — standard</div>
+      <div class="result-bar-wrap"><div class="result-bar" style="width:100%;background:var(--muted);"></div></div>
+      <div class="result-val" style="color:var(--muted)">1.0×</div>
+    </div>
+    <div class="result-row">
+      <div class="result-label">T5-XXL — Speculative (2×)</div>
+      <div class="result-bar-wrap"><div class="result-bar" style="width:50%;background:var(--emerald);"></div></div>
+      <div class="result-val" style="color:var(--emerald2)">2.0×</div>
+    </div>
+    <div class="result-row">
+      <div class="result-label">T5-XXL — Speculative (3×)</div>
+      <div class="result-bar-wrap"><div class="result-bar" style="width:33%;background:var(--cyan);"></div></div>
+      <div class="result-val" style="color:var(--cyan2)">3.0×</div>
+    </div>
+    <div class="result-row">
+      <div class="result-label">Chinchilla 70B — standard</div>
+      <div class="result-bar-wrap"><div class="result-bar" style="width:100%;background:var(--muted);"></div></div>
+      <div class="result-val" style="color:var(--muted)">1.0×</div>
+    </div>
+    <div class="result-row">
+      <div class="result-label">Chinchilla 70B — Spec. Sampling</div>
+      <div class="result-bar-wrap"><div class="result-bar" style="width:40%;background:var(--purple);"></div></div>
+      <div class="result-val" style="color:var(--purple2)">2.5×</div>
+    </div>
+    <div class="result-row">
+      <div class="result-label">Any model — INT8 + offload</div>
+      <div class="result-bar-wrap"><div class="result-bar" style="width:10%;background:var(--amber);"></div></div>
+      <div class="result-val" style="color:var(--amber2)">10×</div>
+    </div>
+  </div>
+
+  <div class="card-title" style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:16px;">Variant Speedup Comparison (bars = max reported)</div>
+  <canvas id="variant-canvas" width="700" height="180" style="width:100%;max-width:700px;"></canvas>
+
+  <div style="margin-top:24px;" class="grid2">
+    <div>
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAcc(this)">
+          When is speculative decoding most effective?
+          <span class="accordion-chevron">›</span>
+        </div>
+        <div class="accordion-body">
+          Best results on input-grounded tasks: summarization, translation, code completion from a stub, and automatic speech recognition transcription. These tasks have high token predictability from context — giving the drafter a strong signal and raising the acceptance rate above 75%. Speedup scales with the quality of the draft model relative to the task.
+        </div>
+      </div>
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAcc(this)">
+          Does it work at batch size &gt; 1?
+          <span class="accordion-chevron">›</span>
+        </div>
+        <div class="accordion-body">
+          Classic speculative decoding is designed for batch size 1, where memory bandwidth is the primary bottleneck. At larger batch sizes, the GPU becomes compute-bound (matrix multiplications are the bottleneck, not memory), and adding K draft tokens adds real computation cost. At batch sizes ≥ 8, the benefit diminishes significantly. Extensions like SpecInfer and batched speculative decoding address this limitation for throughput-focused deployments.
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAcc(this)">
+          Requirements for a good draft model
+          <span class="accordion-chevron">›</span>
+        </div>
+        <div class="accordion-body">
+          <strong style="color:var(--text)">Same tokenizer:</strong> The drafter must use the exact same tokenizer as the target model. Re-encoding tokens between models would be too slow and introduce alignment errors.<br><br>
+          <strong style="color:var(--text)">Size gap:</strong> The drafter should be at least 10× smaller than the target. Otherwise the draft passes eat too much of the time saved from fewer target passes.<br><br>
+          <strong style="color:var(--text)">Distribution overlap:</strong> The drafter should assign high probability to the same tokens as the target. A drafter fine-tuned on similar data, or a smaller model from the same family, works best.
+        </div>
+      </div>
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAcc(this)">
+          Production adoption and ecosystem support
+          <span class="accordion-chevron">›</span>
+        </div>
+        <div class="accordion-body">
+          Speculative decoding is now available out-of-the-box in HuggingFace Transformers via <code style="color:var(--cyan2)">model.generate(assistant_model=...)</code>. It's also supported in vLLM, TensorRT-LLM, and llama.cpp. Major deployment frameworks have adopted it as a first-class latency optimization for single-user, real-time inference scenarios.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 9: Paper Source ────────────────────────── -->
+<div class="section" id="s-paper" style="min-height:auto;">
+  <div class="section-tag" style="color:var(--muted)">Section 9</div>
+  <h2 class="section-title">Paper Sources</h2>
+  <p class="section-sub">Primary references used in this visual summary.</p>
+
+  <div class="paper-source">
+    <div class="paper-source-title">Primary Paper</div>
+    <div class="paper-ref">
+      <span>Leviathan, Y., Kalman, M., & Matias, Y. (2022)</span><br>
+      <strong>Fast Inference from Transformers via Speculative Decoding</strong><br>
+      Google Research. arXiv:2211.17192 — ICML 2023
+    </div>
+    <a class="paper-btn" href="https://arxiv.org/abs/2211.17192" target="_blank">↗ arXiv:2211.17192</a>
+    <p style="font-size:12px;color:var(--muted);">The founding paper. Introduces the draft-then-verify framework, proves distribution-preserving acceptance sampling, and demonstrates 2–3× speedup on T5-XXL without any model changes or quality loss.</p>
+  </div>
+
+  <div class="paper-source">
+    <div class="paper-source-title">Concurrent Work — Speculative Sampling</div>
+    <div class="paper-ref">
+      <span>Chen, C., Borgeaud, S., Irving, G., Lespiau, J-B., Sifre, L., & Jumper, J. (2023)</span><br>
+      <strong>Accelerating Large Language Model Decoding with Speculative Sampling</strong><br>
+      DeepMind. arXiv:2302.01318
+    </div>
+    <a class="paper-btn" href="https://arxiv.org/abs/2302.01318" target="_blank">↗ arXiv:2302.01318</a>
+    <p style="font-size:12px;color:var(--muted);">Independently develops the same idea for stochastic sampling. Proves distribution preservation for general sampling with the modified rejection scheme. Demonstrates 2–2.5× speedup on Chinchilla 70B.</p>
+  </div>
+
+  <div class="paper-source">
+    <div class="paper-source-title">Additional Resources</div>
+    <div class="paper-ref"><span>HuggingFace Blog (2023)</span> — Assisted Generation: a new direction toward low-latency text generation</div>
+    <a class="paper-btn" href="https://huggingface.co/blog/assisted-generation" target="_blank">↗ HuggingFace Blog</a>
+    <div class="paper-ref" style="margin-top:12px;"><span>Cai et al. (2024)</span> — Medusa: Simple LLM Inference Acceleration Framework with Multiple Decoding Heads. arXiv:2401.10774</div>
+    <div class="paper-ref" style="margin-top:8px;"><span>Li et al. (2024)</span> — EAGLE: Speculative Sampling Requires Rethinking Feature Uncertainty. arXiv:2401.15077</div>
+    <div class="paper-ref" style="margin-top:8px;"><span>Miao et al. (2023)</span> — SpecInfer: Accelerating Generative LLM Serving with Tree-based Speculative Inference. arXiv:2305.09781</div>
+  </div>
+</div>
+
+<!-- Continue Learning -->
+<div class="continue-strip">
+  <span class="continue-label">Continue Learning</span>
+  <a class="continue-link" href="../37-knowledge-distillation/">
+    <div class="continue-dir">Previous</div>
+    <div>Knowledge Distillation — Soft Targets</div>
+  </a>
+  <a class="continue-link" href="../14-vllm/">
+    <div class="continue-dir">Related</div>
+    <div>vLLM &amp; PagedAttention — Efficient Serving</div>
+  </a>
+  <a class="continue-link" href="../35-agent-harness/">
+    <div class="continue-dir">Related</div>
+    <div>Agent Harness — H=(E,T,C,S,L,V)</div>
+  </a>
+  <a class="continue-link" href="../">
+    <div class="continue-dir">All Posts</div>
+    <div>Visual Summary Home</div>
+  </a>
+</div>
+
+</div><!-- /main -->
+
+<script>
+// ── Gate ──────────────────────────────────────────────────
+function unlock(){
+  var v=document.getElementById('pw').value.trim();
+  if(v==='pg_unlocked_38'){
+    document.getElementById('gate').style.display='none';
+    initAll();
+  } else {
+    document.getElementById('pw-err').style.display='block';
+  }
+}
+
+// ── Nav / scroll ──────────────────────────────────────────
+function goTo(id){
+  document.getElementById(id).scrollIntoView({behavior:'smooth'});
+}
+
+// ── Accordion ─────────────────────────────────────────────
+function toggleAcc(hdr){
+  hdr.parentElement.classList.toggle('open');
+}
+
+// ── Acceptance calculator ─────────────────────────────────
+function updateAccept(){
+  var p = parseInt(document.getElementById('sl-draft').value)/100;
+  var q = parseInt(document.getElementById('sl-target').value)/100;
+  document.getElementById('val-draft').textContent = p.toFixed(2);
+  document.getElementById('val-target').textContent = q.toFixed(2);
+  var alpha = Math.min(1, q/p);
+  var ratio = (q/p).toFixed(2);
+  document.getElementById('accept-prob').textContent = alpha.toFixed(2);
+  document.getElementById('ratio-val').textContent = ratio;
+  var box = document.getElementById('accept-result');
+  var cd = document.getElementById('corrected-dist');
+  var verdict = document.getElementById('accept-verdict');
+  if(alpha >= 1){
+    verdict.textContent = 'Always Accept';
+    verdict.style.color = 'var(--emerald2)';
+    box.style.background = 'rgba(16,185,129,.06)';
+    box.style.borderColor = 'rgba(16,185,129,.3)';
+    cd.style.display = 'none';
+  } else {
+    verdict.textContent = 'Accept ' + Math.round(alpha*100) + '% of the time';
+    verdict.style.color = 'var(--amber2)';
+    box.style.background = 'rgba(245,158,11,.06)';
+    box.style.borderColor = 'rgba(245,158,11,.3)';
+    cd.style.display = 'block';
+  }
+  drawAcceptCanvas(p, q, alpha);
+}
+
+function drawAcceptCanvas(p, q, alpha){
+  var cv = document.getElementById('accept-canvas');
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = '#080e1c';
+  ctx.fillRect(0,0,W,H);
+
+  var barH = 32, pad = 16, labelW = 120;
+  var barW = W - labelW - pad*2;
+
+  function drawBar(y, val, maxVal, color, label, valStr){
+    ctx.fillStyle = 'rgba(255,255,255,.06)';
+    ctx.beginPath(); ctx.roundRect(labelW, y, barW, barH, 5); ctx.fill();
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.roundRect(labelW, y, barW * (val/maxVal), barH, 5); ctx.fill();
+    ctx.fillStyle = '#5a7a99';
+    ctx.font = '11px Inter, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(label, labelW - 8, y + 20);
+    ctx.fillStyle = '#cde8ff';
+    ctx.font = 'bold 11px Inter, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(valStr, labelW + barW * (val/maxVal) + 6, y + 20);
+  }
+
+  drawBar(pad, p, 1, '#f97316', 'Draft p(x)', p.toFixed(2));
+  drawBar(pad + barH + 12, q, 1, '#22d3ee', 'Target q(x)', q.toFixed(2));
+  drawBar(pad + (barH+12)*2, alpha, 1, alpha>=1?'#34d399':'#fbbf24', 'Accept α', alpha.toFixed(2));
+}
+
+// ── Speedup calculator ────────────────────────────────────
+function updateSpeedup(){
+  var alpha = parseInt(document.getElementById('sl-alpha').value)/100;
+  var K = parseInt(document.getElementById('sl-k').value);
+  var ratio = parseInt(document.getElementById('sl-ratio').value);
+  document.getElementById('val-alpha').textContent = alpha.toFixed(2);
+  document.getElementById('val-k').textContent = K;
+  document.getElementById('val-ratio').textContent = ratio + '×';
+
+  var expTokens = (1 - Math.pow(alpha, K+1)) / (1 - alpha);
+  var draftCost = K / ratio; // relative to 1 target pass
+  var netSpeedup = expTokens / (1 + draftCost);
+  var overhead = (draftCost / (1 + draftCost)) * 100;
+
+  document.getElementById('exp-tokens').textContent = expTokens.toFixed(2);
+  document.getElementById('net-speedup').textContent = netSpeedup.toFixed(1) + '×';
+  document.getElementById('draft-overhead').textContent = overhead.toFixed(0) + '%';
+
+  drawSpeedupCanvas(alpha, K, ratio, expTokens, netSpeedup);
+}
+
+function drawSpeedupCanvas(alpha, K, ratio, expTokens, netSpeedup){
+  var cv = document.getElementById('speedup-canvas');
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = '#080e1c';
+  ctx.fillRect(0,0,W,H);
+
+  // Draw speedup curve over alpha range
+  var pad = 40, plotW = W - pad*2, plotH = H - pad - 20;
+  var maxSpeedup = 8;
+
+  // Axes
+  ctx.strokeStyle = '#132035';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad, 20); ctx.lineTo(pad, 20+plotH); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(pad, 20+plotH); ctx.lineTo(pad+plotW, 20+plotH); ctx.stroke();
+
+  // Axis labels
+  ctx.fillStyle = '#5a7a99';
+  ctx.font = '10px Inter';
+  ctx.textAlign = 'center';
+  for(var a=0; a<=10; a+=2){
+    var x = pad + (a/10)*plotW;
+    ctx.fillText((a/10).toFixed(1), x, 20+plotH+14);
+  }
+  ctx.textAlign = 'right';
+  for(var s=0; s<=maxSpeedup; s+=2){
+    var y = 20 + plotH - (s/maxSpeedup)*plotH;
+    ctx.fillText(s+'×', pad-5, y+4);
+  }
+  ctx.textAlign = 'center';
+  ctx.fillText('Acceptance rate α', pad+plotW/2, H-2);
+
+  // Theoretical curve (no draft cost)
+  ctx.strokeStyle = 'rgba(6,182,212,.3)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4,4]);
+  ctx.beginPath();
+  for(var ai=1; ai<99; ai++){
+    var av = ai/100;
+    var ev = (1-Math.pow(av,K+1))/(1-av);
+    var sx = pad + av*plotW;
+    var sy = 20 + plotH - Math.min(ev/maxSpeedup, 1)*plotH;
+    if(ai===1) ctx.moveTo(sx,sy); else ctx.lineTo(sx,sy);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Net speedup curve (with draft cost)
+  ctx.strokeStyle = '#22d3ee';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for(var ai=1; ai<99; ai++){
+    var av = ai/100;
+    var ev = (1-Math.pow(av,K+1))/(1-av);
+    var dc = K/ratio;
+    var ns = ev/(1+dc);
+    var sx = pad + av*plotW;
+    var sy = 20 + plotH - Math.min(ns/maxSpeedup, 1)*plotH;
+    if(ai===1) ctx.moveTo(sx,sy); else ctx.lineTo(sx,sy);
+  }
+  ctx.stroke();
+
+  // Current point
+  var cx = pad + alpha*plotW;
+  var draftCost2 = K/ratio;
+  var cy = 20 + plotH - Math.min(netSpeedup/maxSpeedup, 1)*plotH;
+  ctx.fillStyle = '#fbbf24';
+  ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI*2); ctx.fill();
+
+  // Legend
+  ctx.fillStyle = 'rgba(6,182,212,.3)'; ctx.fillRect(pad+plotW-130, 28, 16, 2);
+  ctx.fillStyle = '#5a7a99'; ctx.font='10px Inter'; ctx.textAlign='left';
+  ctx.fillText('Theoretical (no draft cost)', pad+plotW-110, 31);
+  ctx.strokeStyle = '#22d3ee'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(pad+plotW-130,40); ctx.lineTo(pad+plotW-114,40); ctx.stroke();
+  ctx.fillText('Net speedup', pad+plotW-110, 43);
+}
+
+// ── Bandwidth canvas ──────────────────────────────────────
+function drawBWCanvas(){
+  var cv = document.getElementById('bw-canvas');
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = '#080e1c';
+  ctx.fillRect(0,0,W,H);
+
+  var scenarios = [
+    {label:'Sequential\n1 token', memLoad:1.0, compute:0.05},
+    {label:'Sequential\n4 tokens', memLoad:1.0, compute:0.08},
+    {label:'Speculative\nverify 4', memLoad:1.0, compute:0.10},
+    {label:'Speculative\nverify 8', memLoad:1.0, compute:0.12},
+  ];
+
+  var pad = 50, gap = 20;
+  var nBars = scenarios.length;
+  var groupW = (W - pad*2 - gap*(nBars-1)) / nBars;
+  var maxH = H - pad - 30;
+  var maxVal = 1.2;
+
+  // Y axis
+  ctx.strokeStyle = '#132035'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad, 20); ctx.lineTo(pad, H-pad); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(pad, H-pad); ctx.lineTo(W-20, H-pad); ctx.stroke();
+
+  scenarios.forEach(function(sc, i){
+    var x = pad + i*(groupW+gap);
+    var memH = (sc.memLoad/maxVal)*maxH;
+    var compH = (sc.compute/maxVal)*maxH;
+    var totalH = memH + compH;
+    var baseY = H - pad;
+
+    // Memory bar
+    ctx.fillStyle = 'rgba(239,68,68,.7)';
+    ctx.beginPath(); ctx.roundRect(x, baseY-totalH, groupW*0.55, totalH, [5,5,0,0]); ctx.fill();
+
+    // Compute overlay
+    ctx.fillStyle = 'rgba(6,182,212,.6)';
+    ctx.beginPath(); ctx.roundRect(x+groupW*0.6, baseY-compH, groupW*0.35, compH, [5,5,0,0]); ctx.fill();
+
+    // Label
+    ctx.fillStyle = '#5a7a99'; ctx.font = '10px Inter'; ctx.textAlign = 'center';
+    var lines = sc.label.split('\n');
+    lines.forEach(function(ln, li){ ctx.fillText(ln, x+groupW*0.45, baseY+14+li*13); });
+  });
+
+  // Legend
+  ctx.fillStyle = 'rgba(239,68,68,.7)';
+  ctx.fillRect(pad+10, 24, 14, 12);
+  ctx.fillStyle = '#5a7a99'; ctx.font='11px Inter'; ctx.textAlign='left';
+  ctx.fillText('Memory load (flat regardless of batch size)', pad+30, 33);
+  ctx.fillStyle = 'rgba(6,182,212,.6)';
+  ctx.fillRect(pad+10, 42, 14, 12);
+  ctx.fillText('Compute (scales slightly with batch size)', pad+30, 51);
+}
+
+// ── Variant display ───────────────────────────────────────
+var VARIANTS = {
+  original:{
+    title:'Original Speculative Decoding — Leviathan et al. (2022)',
+    color:'var(--cyan2)',
+    body:`<div style="font-size:13px;color:var(--muted);line-height:1.7">
+      <p style="margin-bottom:12px">The founding paper from Google Research. Introduces the full draft-then-verify framework with a separate smaller model as drafter. Key contributions:</p>
+      <ul style="padding-left:20px;margin-bottom:12px">
+        <li>Proves that modified rejection sampling preserves the target distribution <em>exactly</em></li>
+        <li>Shows 2–3× speedup on T5-XXL (11B parameters) vs standard T5X implementation</li>
+        <li>Works on off-the-shelf models with no retraining, fine-tuning, or architecture changes</li>
+        <li>Introduces adaptive K — dynamically adjusting draft length based on acceptance rate</li>
+      </ul>
+      <div style="background:rgba(6,182,212,.06);border:1px solid rgba(6,182,212,.2);border-radius:8px;padding:12px;">
+        <strong style="color:var(--cyan3)">Draft model setup:</strong> A much smaller model from the same model family — e.g., a T5-Small to draft for T5-XXL. Must share the same tokenizer. No joint training required.
+      </div>
+    </div>`
+  },
+  deepmind:{
+    title:'Speculative Sampling — Chen et al., DeepMind (2023)',
+    color:'var(--purple2)',
+    body:`<div style="font-size:13px;color:var(--muted);line-height:1.7">
+      <p style="margin-bottom:12px">Developed concurrently and independently at DeepMind. Focuses on the stochastic sampling case and provides rigorous distribution-preservation proofs. Key contributions:</p>
+      <ul style="padding-left:20px;margin-bottom:12px">
+        <li>Full mathematical proof that the modified rejection scheme outputs exactly q(x) for arbitrary sampling</li>
+        <li>2–2.5× speedup demonstrated on Chinchilla 70B — the largest model tested at that time</li>
+        <li>Shows that the acceptance rate is directly related to the token-level KL divergence between drafter and target</li>
+        <li>Analyzes the expected number of accepted tokens as a function of the acceptance rate α</li>
+      </ul>
+      <div style="background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.2);border-radius:8px;padding:12px;">
+        <strong style="color:var(--purple3)">Key formula:</strong> E[accepted tokens] = (1 − α^{K+1}) / (1 − α), where α is the mean per-token acceptance probability.
+      </div>
+    </div>`
+  },
+  medusa:{
+    title:'Medusa — Multiple Decoding Heads (2024)',
+    color:'var(--amber2)',
+    body:`<div style="font-size:13px;color:var(--muted);line-height:1.7">
+      <p style="margin-bottom:12px">Medusa eliminates the need for a separate draft model by attaching lightweight prediction heads directly to the target model's final hidden state.</p>
+      <ul style="padding-left:20px;margin-bottom:12px">
+        <li>N additional MLP heads (typically 3–5) predict tokens at positions t+1, t+2, t+3, ... simultaneously</li>
+        <li>Each head is small (~10M parameters) vs the target model (7B–70B)</li>
+        <li>No separate model needed — a single forward pass produces both the current token and N candidate future tokens</li>
+        <li>Uses tree-structured verification to check multiple candidate paths in one pass</li>
+        <li>2.2–3.6× speedup; heads can be fine-tuned in a few hours on a single GPU</li>
+      </ul>
+      <div style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:12px;">
+        <strong style="color:var(--amber3)">Trade-off:</strong> Requires modifying the model architecture (adding heads) and a fine-tuning step. Not plug-and-play like the original. But removes the need to host a second model entirely.
+      </div>
+    </div>`
+  },
+  eagle:{
+    title:'EAGLE — Autoregress on Feature Space (2024)',
+    color:'var(--emerald2)',
+    body:`<div style="font-size:13px;color:var(--muted);line-height:1.7">
+      <p style="margin-bottom:12px">EAGLE (Extrapolation Algorithm for Greater Language-model Efficiency) improves on Medusa by drafting in the target model's internal feature space rather than the token probability space.</p>
+      <ul style="padding-left:20px;margin-bottom:12px">
+        <li>A lightweight autoregressor predicts the target model's penultimate feature vectors at future positions</li>
+        <li>These predicted features are decoded into candidate tokens and verified in the usual way</li>
+        <li>Feature-level drafting is more accurate than token-level, because the target model's internal representations encode richer context</li>
+        <li>EAGLE-1: 2.7–3.5× speedup; EAGLE-2: 3–6.5× on LLaMA-2-70B with dynamic draft length</li>
+      </ul>
+      <div style="background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.2);border-radius:8px;padding:12px;">
+        <strong style="color:var(--emerald2)">Why it works better:</strong> Token-level drafting ignores the hidden state. Feature-level drafting uses the model's own compressed representation of the sequence — the same signal the target model uses to decide what to output next.
+      </div>
+    </div>`
+  },
+  specinfer:{
+    title:'SpecInfer — Token Tree Verification (2023)',
+    color:'var(--cyan3)',
+    body:`<div style="font-size:13px;color:var(--muted);line-height:1.7">
+      <p style="margin-bottom:12px">SpecInfer extends speculative decoding to use a <em>tree</em> of candidate token sequences rather than a single draft sequence. Multiple draft models generate diverse candidates simultaneously.</p>
+      <ul style="padding-left:20px;margin-bottom:12px">
+        <li>Multiple small models (or a tree-structured draft) generate several candidate continuations in parallel</li>
+        <li>The target model verifies the entire token tree in a single tree-structured attention forward pass</li>
+        <li>Tree verification accepts the longest consistent prefix from all branches, maximizing token throughput</li>
+        <li>1.5–3.5× speedup; best for throughput-focused deployments with multiple simultaneous users</li>
+      </ul>
+      <div style="background:rgba(6,182,212,.06);border:1px solid rgba(6,182,212,.2);border-radius:8px;padding:12px;">
+        <strong style="color:var(--cyan3)">Key insight:</strong> A tree of K candidates explored in one pass is strictly better than a single sequence of K candidates, because the tree covers exponentially more possible futures with the same verification cost.
+      </div>
+    </div>`
+  }
+};
+
+function showVariant(k, btn){
+  document.querySelectorAll('#variant-tabs .btn-tab').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  var v = VARIANTS[k];
+  document.getElementById('variant-display').innerHTML =
+    '<div class="card-title" style="color:'+v.color+';margin-bottom:14px;">'+v.title+'</div>'+v.body;
+}
+
+// ── Token Simulator ───────────────────────────────────────
+var SIM_CONTEXT = ['The','large','language','model'];
+var SIM_VOCAB = ['generates','produces','outputs','creates','writes','a','the',
+                 'token','tokens','sequence','word','sentence','next','new',
+                 'fast','slow','correct','wrong','likely','unlikely','result'];
+var simTokens = SIM_CONTEXT.slice();
+var simSteps = 0;
+var simTotalNew = 0;
+var K_CURR = 4;
+
+function renderSimTokens(){
+  var container = document.getElementById('sim-tokens');
+  container.innerHTML = simTokens.map(function(t, i){
+    var cls = i < SIM_CONTEXT.length ? 'context' : 'accepted';
+    return '<span class="token '+cls+'">'+t+'</span>';
+  }).join('');
+}
+
+function runSim(){
+  simSteps++;
+  var K = K_CURR;
+  var draftTokens = [];
+  var draftProbs = [];
+  for(var i=0;i<K;i++){
+    draftTokens.push(SIM_VOCAB[Math.floor(Math.random()*SIM_VOCAB.length)]);
+    draftProbs.push(0.3 + Math.random()*0.5);
+  }
+
+  var accepted = [];
+  var resampled = null;
+  var allAccepted = true;
+  for(var i=0;i<K;i++){
+    var targetProb = 0.2 + Math.random()*0.7;
+    var alpha = Math.min(1, targetProb/draftProbs[i]);
+    if(Math.random() < alpha){
+      accepted.push({tok:draftTokens[i], status:'accepted'});
+    } else {
+      allAccepted = false;
+      resampled = SIM_VOCAB[Math.floor(Math.random()*SIM_VOCAB.length)];
+      break;
+    }
+  }
+
+  var extra = SIM_VOCAB[Math.floor(Math.random()*SIM_VOCAB.length)];
+  var newTokens = accepted.map(function(a){return a.tok;});
+  if(resampled) newTokens.push(resampled);
+  newTokens.push(extra);
+
+  simTokens = simTokens.concat(newTokens);
+  simTotalNew += newTokens.length;
+
+  if(allAccepted) K_CURR = Math.min(8, K_CURR+2);
+  else K_CURR = Math.max(2, K_CURR-1);
+
+  var container = document.getElementById('sim-tokens');
+  var prevLen = simTokens.length - newTokens.length;
+  container.innerHTML = simTokens.map(function(t, i){
+    var cls;
+    if(i < SIM_CONTEXT.length) cls='context';
+    else if(i < prevLen) cls='accepted';
+    else cls='accepted';
+    return '<span class="token '+cls+'">'+t+'</span>';
+  }).join('');
+
+  var logEl = document.getElementById('sim-log');
+  var acceptedCount = accepted.length;
+  var msg = 'Step '+simSteps+': Drafted '+K+' tokens → '+acceptedCount+' accepted'+(resampled?' + 1 resampled':'')+' + 1 extra = '+newTokens.length+' new  (K→'+K_CURR+')';
+  logEl.innerHTML = msg + '\n' + logEl.innerHTML;
+
+  document.getElementById('sim-status').textContent =
+    'Step '+simSteps+': '+acceptedCount+'/'+K+' draft tokens accepted. '+newTokens.length+' tokens added this step.';
+  document.getElementById('sim-steps').textContent = simSteps;
+  document.getElementById('sim-total').textContent = simTotalNew;
+  document.getElementById('sim-avg').textContent = (simTotalNew/simSteps).toFixed(1);
+}
+
+function resetSim(){
+  simTokens = SIM_CONTEXT.slice();
+  simSteps = 0; simTotalNew = 0; K_CURR = 4;
+  document.getElementById('sim-log').innerHTML = '';
+  document.getElementById('sim-status').textContent = '';
+  document.getElementById('sim-steps').textContent = '0';
+  document.getElementById('sim-total').textContent = '0';
+  document.getElementById('sim-avg').textContent = '—';
+  renderSimTokens();
+}
+
+// ── Variant speedup bar chart ─────────────────────────────
+function drawVariantCanvas(){
+  var cv = document.getElementById('variant-canvas');
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = '#080e1c';
+  ctx.fillRect(0,0,W,H);
+
+  var data = [
+    {label:'Original (Leviathan)', min:2.0, max:3.0, color:'#22d3ee'},
+    {label:'Spec. Sampling (Chen)', min:2.0, max:2.5, color:'#a78bfa'},
+    {label:'Medusa', min:2.2, max:3.6, color:'#fbbf24'},
+    {label:'EAGLE', min:2.7, max:6.5, color:'#34d399'},
+    {label:'SpecInfer', min:1.5, max:3.5, color:'#818cf8'},
+  ];
+
+  var pad = 140, padRight = 60, rowH = 28, barH = 16;
+  var maxX = 7;
+  var plotW = W - pad - padRight;
+
+  data.forEach(function(d, i){
+    var y = 16 + i*(rowH);
+    var x1 = pad + (d.min/maxX)*plotW;
+    var x2 = pad + (d.max/maxX)*plotW;
+
+    ctx.fillStyle = 'rgba(255,255,255,.04)';
+    ctx.beginPath(); ctx.roundRect(pad, y, plotW, barH, 4); ctx.fill();
+
+    ctx.fillStyle = d.color;
+    ctx.globalAlpha = 0.25;
+    ctx.beginPath(); ctx.roundRect(x1, y, x2-x1, barH, 4); ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.beginPath(); ctx.roundRect(x1, y+barH/2-2, 4, 4, 2); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(x2-4, y+barH/2-2, 4, 4, 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x1+2, y+barH/2); ctx.lineTo(x2-2, y+barH/2); ctx.strokeStyle=d.color; ctx.lineWidth=1.5; ctx.stroke();
+
+    ctx.fillStyle = '#5a7a99';
+    ctx.font = '11px Inter, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(d.label, pad-8, y+barH/2+4);
+
+    ctx.fillStyle = d.color;
+    ctx.font = 'bold 11px Inter';
+    ctx.textAlign = 'left';
+    ctx.fillText(d.min+'–'+d.max+'×', x2+8, y+barH/2+4);
+  });
+
+  // x-axis ticks
+  var axY = 16 + data.length*rowH + 8;
+  ctx.fillStyle = '#5a7a99'; ctx.font = '10px Inter'; ctx.textAlign = 'center';
+  for(var v=1; v<=maxX; v++){
+    var x = pad + (v/maxX)*plotW;
+    ctx.fillText(v+'×', x, axY);
+    ctx.strokeStyle = 'rgba(19,32,53,.8)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x, 10); ctx.lineTo(x, axY-8); ctx.stroke();
+  }
+}
+
+// ── Scroll spy ────────────────────────────────────────────
+function setupScrollSpy(){
+  var sections = ['s-intro','s-bottleneck','s-algorithm','s-sampling','s-speedup','s-sim','s-variants','s-results','s-paper'];
+  var mainEl = document.querySelector('.main');
+  mainEl.addEventListener('scroll', function(){
+    var scrollY = mainEl.scrollTop;
+    sections.forEach(function(id){
+      var el = document.getElementById(id);
+      if(!el) return;
+      var offsetTop = el.offsetTop - 60;
+      var offsetBot = offsetTop + el.offsetHeight;
+      var links = document.querySelectorAll('.nav-link');
+      if(scrollY >= offsetTop && scrollY < offsetBot){
+        links.forEach(function(l){ l.classList.remove('active'); });
+        var idx = sections.indexOf(id);
+        if(links[idx]) links[idx].classList.add('active');
+      }
+    });
+  });
+}
+
+// ── Init ──────────────────────────────────────────────────
+function initAll(){
+  drawBWCanvas();
+  updateAccept();
+  updateSpeedup();
+  renderSimTokens();
+  showVariant('original', document.querySelector('#variant-tabs .btn-tab'));
+  drawVariantCanvas();
+  setupScrollSpy();
+}
+</script>
+</body>
+</html>
