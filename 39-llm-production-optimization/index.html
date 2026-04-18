@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>72 Techniques to Optimize LLMs in Production</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#04070d;--surface:#080d1a;--border:#101e33;
+  --text:#d4e8ff;--muted:#4a6a8a;
+  --c1:#f97316;/* Model Compression */
+  --c2:#8b5cf6;/* Attention & Architecture */
+  --c3:#06b6d4;/* Decoding */
+  --c4:#10b981;/* KV Cache */
+  --c5:#f59e0b;/* Batching & Scheduling */
+  --c6:#e11d48;/* Parallelism & Kernels */
+  --c7:#3b82f6;/* Application Caching */
+  --c8:#a855f7;/* Input / Output Shaping */
+  --c9:#14b8a6;/* Routing & Cost */
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;}
+a{text-decoration:none;color:inherit;}
+/* Gate */
+#gate{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.gate-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 44px;text-align:center;max-width:380px;width:90%;}
+.gate-icon{font-size:36px;margin-bottom:12px;}
+.gate-title{font-size:20px;font-weight:800;color:#d4e8ff;margin-bottom:4px;}
+.gate-sub{font-size:12px;color:var(--muted);margin-bottom:24px;}
+.gate-input{width:100%;background:#02050b;border:1px solid var(--border);border-radius:8px;padding:11px 14px;font-size:14px;color:var(--text);outline:none;margin-bottom:12px;}
+.gate-input:focus{border-color:#3b82f6;}
+.gate-btn{width:100%;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s;}
+.gate-btn:hover{opacity:.85;}
+.gate-err{font-size:11px;color:#ef4444;margin-top:6px;display:none;}
+/* Layout */
+.page{max-width:1400px;margin:0 auto;padding:0 24px;}
+/* Header */
+.header{padding:32px 0 24px;border-bottom:1px solid var(--border);margin-bottom:32px;}
+.header-tag{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#3b82f6;font-weight:700;margin-bottom:8px;}
+.header-title{font-size:32px;font-weight:800;line-height:1.2;margin-bottom:10px;background:linear-gradient(135deg,#d4e8ff 40%,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.header-sub{font-size:14px;color:var(--muted);max-width:680px;}
+/* Stats bar */
+.stats-bar{display:flex;gap:32px;flex-wrap:wrap;padding:20px 0;border-bottom:1px solid var(--border);margin-bottom:28px;}
+.stat{text-align:center;}
+.stat-val{font-size:24px;font-weight:800;}
+.stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-top:2px;}
+/* Controls */
+.controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:24px;}
+.search-wrap{flex:1;min-width:200px;max-width:340px;position:relative;}
+.search-input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 12px 9px 36px;font-size:13px;color:var(--text);outline:none;transition:border-color .15s;}
+.search-input:focus{border-color:#3b82f6;}
+.search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;}
+.filter-row{display:flex;gap:8px;flex-wrap:wrap;}
+.cat-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid transparent;transition:all .15s;white-space:nowrap;}
+.cat-btn.active{color:#fff;}
+.cat-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.count-badge{font-size:9px;background:rgba(255,255,255,.1);border-radius:10px;padding:1px 5px;font-weight:700;}
+/* Grid */
+.grid-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.grid-label{font-size:11px;color:var(--muted);}
+#result-count{font-size:11px;color:var(--muted);}
+.techniques-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:40px;}
+/* Cards */
+.tech-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0;overflow:hidden;cursor:pointer;transition:all .2s;position:relative;}
+.tech-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.4);}
+.tech-card.hidden{display:none;}
+.card-accent{height:3px;}
+.card-body{padding:14px 16px 12px;}
+.card-num{font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace;margin-bottom:4px;}
+.card-name{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;line-height:1.3;}
+.card-tagline{font-size:11px;color:var(--muted);line-height:1.5;}
+.card-cat{display:inline-flex;align-items:center;gap:4px;margin-top:8px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;padding:2px 7px;border-radius:10px;}
+/* Modal */
+#modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px;}
+#modal-overlay.open{display:flex;}
+.modal{background:#080d1a;border:1px solid var(--border);border-radius:16px;max-width:680px;width:100%;max-height:90vh;overflow-y:auto;position:relative;}
+.modal-header{padding:24px 28px 0;}
+.modal-num{font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;margin-bottom:6px;}
+.modal-title{font-size:22px;font-weight:800;margin-bottom:6px;}
+.modal-cat{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;padding:3px 9px;border-radius:10px;margin-bottom:16px;}
+.modal-body{padding:0 28px 28px;}
+.modal-close{position:absolute;top:16px;right:20px;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1;}
+.modal-close:hover{color:var(--text);}
+.modal-section{margin-bottom:18px;}
+.modal-section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px;}
+.modal-text{font-size:13px;color:var(--muted);line-height:1.7;}
+.modal-text strong{color:var(--text);}
+.stat-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:8px;font-size:12px;font-weight:700;border:1px solid;margin:3px 4px 3px 0;}
+.formula{background:#020508;border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#a5f3fc;line-height:1.8;margin-top:8px;overflow-x:auto;}
+.related-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+.related-chip{font-size:10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:3px 9px;color:var(--muted);cursor:pointer;transition:all .15s;}
+.related-chip:hover{border-color:#3b82f6;color:#93c5fd;}
+/* Category section headers */
+.cat-section{margin-bottom:36px;}
+.cat-section-header{display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);}
+.cat-section-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.cat-section-name{font-size:14px;font-weight:700;}
+.cat-section-count{font-size:11px;color:var(--muted);}
+/* No results */
+#no-results{display:none;text-align:center;padding:60px 0;color:var(--muted);}
+/* Continue strip */
+.continue-strip{background:var(--surface);border-top:1px solid var(--border);padding:20px 0;display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:40px;}
+.continue-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-right:4px;}
+.continue-link{display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--muted);transition:all .15s;}
+.continue-link:hover{border-color:#3b82f6;color:#93c5fd;}
+.continue-dir{font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);}
+/* View toggle */
+.view-toggle{display:flex;gap:4px;}
+.view-btn{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;color:var(--muted);transition:all .15s;}
+.view-btn.active{background:#1e3a5f;border-color:#3b82f6;color:#93c5fd;}
+</style>
+</head>
+<body>
+
+<!-- Gate -->
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-icon">⚙️</div>
+    <div class="gate-title">LLM Production Optimization</div>
+    <div class="gate-sub">Visual Summary — Post 39</div>
+    <input class="gate-input" type="password" id="pw" placeholder="Enter password" onkeydown="if(event.key==='Enter')unlock()">
+    <button class="gate-btn" onclick="unlock()">Unlock</button>
+    <div class="gate-err" id="pw-err">Incorrect password</div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal-box">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-header">
+      <div class="modal-num" id="m-num"></div>
+      <div class="modal-title" id="m-title"></div>
+      <div class="modal-cat" id="m-cat"></div>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section">
+        <div class="modal-section-title">What it is</div>
+        <div class="modal-text" id="m-what"></div>
+      </div>
+      <div class="modal-section">
+        <div class="modal-section-title">How it works</div>
+        <div class="modal-text" id="m-how"></div>
+      </div>
+      <div id="m-formula-wrap" class="modal-section" style="display:none;">
+        <div class="modal-section-title">Key formula / concept</div>
+        <div class="formula" id="m-formula"></div>
+      </div>
+      <div class="modal-section">
+        <div class="modal-section-title">Impact</div>
+        <div id="m-stats"></div>
+      </div>
+      <div id="m-tradeoff-wrap" class="modal-section">
+        <div class="modal-section-title">Trade-off</div>
+        <div class="modal-text" id="m-tradeoff"></div>
+      </div>
+      <div id="m-related-wrap" class="modal-section">
+        <div class="modal-section-title">Often combined with</div>
+        <div class="related-chips" id="m-related"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="page">
+
+<!-- Header -->
+<div class="header">
+  <div class="header-tag">Post 39 · Production Engineering</div>
+  <h1 class="header-title">72 Techniques to Optimize LLMs in Production</h1>
+  <p class="header-sub">From INT8 quantization to function calling — every lever you can pull to make large language models faster, cheaper, and more reliable at scale. Click any card for a deep dive.</p>
+</div>
+
+<!-- Stats -->
+<div class="stats-bar">
+  <div class="stat"><div class="stat-val" style="color:#f97316;">12</div><div class="stat-lbl">Model Compression</div></div>
+  <div class="stat"><div class="stat-val" style="color:#8b5cf6;">15</div><div class="stat-lbl">Attention & Arch</div></div>
+  <div class="stat"><div class="stat-val" style="color:#06b6d4;">9</div><div class="stat-lbl">Decoding</div></div>
+  <div class="stat"><div class="stat-val" style="color:#10b981;">5</div><div class="stat-lbl">KV Cache</div></div>
+  <div class="stat"><div class="stat-val" style="color:#f59e0b;">9</div><div class="stat-lbl">Batching & Sched.</div></div>
+  <div class="stat"><div class="stat-val" style="color:#e11d48;">3</div><div class="stat-lbl">Parallelism & Kernels</div></div>
+  <div class="stat"><div class="stat-val" style="color:#3b82f6;">5</div><div class="stat-lbl">App Caching</div></div>
+  <div class="stat"><div class="stat-val" style="color:#a855f7;">7</div><div class="stat-lbl">I/O Shaping</div></div>
+  <div class="stat"><div class="stat-val" style="color:#14b8a6;">7</div><div class="stat-lbl">Routing & Cost</div></div>
+</div>
+
+<!-- Controls -->
+<div class="controls">
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input class="search-input" id="search" type="text" placeholder="Search techniques…" oninput="applyFilters()">
+  </div>
+  <div class="view-toggle">
+    <button class="view-btn active" id="vb-grid" onclick="setView('grid')">⊞ Grid</button>
+    <button class="view-btn" id="vb-list" onclick="setView('list')">≡ List</button>
+  </div>
+</div>
+<div class="filter-row" id="cat-filters">
+  <button class="cat-btn active" data-cat="all" onclick="setCat('all',this)" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.15);color:var(--text);">
+    <span class="cat-dot" style="background:#d4e8ff;"></span>All <span class="count-badge">72</span>
+  </button>
+  <button class="cat-btn" data-cat="compression" onclick="setCat('compression',this)">
+    <span class="cat-dot" style="background:var(--c1);"></span>Model Compression
+  </button>
+  <button class="cat-btn" data-cat="attention" onclick="setCat('attention',this)">
+    <span class="cat-dot" style="background:var(--c2);"></span>Attention &amp; Architecture
+  </button>
+  <button class="cat-btn" data-cat="decoding" onclick="setCat('decoding',this)">
+    <span class="cat-dot" style="background:var(--c3);"></span>Decoding
+  </button>
+  <button class="cat-btn" data-cat="kvcache" onclick="setCat('kvcache',this)">
+    <span class="cat-dot" style="background:var(--c4);"></span>KV Cache
+  </button>
+  <button class="cat-btn" data-cat="batching" onclick="setCat('batching',this)">
+    <span class="cat-dot" style="background:var(--c5);"></span>Batching &amp; Scheduling
+  </button>
+  <button class="cat-btn" data-cat="parallelism" onclick="setCat('parallelism',this)">
+    <span class="cat-dot" style="background:var(--c6);"></span>Parallelism &amp; Kernels
+  </button>
+  <button class="cat-btn" data-cat="appcache" onclick="setCat('appcache',this)">
+    <span class="cat-dot" style="background:var(--c7);"></span>Application Caching
+  </button>
+  <button class="cat-btn" data-cat="ioshaping" onclick="setCat('ioshaping',this)">
+    <span class="cat-dot" style="background:var(--c8);"></span>Input/Output Shaping
+  </button>
+  <button class="cat-btn" data-cat="routing" onclick="setCat('routing',this)">
+    <span class="cat-dot" style="background:var(--c9);"></span>Routing &amp; Cost
+  </button>
+</div>
+
+<!-- Result count -->
+<div class="grid-header" style="margin-top:20px;">
+  <div id="result-count" style="font-size:12px;color:var(--muted);"></div>
+</div>
+
+<!-- Grid -->
+<div id="grid-container" class="techniques-grid"></div>
+<div id="no-results">No techniques match your search.</div>
+
+<!-- Continue -->
+<div class="continue-strip">
+  <span class="continue-label">Continue Learning</span>
+  <a class="continue-link" href="../38-speculative-decoding/">
+    <div class="continue-dir">Related</div>
+    <div>Speculative Decoding — Fast Inference</div>
+  </a>
+  <a class="continue-link" href="../14-vllm/">
+    <div class="continue-dir">Related</div>
+    <div>vLLM &amp; PagedAttention</div>
+  </a>
+  <a class="continue-link" href="../37-knowledge-distillation/">
+    <div class="continue-dir">Related</div>
+    <div>Knowledge Distillation</div>
+  </a>
+  <a class="continue-link" href="../">
+    <div class="continue-dir">All Posts</div>
+    <div>Visual Summary Home</div>
+  </a>
+</div>
+
+</div><!-- /page -->
+
+<script>
+// ── Gate ──
+function unlock(){
+  if(document.getElementById('pw').value.trim()==='visual2025'){
+    document.getElementById('gate').style.display='none';
+    init();
+  } else {
+    document.getElementById('pw-err').style.display='block';
+  }
+}
+
+// ── Data ──
+var CAT_META = {
+  compression: {name:'Model Compression',      color:'#f97316', bg:'rgba(249,115,22,.1)'},
+  attention:   {name:'Attention & Architecture',color:'#8b5cf6', bg:'rgba(139,92,246,.1)'},
+  decoding:    {name:'Decoding',                color:'#06b6d4', bg:'rgba(6,182,212,.1)'},
+  kvcache:     {name:'KV Cache',                color:'#10b981', bg:'rgba(16,185,129,.1)'},
+  batching:    {name:'Batching & Scheduling',   color:'#f59e0b', bg:'rgba(245,158,11,.1)'},
+  parallelism: {name:'Parallelism & Kernels',   color:'#e11d48', bg:'rgba(225,29,72,.1)'},
+  appcache:    {name:'Application Caching',     color:'#3b82f6', bg:'rgba(59,130,246,.1)'},
+  ioshaping:   {name:'Input/Output Shaping',    color:'#a855f7', bg:'rgba(168,85,247,.1)'},
+  routing:     {name:'Routing & Cost',          color:'#14b8a6', bg:'rgba(20,184,166,.1)'},
+};
+
+var TECHNIQUES = [
+  // ── Model Compression ─────────────────────────────────────────────────────
+  {id:1, name:'INT8 Quantization', cat:'compression', tagline:'Half the memory footprint',
+   what:'Converts model weights and/or activations from 32-bit or 16-bit floating point to 8-bit integers. Halves memory compared to FP16.',
+   how:'Weights are scaled by their maximum absolute value, quantized to [-128, 127], and dequantized at runtime. Activation outliers (common in >6.7B models) are kept in FP16 via mixed-precision decomposition (LLM.int8()).',
+   formula:'W_int8 = round(W_fp16 / scale),  scale = max(|W|) / 127',
+   stats:[{v:'2×',l:'Memory reduction vs FP16',c:'#10b981'},{v:'~0%',l:'Quality loss with LLM.int8()',c:'#3b82f6'}],
+   tradeoff:'Minor latency overhead from quantize/dequantize steps at runtime. Quality degradation appears at aggressive INT8 for activations without outlier handling.',
+   related:['INT4 Quantization','QAT','SmoothQuant','Mixed Precision']},
+
+  {id:2, name:'INT4 Quantization', cat:'compression', tagline:'Aggressive 4x compression',
+   what:'Quantizes weights to 4-bit integers — the most aggressive weight-only quantization that still yields useful quality. Uses group-wise quantization to limit error.',
+   how:'Applied per group of 64–128 weights. Each group has its own scale and zero-point. Weights remain INT4 in memory but are dequantized to FP16 before matrix multiplication.',
+   formula:'W_int4 = clamp(round(W / scale + zero_point), 0, 15)',
+   stats:[{v:'4×',l:'Memory reduction vs FP16',c:'#10b981'},{v:'1.95×',l:'Throughput speedup (batch=1, Llama-8B)',c:'#f97316'}],
+   tradeoff:'Noticeable quality loss on some tasks vs FP16. Requires group-wise quantization to maintain acceptable accuracy. Not suitable for all model sizes.',
+   related:['GPTQ','AWQ','Mixed Precision','INT8 Quantization']},
+
+  {id:3, name:'FP8 Quantization', cat:'compression', tagline:'Hardware-native precision',
+   what:'Uses 8-bit floating point (E4M3 or E5M2 format) instead of BF16/FP16. H100/H200 GPUs have native FP8 tensor cores — no dequantization needed.',
+   how:'Dynamic per-row scaling: each row of the activation and weight tensor gets its own FP8 scale factor computed on-the-fly. Combines compression benefits with hardware acceleration.',
+   formula:'fp8_val = round_to_fp8(x / scale),  scale = max(|x_row|) / fp8_max',
+   stats:[{v:'1.27–1.28×',l:'Throughput speedup (H100)',c:'#f97316'},{v:'2×',l:'Memory vs FP16',c:'#10b981'}],
+   tradeoff:'Requires H100/H200 or newer hardware. Dynamic scaling adds some overhead. E4M3 has limited range — may need fallback for large activations.',
+   related:['INT8 Quantization','Mixed Precision','Kernel Fusion']},
+
+  {id:4, name:'GPTQ', cat:'compression', tagline:'Hessian-based weight quantization',
+   what:'Post-training quantization using the Hessian of the loss to decide which weights to quantize and by how much — minimizing reconstruction error layer by layer.',
+   how:'For each layer, solves: min‖WX − Ŵ X‖² using the OBQ (Optimal Brain Quantization) framework. Quantizes weights one column at a time, updating remaining weights to compensate.',
+   formula:'Ŵ* = argmin‖WX − ŴX‖²  (solved layer-by-layer with Hessian updates)',
+   stats:[{v:'3–4 bit',l:'OPT-175B with minimal degradation',c:'#f97316'},{v:'4×',l:'Memory reduction',c:'#10b981'}],
+   tradeoff:'Quantization is slow (hours for large models) but is one-time. Runtime is fast — no quality loss overhead during inference. Requires calibration data.',
+   related:['INT4 Quantization','AWQ','GGUF','Mixed Precision']},
+
+  {id:5, name:'AWQ', cat:'compression', tagline:'Activation-aware weight quantization',
+   what:'Observes that only 1% of weights are "salient" — those corresponding to large activation channels. Protecting just those weights recovers most of the quality lost to quantization.',
+   how:'Scales salient weight channels up before quantization (and compensates downstream), so quantization error is concentrated in less important channels. No hessian computation needed.',
+   formula:'scale_i = (max|X_i| / max|W_i|)^α,  then quantize W * scale^(-1)',
+   stats:[{v:'4 bit',l:'Near FP16 quality across LLaMA, OPT',c:'#f97316'},{v:'1%',l:'Salient weights — protect these',c:'#3b82f6'}],
+   tradeoff:'Slightly lower quality than GPTQ at same bit-width but much faster to quantize. Works well for on-device and edge inference.',
+   related:['GPTQ','INT4 Quantization','GGUF']},
+
+  {id:6, name:'SmoothQuant', cat:'compression', tagline:'Activation-aware smooth quantization',
+   what:'Activation outliers (up to 100× larger than typical values) make INT8 quantization difficult. SmoothQuant migrates the quantization difficulty from activations to weights.',
+   how:'Multiplies activations by a per-channel smoothing factor s and divides weights by s. Smooth activations → easy to quantize. Weights absorb the difficulty, which they handle better.',
+   formula:'Y = (X diag(s)⁻¹) · (diag(s) W)  where s = max(|X_j|)^α / max(|W_j|)^(1−α)',
+   stats:[{v:'α=0.5',l:'Recommended smoothing factor',c:'#f97316'},{v:'≈0%',l:'Accuracy loss on LLaMA-2 70B',c:'#10b981'}],
+   tradeoff:'The smoothing transformation is applied once during calibration. Minimal overhead at inference. Works best for INT8 W8A8 scenarios.',
+   related:['INT8 Quantization','GPTQ','AWQ']},
+
+  {id:7, name:'GGUF', cat:'compression', tagline:'CPU and edge-friendly format',
+   what:'GGUF (GPT-Generated Unified Format) is a binary file format for quantized models optimized for CPU inference and edge deployment with llama.cpp.',
+   how:'Supports multiple quantization levels in one file: Q2_K, Q3_K, Q4_K, Q5_K, Q6_K, Q8_0. Uses grouped quantization where each block of 32 weights shares a scale. Supports mmap for fast loading.',
+   formula:'Q4_K: 4-bit weights, 6-bit scale — block size 32, ~4.5 bits/weight effective',
+   stats:[{v:'4–8×',l:'Size reduction vs FP16',c:'#10b981'},{v:'CPU',l:'Primary target — no GPU required',c:'#3b82f6'}],
+   tradeoff:'Lower throughput than GPU-accelerated formats. Q2-Q3 shows visible quality degradation. Best for local deployment, not high-throughput production.',
+   related:['GPTQ','AWQ','INT4 Quantization']},
+
+  {id:8, name:'QAT', cat:'compression', tagline:'Train with quantization awareness',
+   what:'Quantization-Aware Training simulates quantization during the forward pass so the model learns to be robust to precision loss before deployment.',
+   how:'Fake quantization nodes are inserted into the compute graph during training. They quantize and immediately dequantize tensors, making gradients flow through the quantization error.',
+   formula:'x_fq = dequantize(quantize(x))  — gradients flow through straight-through estimator',
+   stats:[{v:'>99%',l:'Quality retention at INT4 vs FP32',c:'#10b981'},{v:'Fine-tune',l:'Only requires fine-tuning, not full training',c:'#3b82f6'}],
+   tradeoff:'Requires training infrastructure and labeled data. Significantly more expensive than PTQ (post-training quantization) but yields better quality at aggressive bit widths.',
+   related:['INT4 Quantization','INT8 Quantization','Knowledge Distillation']},
+
+  {id:9, name:'Mixed Precision', cat:'compression', tagline:'FP16 with FP32 fallback',
+   what:'Uses FP16 or BF16 for most operations but keeps critical operations (loss, norms, gradients) in FP32 to prevent overflow and maintain numerical stability.',
+   how:'Automatic Mixed Precision (AMP) wraps the forward pass. The optimizer maintains FP32 master weights. FP16 is used for matrix multiplications — the dominant compute cost.',
+   formula:'Memory: FP16 = 2 bytes/param (vs FP32 = 4 bytes)  →  2× memory reduction',
+   stats:[{v:'2×',l:'Memory reduction vs FP32',c:'#10b981'},{v:'2–3×',l:'Training speedup on tensor cores',c:'#f97316'}],
+   tradeoff:'BF16 preferred over FP16 for large models (better dynamic range). Some models require FP32 for embeddings to prevent NaN. Standard baseline for modern LLM inference.',
+   related:['FP8 Quantization','INT8 Quantization','Kernel Fusion']},
+
+  {id:10, name:'Knowledge Distillation', cat:'compression', tagline:'Train smaller student models',
+   what:'A large teacher model trains a smaller student by providing soft probability distributions (not just hard labels), transferring "dark knowledge" about class relationships.',
+   how:'Student loss = α·T²·KL(softmax(z_t/T), softmax(z_s/T)) + (1−α)·CE(y, z_s). Temperature T>1 reveals dark knowledge in near-zero probabilities.',
+   formula:'L = α·T²·L_KD(teacher, student) + (1−α)·L_CE(labels, student)',
+   stats:[{v:'40%',l:'DistilBERT size reduction',c:'#10b981'},{v:'97%',l:'Performance retained vs BERT',c:'#3b82f6'},{v:'60%',l:'Faster inference',c:'#f97316'}],
+   tradeoff:'Requires running the large teacher model during student training. TinyBERT achieves 7.5× compression via layer-wise feature distillation in addition to soft labels.',
+   related:['Structured Pruning','QAT','Model Routing']},
+
+  {id:11, name:'Structured Pruning', cat:'compression', tagline:'Remove entire neurons',
+   what:'Removes entire neurons, attention heads, or layers — unlike unstructured pruning, which zeroes individual weights. Produces smaller, dense models that run faster without sparse hardware.',
+   how:'Ranks components by importance (gradient magnitude, Taylor expansion of loss). Removes lowest-ranked components. Typically followed by fine-tuning to recover accuracy.',
+   formula:'Importance(h) = |ΔL| ≈ |∂L/∂h · h|  (first-order Taylor approximation)',
+   stats:[{v:'20–50%',l:'Typical parameter reduction',c:'#10b981'},{v:'Real speedup',l:'Unlike unstructured — works on standard hardware',c:'#3b82f6'}],
+   tradeoff:'Quality drops faster per parameter removed vs unstructured. Requires careful sensitivity analysis per layer. Head pruning in transformers is a common low-risk starting point.',
+   related:['Unstructured Pruning','Knowledge Distillation','QAT']},
+
+  {id:12, name:'Unstructured Pruning', cat:'compression', tagline:'Zero out individual weights',
+   what:'Sets individual weights to zero based on magnitude thresholds. Can achieve very high sparsity (90%+) with minimal quality loss, but requires sparse hardware/kernels to realize speedups.',
+   how:'Gradual magnitude pruning: at each step, weights with the smallest absolute values are masked to zero. NVIDIA A100 supports 2:4 structured sparsity natively (2 zeros per 4 weights) for 2× speedup.',
+   formula:'2:4 sparsity: exactly 2 zeros per 4 consecutive elements  →  2× speedup on A100',
+   stats:[{v:'50–90%',l:'Typical sparsity range',c:'#10b981'},{v:'2×',l:'Speedup with 2:4 N:M sparsity on A100',c:'#f97316'}],
+   tradeoff:'Irregular sparsity gives no speedup on standard GPUs. 2:4 structured sparsity is the pragmatic middle ground. Dense fine-tuning required after pruning.',
+   related:['Structured Pruning','Mixed Precision','Kernel Fusion']},
+
+  // ── Attention & Architecture ────────────────────────────────────────────────
+  {id:13, name:'Multi-LoRA Serving', cat:'attention', tagline:'Hot-swap LoRA adapters',
+   what:'Serve multiple LoRA fine-tuned models from one base model. Adapters are small (rank-r matrices), so they can be swapped per-request without reloading the full model.',
+   how:'LoRA adds low-rank decomposition: ΔW = BA where B∈ℝ^(d×r), A∈ℝ^(r×k). At inference, multiple adapters (one per user/task) are applied to the shared frozen base model weights.',
+   formula:'W_effective = W_base + α·B·A  (r≪d,k — typically r=8 to 64)',
+   stats:[{v:'0.1–1%',l:'Adapter size vs full model',c:'#10b981'},{v:'1 base',l:'Single GPU serves N fine-tuned models',c:'#8b5cf6'}],
+   tradeoff:'Adding adapters adds a small per-token overhead. SGLang and vLLM support shared prefix with per-request adapters for minimal overhead.',
+   related:['PagedAttention','Prefix Caching','Model Routing']},
+
+  {id:14, name:'FlashAttention', cat:'attention', tagline:'IO-aware attention kernel',
+   what:'Rewrites the attention computation to minimize reads/writes to high-bandwidth memory (HBM). Fuses softmax + matmul into a single kernel with tiled computation.',
+   how:'Tiles Q, K, V into blocks that fit in SRAM. Computes attention one tile at a time using online softmax, never materializing the full NxN attention matrix in HBM.',
+   formula:'Standard: O(N²d) HBM accesses  →  FlashAttention: O(N²d / M) with SRAM size M',
+   stats:[{v:'2–4×',l:'Attention speedup',c:'#f97316'},{v:'10–20×',l:'Memory reduction for long contexts',c:'#10b981'},{v:'O(N)',l:'Memory vs O(N²) standard',c:'#8b5cf6'}],
+   tradeoff:'Requires custom CUDA kernels — platform-specific. FA2 supports causally masked attention and multi-query attention. FA3 targets H100 tensor cores.',
+   related:['PagedAttention','Grouped-Query Attn','Sparse Attention']},
+
+  {id:15, name:'PagedAttention', cat:'attention', tagline:'Virtual memory for KV cache',
+   what:'Manages KV cache like an OS manages virtual memory — allocating fixed-size blocks (pages) on demand rather than reserving contiguous memory upfront.',
+   how:'KV cache is divided into fixed-size blocks (e.g., 16 tokens per block). A block table maps logical positions to physical GPU memory. Unused blocks are reclaimed, and blocks can be shared across requests (e.g., for shared prompts).',
+   formula:'Memory waste < 4%  (vs ~35–60% with static allocation)',
+   stats:[{v:'23×',l:'Throughput improvement vs HuggingFace',c:'#f97316'},{v:'<4%',l:'KV cache memory waste',c:'#10b981'}],
+   tradeoff:'Block size is a tuning knob — too small = overhead, too large = wasted space. Foundation of vLLM. Now standard in most production serving frameworks.',
+   related:['Continuous Batching','KV Offload to CPU','Prefix Caching','FlashAttention']},
+
+  {id:16, name:'Multi-Query Attn', cat:'attention', tagline:'Share KV across heads',
+   what:'Multi-Query Attention (MQA) uses a single set of key and value heads shared across all query heads. Drastically reduces KV cache size.',
+   how:'Standard MHA: H separate K, V heads. MQA: 1 K head + 1 V head shared by all H Q heads. Reduces KV cache by H× (e.g., 32× for Llama-2-70B with 64 heads).',
+   formula:'KV cache: MHA = 2·n_layers·H·d_head·seq·bytes  →  MQA = 2·n_layers·d_head·seq·bytes',
+   stats:[{v:'H×',l:'KV cache reduction (H = num heads)',c:'#10b981'},{v:'Small',l:'Quality degradation — acceptable for most tasks',c:'#3b82f6'}],
+   tradeoff:'Some quality degradation vs MHA. GQA (Grouped-Query Attention) is a preferred middle ground. MQA used in PaLM, Falcon.',
+   related:['Grouped-Query Attn','Multi-Head Latent Attn','FlashAttention']},
+
+  {id:17, name:'Grouped-Query Attn', cat:'attention', tagline:'Balanced KV sharing',
+   what:'Grouped-Query Attention (GQA) groups query heads so that G query heads share one KV head pair. A middle ground between MHA (no sharing) and MQA (full sharing).',
+   how:'Divide H query heads into G groups. Each group of H/G queries shares one key-value head. Llama-2 70B uses G=8 groups.',
+   formula:'KV size: G/H × MHA KV size  (G=H → MHA, G=1 → MQA)',
+   stats:[{v:'G×',l:'KV cache reduction (vs MHA)',c:'#10b981'},{v:'≈0%',l:'Quality drop vs MHA',c:'#3b82f6'}],
+   tradeoff:'Near-MHA quality with near-MQA memory efficiency. Now the standard choice for most new LLMs (Llama-2 70B, Mistral, Gemma).',
+   related:['Multi-Query Attn','Multi-Head Latent Attn','KV Cache Quantization']},
+
+  {id:18, name:'Multi-Head Latent Attn', cat:'attention', tagline:'Compress KV to latent space',
+   what:'Multi-Head Latent Attention (MLA, DeepSeek) compresses key-value pairs into a low-dimensional latent vector, then expands back at attention time.',
+   how:'Instead of caching full K and V, cache a single latent vector c. At attention time: K = W_K · c, V = W_V · c. The cached latent is much smaller than full KV.',
+   formula:'Cache: c ∈ ℝ^(d_c)  where d_c ≪ n_heads × d_head',
+   stats:[{v:'5–13×',l:'KV cache reduction vs MHA',c:'#10b981'},{v:'DeepSeek',l:'Used in DeepSeek-V2, V3',c:'#8b5cf6'}],
+   tradeoff:'Requires model to be trained with MLA from scratch — cannot be retrofitted. Slight quality tradeoff vs MHA. Excellent for very long contexts.',
+   related:['Grouped-Query Attn','Multi-Query Attn','KV Cache Compression']},
+
+  {id:19, name:'Sliding Window Attn', cat:'attention', tagline:'Local attention window',
+   what:'Each token only attends to the W nearest tokens rather than the full sequence. Reduces attention complexity from O(N²) to O(N·W).',
+   how:'For each token at position i, attention is computed only over positions [i−W, i]. Every k layers, a "global" layer attends to the full context to prevent information loss.',
+   formula:'Attention complexity: O(N·W) vs O(N²) standard  (W = window size, typically 4096)',
+   stats:[{v:'O(N·W)',l:'Complexity vs O(N²)',c:'#10b981'},{v:'Mistral 7B',l:'Uses W=4096 sliding window',c:'#8b5cf6'}],
+   tradeoff:'Information from tokens outside the window is lost unless global layers are added. Works well for local-coherence tasks. Not ideal for tasks requiring long-range retrieval.',
+   related:['Sparse Attention','FlashAttention','Multi-Query Attn']},
+
+  {id:20, name:'Mixture of Experts', cat:'attention', tagline:'Activate experts selectively',
+   what:'Replaces the dense FFN layer with N expert sub-networks. Each token is routed to only top-k experts (typically k=2), activating a small fraction of total parameters.',
+   how:'A router network (linear + softmax) assigns tokens to experts. Only k experts run per token. Total params = N × expert_size, but FLOPs = k × expert_size per token.',
+   formula:'FLOPs/token = k/N × dense_model_FLOPs  (k=2, N=8 → 25% FLOPs)',
+   stats:[{v:'8×',l:'Parameters vs active FLOPs (Mixtral 8×7B)',c:'#10b981'},{v:'6.7B',l:'Active params per token in Mixtral 8×7B',c:'#8b5cf6'}],
+   tradeoff:'Memory must hold all expert weights (even inactive ones). Load imbalance across experts requires capacity factors. Expert parallelism needed for large N.',
+   related:['Expert Parallelism','Multi-LoRA Serving','Structured Pruning']},
+
+  {id:21, name:'RadixAttention', cat:'attention', tagline:'Dynamic prefix cache tree',
+   what:'SGLang\'s technique for automatically caching and reusing KV computations across requests that share common prefixes, using a radix tree data structure.',
+   how:'A radix tree indexes all cached KV sequences. New requests traverse the tree to find the longest shared prefix. KV states for the shared prefix are reused; only the unique suffix is computed.',
+   formula:'Cache hit → skip recompute of shared prefix (O(n_shared) FLOP savings)',
+   stats:[{v:'Up to 5×',l:'Throughput improvement for shared-prefix workloads',c:'#f97316'},{v:'~100%',l:'Cache hit rate for same-system-prompt requests',c:'#10b981'}],
+   tradeoff:'Memory overhead for the cache. Cache eviction policy matters. Particularly effective for batched LLM programs (multi-turn, RAG, tree-of-thought).',
+   related:['Prefix Caching','PagedAttention','Continuous Batching']},
+
+  {id:22, name:'Sparse Attention', cat:'attention', tagline:'Block sparse attention patterns',
+   what:'Restricts attention to predefined sparse patterns — blocks, strided, or learned — instead of full quadratic attention. Reduces memory and compute for long sequences.',
+   how:'Several patterns: (1) Block-sparse: attend only within fixed blocks, (2) Strided/Longformer: local window + global tokens, (3) BigBird: random + local + global. Implements O(N) or O(N√N) attention.',
+   formula:'Sparse attention: O(N·b) per layer  (b = block size, √N ≈ stride)',
+   stats:[{v:'O(N)',l:'Complexity (Longformer local attention)',c:'#10b981'},{v:'37×',l:'Speedup for sparse FFN (Switch Transformer)',c:'#f97316'}],
+   tradeoff:'Pattern choice trades global context for efficiency. Random attention patterns are hard to implement efficiently on GPUs. Best for long documents where not every token pair needs interaction.',
+   related:['Sliding Window Attn','FlashAttention','Sparse Attention']},
+
+  {id:23, name:'Early Exit', cat:'attention', tagline:'Skip layers for easy tokens',
+   what:'Adds classification heads at intermediate transformer layers. Easy inputs (high-confidence) exit early without passing through remaining layers.',
+   how:'Confidence threshold τ is set. At each intermediate layer, if max(softmax(logits)) > τ, the token exits. Hard examples use all layers; easy ones use fewer.',
+   formula:'Exit at layer i if max(softmax(h_i · W_cls)) > τ',
+   stats:[{v:'40–70%',l:'Average layers used (vs 100% baseline)',c:'#10b981'},{v:'1.5–2×',l:'Speedup on classification tasks',c:'#f97316'}],
+   tradeoff:'Quality degrades for hard examples if threshold is too aggressive. Not straightforward for generation (decoder-only models). Works best for encoder classification tasks.',
+   related:['Structured Pruning','Knowledge Distillation','Multi-Token Prediction']},
+
+  {id:24, name:'Speculative Decoding', cat:'attention', tagline:'Draft and verify tokens',
+   what:'A small draft model proposes K candidate tokens; the large target model verifies all K in one batched forward pass, accepting correct ones. Lossless — identical output distribution.',
+   how:'Draft K tokens with cheap model. Target model does one forward pass over all K tokens, getting logits for each. Accept token i with prob min(1, q(x)/p(x)). Always add one more sampled token.',
+   formula:'E[tokens/call] = (1 − α^(K+1)) / (1 − α)  where α = acceptance rate',
+   stats:[{v:'2–3×',l:'Speedup on T5-XXL',c:'#f97316'},{v:'2.5×',l:'Speedup on Chinchilla 70B',c:'#10b981'},{v:'0%',l:'Quality loss',c:'#3b82f6'}],
+   tradeoff:'Needs a smaller model from the same family with the same tokenizer. Best for input-grounded tasks (code, summarization). Benefits shrink with high-temperature sampling.',
+   related:['Medusa','EAGLE','Lookahead Decoding','Prompt Lookup Decoding']},
+
+  {id:25, name:'Medusa', cat:'attention', tagline:'Multiple decoding heads',
+   what:'Attaches lightweight prediction heads to the target model\'s hidden state to predict multiple future tokens simultaneously — no separate draft model needed.',
+   how:'N extra MLP heads (typically 3–5) each predict the token at position t+1, t+2, ..., t+N. Candidates are verified with tree-structured attention in a single forward pass.',
+   formula:'Heads: h_i = MLP_i(hidden_state_t)  →  predict token at t+i',
+   stats:[{v:'2.2–3.6×',l:'Speedup vs standard decoding',c:'#f97316'},{v:'~10M',l:'Head size (vs 7B+ main model)',c:'#10b981'}],
+   tradeoff:'Requires fine-tuning heads on representative data (a few hours on one GPU). Slightly modifies model architecture. Cannot be used zero-shot on any model.',
+   related:['Speculative Decoding','EAGLE','Multi-Token Prediction']},
+
+  {id:26, name:'EAGLE', cat:'attention', tagline:'Feature-level speculation',
+   what:'EAGLE (Extrapolation Algorithm for Greater Language-model Efficiency) drafts in the target model\'s internal feature space rather than the token probability space, achieving higher acceptance rates.',
+   how:'A lightweight autoregressor predicts the target model\'s penultimate feature vectors at future positions. These features are decoded into candidate tokens and verified normally.',
+   formula:'Draft: f_{t+1} = AutoReg(f_t, token_t)  →  candidate tokens via LM head',
+   stats:[{v:'2.7–6.5×',l:'Speedup (EAGLE-2 on LLaMA-2-70B)',c:'#f97316'},{v:'Higher',l:'Acceptance rate vs Medusa',c:'#10b981'}],
+   tradeoff:'Requires training an autoregressor on internal features — more complex than Medusa head fine-tuning. EAGLE-2 adds dynamic draft length for further gains.',
+   related:['Speculative Decoding','Medusa','Lookahead Decoding']},
+
+  {id:27, name:'Lookahead Decoding', cat:'attention', tagline:'No draft model needed',
+   what:'Generates draft tokens using Jacobi iteration — solving all token positions simultaneously. No separate draft model or additional training required.',
+   how:'Maintains N-gram pools from previous iterations. In each step, simultaneously updates all future token positions; newly consistent n-grams are accepted.',
+   formula:'Jacobi step: x_t^(k+1) = argmax p(x_t | x_{<t}^(k)) for all t in parallel',
+   stats:[{v:'1.5–2.3×',l:'Speedup without extra model',c:'#f97316'},{v:'0',l:'Extra models or training needed',c:'#10b981'}],
+   tradeoff:'Lower speedup than Speculative Decoding with a good draft model. Quality of lookahead candidates depends on n-gram pool quality. Good fallback when no draft model is available.',
+   related:['Speculative Decoding','Prompt Lookup Decoding','Multi-Token Prediction']},
+
+  // ── Decoding ──────────────────────────────────────────────────────────────
+  {id:28, name:'Prompt Lookup Decoding', cat:'decoding', tagline:'Copy tokens from prompt',
+   what:'For input-grounded tasks (summarization, QA, code completion), candidate tokens are looked up directly from the input prompt rather than using a draft model.',
+   how:'When generating, search the current context for n-gram matches to the recent output. Candidate continuations are taken from the matched positions in the input. Verified by the target model.',
+   formula:'Match: find span in prompt s.t. last k tokens of output appear in prompt → copy next m tokens',
+   stats:[{v:'2–4×',l:'Speedup on summarization/RAG',c:'#f97316'},{v:'0',l:'Extra models needed',c:'#10b981'}],
+   tradeoff:'Only works when output heavily overlaps with input (copy-heavy tasks). No benefit for pure generation tasks. Very easy to implement — a few lines of code.',
+   related:['Speculative Decoding','Lookahead Decoding','Prefix Caching']},
+
+  {id:29, name:'Constrained Decoding', cat:'decoding', tagline:'Force valid JSON output',
+   what:'Guides token generation to always produce valid output conforming to a schema (JSON, regex, context-free grammar). Every generated token is guaranteed to be schema-valid.',
+   how:'At each step, compute the set of tokens that would keep the partial output valid (given the schema). Mask all other tokens to -∞ before sampling.',
+   formula:'logits_masked[i] = -inf if token_i violates schema else logits[i]',
+   stats:[{v:'100%',l:'Schema validity guarantee',c:'#10b981'},{v:'~0%',l:'Latency overhead with trie-based masking',c:'#3b82f6'}],
+   tradeoff:'Prevents the model from generating the most likely continuation if it\'s schema-invalid. May hurt quality on generation tasks. Tools: Outlines, Guidance, llama.cpp grammars.',
+   related:['Structured Output','Prompt Compression','Function Calling']},
+
+  {id:30, name:'Multi-Token Prediction', cat:'decoding', tagline:'Predict multiple tokens at once',
+   what:'Trains the model to predict the next N tokens simultaneously (not just the next 1). At inference, one forward pass generates N tokens — direct speedup without a separate draft model.',
+   how:'Model has N output heads, each predicting offset 1, 2, ..., N from current position. Used in Meta\'s Code Llama and Llama 3 models.',
+   formula:'L = Σ_{i=1}^{N} CE(token_{t+i}, head_i(hidden_t))',
+   stats:[{v:'N×',l:'Theoretical speedup (N = num prediction heads)',c:'#f97316'},{v:'2–3×',l:'Practical speedup for N=4 (code generation)',c:'#10b981'}],
+   tradeoff:'Requires model to be pre-trained with MTP objective. Later tokens are harder to predict accurately. Quality of predictions at offset 3–4 is noticeably lower.',
+   related:['Speculative Decoding','Medusa','EAGLE']},
+
+  {id:31, name:'Prefix Caching', cat:'decoding', tagline:'Reuse shared prefixes',
+   what:'Stores KV cache for frequently used prefixes (system prompts, few-shot examples). Subsequent requests sharing that prefix skip prefix computation entirely.',
+   how:'The KV state for the prefix is computed once and stored. Incoming requests are checked against the cache; cache hits skip the prefill step for the shared portion.',
+   formula:'TTFT savings = prefill_time(n_prefix_tokens)',
+   stats:[{v:'Up to 100%',l:'TTFT reduction for repeated system prompts',c:'#f97316'},{v:'vLLM',l:'Supported in vLLM, SGLang, TensorRT-LLM',c:'#3b82f6'}],
+   tradeoff:'Memory cost for cached states. Eviction needed when cache is full. Most effective for same-system-prompt workloads (chatbots, RAG pipelines).',
+   related:['RadixAttention','PagedAttention','Prompt Caching']},
+
+  {id:32, name:'KV Offload to CPU', cat:'decoding', tagline:'Tier cache to RAM',
+   what:'Offloads KV cache from GPU HBM to CPU DRAM when GPU memory is full. CPU DRAM is 5–8× cheaper and offers 10–20× more capacity than GPU HBM.',
+   how:'Recent KV blocks stay in GPU. Older blocks (by LRU policy) are asynchronously moved to CPU DRAM. When needed, blocks are prefetched back before their attention computation.',
+   formula:'Effective cache size ≈ GPU_HBM + CPU_DRAM  (e.g., 80GB + 512GB)',
+   stats:[{v:'6–8×',l:'Cache capacity increase',c:'#10b981'},{v:'~20%',l:'Throughput penalty for cache misses',c:'#f97316'}],
+   tradeoff:'PCIe bandwidth bottleneck — typically 32–64 GB/s vs 3 TB/s HBM. Prefetching is critical. Best for long-context workloads where some KV is rarely reused.',
+   related:['KV Offload to Disk','KV Cache Quantization','PagedAttention']},
+
+  {id:33, name:'KV Offload to Disk', cat:'decoding', tagline:'Tier cache to storage',
+   what:'Extends KV cache tiering to NVMe SSD storage — adds another tier below CPU DRAM for rarely accessed blocks from very long conversations or sessions.',
+   how:'Multi-tier stack: GPU HBM (hot) → CPU DRAM (warm) → NVMe SSD (cold). Blocks migrate based on recency. NVMe offers TB-scale cache at low cost.',
+   formula:'Tier latency: HBM ~ns < DRAM ~µs < NVMe ~100µs',
+   stats:[{v:'TB',l:'Effective cache capacity with NVMe',c:'#10b981'},{v:'Session',l:'Enables persistent multi-session memory',c:'#3b82f6'}],
+   tradeoff:'NVMe latency can severely impact TTFT if blocks are requested during prefill. Only viable for blocks accessed rarely or during low-load prefetching.',
+   related:['KV Offload to CPU','KV Cache Compression','PagedAttention']},
+
+  {id:34, name:'KV Cache Quantization', cat:'decoding', tagline:'Compress cache precision',
+   what:'Stores KV cache in INT8 or FP8 instead of FP16, halving cache memory usage with minimal quality impact.',
+   how:'Key and value tensors are quantized per-head or per-token with their own scale factors before being stored in the cache. Dequantized at attention computation time.',
+   formula:'INT8 KV cache: 1 byte/element vs 2 bytes (FP16) → 50% memory reduction',
+   stats:[{v:'50%',l:'KV cache memory reduction (FP16→INT8)',c:'#10b981'},{v:'Llama-2 70B',l:'20GB→10GB at bs=64, seq=1024',c:'#3b82f6'}],
+   tradeoff:'Tiny quality degradation. FP8 KV caching supported natively on H100. INT8 may require per-head scales to avoid overflow on attention outliers.',
+   related:['KV Cache Compression','KV Offload to CPU','INT8 Quantization']},
+
+  {id:35, name:'KV Cache Compression', cat:'decoding', tagline:'Evict low-value tokens',
+   what:'Identifies and evicts "unimportant" KV entries during long-context generation to keep cache size bounded. Only the most informative KV pairs are retained.',
+   how:'Strategies include: (1) SnapKV — cluster+select important positions by query attention patterns, (2) StreamingLLM — retain attention sinks + local window, (3) H2O — evict based on cumulative attention score.',
+   formula:'Retain tokens with top-k cumulative attention scores: score_i = Σ_t attn(query_t, key_i)',
+   stats:[{v:'5–20×',l:'Context length extension',c:'#10b981'},{v:'~1–2%',l:'Quality degradation at 5× compression',c:'#3b82f6'}],
+   tradeoff:'Eviction is irreversible — dropped tokens cannot be recovered. Uniform eviction hurts; attention-score-based selection is much better. Combine with offloading for best results.',
+   related:['Attention Sinks','KV Offload to CPU','KV Cache Quantization']},
+
+  {id:36, name:'Attention Sinks', cat:'decoding', tagline:'Preserve initial tokens',
+   what:'Observation: LLMs assign disproportionate attention to the first few tokens ("attention sinks") regardless of their content. StreamingLLM uses this to enable infinite-length generation.',
+   how:'Keep a fixed window of initial tokens (attention sinks) + a rolling window of recent tokens in the KV cache. Evict intermediate tokens. The model\'s attention pattern stays stable.',
+   formula:'Cache = [token_0..3 (sinks)] + [token_{t-W}..t (recent window)]',
+   stats:[{v:'∞',l:'Theoretical context length',c:'#10b981'},{v:'4M+',l:'Tokens generated stably with StreamingLLM',c:'#8b5cf6'}],
+   tradeoff:'Information from evicted middle tokens is permanently lost. Cannot retrieve facts from beyond the recent window. Useful for streaming applications, not long-range retrieval.',
+   related:['KV Cache Compression','Sliding Window Attn','KV Offload to CPU']},
+
+  // ── KV Cache ──────────────────────────────────────────────────────────────
+  {id:37, name:'Chunked Prefill', cat:'kvcache', tagline:'Split long prompt processing',
+   what:'Splits long prompt prefill into smaller chunks processed iteratively, interleaved with decode steps. Prevents a long prefill from blocking ongoing decode requests.',
+   how:'Instead of prefilling an entire long prompt at once (blocking other requests), the prefill is chunked into C-token segments. Each segment is processed in one iteration, interleaved with decodes.',
+   formula:'Prefill chunk size C: balance TTFT vs decode throughput',
+   stats:[{v:'Halved',l:'P99 TTFT for long prompts with chunked prefill',c:'#10b981'},{v:'Stable',l:'Decode throughput during large prefills',c:'#3b82f6'}],
+   tradeoff:'Adds overhead for maintaining partial prefill state. Optimal chunk size depends on GPU and workload mix. Now standard in vLLM and SGLang.',
+   related:['Continuous Batching','Prefill-Decode Disagg','PagedAttention']},
+
+  {id:38, name:'Continuous Batching', cat:'kvcache', tagline:'Add requests mid-flight',
+   what:'Processes requests at the iteration level rather than the request level. New requests join the batch as soon as a slot frees up, eliminating GPU idle time.',
+   how:'Each decode iteration, the scheduler evicts completed sequences and inserts waiting requests. Unlike static batching, GPU is always fully utilized regardless of varying output lengths.',
+   formula:'Throughput: continuous batching ≈ 10–23× vs static batching',
+   stats:[{v:'23×',l:'Throughput vs HuggingFace static batching (vLLM)',c:'#f97316'},{v:'10–20×',l:'vs dynamic batching',c:'#10b981'}],
+   tradeoff:'Requires memory management system (like PagedAttention) to handle varying-length requests safely. Without PagedAttention, pre-allocating memory per request wastes GPU RAM.',
+   related:['PagedAttention','Chunked Prefill','Dynamic Batching']},
+
+  {id:39, name:'Dynamic Batching', cat:'kvcache', tagline:'Group within time window',
+   what:'Collects incoming requests over a short time window and processes them together. Improves throughput vs per-request serving but less efficient than continuous batching.',
+   how:'Server waits for up to W milliseconds or until batch size B is reached, then processes all queued requests together. Padding is added to align sequence lengths.',
+   formula:'Throughput ≈ B × tokens/request / (latency + W)',
+   stats:[{v:'4×',l:'Throughput vs per-request serving (FasterTransformer)',c:'#f97316'},{v:'Simple',l:'Easy to implement, no KV cache changes needed',c:'#3b82f6'}],
+   tradeoff:'Fixed time window introduces unnecessary latency. Padding wastes compute. Superseded by continuous batching for production — but simpler to implement.',
+   related:['Continuous Batching','SLO-Aware Scheduling','Autoscaling']},
+
+  {id:40, name:'Prefill-Decode Disagg', cat:'kvcache', tagline:'Separate GPU pools',
+   what:'Routes prefill (prompt processing) and decode (token generation) to separate GPU pools, each optimized for their respective compute characteristics.',
+   how:'Prefill is compute-bound (large matrix multiplications). Decode is memory-bound (small matmuls, large KV loads). Separate hardware allows independent scaling and optimization.',
+   formula:'Prefill: compute-bound (FLOPs-limited)  Decode: memory-bound (bandwidth-limited)',
+   stats:[{v:'2–3×',l:'Throughput improvement for mixed workloads',c:'#f97316'},{v:'Independent',l:'Scaling of prefill vs decode capacity',c:'#3b82f6'}],
+   tradeoff:'Requires network transfer of KV cache from prefill to decode nodes. Higher infrastructure complexity. Best for at-scale deployments with high request volume.',
+   related:['Chunked Prefill','Continuous Batching','Tensor Parallelism']},
+
+  // ── Batching & Scheduling ─────────────────────────────────────────────────
+  {id:41, name:'SLO-Aware Scheduling', cat:'batching', tagline:'Prioritize interactive requests',
+   what:'Schedules requests based on their Service Level Objectives — real-time interactive requests get priority over batch jobs to meet latency targets.',
+   how:'Requests are tagged with latency SLOs. Scheduler uses a priority queue: high-SLO requests preempt low-priority batch requests. Preempted requests resume when capacity is available.',
+   formula:'Priority = 1 / (deadline - current_time)  (EDF scheduling)',
+   stats:[{v:'<100ms',l:'P99 TTFT for interactive requests',c:'#10b981'},{v:'High',l:'GPU utilization maintained across priority tiers',c:'#3b82f6'}],
+   tradeoff:'Complex scheduling logic. Batch jobs may be preempted repeatedly, increasing their total latency. Must define SLOs carefully per use case.',
+   related:['QoS Tiers','Continuous Batching','Autoscaling']},
+
+  {id:42, name:'Autoscaling', cat:'batching', tagline:'Match replicas to load',
+   what:'Automatically adjusts the number of model replicas based on current request load — scaling up during peaks and down during quiet periods to optimize cost.',
+   how:'Metrics like queue depth, GPU utilization, and TTFT are monitored. Kubernetes HPA or custom controllers scale replica count. New replicas load the model from object storage.',
+   formula:'Scale up if queue_depth > threshold  OR  GPU_util > 85%',
+   stats:[{v:'60–80%',l:'GPU cost reduction vs fixed over-provisioning',c:'#10b981'},{v:'~60s',l:'Cold start time (model loading)',c:'#f59e0b'}],
+   tradeoff:'Cold start latency when new replicas spin up (model loading takes 30–120s). Model caching on fast storage (NVMe, S3 with aggressive prefetch) reduces this.',
+   related:['Spot GPU Scheduling','SLO-Aware Scheduling','Multi-Provider Failover']},
+
+  {id:43, name:'Spot GPU Scheduling', cat:'batching', tagline:'Use preemptible GPUs',
+   what:'Uses spot/preemptible GPU instances (2–8× cheaper than on-demand) for batch inference workloads, with checkpointing to handle instance interruptions.',
+   how:'Batch jobs are checkpointed every N steps. When a spot instance is reclaimed, the job resumes from the last checkpoint on a new instance. Non-interactive jobs absorb the latency.',
+   formula:'Cost savings: spot = 10–30% of on-demand price',
+   stats:[{v:'70–90%',l:'Cost reduction vs on-demand',c:'#10b981'},{v:'Batch only',l:'Not suitable for interactive requests',c:'#f59e0b'}],
+   tradeoff:'Interruption risk. Not suitable for latency-sensitive workloads. Works well for nightly batch evaluation, fine-tuning, and bulk data processing.',
+   related:['Autoscaling','Batch API','QoS Tiers']},
+
+  {id:44, name:'Request Deduplication', cat:'batching', tagline:'Merge identical requests',
+   what:'Detects identical or near-identical requests arriving in a short time window and processes them once, returning the same result to all requestors.',
+   how:'Incoming requests are hashed (prompt + parameters). Exact hash matches share one compute slot; all requestors receive the same response. Near-duplicates use embedding similarity.',
+   formula:'Save N−1 compute calls for N identical requests',
+   stats:[{v:'Up to N×',l:'Throughput improvement for duplicate-heavy traffic',c:'#f97316'},{v:'Exact match',l:'100% hit rate for identical requests',c:'#10b981'}],
+   tradeoff:'Only effective when request patterns have high duplication (common in RAG with shared context). Stochastic sampling must return identical results — requires temperature=0 or caching the first result.',
+   related:['Exact-Match Caching','Semantic Caching','Prompt Caching']},
+
+  {id:45, name:'Tensor Parallelism', cat:'batching', tagline:'Split weights across GPUs',
+   what:'Splits individual weight matrices across multiple GPUs horizontally or vertically so each GPU holds and processes a fraction of each layer.',
+   how:'Each linear layer is partitioned column-wise (Megatron-style). Each GPU computes a partial output; results are reduced via AllReduce. Reduces per-GPU memory and compute time.',
+   formula:'Speedup ≈ min(N, bandwidth_limit)  (N = GPU count, diminishing returns)',
+   stats:[{v:'2×',l:'TTFT improvement: 1→2 A100s (MPT-7B)',c:'#f97316'},{v:'Diminishing',l:'Returns beyond 4 GPUs for inference',c:'#f59e0b'}],
+   tradeoff:'AllReduce communication at every layer adds latency overhead. Benefits diminish beyond 4–8 GPUs for inference. Best when model doesn\'t fit on one GPU.',
+   related:['Pipeline Parallelism','Sequence Parallelism','Expert Parallelism']},
+
+  // ── Parallelism & Kernels ─────────────────────────────────────────────────
+  {id:46, name:'Pipeline Parallelism', cat:'parallelism', tagline:'Split layers across GPUs',
+   what:'Divides the model\'s layers across GPUs: GPU 0 runs layers 0–N/4, GPU 1 runs layers N/4–N/2, etc. Reduces per-GPU memory requirements for very deep models.',
+   how:'Micro-batching hides pipeline bubbles: while GPU 2 processes batch K, GPU 1 processes batch K+1. GPF-1 (GPipe) style forward-backward interleaving minimizes idle time.',
+   formula:'Bubble ratio = (stages−1) / (stages−1 + micro_batches)',
+   stats:[{v:'Linear',l:'Memory reduction with number of stages',c:'#10b981'},{v:'10–20%',l:'Bubble overhead with micro-batching',c:'#f59e0b'}],
+   tradeoff:'Introduces pipeline bubbles (idle GPU time). Point-to-point communication between stages. Less communication than tensor parallelism per layer.',
+   related:['Tensor Parallelism','Sequence Parallelism','Expert Parallelism']},
+
+  {id:47, name:'Expert Parallelism', cat:'parallelism', tagline:'Shard MoE experts',
+   what:'In Mixture-of-Experts models, distributes different experts across different GPUs. Each GPU owns a subset of experts and processes only tokens routed to its experts.',
+   how:'All-to-All communication routes tokens to their assigned expert GPUs. Each GPU runs only its local experts. Enables models with trillions of parameters (like Switch Transformer) to fit across many GPUs.',
+   formula:'All2All tokens to expert GPUs → local expert compute → All2All back',
+   stats:[{v:'1T+',l:'Parameter scale enabled (Switch Transformer)',c:'#10b981'},{v:'All2All',l:'Key communication primitive',c:'#e11d48'}],
+   tradeoff:'Load imbalance across experts requires capacity factors (dropping some tokens). Inter-node All-to-All is expensive — prefers expert parallelism within a node.',
+   related:['Mixture of Experts','Tensor Parallelism','Pipeline Parallelism']},
+
+  {id:48, name:'Sequence Parallelism', cat:'parallelism', tagline:'Shard along sequence',
+   what:'Distributes the sequence dimension across GPUs — each GPU processes a different segment of the input sequence. Reduces KV cache memory per GPU for long contexts.',
+   how:'Used in Megatron-LM. Different from tensor parallelism (which splits the weight dimension). Each GPU computes attention over its sequence chunk; ring attention aggregates results.',
+   formula:'Ring Attention: each GPU sees 1/N of tokens, passes KV to next GPU in a ring',
+   stats:[{v:'N×',l:'Context length extension with N GPUs',c:'#10b981'},{v:'1M+',l:'Tokens supported with ring attention across GPUs',c:'#8b5cf6'}],
+   tradeoff:'Communication required between GPUs to share KV for full attention. Works best with interconnects like NVLink. Ring attention enables linear context scaling with GPU count.',
+   related:['Tensor Parallelism','Pipeline Parallelism','Sliding Window Attn']},
+
+  {id:49, name:'CUDA Graphs', cat:'parallelism', tagline:'Reduce kernel launch overhead',
+   what:'Captures the entire sequence of CUDA kernel launches for a forward pass into a graph, then replays it with a single API call — eliminating per-kernel launch overhead.',
+   how:'First call traces all kernel launches and their dependencies into a CUDA graph. Subsequent calls just replay the graph with updated input pointers — no CPU overhead per kernel.',
+   formula:'Overhead saved = N_kernels × ~5μs/kernel  (typical: hundreds of kernels per forward pass)',
+   stats:[{v:'10–30%',l:'Latency reduction for small batch sizes',c:'#f97316'},{v:'~0',l:'CPU overhead during replayed passes',c:'#10b981'}],
+   tradeoff:'Graphs are static — require retracing when input shapes change (different sequence lengths). Memory must be pre-allocated. Works best with fixed-shape decode steps.',
+   related:['Kernel Fusion','Torch Compile','Continuous Batching']},
+
+  {id:50, name:'Kernel Fusion', cat:'parallelism', tagline:'Combine ops into one',
+   what:'Merges multiple GPU kernels into a single kernel to reduce memory round-trips. Instead of writing/reading intermediate results to HBM, they stay in fast SRAM.',
+   how:'FlashAttention is the canonical example: fuses softmax + matmul (attention) so the NxN attention matrix never goes to HBM. Other fusions: LayerNorm + dropout, bias + activation.',
+   formula:'HBM reads saved = N_fused_ops × (activation_size)',
+   stats:[{v:'2–4×',l:'FlashAttention speedup from kernel fusion',c:'#f97316'},{v:'HBM',l:'Bandwidth is the bottleneck — fusion is the fix',c:'#10b981'}],
+   tradeoff:'Writing fused kernels requires deep CUDA/Triton expertise. torch.compile and Triton can auto-fuse elementwise ops. Manual fusion needed for complex patterns like attention.',
+   related:['CUDA Graphs','Torch Compile','FlashAttention']},
+
+  {id:51, name:'Torch Compile', cat:'parallelism', tagline:'Graph-level compilation',
+   what:'PyTorch\'s torch.compile traces the model into a computation graph and applies backend-specific optimizations: operator fusion, layout transformations, and kernel selection.',
+   how:'Uses TorchDynamo (capture) + TorchInductor (optimize). Generates optimized Triton or CUDA code. Supports dynamic shapes. Integrates with torch.ao for quantization.',
+   formula:'compile() = trace → optimize → codegen',
+   stats:[{v:'1.5–2×',l:'End-to-end inference speedup',c:'#f97316'},{v:'First-run',l:'Compilation overhead paid once',c:'#f59e0b'}],
+   tradeoff:'First-call compilation overhead (seconds to minutes). Dynamic shapes require recompilation or bucketing. Some models have graph breaks that limit optimization scope.',
+   related:['CUDA Graphs','Kernel Fusion','FP8 Quantization']},
+
+  // ── Application Caching ───────────────────────────────────────────────────
+  {id:52, name:'Prompt Caching', cat:'appcache', tagline:'Reuse static prefixes',
+   what:'Caches the KV state of fixed prompt prefixes (system prompts, tool definitions) server-side. Supported by Anthropic, OpenAI, and Google as an API feature.',
+   how:'The first request with a prefix computes and caches KV states. Subsequent requests with the same prefix skip the prefill for those tokens. Anthropic caches prompts >1024 tokens.',
+   formula:'Cost reduction = (cached_tokens / total_tokens) × per_token_price',
+   stats:[{v:'90%',l:'Cost reduction on cached tokens (Anthropic)',c:'#10b981'},{v:'TTFT',l:'Reduced by cached prefill time',c:'#f97316'}],
+   tradeoff:'Cache has a TTL (5 minutes for Anthropic). Must structure prompts to put static content first. Cache writes have a small initial cost (~25% of normal read cost).',
+   related:['Prefix Caching','RadixAttention','Semantic Caching']},
+
+  {id:53, name:'Semantic Caching', cat:'appcache', tagline:'Embedding-based hit detection',
+   what:'Caches responses and retrieves them for semantically similar (not just identical) queries using embedding similarity search.',
+   how:'Each query is embedded and stored in a vector database. On new queries, compute embedding and search for nearest neighbors within a similarity threshold τ. Cache hit → return stored response.',
+   formula:'Cache hit if cosine_similarity(embed(q_new), embed(q_cached)) > τ',
+   stats:[{v:'40–70%',l:'Cache hit rate for FAQ/support workloads',c:'#10b981'},{v:'-80%',l:'Cost reduction on cache hits',c:'#3b82f6'}],
+   tradeoff:'False positives (semantically similar but different answers) can cause incorrect responses. Threshold τ requires tuning. Cache staleness when underlying knowledge changes.',
+   related:['Exact-Match Caching','Prompt Caching','Embedding Deflection']},
+
+  {id:54, name:'Exact-Match Caching', cat:'appcache', tagline:'Hash-based lookup',
+   what:'Returns cached responses for exactly repeated prompts by hashing the full prompt string. Zero compute cost on cache hits.',
+   how:'SHA-256 hash of (model + prompt + parameters). Redis or in-memory dict stores hash→response. Instant O(1) lookup. Effective for read-heavy applications with repeating queries.',
+   formula:'key = SHA256(model + prompt + temperature + max_tokens)',
+   stats:[{v:'~0ms',l:'Latency on cache hit',c:'#10b981'},{v:'100%',l:'Cost elimination on cache hits',c:'#3b82f6'}],
+   tradeoff:'Only hits on exact matches — even a single character difference misses. Stochastic responses (temp>0) cached on first call; later calls get deterministic cached response.',
+   related:['Semantic Caching','Request Deduplication','Prompt Caching']},
+
+  {id:55, name:'Embedding Deflection', cat:'appcache', tagline:'Answer without LLM',
+   what:'For queries that are highly similar to known Q&A pairs, returns pre-computed answers directly from a vector database without calling the LLM at all.',
+   how:'A database of (embedding, answer) pairs is pre-computed. New queries are embedded and compared. If similarity exceeds threshold, the stored answer is returned; otherwise, route to LLM.',
+   formula:'if sim(q, q_i) > τ → return answer_i  else → LLM(q)',
+   stats:[{v:'0',l:'LLM calls for deflected queries',c:'#10b981'},{v:'<1ms',l:'Latency for deflected responses',c:'#f97316'}],
+   tradeoff:'Answer quality depends on the pre-computed database coverage. Misses novel questions. Best for high-volume FAQ scenarios where 20–40% of queries repeat.',
+   related:['Semantic Caching','Model Routing','RAG Over Long Context']},
+
+  {id:56, name:'Response Caching', cat:'appcache', tagline:'Store completed outputs',
+   what:'Stores complete generated responses (not just prompts) and serves them directly on repeated or near-identical requests, eliminating generation cost entirely.',
+   how:'After generation, the full response is stored in a cache keyed by the prompt hash. Read-heavy workloads (documentation Q&A, product descriptions) benefit most.',
+   formula:'Savings = cache_hit_rate × generation_cost_per_request',
+   stats:[{v:'100%',l:'Cost elimination per cache hit',c:'#10b981'},{v:'+',l:'Also eliminates generation latency entirely',c:'#f97316'}],
+   tradeoff:'Stale responses if underlying knowledge changes. Non-deterministic completions (sampling) may provide different-quality answers than the cached version.',
+   related:['Exact-Match Caching','Semantic Caching','Batch API']},
+
+  // ── Input / Output Shaping ────────────────────────────────────────────────
+  {id:57, name:'Batch API', cat:'ioshaping', tagline:'Async discounted inference',
+   what:'Sends requests in large asynchronous batches rather than real-time, enabling providers to process them at off-peak times. OpenAI and Anthropic offer 50% cost discounts.',
+   how:'Submit a JSONL file of requests. Provider processes within a time window (24 hours). Results returned when complete. No real-time requirement = provider can batch optimally.',
+   formula:'Cost: Batch API = 50% of synchronous API',
+   stats:[{v:'50%',l:'Cost reduction (OpenAI/Anthropic Batch API)',c:'#10b981'},{v:'24h',l:'Max processing window',c:'#f59e0b'}],
+   tradeoff:'Not suitable for interactive applications. Results are delayed. Useful for bulk data processing, dataset annotation, evaluation runs, and nightly summaries.',
+   related:['Response Caching','Request Deduplication','Spot GPU Scheduling']},
+
+  {id:58, name:'Prompt Compression', cat:'ioshaping', tagline:'Shrink input tokens',
+   what:'Compresses long prompts before sending to the LLM, reducing input token count (and thus cost and prefill time) while preserving the information needed for the task.',
+   how:'Methods: (1) LLMLingua: token-level filtering by perplexity, (2) Selective Context: remove low-information text, (3) AutoCompressor: train soft prompt compression. Target: 3–20× compression.',
+   formula:'Savings = (1 − compressed_len / original_len) × input_token_cost',
+   stats:[{v:'3–20×',l:'Token count reduction',c:'#10b981'},{v:'~5%',l:'Quality degradation at 4× compression',c:'#f59e0b'}],
+   tradeoff:'Information loss at high compression ratios. Compression itself takes compute (small LLM). Best for retrieval context, not instructions.',
+   related:['Context Pruning','RAG Over Long Context','System Prompt Optim']},
+
+  {id:59, name:'Context Pruning', cat:'ioshaping', tagline:'Drop irrelevant chunks',
+   what:'Before sending retrieved documents to the LLM, removes chunks that are semantically irrelevant to the query, reducing context length without losing relevant information.',
+   how:'Retrieved chunks are re-ranked by relevance score. Only top-k chunks above a relevance threshold are included. Cross-encoder rerankers provide high-quality relevance scores.',
+   formula:'Include chunk_i if relevance(query, chunk_i) > τ',
+   stats:[{v:'50–80%',l:'Token reduction in RAG pipelines',c:'#10b981'},{v:'+2–5%',l:'Quality improvement by removing noise',c:'#3b82f6'}],
+   tradeoff:'Relevance threshold tuning required. Cross-encoder reranking adds latency (~50–100ms). Can improve quality (fewer distractions) as well as cut cost.',
+   related:['Prompt Compression','RAG Over Long Context','Context Distillation']},
+
+  {id:60, name:'System Prompt Optim', cat:'ioshaping', tagline:'Trim static prefixes',
+   what:'Minimizes the token count of static system prompts through careful wording, deduplication, and restructuring — lowering per-request cost and TTFT.',
+   how:'Audit system prompt token count. Remove verbose phrasing, repeated instructions, and rarely-triggered rules. Move static context to tool definitions or structured data when possible.',
+   formula:'Savings = Δtokens × cost_per_token × requests_per_day',
+   stats:[{v:'30–60%',l:'Typical system prompt reduction',c:'#10b981'},{v:'Linear',l:'Cost scales directly with token count',c:'#3b82f6'}],
+   tradeoff:'Aggressive trimming can cause instruction following degradation. Test quality on representative scenarios before deploying shorter prompts.',
+   related:['Prompt Compression','Prompt Caching','Few-Shot Pruning']},
+
+  {id:61, name:'Response Length Cap', cat:'ioshaping', tagline:'Limit output tokens',
+   what:'Sets a hard or soft cap on the maximum number of tokens the model generates, preventing runaway long completions that inflate cost and latency.',
+   how:'max_tokens parameter stops generation at that limit. Soft caps via explicit instructions ("answer in ≤50 words"). Hard caps via stop sequences or token budget penalties.',
+   formula:'Cost reduction = (1 − max_tokens / avg_uncapped_tokens) × output_token_price',
+   stats:[{v:'Linear',l:'Cost reduction proportional to cap',c:'#10b981'},{v:'Immediate',l:'Latency reduction from fewer decode steps',c:'#f97316'}],
+   tradeoff:'Truncated responses if cap is too low. Models sometimes "front-load" important content when instructed, mitigating truncation impact.',
+   related:['System Prompt Optim','Structured Output','Prompt Compression']},
+
+  {id:62, name:'Structured Output', cat:'ioshaping', tagline:'Native JSON mode',
+   what:'Forces the model to output valid structured data (JSON, XML) using either constrained decoding or model fine-tuning. Eliminates output parsing failures.',
+   how:'Options: (1) JSON mode (GPT-4, Claude) — model trained to always produce valid JSON, (2) Grammar-constrained decoding — only valid tokens allowed, (3) Response schema validation with retry.',
+   formula:'Validity: constrained decoding = 100%  (vs ~95% with instruction-following alone)',
+   stats:[{v:'100%',l:'Schema validity with constrained decoding',c:'#10b981'},{v:'Eliminates',l:'Downstream parsing failures',c:'#3b82f6'}],
+   tradeoff:'JSON mode may sacrifice some response quality for schema compliance. Grammar constraints can slow generation for complex schemas.',
+   related:['Constrained Decoding','Function Calling','Response Length Cap']},
+
+  {id:63, name:'Few-Shot Pruning', cat:'ioshaping', tagline:'Reduce example count',
+   what:'Systematically removes few-shot examples from prompts that don\'t improve — or actively hurt — performance, reducing input token cost.',
+   how:'Ablation study: test performance with N, N-1, ..., 0 examples. Identify the minimal set that achieves target accuracy. Poor examples (outliers, confusing edge cases) are removed first.',
+   formula:'Few-shot pruning: find min k s.t. accuracy(k examples) ≥ threshold',
+   stats:[{v:'2–5×',l:'Token reduction in few-shot prompts',c:'#10b981'},{v:'Sometimes',l:'Quality improves by removing confusing examples',c:'#3b82f6'}],
+   tradeoff:'Requires systematic evaluation across task distribution. Context-sensitive — best few-shot examples vary by domain.',
+   related:['System Prompt Optim','Prompt Compression','Context Pruning']},
+
+  // ── Routing & Cost ────────────────────────────────────────────────────────
+  {id:64, name:'RAG Over Long Context', cat:'routing', tagline:'Retrieve instead of stuff',
+   what:'Instead of stuffing the full knowledge base into the context window, retrieve only the most relevant chunks at query time. Keeps context length bounded regardless of corpus size.',
+   how:'Documents are chunked and embedded into a vector DB. At query time, embed the question and retrieve top-k chunks. Only retrieved chunks are added to the context window.',
+   formula:'Context size: RAG = k × chunk_size  vs  full context = entire_corpus',
+   stats:[{v:'10–1000×',l:'Context size reduction vs full-context stuffing',c:'#10b981'},{v:'Scales',l:'To TB-scale corpora without context limit issues',c:'#3b82f6'}],
+   tradeoff:'Retrieval quality determines answer quality. Multi-hop questions require multiple retrieval steps. Long-context models (1M+ tokens) may challenge RAG for small corpora.',
+   related:['Context Pruning','Prompt Compression','Semantic Caching']},
+
+  {id:65, name:'Context Distillation', cat:'routing', tagline:'Summarize long contexts',
+   what:'Compresses long conversation histories or documents into concise summaries before passing to the LLM, preventing context window overflow while preserving key information.',
+   how:'A smaller/cheaper LLM summarizes the older portion of the context. The summary replaces the full history. New turns are appended to the summary.',
+   formula:'Effective context = summary(old_turns) + recent_turns',
+   stats:[{v:'10–50×',l:'Context compression ratio',c:'#10b981'},{v:'Bounded',l:'Memory cost regardless of conversation length',c:'#3b82f6'}],
+   tradeoff:'Information loss in summarization. Summary quality depends on the summarizer model. Irreversible — cannot retrieve exact earlier content from a summary.',
+   related:['RAG Over Long Context','Context Pruning','Knowledge Distillation']},
+
+  {id:66, name:'Model Routing', cat:'routing', tagline:'Pick model by query',
+   what:'Routes queries to different-sized models based on estimated difficulty — simple queries go to cheap/fast small models, complex ones to expensive large models.',
+   how:'A lightweight router (small classifier or LLM) estimates query complexity or maps to a model tier. Routing overhead must be << compute savings.',
+   formula:'Expected cost = Σ_i P(tier_i) × cost(tier_i)',
+   stats:[{v:'40–70%',l:'Cost reduction vs always using the largest model',c:'#10b981'},{v:'<10ms',l:'Routing overhead',c:'#3b82f6'}],
+   tradeoff:'Routing errors send hard queries to small models (quality miss) or easy queries to large models (cost miss). Router accuracy is the critical quality lever.',
+   related:['Model Cascading','Classifier Routing','Multi-Provider Failover']},
+
+  {id:67, name:'Model Cascading', cat:'routing', tagline:'Escalate only if needed',
+   what:'Starts with the smallest model. If confidence is low or the response fails a quality check, escalates to a larger model. Costs only scale with query difficulty.',
+   how:'Small model generates response + confidence score (or perplexity). If score < threshold, the response is passed to a larger model for refinement or regeneration.',
+   formula:'Cost = P(easy) × C_small + P(hard) × (C_small + C_large)',
+   stats:[{v:'50–80%',l:'Queries handled by small model alone',c:'#10b981'},{v:'~0%',l:'Quality loss vs always using large model',c:'#3b82f6'}],
+   tradeoff:'Two inference calls for escalated queries (2× latency for hard cases). Confidence calibration is difficult — models often overconfident on wrong answers.',
+   related:['Model Routing','Classifier Routing','QoS Tiers']},
+
+  {id:68, name:'Classifier Routing', cat:'routing', tagline:'ML predicts best model',
+   what:'Trains a lightweight classifier on historical query/response data to predict which model tier will give the best quality-cost tradeoff for a given query.',
+   how:'Features: query length, domain (detected), complexity signals. Classifier outputs tier (small/medium/large). Can be a BERT-tiny, logistic regression, or embedding-based kNN.',
+   formula:'route(q) = argmin_tier cost(tier) s.t. quality(tier, q) ≥ target',
+   stats:[{v:'90%+',l:'Routing accuracy with good training data',c:'#10b981'},{v:'5×',l:'Cost reduction vs fixed large-model routing',c:'#3b82f6'}],
+   tradeoff:'Requires labeled routing data (query → best model). Distribution shift requires retraining. Cold start problem on new query types.',
+   related:['Model Routing','Model Cascading','Multi-Provider Failover']},
+
+  {id:69, name:'Multi-Provider Failover', cat:'routing', tagline:'Route across APIs',
+   what:'Sends requests to multiple LLM providers and falls over to backups when the primary is unavailable or rate-limited. Maximizes availability and throughput.',
+   how:'Primary provider receives all requests. On timeout/rate-limit/error, retry with secondary. Libraries like LiteLLM, OpenRouter abstract provider differences into a unified API.',
+   formula:'Availability = 1 − Π_i(1 − availability_i)  (independent providers)',
+   stats:[{v:'99.9%+',l:'Availability with 2+ providers',c:'#10b981'},{v:'LiteLLM',l:'Unified API across 100+ provider/model combos',c:'#3b82f6'}],
+   tradeoff:'Different providers may have different model versions, pricing, and quality. Prompt engineering may need adaptation per provider. Adds routing complexity.',
+   related:['Model Routing','Autoscaling','QoS Tiers']},
+
+  {id:70, name:'QoS Tiers', cat:'routing', tagline:'Fast vs quality modes',
+   what:'Exposes multiple quality tiers to end users or internal teams: a fast/cheap tier for low-priority tasks and a slow/accurate tier for high-value requests.',
+   how:'Tier 1 (fast): small model, high temperature, short max tokens. Tier 2 (balanced): medium model. Tier 3 (premium): large model, low temperature, chain-of-thought, self-consistency.',
+   formula:'Cost per request: Tier 1 ≈ $0.001 | Tier 2 ≈ $0.01 | Tier 3 ≈ $0.10',
+   stats:[{v:'100×',l:'Cost difference between fast and premium tiers',c:'#10b981'},{v:'3',l:'Tiers balance cost, latency, and quality',c:'#3b82f6'}],
+   tradeoff:'Users or product logic must correctly classify query importance. Misrouting expensive queries to cheap tier creates quality issues.',
+   related:['SLO-Aware Scheduling','Model Routing','Model Cascading']},
+
+  {id:71, name:'Task-Specific FT', cat:'routing', tagline:'Specialize on your data',
+   what:'Fine-tunes a smaller model on your specific task/domain, enabling it to match a much larger general model on that narrow distribution at a fraction of the cost.',
+   how:'Collect (input, output) pairs for your task. Fine-tune a small model (7B–13B) with LoRA or full fine-tuning. The specialized model often outperforms GPT-4 on the specific task.',
+   formula:'FT cost = one-time training  vs  inference savings = N_requests × (large - small) cost',
+   stats:[{v:'10–100×',l:'Cost reduction vs GPT-4 on specialized tasks',c:'#10b981'},{v:'Often',l:'Matches GPT-4 quality on specific narrow tasks',c:'#3b82f6'}],
+   tradeoff:'Requires high-quality labeled data for the specific task. Fine-tuned models don\'t generalize beyond their training distribution. Retraining needed as distribution shifts.',
+   related:['Knowledge Distillation','QAT','Model Routing']},
+
+  {id:72, name:'Function Calling', cat:'routing', tagline:'Offload logic to tools',
+   what:'Delegates structured logic (arithmetic, database queries, API calls) to external tools instead of having the LLM compute it, improving accuracy and reducing token usage.',
+   how:'The model outputs a structured tool call (JSON with function name + args). The application executes the tool and returns results. Model incorporates tool results into the final response.',
+   formula:'Token cost: tool_call ≪ LLM_generating_answer_from_scratch',
+   stats:[{v:'Near 100%',l:'Accuracy on arithmetic (vs ~70% LLM-only)',c:'#10b981'},{v:'10×',l:'Token savings for structured data retrieval',c:'#3b82f6'}],
+   tradeoff:'Tool call overhead adds latency. Model must be trained for function calling (or instructed carefully). Parallel function calling (OpenAI) can run multiple tools simultaneously.',
+   related:['Constrained Decoding','Structured Output','Model Routing']},
+];
+
+// ── State ──
+var currentCat = 'all';
+var currentSearch = '';
+var viewMode = 'grid';
+
+// ── Render ──
+function init(){
+  renderGrid();
+  updateCatBtnStyles();
+  updateCount();
+}
+
+function renderGrid(){
+  var container = document.getElementById('grid-container');
+  container.innerHTML = '';
+  var visible = 0;
+  TECHNIQUES.forEach(function(t){
+    var show = matchesFilter(t);
+    if(show) visible++;
+    var cm = CAT_META[t.cat];
+    var card = document.createElement('div');
+    card.className = 'tech-card' + (show ? '' : ' hidden');
+    card.onclick = function(){ openModal(t.id); };
+    card.innerHTML =
+      '<div class="card-accent" style="background:'+cm.color+';"></div>'+
+      '<div class="card-body">'+
+        '<div class="card-num" style="color:'+cm.color+';">#'+String(t.id).padStart(2,'0')+'</div>'+
+        '<div class="card-name">'+t.name+'</div>'+
+        '<div class="card-tagline">'+t.tagline+'</div>'+
+        '<div class="card-cat" style="background:'+cm.bg+';color:'+cm.color+';">'+
+          '<span style="width:5px;height:5px;border-radius:50%;background:'+cm.color+';display:inline-block;"></span>'+
+          cm.name+
+        '</div>'+
+      '</div>';
+    container.appendChild(card);
+  });
+  document.getElementById('no-results').style.display = visible===0 ? 'block' : 'none';
+  document.getElementById('result-count').textContent = visible + ' of 72 techniques';
+}
+
+function matchesFilter(t){
+  if(currentCat !== 'all' && t.cat !== currentCat) return false;
+  if(currentSearch){
+    var q = currentSearch.toLowerCase();
+    if(t.name.toLowerCase().indexOf(q) === -1 &&
+       t.tagline.toLowerCase().indexOf(q) === -1 &&
+       t.what.toLowerCase().indexOf(q) === -1 &&
+       CAT_META[t.cat].name.toLowerCase().indexOf(q) === -1) return false;
+  }
+  return true;
+}
+
+function setCat(cat, btn){
+  currentCat = cat;
+  applyFilters();
+  document.querySelectorAll('.cat-btn').forEach(function(b){
+    b.classList.remove('active');
+    b.style.background = '';
+    b.style.borderColor = '';
+    b.style.color = '';
+  });
+  btn.classList.add('active');
+  if(cat !== 'all'){
+    var cm = CAT_META[cat];
+    btn.style.background = cm.bg;
+    btn.style.borderColor = cm.color;
+    btn.style.color = cm.color;
+  } else {
+    btn.style.background = 'rgba(255,255,255,.06)';
+    btn.style.borderColor = 'rgba(255,255,255,.15)';
+    btn.style.color = 'var(--text)';
+  }
+}
+
+function updateCatBtnStyles(){
+  var allBtn = document.querySelector('[data-cat="all"]');
+  if(allBtn){
+    allBtn.style.background='rgba(255,255,255,.06)';
+    allBtn.style.borderColor='rgba(255,255,255,.15)';
+    allBtn.style.color='var(--text)';
+  }
+}
+
+function applyFilters(){
+  currentSearch = document.getElementById('search').value;
+  renderGrid();
+}
+
+function setView(v){
+  viewMode = v;
+  var grid = document.getElementById('grid-container');
+  document.getElementById('vb-grid').classList.toggle('active', v==='grid');
+  document.getElementById('vb-list').classList.toggle('active', v==='list');
+  if(v==='list'){
+    grid.style.gridTemplateColumns = '1fr';
+  } else {
+    grid.style.gridTemplateColumns = '';
+  }
+}
+
+function updateCount(){
+  document.getElementById('result-count').textContent = '72 of 72 techniques';
+}
+
+// ── Modal ──
+function openModal(id){
+  var t = TECHNIQUES.find(function(x){return x.id===id;});
+  if(!t) return;
+  var cm = CAT_META[t.cat];
+  document.getElementById('m-num').textContent = 'Technique #'+String(t.id).padStart(2,'0');
+  document.getElementById('m-num').style.color = cm.color;
+  document.getElementById('m-title').textContent = t.name;
+  document.getElementById('m-cat').textContent = cm.name;
+  document.getElementById('m-cat').style.background = cm.bg;
+  document.getElementById('m-cat').style.color = cm.color;
+  document.getElementById('m-what').innerHTML = t.what;
+  document.getElementById('m-how').innerHTML = t.how;
+  if(t.formula){
+    document.getElementById('m-formula-wrap').style.display='block';
+    document.getElementById('m-formula').textContent = t.formula;
+  } else {
+    document.getElementById('m-formula-wrap').style.display='none';
+  }
+  var statsHtml = '';
+  (t.stats||[]).forEach(function(s){
+    statsHtml += '<span class="stat-chip" style="color:'+s.c+';border-color:'+s.c+'20;background:'+s.c+'10;"><strong>'+s.v+'</strong> '+s.l+'</span>';
+  });
+  document.getElementById('m-stats').innerHTML = statsHtml;
+  document.getElementById('m-tradeoff').innerHTML = t.tradeoff||'';
+  var relHtml = '';
+  (t.related||[]).forEach(function(r){
+    var ri = TECHNIQUES.find(function(x){return x.name===r;});
+    relHtml += '<span class="related-chip" onclick="openModal('+(ri?ri.id:0)+')">'+r+'</span>';
+  });
+  document.getElementById('m-related').innerHTML = relHtml;
+  document.getElementById('modal-overlay').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+
+function closeModal(e){
+  if(e && e.target !== document.getElementById('modal-overlay') && e.type==='click' && e.currentTarget===document.getElementById('modal-overlay')) {
+    if(!document.getElementById('modal-box').contains(e.target)) {
+      document.getElementById('modal-overlay').classList.remove('open');
+      document.body.style.overflow='';
+    }
+  } else if(!e || e.type!=='click'){
+    document.getElementById('modal-overlay').classList.remove('open');
+    document.body.style.overflow='';
+  }
+}
+
+document.addEventListener('keydown', function(e){
+  if(e.key==='Escape') closeModal();
+});
+</script>
+</body>
+</html>
