@@ -536,14 +536,15 @@ Content-Type: application/json
 <!-- ── Section 8: REST vs Others ────────────────────── -->
 <div class="section" id="s-compare">
   <div class="section-tag" style="color:var(--green2)">Section 8</div>
-  <h2 class="section-title">REST vs GraphQL vs gRPC vs SOAP</h2>
-  <p class="section-sub">REST is not the only option. Choosing the right API style depends on your use case.</p>
+  <h2 class="section-title">REST vs GraphQL vs gRPC vs SOAP vs MCP</h2>
+  <p class="section-sub">REST is not the only option. Choosing the right API style depends on your use case — including AI-native protocols like MCP.</p>
 
   <div class="btn-row" id="compare-tabs">
     <button class="btn-tab active" onclick="showCompare('overview',this)">Overview</button>
     <button class="btn-tab" onclick="showCompare('graphql',this)">REST vs GraphQL</button>
     <button class="btn-tab" onclick="showCompare('grpc',this)">REST vs gRPC</button>
     <button class="btn-tab" onclick="showCompare('soap',this)">REST vs SOAP</button>
+    <button class="btn-tab" onclick="showCompare('mcp',this)">REST vs MCP</button>
   </div>
 
   <div id="compare-display" class="card" style="min-height:220px;"></div>
@@ -1064,6 +1065,7 @@ var COMPARE_CONTENT = {
           <li>Ultra-low latency between microservices (→ gRPC)</li>
           <li>Real-time bidirectional data (→ WebSocket)</li>
           <li>Legacy enterprise integration (→ SOAP)</li>
+          <li>LLM needs to discover &amp; call tools at runtime (→ MCP)</li>
         </ul></div>
       </div>
     </div>`
@@ -1122,6 +1124,63 @@ rpc GetUser (UserRequest) returns (User);
 &lt;/soapenv:Envelope&gt;
       </div>
       <p><strong style="color:var(--text);">When REST wins:</strong> Almost always for new systems — less overhead, better tooling, easier to debug. <strong style="color:var(--text);">When SOAP still makes sense:</strong> Existing enterprise systems, financial/healthcare integrations requiring WS-Security and ACID transactions, legacy WSDL contracts.</p>
+    </div>`
+  },
+  mcp:{
+    body:`<div style="font-size:13px;color:var(--muted);line-height:1.7;">
+      <p style="margin-bottom:14px;"><strong style="color:var(--text);">MCP (Model Context Protocol)</strong>, introduced by Anthropic in 2024, is a standardized protocol specifically for connecting LLMs to tools, data sources, and external context. It is not a general-purpose API style — it is an AI-native communication layer built on JSON-RPC 2.0.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px;">
+        <div style="background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:12px;">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#3b82f6;margin-bottom:8px;">REST API</div>
+          <ul style="padding-left:16px;line-height:2;">
+            <li>Any HTTP client calls the server</li>
+            <li>Stateless — no session</li>
+            <li>Discovery via docs / OpenAPI spec</li>
+            <li>You define auth (API Key, JWT, OAuth)</li>
+            <li>Returns structured JSON/XML data</li>
+            <li>Built for humans &amp; machines</li>
+          </ul>
+        </div>
+        <div style="background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:12px;">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#a78bfa;margin-bottom:8px;">MCP</div>
+          <ul style="padding-left:16px;line-height:2;">
+            <li>An LLM (host) calls the server</li>
+            <li>Stateful — persistent session</li>
+            <li>Auto-discovery via <code style="font-size:11px;color:#a5f3fc;">tools/list</code>, <code style="font-size:11px;color:#a5f3fc;">resources/list</code></li>
+            <li>Auth delegated to the host application</li>
+            <li>Returns tool results, resources, prompts</li>
+            <li>Built specifically for AI agents</li>
+          </ul>
+        </div>
+      </div>
+      <div class="code-block">
+<span class="cmt">// REST: a human/app calls your API</span>
+<span class="method-GET">GET</span> /weather?city=Tokyo
+→ { "temp": 22, "condition": "sunny" }
+
+<span class="cmt">// MCP: an LLM discovers and calls a tool</span>
+← tools/list
+→ [{ "name": "get_weather", "inputSchema": { "city": "string" } }]
+← tools/call { "name": "get_weather", "arguments": { "city": "Tokyo" } }
+→ { "content": [{ "type": "text", "text": "22°C, sunny" }] }
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;">
+        <div><strong style="color:var(--text);">Use REST when:</strong><ul style="padding-left:18px;margin-top:6px;">
+          <li>Building a public API for developers</li>
+          <li>Web/mobile clients consume the data</li>
+          <li>CDN caching is important</li>
+          <li>Any non-AI integration</li>
+        </ul></div>
+        <div><strong style="color:var(--text);">Use MCP when:</strong><ul style="padding-left:18px;margin-top:6px;">
+          <li>An LLM agent needs to call external tools</li>
+          <li>You want auto tool-discovery at runtime</li>
+          <li>Building Claude/GPT plugins or AI copilots</li>
+          <li>Exposing data sources to AI assistants</li>
+        </ul></div>
+      </div>
+      <div style="margin-top:14px;padding:10px 14px;background:#0f1b2d;border:1px solid #1e3a5f;border-radius:8px;font-size:12px;">
+        <strong style="color:#93c5fd;">Key insight:</strong> MCP servers often <em>call REST APIs internally</em> and wrap the results as LLM-friendly tools. REST and MCP are complementary — REST is the plumbing, MCP is the AI-native interface on top.
+      </div>
     </div>`
   }
 };
