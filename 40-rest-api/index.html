@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>REST API — The Complete Visual Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#030b12;--surface:#06111d;--border:#0d2033;
+  --text:#d0eeff;--muted:#3a6a8a;
+  --blue:#3b82f6;--blue2:#60a5fa;--blue3:#bfdbfe;
+  --green:#10b981;--green2:#34d399;--green3:#a7f3d0;
+  --amber:#f59e0b;--amber2:#fbbf24;--amber3:#fde68a;
+  --red:#ef4444;--red2:#fca5a5;
+  --purple:#8b5cf6;--purple2:#a78bfa;
+  --orange:#f97316;--orange2:#fb923c;
+  --teal:#06b6d4;--teal2:#22d3ee;
+  --GET:#10b981;--POST:#3b82f6;--PUT:#f59e0b;--PATCH:#8b5cf6;--DELETE:#ef4444;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+/* Gate */
+#gate{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.gate-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 44px;text-align:center;max-width:380px;width:90%;}
+.gate-icon{font-size:36px;margin-bottom:12px;}
+.gate-title{font-size:20px;font-weight:800;color:var(--blue3);margin-bottom:4px;}
+.gate-sub{font-size:12px;color:var(--muted);margin-bottom:24px;}
+.gate-input{width:100%;background:#020a10;border:1px solid var(--border);border-radius:8px;padding:11px 14px;font-size:14px;color:var(--text);outline:none;margin-bottom:12px;}
+.gate-input:focus{border-color:var(--blue);}
+.gate-btn{width:100%;background:var(--blue);color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s;}
+.gate-btn:hover{opacity:.85;}
+.gate-err{font-size:11px;color:var(--red);margin-top:6px;display:none;}
+/* Layout */
+.sidebar{width:240px;min-width:240px;height:100vh;position:sticky;top:0;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:0 0 40px;flex-shrink:0;}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.sidebar-logo-title{font-size:13px;font-weight:700;color:var(--blue2);}
+.sidebar-logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.nav-group-title{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;padding:10px 16px 4px;}
+.nav-link{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;}
+.nav-link:hover,.nav-link.active{color:var(--text);background:rgba(59,130,246,.08);}
+.nav-link.active{color:var(--blue3);}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.main{flex:1;overflow-y:auto;height:100vh;scroll-behavior:smooth;}
+/* Pipeline */
+.pipeline-map{position:sticky;top:0;z-index:50;background:rgba(3,11,18,.96);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+.pipe-step{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);padding:2px 6px;border-radius:4px;cursor:pointer;transition:color .15s;}
+.pipe-step:hover{color:var(--text);}
+.pipe-dot{width:6px;height:6px;border-radius:50%;}
+.pipe-arrow{color:var(--border);font-size:12px;}
+/* Sections */
+.section{min-height:100vh;padding:60px 48px 80px;border-bottom:1px solid var(--border);}
+.section-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;}
+.section-title{font-size:28px;font-weight:800;color:var(--text);margin-bottom:8px;line-height:1.25;}
+.section-sub{font-size:14px;color:var(--muted);margin-bottom:28px;max-width:700px;}
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:16px;}
+.card-title{font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px;}
+.card-body{font-size:13px;color:var(--muted);line-height:1.6;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+/* Highlights */
+.highlight-box{border-left:3px solid var(--blue);padding:12px 16px;background:rgba(59,130,246,.06);border-radius:0 8px 8px 0;margin-bottom:16px;font-size:13px;color:var(--muted);}
+.highlight-box.green{border-color:var(--green);background:rgba(16,185,129,.06);}
+.highlight-box.amber{border-color:var(--amber);background:rgba(245,158,11,.06);}
+.highlight-box.red{border-color:var(--red);background:rgba(239,68,68,.06);}
+/* Code */
+.code-block{background:#020a10;border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-family:'JetBrains Mono','Courier New',monospace;font-size:12px;line-height:1.8;margin-bottom:16px;overflow-x:auto;}
+.code-block .kw{color:var(--blue2);}
+.code-block .str{color:var(--green2);}
+.code-block .key{color:var(--amber2);}
+.code-block .val{color:var(--purple2);}
+.code-block .cmt{color:var(--muted);}
+.code-block .method-GET{color:var(--GET);font-weight:700;}
+.code-block .method-POST{color:var(--POST);font-weight:700;}
+.code-block .method-PUT{color:var(--PUT);font-weight:700;}
+.code-block .method-PATCH{color:var(--PATCH);font-weight:700;}
+.code-block .method-DELETE{color:var(--DELETE);font-weight:700;}
+.code-block .status-2{color:var(--green2);font-weight:700;}
+.code-block .status-4{color:var(--amber2);font-weight:700;}
+.code-block .status-5{color:var(--red2);font-weight:700;}
+/* Method badge */
+.method-badge{display:inline-flex;align-items:center;justify-content:center;padding:3px 10px;border-radius:5px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;min-width:64px;}
+/* Accordion */
+.accordion-item{border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+.accordion-header{padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;background:var(--surface);}
+.accordion-header:hover{background:#081826;}
+.accordion-chevron{transition:transform .2s;font-size:10px;color:var(--muted);}
+.accordion-item.open .accordion-chevron{transform:rotate(90deg);}
+.accordion-body{padding:14px 16px;font-size:12px;color:var(--muted);display:none;border-top:1px solid var(--border);line-height:1.7;}
+.accordion-item.open .accordion-body{display:block;}
+/* Buttons */
+.btn-tab{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-tab.active{background:var(--blue);color:#fff;border-color:var(--blue);}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;}
+/* Stats */
+.stats-row{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:28px;}
+.stat{text-align:center;}
+.stat-val{font-size:28px;font-weight:800;color:var(--blue2);}
+.stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;}
+/* Continue strip */
+.continue-strip{background:var(--surface);border-top:1px solid var(--border);padding:24px 48px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.continue-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-right:4px;}
+.continue-link{display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--muted);transition:all .15s;}
+.continue-link:hover{border-color:var(--blue);color:var(--blue3);}
+.continue-dir{font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);}
+/* URL bar */
+.url-bar{background:#020a10;border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-family:'JetBrains Mono',monospace;font-size:13px;display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.url-scheme{color:var(--muted);}
+.url-host{color:var(--green2);}
+.url-path{color:var(--blue2);}
+.url-param{color:var(--amber2);}
+/* Status code pill */
+.status-pill{display:inline-block;padding:2px 9px;border-radius:10px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;margin:2px 4px 2px 0;}
+/* Constraint card */
+.constraint-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;cursor:pointer;transition:all .2s;border-top:3px solid;}
+.constraint-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.4);}
+.constraint-num{font-size:24px;font-weight:800;opacity:.2;margin-bottom:4px;}
+.constraint-name{font-size:14px;font-weight:700;margin-bottom:6px;}
+.constraint-short{font-size:11px;color:var(--muted);}
+/* Method explorer */
+.method-row{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
+.method-btn{padding:8px 18px;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;cursor:pointer;border:1px solid;transition:all .2s;}
+/* Comparison table */
+.cmp-table{width:100%;border-collapse:collapse;font-size:12px;}
+.cmp-table th{padding:8px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);border-bottom:1px solid var(--border);}
+.cmp-table td{padding:9px 12px;border-bottom:1px solid rgba(13,32,51,.6);color:var(--muted);}
+.cmp-table tr:hover td{background:rgba(59,130,246,.03);color:var(--text);}
+.cmp-table .td-name{color:var(--text);font-weight:600;font-family:'JetBrains Mono',monospace;}
+/* Auth method */
+.auth-tab-content{display:none;}
+.auth-tab-content.active{display:block;}
+/* Search */
+.sc-search{width:100%;max-width:320px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:13px;color:var(--text);outline:none;margin-bottom:16px;}
+.sc-search:focus{border-color:var(--blue);}
+.sc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;}
+.sc-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;transition:all .15s;}
+.sc-card:hover{border-color:var(--blue);background:#081826;}
+.sc-card.hidden{display:none;}
+</style>
+</head>
+<body>
+
+<!-- Gate -->
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-icon">🌐</div>
+    <div class="gate-title">REST API</div>
+    <div class="gate-sub">Visual Summary — Post 40</div>
+    <input class="gate-input" type="password" id="pw" placeholder="Enter password" onkeydown="if(event.key==='Enter')unlock()">
+    <button class="gate-btn" onclick="unlock()">Unlock</button>
+    <div class="gate-err" id="pw-err">Incorrect password</div>
+  </div>
+</div>
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-title">REST API</div>
+    <div class="sidebar-logo-sub">Post 40 · Fielding, 2000</div>
+  </div>
+  <div class="nav-group-title">Contents</div>
+  <div class="nav-link" onclick="goTo('s-intro')"><span class="dot" style="background:var(--blue)"></span>What is REST?</div>
+  <div class="nav-link" onclick="goTo('s-constraints')"><span class="dot" style="background:var(--green)"></span>6 Constraints</div>
+  <div class="nav-link" onclick="goTo('s-anatomy')"><span class="dot" style="background:var(--amber)"></span>Request Anatomy</div>
+  <div class="nav-link" onclick="goTo('s-methods')"><span class="dot" style="background:var(--purple)"></span>HTTP Methods</div>
+  <div class="nav-link" onclick="goTo('s-status')"><span class="dot" style="background:var(--teal)"></span>Status Codes</div>
+  <div class="nav-link" onclick="goTo('s-design')"><span class="dot" style="background:var(--orange)"></span>URL Design</div>
+  <div class="nav-link" onclick="goTo('s-auth')"><span class="dot" style="background:var(--blue2)"></span>Authentication</div>
+  <div class="nav-link" onclick="goTo('s-compare')"><span class="dot" style="background:var(--green2)"></span>REST vs Others</div>
+  <div class="nav-link" onclick="goTo('s-bestpractices')"><span class="dot" style="background:var(--amber2)"></span>Best Practices</div>
+</nav>
+
+<!-- Main -->
+<div class="main">
+
+<div class="pipeline-map">
+  <span class="pipe-step" onclick="goTo('s-intro')"><span class="pipe-dot" style="background:var(--blue)"></span>What is REST?</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-constraints')"><span class="pipe-dot" style="background:var(--green)"></span>Constraints</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-anatomy')"><span class="pipe-dot" style="background:var(--amber)"></span>Anatomy</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-methods')"><span class="pipe-dot" style="background:var(--purple)"></span>Methods</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-status')"><span class="pipe-dot" style="background:var(--teal)"></span>Status Codes</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-design')"><span class="pipe-dot" style="background:var(--orange)"></span>URL Design</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-auth')"><span class="pipe-dot" style="background:var(--blue2)"></span>Auth</span>
+  <span class="pipe-arrow">›</span>
+  <span class="pipe-step" onclick="goTo('s-compare')"><span class="pipe-dot" style="background:var(--green2)"></span>vs Others</span>
+</div>
+
+<!-- ── Section 1: What is REST ──────────────────────── -->
+<div class="section" id="s-intro">
+  <div class="section-tag" style="color:var(--blue2)">Post 40 · Web Engineering</div>
+  <h1 class="section-title">REST API</h1>
+  <p class="section-sub">Representational State Transfer — Roy Fielding's 2000 doctoral dissertation defined an architectural style for distributed hypermedia systems. Today it powers over 83% of all public APIs.</p>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val">83%</div><div class="stat-lbl">APIs are REST-based</div></div>
+    <div class="stat"><div class="stat-val">6</div><div class="stat-lbl">Architectural constraints</div></div>
+    <div class="stat"><div class="stat-val">5</div><div class="stat-lbl">Core HTTP methods</div></div>
+    <div class="stat"><div class="stat-val">60+</div><div class="stat-lbl">HTTP status codes</div></div>
+    <div class="stat"><div class="stat-val">2000</div><div class="stat-lbl">Fielding's dissertation</div></div>
+  </div>
+
+  <div class="highlight-box">
+    <strong style="color:var(--blue3)">REST is not a protocol — it's an architectural style.</strong> A REST API is any HTTP API that follows Fielding's 6 constraints. It has no official spec, no WSDL, no contract — just conventions that make systems scalable, stateless, and interoperable.
+  </div>
+
+  <div class="grid3">
+    <div class="card">
+      <div class="card-title" style="color:var(--blue2)">API = Interface</div>
+      <div class="card-body">An API (Application Programming Interface) is a contract between a server and a client. The server exposes resources; the client consumes them. REST defines <em>how</em> that contract is structured using HTTP.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--green2)">Resources, not Actions</div>
+      <div class="card-body">In REST, everything is a <em>resource</em> — a user, an order, a product. You identify resources with URLs and manipulate them with HTTP verbs (GET, POST, PUT, DELETE). Actions are verbs; resources are nouns.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--amber2)">Representations</div>
+      <div class="card-body">A resource has <em>state</em>, and a REST response transfers a <em>representation</em> of that state — usually JSON or XML. The server doesn't send the resource itself; it sends a snapshot of its current state.</div>
+    </div>
+  </div>
+
+  <!-- The REST sandwich -->
+  <div class="card" style="margin-top:4px;">
+    <div class="card-title" style="color:var(--teal2)">How a REST Request Works</div>
+    <div class="code-block">
+<span class="cmt">// 1. Client identifies a resource by URL</span>
+<span class="str">GET https://api.example.com/users/42</span>
+
+<span class="cmt">// 2. Server returns a JSON representation of the resource's current state</span>
+HTTP/1.1 <span class="status-2">200 OK</span>
+Content-Type: application/json
+
+{
+  <span class="key">"id"</span>: <span class="val">42</span>,
+  <span class="key">"name"</span>: <span class="str">"Bhaskarjit"</span>,
+  <span class="key">"email"</span>: <span class="str">"bhaskarjit@example.com"</span>,
+  <span class="key">"created_at"</span>: <span class="str">"2024-01-15T10:30:00Z"</span>
+}
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <div class="accordion-header" onclick="toggleAcc(this)">
+      Who invented REST and why?
+      <span class="accordion-chevron">›</span>
+    </div>
+    <div class="accordion-body">
+      Roy Fielding co-wrote the HTTP/1.1 specification and needed a way to describe and evaluate web architectures. His 2000 PhD dissertation at UC Irvine introduced REST as a description of the web's own architecture — and later, as a design guide for APIs that scale like the web itself. The dissertation is publicly available and is still the definitive reference.
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 2: 6 Constraints ─────────────────────── -->
+<div class="section" id="s-constraints">
+  <div class="section-tag" style="color:var(--green2)">Section 2</div>
+  <h2 class="section-title">The 6 Architectural Constraints</h2>
+  <p class="section-sub">An API is only truly RESTful if it follows all six of Fielding's constraints. Miss one and it's just "an HTTP API".</p>
+
+  <div id="constraint-detail" class="card" style="margin-bottom:20px;min-height:100px;border-color:rgba(59,130,246,.3);">
+    <div class="card-title" style="color:var(--blue2)" id="cd-title">Click a constraint below to explore it</div>
+    <div class="card-body" id="cd-body" style="color:var(--muted);">Each constraint adds a specific property to the system — scalability, visibility, simplicity, or reliability.</div>
+  </div>
+
+  <div id="constraints-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;"></div>
+
+  <div class="highlight-box" style="margin-top:20px;">
+    <strong style="color:var(--blue3)">HATEOAS</strong> (Hypermedia As The Engine Of Application State) — the 6th constraint — is the most misunderstood and least implemented. A truly RESTful API embeds links in responses telling clients what actions are possible next, without clients needing prior knowledge of the API structure.
+  </div>
+</div>
+
+<!-- ── Section 3: Request Anatomy ──────────────────── -->
+<div class="section" id="s-anatomy">
+  <div class="section-tag" style="color:var(--amber2)">Section 3</div>
+  <h2 class="section-title">Anatomy of a REST Request &amp; Response</h2>
+  <p class="section-sub">Every HTTP transaction has the same structure. Understanding each part is the foundation of working with any API.</p>
+
+  <!-- Tabs: Request / Response -->
+  <div class="btn-row" id="anatomy-tabs">
+    <button class="btn-tab active" onclick="showAnatomy('request',this)">Request</button>
+    <button class="btn-tab" onclick="showAnatomy('response',this)">Response</button>
+    <button class="btn-tab" onclick="showAnatomy('headers',this)">Common Headers</button>
+  </div>
+
+  <div id="anatomy-display"></div>
+
+  <!-- URL breakdown -->
+  <div class="card" style="margin-top:8px;">
+    <div class="card-title" style="color:var(--amber2)">URL Anatomy</div>
+    <div class="url-bar">
+      <span class="url-scheme">https://</span><span class="url-host">api.example.com</span><span class="url-path">/v2/users/42/orders</span><span class="url-param">?status=pending&limit=10</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-top:8px;">
+      <div class="card" style="margin:0;padding:12px 14px;">
+        <div class="card-title" style="color:var(--muted);font-size:10px;">SCHEME</div>
+        <div style="font-family:'JetBrains Mono',monospace;color:var(--muted);font-size:12px;">https://</div>
+        <div class="card-body" style="font-size:11px;margin-top:4px;">Protocol — always HTTPS in production</div>
+      </div>
+      <div class="card" style="margin:0;padding:12px 14px;">
+        <div class="card-title" style="color:var(--green2);font-size:10px;">HOST</div>
+        <div style="font-family:'JetBrains Mono',monospace;color:var(--green2);font-size:12px;">api.example.com</div>
+        <div class="card-body" style="font-size:11px;margin-top:4px;">Base URL — identifies the server</div>
+      </div>
+      <div class="card" style="margin:0;padding:12px 14px;">
+        <div class="card-title" style="color:var(--blue2);font-size:10px;">PATH</div>
+        <div style="font-family:'JetBrains Mono',monospace;color:var(--blue2);font-size:12px;">/v2/users/42/orders</div>
+        <div class="card-body" style="font-size:11px;margin-top:4px;">Resource path — version/collection/id/sub-resource</div>
+      </div>
+      <div class="card" style="margin:0;padding:12px 14px;">
+        <div class="card-title" style="color:var(--amber2);font-size:10px;">QUERY PARAMS</div>
+        <div style="font-family:'JetBrains Mono',monospace;color:var(--amber2);font-size:12px;">?status=pending&limit=10</div>
+        <div class="card-body" style="font-size:11px;margin-top:4px;">Filtering, sorting, pagination</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 4: HTTP Methods ──────────────────────── -->
+<div class="section" id="s-methods">
+  <div class="section-tag" style="color:var(--purple2)">Section 4</div>
+  <h2 class="section-title">HTTP Methods — The Verbs of REST</h2>
+  <p class="section-sub">HTTP methods define the action performed on a resource. Choosing the right method is the first rule of good API design.</p>
+
+  <div class="method-row" id="method-tabs">
+    <button class="method-btn active" data-method="GET" onclick="showMethod('GET',this)" style="background:rgba(16,185,129,.1);border-color:var(--GET);color:var(--GET);">GET</button>
+    <button class="method-btn" data-method="POST" onclick="showMethod('POST',this)" style="background:rgba(59,130,246,.06);border-color:var(--border);color:var(--muted);">POST</button>
+    <button class="method-btn" data-method="PUT" onclick="showMethod('PUT',this)" style="background:rgba(245,158,11,.06);border-color:var(--border);color:var(--muted);">PUT</button>
+    <button class="method-btn" data-method="PATCH" onclick="showMethod('PATCH',this)" style="background:rgba(139,92,246,.06);border-color:var(--border);color:var(--muted);">PATCH</button>
+    <button class="method-btn" data-method="DELETE" onclick="showMethod('DELETE',this)" style="background:rgba(239,68,68,.06);border-color:var(--border);color:var(--muted);">DELETE</button>
+  </div>
+
+  <div id="method-display" class="card" style="min-height:220px;"></div>
+
+  <div style="margin-top:20px;">
+    <div class="card-title" style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px;">Method Properties</div>
+    <table class="cmp-table">
+      <thead>
+        <tr>
+          <th>Method</th>
+          <th>Safe?</th>
+          <th>Idempotent?</th>
+          <th>Has Body?</th>
+          <th>Typical Use</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="method-badge" style="background:rgba(16,185,129,.1);color:var(--GET);">GET</span></td>
+          <td style="color:var(--green2);">✓ Yes</td>
+          <td style="color:var(--green2);">✓ Yes</td>
+          <td style="color:var(--muted);">✗ No</td>
+          <td>Retrieve a resource</td>
+        </tr>
+        <tr>
+          <td><span class="method-badge" style="background:rgba(59,130,246,.1);color:var(--POST);">POST</span></td>
+          <td style="color:var(--red2);">✗ No</td>
+          <td style="color:var(--red2);">✗ No</td>
+          <td style="color:var(--green2);">✓ Yes</td>
+          <td>Create a new resource</td>
+        </tr>
+        <tr>
+          <td><span class="method-badge" style="background:rgba(245,158,11,.1);color:var(--PUT);">PUT</span></td>
+          <td style="color:var(--red2);">✗ No</td>
+          <td style="color:var(--green2);">✓ Yes</td>
+          <td style="color:var(--green2);">✓ Yes</td>
+          <td>Replace full resource</td>
+        </tr>
+        <tr>
+          <td><span class="method-badge" style="background:rgba(139,92,246,.1);color:var(--PATCH);">PATCH</span></td>
+          <td style="color:var(--red2);">✗ No</td>
+          <td style="color:var(--amber2);">~ Usually</td>
+          <td style="color:var(--green2);">✓ Yes</td>
+          <td>Partial update</td>
+        </tr>
+        <tr>
+          <td><span class="method-badge" style="background:rgba(239,68,68,.1);color:var(--DELETE);">DELETE</span></td>
+          <td style="color:var(--red2);">✗ No</td>
+          <td style="color:var(--green2);">✓ Yes</td>
+          <td style="color:var(--muted);">✗ Rarely</td>
+          <td>Remove a resource</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid2" style="margin-top:16px;">
+    <div class="highlight-box green">
+      <strong style="color:var(--green3)">Safe:</strong> A method is "safe" if it doesn't modify server state. GET and HEAD are safe — calling them a thousand times has no side effects. Safe methods can be freely cached and prefetched.
+    </div>
+    <div class="highlight-box amber">
+      <strong style="color:var(--amber3)">Idempotent:</strong> A method is "idempotent" if calling it N times produces the same result as calling it once. DELETE /users/42 is idempotent — the user is gone regardless of how many times you call it.
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 5: Status Codes ──────────────────────── -->
+<div class="section" id="s-status">
+  <div class="section-tag" style="color:var(--teal2)">Section 5</div>
+  <h2 class="section-title">HTTP Status Codes</h2>
+  <p class="section-sub">The server's response always includes a 3-digit status code. It tells the client exactly what happened — success, error, redirect, or something unexpected.</p>
+
+  <div class="btn-row" id="status-tabs">
+    <button class="btn-tab" onclick="filterStatus('all',this)" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.15);color:var(--text);">All</button>
+    <button class="btn-tab" onclick="filterStatus('1',this)">1xx Info</button>
+    <button class="btn-tab" onclick="filterStatus('2',this)">2xx Success</button>
+    <button class="btn-tab" onclick="filterStatus('3',this)">3xx Redirect</button>
+    <button class="btn-tab" onclick="filterStatus('4',this)">4xx Client Error</button>
+    <button class="btn-tab" onclick="filterStatus('5',this)">5xx Server Error</button>
+  </div>
+
+  <input class="sc-search" id="sc-search" type="text" placeholder="Search status codes…" oninput="searchStatus()">
+
+  <div class="sc-grid" id="sc-grid"></div>
+</div>
+
+<!-- ── Section 6: URL Design ────────────────────────── -->
+<div class="section" id="s-design">
+  <div class="section-tag" style="color:var(--orange2)">Section 6</div>
+  <h2 class="section-title">URL Design — Nouns, Not Verbs</h2>
+  <p class="section-sub">Good REST URL design makes an API intuitive. The single most important rule: URLs identify resources (nouns), HTTP methods express actions (verbs).</p>
+
+  <!-- Good vs Bad -->
+  <div class="grid2" style="margin-bottom:20px;">
+    <div class="card" style="border-color:rgba(239,68,68,.3);">
+      <div class="card-title" style="color:var(--red2)">✗ Bad — Verbs in URLs</div>
+      <div class="code-block" style="margin-bottom:0;font-size:11px;">
+<span style="color:var(--red2)">GET  /getUser?id=42</span>
+<span style="color:var(--red2)">POST /createOrder</span>
+<span style="color:var(--red2)">POST /deleteUser?id=5</span>
+<span style="color:var(--red2)">GET  /getAllProducts</span>
+<span style="color:var(--red2)">POST /updateUserEmail</span>
+      </div>
+    </div>
+    <div class="card" style="border-color:rgba(16,185,129,.3);">
+      <div class="card-title" style="color:var(--green2)">✓ Good — Nouns + HTTP Verbs</div>
+      <div class="code-block" style="margin-bottom:0;font-size:11px;">
+<span style="color:var(--green2)">GET    /users/42</span>
+<span style="color:var(--green2)">POST   /orders</span>
+<span style="color:var(--green2)">DELETE /users/5</span>
+<span style="color:var(--green2)">GET    /products</span>
+<span style="color:var(--green2)">PATCH  /users/42</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Resource patterns -->
+  <div class="card-title" style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px;">Standard Resource Patterns</div>
+  <table class="cmp-table" style="margin-bottom:20px;">
+    <thead>
+      <tr><th>Pattern</th><th>Example</th><th>Meaning</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="td-name">Collection</td><td><code style="color:var(--blue2);font-size:11px;">GET /users</code></td><td>List all users</td></tr>
+      <tr><td class="td-name">Single resource</td><td><code style="color:var(--blue2);font-size:11px;">GET /users/42</code></td><td>Get user with ID 42</td></tr>
+      <tr><td class="td-name">Create</td><td><code style="color:var(--blue2);font-size:11px;">POST /users</code></td><td>Create a new user</td></tr>
+      <tr><td class="td-name">Replace</td><td><code style="color:var(--amber2);font-size:11px;">PUT /users/42</code></td><td>Replace user 42 entirely</td></tr>
+      <tr><td class="td-name">Partial update</td><td><code style="color:var(--purple2);font-size:11px;">PATCH /users/42</code></td><td>Update specific fields of user 42</td></tr>
+      <tr><td class="td-name">Delete</td><td><code style="color:var(--red2);font-size:11px;">DELETE /users/42</code></td><td>Delete user 42</td></tr>
+      <tr><td class="td-name">Sub-resource</td><td><code style="color:var(--blue2);font-size:11px;">GET /users/42/orders</code></td><td>List orders belonging to user 42</td></tr>
+      <tr><td class="td-name">Filter</td><td><code style="color:var(--teal2);font-size:11px;">GET /orders?status=pending</code></td><td>Filter orders by status</td></tr>
+      <tr><td class="td-name">Pagination</td><td><code style="color:var(--teal2);font-size:11px;">GET /products?page=2&limit=20</code></td><td>Page 2, 20 items per page</td></tr>
+      <tr><td class="td-name">Versioning</td><td><code style="color:var(--orange2);font-size:11px;">GET /v2/users</code></td><td>Version 2 of the users endpoint</td></tr>
+    </tbody>
+  </table>
+
+  <!-- URL rules -->
+  <div class="grid2">
+    <div>
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAcc(this)">Use plural nouns for collections<span class="accordion-chevron">›</span></div>
+        <div class="accordion-body"><code style="color:var(--green2)">/users</code> not <code style="color:var(--red2)">/user</code>. Collections are plural. This makes it unambiguous: /users returns many, /users/42 returns one.</div>
+      </div>
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAcc(this)">Use kebab-case for multi-word paths<span class="accordion-chevron">›</span></div>
+        <div class="accordion-body"><code style="color:var(--green2)">/blog-posts</code> not <code style="color:var(--red2)">/blogPosts</code> or <code style="color:var(--red2)">/blog_posts</code>. URLs are case-insensitive; kebab-case is the convention.</div>
+      </div>
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAcc(this)">Versioning strategy<span class="accordion-chevron">›</span></div>
+        <div class="accordion-body">Three common approaches: (1) <strong style="color:var(--text)">URL path:</strong> /v1/users — most visible, easy to test in browser. (2) <strong style="color:var(--text)">Query param:</strong> /users?v=1. (3) <strong style="color:var(--text)">Header:</strong> Accept: application/vnd.api+json;version=1. URL path versioning is the most widely adopted.</div>
+      </div>
+    </div>
+    <div>
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAcc(this)">Nesting depth — how deep to go?<span class="accordion-chevron">›</span></div>
+        <div class="accordion-body">Never nest more than 2 levels deep. <code style="color:var(--green2)">/users/42/orders/7</code> is acceptable. <code style="color:var(--red2)">/users/42/orders/7/items/3/reviews</code> is too deep — flatten it to <code style="color:var(--green2)">/reviews?item_id=3</code>.</div>
+      </div>
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAcc(this)">Query params vs path params<span class="accordion-chevron">›</span></div>
+        <div class="accordion-body"><strong style="color:var(--text)">Path params</strong> identify a specific resource: /users/42. <strong style="color:var(--text)">Query params</strong> filter, sort, or paginate: /users?role=admin&sort=created_at. Never put filtering logic in path params.</div>
+      </div>
+      <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAcc(this)">What about actions that aren't CRUD?<span class="accordion-chevron">›</span></div>
+        <div class="accordion-body">Some actions don't map to CRUD. Use a sub-resource that reads as a noun: <code style="color:var(--green2)">POST /users/42/activation</code> (activate user) or <code style="color:var(--green2)">POST /payments/42/refund</code>. Avoid verbs — treat the action itself as a noun resource.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 7: Authentication ────────────────────── -->
+<div class="section" id="s-auth">
+  <div class="section-tag" style="color:var(--blue2)">Section 7</div>
+  <h2 class="section-title">Authentication &amp; Authorization</h2>
+  <p class="section-sub">REST is stateless — the server holds no session. Every request must carry its own credentials. Three dominant patterns.</p>
+
+  <div class="btn-row" id="auth-tabs">
+    <button class="btn-tab active" onclick="showAuth('apikey',this)">API Key</button>
+    <button class="btn-tab" onclick="showAuth('bearer',this)">Bearer Token (JWT)</button>
+    <button class="btn-tab" onclick="showAuth('oauth',this)">OAuth 2.0</button>
+  </div>
+
+  <div id="auth-display" class="card" style="min-height:200px;"></div>
+
+  <div class="grid3" style="margin-top:16px;">
+    <div class="card">
+      <div class="card-title" style="color:var(--blue2)">Authentication vs Authorization</div>
+      <div class="card-body"><strong style="color:var(--text)">Authentication</strong> = Who are you? (identity)<br><br><strong style="color:var(--text)">Authorization</strong> = What are you allowed to do? (permissions)<br><br>Both must be checked on every request — REST's statelessness means no session can carry either.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--green2)">Always HTTPS</div>
+      <div class="card-body">API keys and tokens are credentials. Sending them over plain HTTP exposes them to anyone with network access. HTTPS encrypts the entire request — headers, body, and URL query parameters. No exceptions.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--amber2)">Rate Limiting</div>
+      <div class="card-body">Protect the API from abuse. Common headers:<br><code style="color:var(--teal2);font-size:11px;">X-RateLimit-Limit: 1000</code><br><code style="color:var(--teal2);font-size:11px;">X-RateLimit-Remaining: 847</code><br><code style="color:var(--teal2);font-size:11px;">X-RateLimit-Reset: 1700000000</code><br>Return <strong style="color:var(--text)">429 Too Many Requests</strong> when exceeded.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 8: REST vs Others ────────────────────── -->
+<div class="section" id="s-compare">
+  <div class="section-tag" style="color:var(--green2)">Section 8</div>
+  <h2 class="section-title">REST vs GraphQL vs gRPC vs SOAP</h2>
+  <p class="section-sub">REST is not the only option. Choosing the right API style depends on your use case.</p>
+
+  <div class="btn-row" id="compare-tabs">
+    <button class="btn-tab active" onclick="showCompare('overview',this)">Overview</button>
+    <button class="btn-tab" onclick="showCompare('graphql',this)">REST vs GraphQL</button>
+    <button class="btn-tab" onclick="showCompare('grpc',this)">REST vs gRPC</button>
+    <button class="btn-tab" onclick="showCompare('soap',this)">REST vs SOAP</button>
+  </div>
+
+  <div id="compare-display" class="card" style="min-height:220px;"></div>
+
+  <table class="cmp-table" style="margin-top:20px;">
+    <thead>
+      <tr>
+        <th>Style</th>
+        <th>Protocol</th>
+        <th>Format</th>
+        <th>Best For</th>
+        <th>Overhead</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="td-name" style="color:var(--blue2);">REST</td>
+        <td>HTTP/1.1, HTTP/2</td>
+        <td>JSON, XML</td>
+        <td>Public APIs, web/mobile</td>
+        <td style="color:var(--green2);">Low</td>
+      </tr>
+      <tr>
+        <td class="td-name" style="color:var(--orange2);">GraphQL</td>
+        <td>HTTP/1.1</td>
+        <td>JSON</td>
+        <td>Complex data, flexible clients</td>
+        <td style="color:var(--amber2);">Medium</td>
+      </tr>
+      <tr>
+        <td class="td-name" style="color:var(--purple2);">gRPC</td>
+        <td>HTTP/2</td>
+        <td>Protobuf (binary)</td>
+        <td>Microservices, low latency</td>
+        <td style="color:var(--green2);">Very Low</td>
+      </tr>
+      <tr>
+        <td class="td-name" style="color:var(--muted);">SOAP</td>
+        <td>HTTP, SMTP, TCP</td>
+        <td>XML (strict schema)</td>
+        <td>Enterprise, banking, legacy</td>
+        <td style="color:var(--red2);">High</td>
+      </tr>
+      <tr>
+        <td class="td-name" style="color:var(--teal2);">WebSocket</td>
+        <td>WS / WSS</td>
+        <td>Any</td>
+        <td>Real-time, bidirectional</td>
+        <td style="color:var(--green2);">Low (per msg)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ── Section 9: Best Practices ───────────────────── -->
+<div class="section" id="s-bestpractices" style="min-height:auto;">
+  <div class="section-tag" style="color:var(--amber2)">Section 9</div>
+  <h2 class="section-title">Best Practices Checklist</h2>
+  <p class="section-sub">Production-grade REST APIs follow these rules. Check off what your API already does.</p>
+
+  <div id="checklist-container" style="max-width:680px;"></div>
+
+  <div class="grid2" style="margin-top:24px;">
+    <div class="card">
+      <div class="card-title" style="color:var(--blue2)">Error Response Format</div>
+      <div class="card-body" style="margin-bottom:8px;">Always return structured error bodies — never just a status code.</div>
+      <div class="code-block" style="margin:0;font-size:11px;">
+HTTP/1.1 <span class="status-4">404 Not Found</span>
+
+{
+  <span class="key">"error"</span>: {
+    <span class="key">"code"</span>:    <span class="str">"USER_NOT_FOUND"</span>,
+    <span class="key">"message"</span>: <span class="str">"No user with id=99"</span>,
+    <span class="key">"docs"</span>:    <span class="str">"https://docs.example.com/errors"</span>
+  }
+}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--green2)">Pagination Response</div>
+      <div class="card-body" style="margin-bottom:8px;">Always paginate list endpoints — never return unbounded arrays.</div>
+      <div class="code-block" style="margin:0;font-size:11px;">
+HTTP/1.1 <span class="status-2">200 OK</span>
+
+{
+  <span class="key">"data"</span>: [...],
+  <span class="key">"pagination"</span>: {
+    <span class="key">"page"</span>:    <span class="val">2</span>,
+    <span class="key">"limit"</span>:   <span class="val">20</span>,
+    <span class="key">"total"</span>:   <span class="val">347</span>,
+    <span class="key">"next"</span>:    <span class="str">"/users?page=3&limit=20"</span>
+  }
+}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Continue -->
+<div class="continue-strip">
+  <span class="continue-label">Continue Learning</span>
+  <a class="continue-link" href="../39-llm-production-optimization/">
+    <div class="continue-dir">Previous</div>
+    <div>72 LLM Production Techniques</div>
+  </a>
+  <a class="continue-link" href="../17-mcp/">
+    <div class="continue-dir">Related</div>
+    <div>Model Context Protocol</div>
+  </a>
+  <a class="continue-link" href="../">
+    <div class="continue-dir">All Posts</div>
+    <div>Visual Summary Home</div>
+  </a>
+</div>
+
+</div><!-- /main -->
+
+<script>
+// ── Gate ──
+function unlock(){
+  if(document.getElementById('pw').value.trim()==='visual2025'){
+    document.getElementById('gate').style.display='none';
+    initAll();
+  } else {
+    document.getElementById('pw-err').style.display='block';
+  }
+}
+function goTo(id){ document.getElementById(id).scrollIntoView({behavior:'smooth'}); }
+function toggleAcc(hdr){ hdr.parentElement.classList.toggle('open'); }
+
+// ── Constraints ──
+var CONSTRAINTS = [
+  {num:'01', name:'Client–Server', color:'#3b82f6',
+   short:'Separation of concerns',
+   detail:'The UI and data storage concerns must be separated. The client handles the user interface; the server handles data storage and business logic. This means they can evolve independently — you can build a new mobile client without changing the server, or change the database without touching the client.'},
+  {num:'02', name:'Stateless', color:'#10b981',
+   short:'No session stored on server',
+   detail:'Each request from client to server must contain all information needed to understand and process the request. The server stores no session state between requests. This enables horizontal scaling (any server can handle any request) and improves visibility (each request is self-contained and can be logged fully).'},
+  {num:'03', name:'Cacheable', color:'#f59e0b',
+   short:'Responses must declare if cacheable',
+   detail:'Every response must indicate whether it can be cached or not (Cache-Control, ETag, Last-Modified headers). Caching eliminates some client-server interactions, improving scalability and performance. A GET /users/42 response can be cached for 60 seconds; a POST /orders cannot.'},
+  {num:'04', name:'Uniform Interface', color:'#8b5cf6',
+   short:'Consistent resource identification',
+   detail:'The central feature that distinguishes REST. Four sub-constraints: (1) Resource identification in requests — every resource has a stable URI. (2) Resource manipulation through representations — clients manipulate resources through the representations they receive. (3) Self-descriptive messages — each message includes enough info to describe how to process it. (4) HATEOAS — hypermedia drives application state.'},
+  {num:'05', name:'Layered System', color:'#e11d48',
+   short:'Intermediaries are transparent',
+   detail:'A client cannot tell whether it\'s connected directly to the server or to an intermediary (load balancer, cache, API gateway, CDN). This allows deploying scalable infrastructure layers transparently. REST APIs on the public internet always pass through multiple layers — DNS, CDN, load balancer, WAF — without the client knowing or caring.'},
+  {num:'06', name:'Code on Demand', color:'#06b6d4',
+   short:'Optional: send executable code',
+   detail:'(Optional constraint) Servers can extend client functionality by sending executable code — JavaScript sent to a browser is the canonical example. This is the least implemented constraint in APIs and is explicitly marked optional by Fielding. Most REST APIs never use this.'},
+];
+
+function initConstraints(){
+  var grid = document.getElementById('constraints-grid');
+  CONSTRAINTS.forEach(function(c){
+    var el = document.createElement('div');
+    el.className = 'constraint-card';
+    el.style.borderTopColor = c.color;
+    el.onclick = function(){ selectConstraint(c); };
+    el.innerHTML =
+      '<div class="constraint-num" style="color:'+c.color+'">'+c.num+'</div>'+
+      '<div class="constraint-name" style="color:'+c.color+'">'+c.name+'</div>'+
+      '<div class="constraint-short">'+c.short+'</div>';
+    grid.appendChild(el);
+  });
+  selectConstraint(CONSTRAINTS[0]);
+}
+
+function selectConstraint(c){
+  document.getElementById('cd-title').textContent = c.num + '. ' + c.name;
+  document.getElementById('cd-title').style.color = c.color;
+  document.getElementById('cd-body').textContent = c.detail;
+  document.querySelectorAll('.constraint-card').forEach(function(el, i){
+    el.style.background = CONSTRAINTS[i] === c ? 'rgba(59,130,246,.05)' : '';
+    el.style.boxShadow = CONSTRAINTS[i] === c ? '0 0 0 1px '+c.color+'40' : '';
+  });
+}
+
+// ── Anatomy ──
+var ANATOMY_CONTENT = {
+  request: `<div class="card-title" style="color:var(--amber2);margin-bottom:14px;">HTTP Request Structure</div>
+<div class="code-block">
+<span class="cmt">// Request Line: METHOD URL HTTP-Version</span>
+<span class="method-POST">POST</span> /api/v1/users HTTP/1.1
+
+<span class="cmt">// Request Headers</span>
+<span class="key">Host</span>:          <span class="str">api.example.com</span>
+<span class="key">Authorization</span>: <span class="str">Bearer eyJhbGciOiJIUzI1NiJ9...</span>
+<span class="key">Content-Type</span>:  <span class="str">application/json</span>
+<span class="key">Accept</span>:         <span class="str">application/json</span>
+<span class="key">X-Request-ID</span>:  <span class="str">f47ac10b-58cc-4372-a567-0e02b2c3d479</span>
+
+<span class="cmt">// Empty line separates headers from body</span>
+
+<span class="cmt">// Request Body (POST/PUT/PATCH only)</span>
+{
+  <span class="key">"name"</span>:  <span class="str">"Bhaskarjit"</span>,
+  <span class="key">"email"</span>: <span class="str">"b@example.com"</span>
+}
+</div>`,
+  response: `<div class="card-title" style="color:var(--amber2);margin-bottom:14px;">HTTP Response Structure</div>
+<div class="code-block">
+<span class="cmt">// Status Line: HTTP-Version Status-Code Reason-Phrase</span>
+HTTP/1.1 <span class="status-2">201 Created</span>
+
+<span class="cmt">// Response Headers</span>
+<span class="key">Content-Type</span>:   <span class="str">application/json</span>
+<span class="key">Location</span>:       <span class="str">https://api.example.com/users/43</span>
+<span class="key">X-Request-ID</span>:   <span class="str">f47ac10b-58cc-4372-a567-0e02b2c3d479</span>
+<span class="key">Cache-Control</span>:  <span class="str">no-store</span>
+<span class="key">ETag</span>:           <span class="str">"a8f2cc1e3d9b"</span>
+
+<span class="cmt">// Empty line then body</span>
+
+<span class="cmt">// Response Body</span>
+{
+  <span class="key">"id"</span>:         <span class="val">43</span>,
+  <span class="key">"name"</span>:       <span class="str">"Bhaskarjit"</span>,
+  <span class="key">"email"</span>:      <span class="str">"b@example.com"</span>,
+  <span class="key">"created_at"</span>: <span class="str">"2025-01-15T10:30:00Z"</span>
+}
+</div>`,
+  headers: `<div class="card-title" style="color:var(--amber2);margin-bottom:14px;">Common Headers Reference</div>
+<table class="cmp-table"><thead><tr><th>Header</th><th>Direction</th><th>Purpose</th></tr></thead><tbody>
+<tr><td class="td-name">Authorization</td><td>Request</td><td>Credentials: Bearer token, API Key</td></tr>
+<tr><td class="td-name">Content-Type</td><td>Both</td><td>Body format: application/json, multipart/form-data</td></tr>
+<tr><td class="td-name">Accept</td><td>Request</td><td>Desired response format: application/json</td></tr>
+<tr><td class="td-name">Cache-Control</td><td>Response</td><td>Caching rules: max-age=3600, no-store</td></tr>
+<tr><td class="td-name">ETag</td><td>Response</td><td>Resource version fingerprint for conditional requests</td></tr>
+<tr><td class="td-name">Location</td><td>Response</td><td>URL of newly created resource (201 responses)</td></tr>
+<tr><td class="td-name">X-RateLimit-Limit</td><td>Response</td><td>Max requests allowed in window</td></tr>
+<tr><td class="td-name">X-RateLimit-Remaining</td><td>Response</td><td>Remaining requests in current window</td></tr>
+<tr><td class="td-name">If-None-Match</td><td>Request</td><td>Conditional GET using ETag (cache validation)</td></tr>
+<tr><td class="td-name">CORS: Access-Control-Allow-Origin</td><td>Response</td><td>Allowed origins for cross-domain requests</td></tr>
+</tbody></table>`
+};
+
+function showAnatomy(k, btn){
+  document.querySelectorAll('#anatomy-tabs .btn-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('anatomy-display').innerHTML = ANATOMY_CONTENT[k];
+}
+
+// ── Methods ──
+var METHODS = {
+  GET:{
+    color:'#10b981',
+    what:'Retrieves a resource or collection. Never modifies server state. Safe and idempotent — calling it 1000 times is the same as calling it once.',
+    code:`<span class="cmt">// Get a single user</span>
+<span class="method-GET">GET</span> /users/42
+
+HTTP/1.1 <span class="status-2">200 OK</span>
+{ <span class="key">"id"</span>: <span class="val">42</span>, <span class="key">"name"</span>: <span class="str">"Bhaskarjit"</span> }
+
+<span class="cmt">// Get all users (with pagination)</span>
+<span class="method-GET">GET</span> /users?page=1&limit=20
+
+HTTP/1.1 <span class="status-2">200 OK</span>
+{ <span class="key">"data"</span>: [...], <span class="key">"total"</span>: <span class="val">347</span> }`,
+    tip:'Responses to GET requests are cacheable by default. Use ETag and Cache-Control headers to control caching behavior.'
+  },
+  POST:{
+    color:'#3b82f6',
+    what:'Creates a new resource. The server assigns the ID. Not idempotent — calling POST twice creates two resources. Returns 201 Created with a Location header pointing to the new resource.',
+    code:`<span class="cmt">// Create a new user</span>
+<span class="method-POST">POST</span> /users
+Content-Type: application/json
+
+{ <span class="key">"name"</span>: <span class="str">"Bhaskarjit"</span>, <span class="key">"email"</span>: <span class="str">"b@example.com"</span> }
+
+HTTP/1.1 <span class="status-2">201 Created</span>
+Location: /users/43
+
+{ <span class="key">"id"</span>: <span class="val">43</span>, <span class="key">"name"</span>: <span class="str">"Bhaskarjit"</span>, <span class="key">"created_at"</span>: <span class="str">"..."</span> }`,
+    tip:'POST can also be used for actions that don\'t map to CRUD, like POST /payments/42/refund. The action becomes a noun resource.'
+  },
+  PUT:{
+    color:'#f59e0b',
+    what:'Replaces an entire resource. You must send the complete resource representation — any fields you omit will be removed. Idempotent — PUT /users/42 with the same body always produces the same result.',
+    code:`<span class="cmt">// Replace user 42 entirely</span>
+<span class="method-PUT">PUT</span> /users/42
+Content-Type: application/json
+
+<span class="cmt">// MUST send ALL fields — missing fields get nulled/removed</span>
+{
+  <span class="key">"id"</span>:    <span class="val">42</span>,
+  <span class="key">"name"</span>:  <span class="str">"Bhaskarjit S."</span>,
+  <span class="key">"email"</span>: <span class="str">"new@example.com"</span>
+}
+
+HTTP/1.1 <span class="status-2">200 OK</span>
+{ <span class="key">"id"</span>: <span class="val">42</span>, <span class="key">"name"</span>: <span class="str">"Bhaskarjit S."</span>, ... }`,
+    tip:'Forgetting to include a field in PUT replaces the resource without it. Use PATCH when you only want to update specific fields.'
+  },
+  PATCH:{
+    color:'#8b5cf6',
+    what:'Partial update — sends only the fields to change. Unlike PUT, omitted fields keep their current values. Usually idempotent in practice, though not guaranteed by the spec.',
+    code:`<span class="cmt">// Update only the email field</span>
+<span class="method-PATCH">PATCH</span> /users/42
+Content-Type: application/json
+
+<span class="cmt">// Only send changed fields</span>
+{ <span class="key">"email"</span>: <span class="str">"newemail@example.com"</span> }
+
+HTTP/1.1 <span class="status-2">200 OK</span>
+{
+  <span class="key">"id"</span>:    <span class="val">42</span>,
+  <span class="key">"name"</span>:  <span class="str">"Bhaskarjit"</span>,  <span class="cmt">// unchanged</span>
+  <span class="key">"email"</span>: <span class="str">"newemail@example.com"</span>
+}`,
+    tip:'PATCH is the right choice for forms that edit individual fields. PUT is for replacing complete objects (e.g., config files, document overwrites).'
+  },
+  DELETE:{
+    color:'#ef4444',
+    what:'Removes a resource. Idempotent — deleting a resource that no longer exists still returns success (204) or 404. The server should return 204 No Content on successful deletion.',
+    code:`<span class="cmt">// Delete user 42</span>
+<span class="method-DELETE">DELETE</span> /users/42
+
+HTTP/1.1 <span class="status-2">204 No Content</span>
+<span class="cmt">// No body — resource is gone</span>
+
+<span class="cmt">// Second call — resource already gone</span>
+<span class="method-DELETE">DELETE</span> /users/42
+
+HTTP/1.1 <span class="status-4">404 Not Found</span>
+{ <span class="key">"error"</span>: { <span class="key">"code"</span>: <span class="str">"NOT_FOUND"</span> } }`,
+    tip:'Some APIs return 200 with the deleted resource body instead of 204. Either is acceptable — just be consistent throughout your API.'
+  }
+};
+
+function showMethod(k, btn){
+  document.querySelectorAll('#method-tabs .method-btn').forEach(function(b){
+    b.style.background='rgba(255,255,255,.03)'; b.style.borderColor='var(--border)'; b.style.color='var(--muted)';
+  });
+  var m = METHODS[k];
+  btn.style.background='rgba('+hexToRgb(m.color)+',.15)';
+  btn.style.borderColor=m.color;
+  btn.style.color=m.color;
+  document.getElementById('method-display').innerHTML =
+    '<div class="card-title" style="color:'+m.color+';margin-bottom:10px;">'+k+'</div>'+
+    '<p style="font-size:13px;color:var(--muted);margin-bottom:14px;">'+m.what+'</p>'+
+    '<div class="code-block">'+m.code+'</div>'+
+    '<div class="highlight-box" style="border-color:'+m.color+';background:rgba('+hexToRgb(m.color)+',.05);margin:0;">'+
+      '<strong style="color:'+m.color+'">Tip:</strong> '+m.tip+
+    '</div>';
+}
+
+function hexToRgb(hex){
+  var r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return r+','+g+','+b;
+}
+
+// ── Status Codes ──
+var STATUS_CODES = [
+  {code:100,name:'Continue',cat:'1',desc:'Client should continue the request'},
+  {code:101,name:'Switching Protocols',cat:'1',desc:'Server switching protocols per Upgrade header'},
+  {code:103,name:'Early Hints',cat:'1',desc:'Preload resources while server prepares response'},
+  {code:200,name:'OK',cat:'2',desc:'Request succeeded. GET: resource fetched. POST: result returned'},
+  {code:201,name:'Created',cat:'2',desc:'Resource created successfully. Include Location header'},
+  {code:202,name:'Accepted',cat:'2',desc:'Request received, not yet processed (async jobs)'},
+  {code:204,name:'No Content',cat:'2',desc:'Success, no body. Use for DELETE and PATCH with no return'},
+  {code:206,name:'Partial Content',cat:'2',desc:'Range request fulfilled (streaming, resumable downloads)'},
+  {code:301,name:'Moved Permanently',cat:'3',desc:'Resource URL changed permanently. Update your links'},
+  {code:302,name:'Found',cat:'3',desc:'Temporary redirect. Use same URI next time'},
+  {code:304,name:'Not Modified',cat:'3',desc:'Cache is fresh. Client can use its cached copy'},
+  {code:307,name:'Temporary Redirect',cat:'3',desc:'Same as 302 but method must not change'},
+  {code:308,name:'Permanent Redirect',cat:'3',desc:'Same as 301 but method must not change'},
+  {code:400,name:'Bad Request',cat:'4',desc:'Malformed syntax, invalid parameters, missing required fields'},
+  {code:401,name:'Unauthorized',cat:'4',desc:'Authentication required. Send valid credentials'},
+  {code:403,name:'Forbidden',cat:'4',desc:'Authenticated but not authorized to access this resource'},
+  {code:404,name:'Not Found',cat:'4',desc:'Resource does not exist at this URL'},
+  {code:405,name:'Method Not Allowed',cat:'4',desc:'HTTP method not supported on this endpoint'},
+  {code:408,name:'Request Timeout',cat:'4',desc:'Server timed out waiting for the request'},
+  {code:409,name:'Conflict',cat:'4',desc:'Request conflicts with current state (e.g., duplicate email)'},
+  {code:410,name:'Gone',cat:'4',desc:'Resource permanently deleted. Do not retry'},
+  {code:415,name:'Unsupported Media Type',cat:'4',desc:'Content-Type not supported. Use application/json'},
+  {code:422,name:'Unprocessable Entity',cat:'4',desc:'Well-formed but semantic errors (validation failures)'},
+  {code:429,name:'Too Many Requests',cat:'4',desc:'Rate limit exceeded. Check X-RateLimit-Reset header'},
+  {code:451,name:'Unavailable For Legal Reasons',cat:'4',desc:'Blocked by government or legal order'},
+  {code:500,name:'Internal Server Error',cat:'5',desc:'Generic server error. Something unexpected happened'},
+  {code:501,name:'Not Implemented',cat:'5',desc:'Server does not support this HTTP method'},
+  {code:502,name:'Bad Gateway',cat:'5',desc:'Upstream server sent invalid response'},
+  {code:503,name:'Service Unavailable',cat:'5',desc:'Server overloaded or in maintenance. Retry-After'},
+  {code:504,name:'Gateway Timeout',cat:'5',desc:'Upstream server did not respond in time'},
+];
+
+var statusFilter = 'all';
+var STATUS_COLORS = {'1':'#06b6d4','2':'#10b981','3':'#f59e0b','4':'#f97316','5':'#ef4444'};
+
+function initStatusCodes(){
+  var grid = document.getElementById('sc-grid');
+  STATUS_CODES.forEach(function(sc){
+    var el = document.createElement('div');
+    el.className = 'sc-card';
+    el.dataset.cat = sc.cat;
+    el.dataset.code = sc.code;
+    el.dataset.name = sc.name.toLowerCase();
+    var col = STATUS_COLORS[sc.cat];
+    el.innerHTML =
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">'+
+        '<span style="font-family:\'JetBrains Mono\',monospace;font-size:13px;font-weight:700;color:'+col+';">'+sc.code+'</span>'+
+        '<span style="font-size:11px;font-weight:600;color:var(--text);">'+sc.name+'</span>'+
+      '</div>'+
+      '<div style="font-size:11px;color:var(--muted);">'+sc.desc+'</div>';
+    grid.appendChild(el);
+  });
+}
+
+function filterStatus(cat, btn){
+  statusFilter = cat;
+  document.querySelectorAll('#status-tabs .btn-tab').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  applyStatusFilter();
+}
+
+function searchStatus(){
+  applyStatusFilter();
+}
+
+function applyStatusFilter(){
+  var q = document.getElementById('sc-search').value.toLowerCase();
+  document.querySelectorAll('.sc-card').forEach(function(el){
+    var catMatch = statusFilter==='all' || el.dataset.cat===statusFilter;
+    var textMatch = !q || el.dataset.code.includes(q) || el.dataset.name.includes(q);
+    el.classList.toggle('hidden', !(catMatch && textMatch));
+  });
+}
+
+// ── Auth ──
+var AUTH_CONTENT = {
+  apikey:{
+    title:'API Key Authentication',
+    color:'var(--blue2)',
+    body:`<p style="font-size:13px;color:var(--muted);margin-bottom:14px;">The simplest pattern: the client includes a secret key in every request. The server looks it up and identifies the caller.</p>
+<div class="code-block">
+<span class="cmt">// Option 1: Header (preferred)</span>
+<span class="method-GET">GET</span> /users
+<span class="key">X-API-Key</span>: sk_live_a1b2c3d4e5f6...
+
+<span class="cmt">// Option 2: Query param (less secure — shows in logs)</span>
+<span class="method-GET">GET</span> /users?api_key=sk_live_a1b2c3d4e5f6
+
+<span class="cmt">// Server response when key is invalid</span>
+HTTP/1.1 <span class="status-4">401 Unauthorized</span>
+{ <span class="key">"error"</span>: <span class="str">"Invalid or missing API key"</span> }
+</div>
+<div class="highlight-box" style="margin:0;"><strong style="color:var(--blue3)">Best for:</strong> Server-to-server integrations, internal services, simple public APIs where per-user auth is unnecessary. Not suitable for browser-based apps (keys would be exposed).</div>`
+  },
+  bearer:{
+    title:'Bearer Token (JWT)',
+    color:'var(--green2)',
+    body:`<p style="font-size:13px;color:var(--muted);margin-bottom:14px;">A signed token the client obtains via login and sends with every subsequent request. Stateless — the server validates the signature without a database lookup.</p>
+<div class="code-block">
+<span class="cmt">// 1. Client logs in, gets a JWT</span>
+<span class="method-POST">POST</span> /auth/login
+{ <span class="key">"email"</span>: <span class="str">"b@example.com"</span>, <span class="key">"password"</span>: <span class="str">"..."</span> }
+
+HTTP/1.1 <span class="status-2">200 OK</span>
+{ <span class="key">"access_token"</span>: <span class="str">"eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjo0Mn0.abc"</span>,
+  <span class="key">"expires_in"</span>: <span class="val">3600</span> }
+
+<span class="cmt">// 2. Client sends token on every request</span>
+<span class="method-GET">GET</span> /users/42
+<span class="key">Authorization</span>: Bearer eyJhbGciOiJIUzI1NiJ9...
+</div>
+<p style="font-size:11px;color:var(--muted);margin-top:10px;"><strong style="color:var(--text)">JWT structure:</strong> header.payload.signature — base64-encoded. The payload contains claims (user_id, roles, expiry). The server validates the HMAC/RSA signature — no DB lookup needed.</p>`
+  },
+  oauth:{
+    title:'OAuth 2.0',
+    color:'var(--orange2)',
+    body:`<p style="font-size:13px;color:var(--muted);margin-bottom:14px;">A delegation protocol — lets a user grant a third-party app limited access to their data without sharing their password. Used by "Login with Google/GitHub".</p>
+<div class="code-block">
+<span class="cmt">// Authorization Code Flow (most secure)</span>
+
+<span class="cmt">// 1. App redirects user to auth server</span>
+<span class="method-GET">GET</span> https://accounts.google.com/o/oauth2/auth
+  ?client_id=YOUR_CLIENT_ID
+  &redirect_uri=https://yourapp.com/callback
+  &scope=email+profile
+  &response_type=code
+
+<span class="cmt">// 2. User logs in + approves → auth server sends code</span>
+<span class="str">https://yourapp.com/callback?code=AUTH_CODE_HERE</span>
+
+<span class="cmt">// 3. App exchanges code for access token</span>
+<span class="method-POST">POST</span> https://oauth2.googleapis.com/token
+{ <span class="key">"code"</span>: <span class="str">"AUTH_CODE_HERE"</span>, <span class="key">"grant_type"</span>: <span class="str">"authorization_code"</span>, ... }
+
+HTTP/1.1 <span class="status-2">200 OK</span>
+{ <span class="key">"access_token"</span>: <span class="str">"ya29.a0ARrdaM..."</span>, <span class="key">"expires_in"</span>: <span class="val">3600</span> }
+</div>
+<div class="highlight-box orange" style="margin:0;border-color:var(--orange);background:rgba(249,115,22,.06);"><strong style="color:var(--orange2)">Key insight:</strong> The app never sees the user's Google/GitHub password. It only receives a scoped token. The user can revoke access at any time without changing their password.</div>`
+  }
+};
+
+function showAuth(k, btn){
+  document.querySelectorAll('#auth-tabs .btn-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  var a = AUTH_CONTENT[k];
+  document.getElementById('auth-display').innerHTML =
+    '<div class="card-title" style="color:'+a.color+';margin-bottom:12px;">'+a.title+'</div>'+a.body;
+}
+
+// ── Compare ──
+var COMPARE_CONTENT = {
+  overview:{
+    body:`<div style="font-size:13px;color:var(--muted);line-height:1.7;">
+      <p style="margin-bottom:12px;">No single API style wins every scenario. REST is the default for public APIs and web/mobile backends. Choose alternatives when REST's constraints become a bottleneck.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div><strong style="color:var(--blue2);">Use REST when:</strong><ul style="padding-left:18px;margin-top:6px;">
+          <li>Building a public API others will integrate with</li>
+          <li>Web or mobile clients consume the API</li>
+          <li>Caching matters (CDN, browser)</li>
+          <li>Team familiarity and tooling ecosystem matters</li>
+        </ul></div>
+        <div><strong style="color:var(--orange2);">Consider alternatives when:</strong><ul style="padding-left:18px;margin-top:6px;">
+          <li>Clients need flexible data shapes (→ GraphQL)</li>
+          <li>Ultra-low latency between microservices (→ gRPC)</li>
+          <li>Real-time bidirectional data (→ WebSocket)</li>
+          <li>Legacy enterprise integration (→ SOAP)</li>
+        </ul></div>
+      </div>
+    </div>`
+  },
+  graphql:{
+    body:`<div style="font-size:13px;color:var(--muted);line-height:1.7;">
+      <p style="margin-bottom:14px;"><strong style="color:var(--text);">GraphQL</strong> lets clients specify exactly the data they need in a single query — solving REST's over-fetching and under-fetching problems.</p>
+      <div class="code-block">
+<span class="cmt">// REST: multiple round-trips, over-fetches</span>
+<span class="method-GET">GET</span> /users/42          <span class="cmt">→ gets ALL user fields</span>
+<span class="method-GET">GET</span> /users/42/orders   <span class="cmt">→ separate round trip</span>
+
+<span class="cmt">// GraphQL: one query, exact fields</span>
+<span class="method-POST">POST</span> /graphql
+{
+  user(id: "42") {
+    name         <span class="cmt">← only what you need</span>
+    orders { id, total }  <span class="cmt">← nested in one trip</span>
+  }
+}
+      </div>
+      <p><strong style="color:var(--text);">When REST wins:</strong> Simple CRUD, public APIs, caching (GraphQL POST requests aren't cached by CDNs). <strong style="color:var(--text);">When GraphQL wins:</strong> Mobile apps (save bandwidth), complex nested data, multiple client types with different data needs.</p>
+    </div>`
+  },
+  grpc:{
+    body:`<div style="font-size:13px;color:var(--muted);line-height:1.7;">
+      <p style="margin-bottom:14px;"><strong style="color:var(--text);">gRPC</strong> uses Protocol Buffers (binary) over HTTP/2, providing 5–10× smaller payloads and full-duplex streaming. Designed for microservice-to-microservice communication.</p>
+      <div class="code-block">
+<span class="cmt">// REST: JSON over HTTP/1.1</span>
+<span class="method-GET">GET</span> /users/42
+→ {"id":42,"name":"Bhaskarjit","email":"b@example.com"}
+   <span class="cmt">↑ ~70 bytes, text, HTTP/1.1 (one request per connection)</span>
+
+<span class="cmt">// gRPC: Protobuf over HTTP/2</span>
+rpc GetUser (UserRequest) returns (User);
+→ binary: 0a 09 42 68 61 73 6b ...
+   <span class="cmt">↑ ~15 bytes, binary, multiplexed HTTP/2</span>
+      </div>
+      <p><strong style="color:var(--text);">When REST wins:</strong> Public APIs, browser clients (gRPC-Web adds overhead), human readability. <strong style="color:var(--text);">When gRPC wins:</strong> Internal microservices, streaming (server/client/bidirectional), low-latency high-throughput services.</p>
+    </div>`
+  },
+  soap:{
+    body:`<div style="font-size:13px;color:var(--muted);line-height:1.7;">
+      <p style="margin-bottom:14px;"><strong style="color:var(--text);">SOAP</strong> (Simple Object Access Protocol) is XML-based with strict contracts (WSDL), built-in security (WS-Security), and transaction support. Dominant in enterprise and banking before REST became mainstream.</p>
+      <div class="code-block">
+<span class="cmt">// REST: Clean, readable</span>
+<span class="method-GET">GET</span> /users/42
+→ { "id": 42, "name": "Bhaskarjit" }
+
+<span class="cmt">// SOAP: Verbose XML envelope</span>
+&lt;soapenv:Envelope xmlns:soapenv="..."&gt;
+  &lt;soapenv:Header/&gt;
+  &lt;soapenv:Body&gt;
+    &lt;GetUser&gt;&lt;UserId&gt;42&lt;/UserId&gt;&lt;/GetUser&gt;
+  &lt;/soapenv:Body&gt;
+&lt;/soapenv:Envelope&gt;
+      </div>
+      <p><strong style="color:var(--text);">When REST wins:</strong> Almost always for new systems — less overhead, better tooling, easier to debug. <strong style="color:var(--text);">When SOAP still makes sense:</strong> Existing enterprise systems, financial/healthcare integrations requiring WS-Security and ACID transactions, legacy WSDL contracts.</p>
+    </div>`
+  }
+};
+
+function showCompare(k, btn){
+  document.querySelectorAll('#compare-tabs .btn-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('compare-display').innerHTML = COMPARE_CONTENT[k].body;
+}
+
+// ── Best Practices Checklist ──
+var CHECKLIST = [
+  {text:'Use HTTPS for all endpoints', cat:'Security'},
+  {text:'Return appropriate HTTP status codes (not always 200)', cat:'Protocol'},
+  {text:'Use plural nouns for collection URLs (/users, not /user)', cat:'URL Design'},
+  {text:'Version your API (/v1/, /v2/)', cat:'Versioning'},
+  {text:'Return structured error bodies with codes and messages', cat:'Error Handling'},
+  {text:'Paginate all list endpoints — never return unbounded arrays', cat:'Performance'},
+  {text:'Use query params for filtering, sorting, and pagination', cat:'URL Design'},
+  {text:'Set Cache-Control headers on GET responses', cat:'Performance'},
+  {text:'Include Location header on 201 Created responses', cat:'Protocol'},
+  {text:'Rate limit your API and expose X-RateLimit-* headers', cat:'Security'},
+  {text:'Use ETag for conditional requests (cache validation)', cat:'Performance'},
+  {text:'Document with OpenAPI/Swagger spec', cat:'Documentation'},
+  {text:'Keep nesting max 2 levels deep (/users/42/orders, not deeper)', cat:'URL Design'},
+  {text:'Use ISO 8601 for all timestamps (2025-01-15T10:30:00Z)', cat:'Data Format'},
+  {text:'Never log Authorization headers or API keys', cat:'Security'},
+  {text:'Return 429 with Retry-After on rate limit exceeded', cat:'Error Handling'},
+];
+
+var CAT_COLORS = {'Security':'#ef4444','Protocol':'#3b82f6','URL Design':'#10b981','Versioning':'#f59e0b','Error Handling':'#f97316','Performance':'#8b5cf6','Documentation':'#06b6d4','Data Format':'#a855f7'};
+
+function initChecklist(){
+  var container = document.getElementById('checklist-container');
+  CHECKLIST.forEach(function(item, i){
+    var el = document.createElement('div');
+    el.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;transition:all .15s;';
+    el.dataset.checked = 'false';
+    var col = CAT_COLORS[item.cat] || '#3b82f6';
+    el.innerHTML =
+      '<div id="chk-'+i+'" style="width:18px;height:18px;border-radius:4px;border:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .15s;"></div>'+
+      '<span style="font-size:13px;flex:1;">'+item.text+'</span>'+
+      '<span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;padding:2px 7px;border-radius:10px;background:'+col+'20;color:'+col+';">'+item.cat+'</span>';
+    el.onclick = function(){
+      var checked = el.dataset.checked === 'true';
+      el.dataset.checked = !checked;
+      var chk = document.getElementById('chk-'+i);
+      if(!checked){
+        chk.style.background=col; chk.style.borderColor=col; chk.textContent='✓'; chk.style.color='#000';
+        el.style.background='rgba('+hexToRgb2(col)+',.04)'; el.style.borderColor=col+'40';
+      } else {
+        chk.style.background=''; chk.style.borderColor='var(--border)'; chk.textContent='';
+        el.style.background=''; el.style.borderColor='var(--border)';
+      }
+    };
+    container.appendChild(el);
+  });
+}
+
+function hexToRgb2(hex){
+  var r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return r+','+g+','+b;
+}
+
+// ── Scroll spy ──
+function setupScrollSpy(){
+  var sections=['s-intro','s-constraints','s-anatomy','s-methods','s-status','s-design','s-auth','s-compare','s-bestpractices'];
+  var mainEl=document.querySelector('.main');
+  mainEl.addEventListener('scroll',function(){
+    var scrollY=mainEl.scrollTop;
+    sections.forEach(function(id,idx){
+      var el=document.getElementById(id); if(!el) return;
+      var top=el.offsetTop-60, bot=top+el.offsetHeight;
+      var links=document.querySelectorAll('.nav-link');
+      if(scrollY>=top && scrollY<bot){
+        links.forEach(function(l){l.classList.remove('active');});
+        if(links[idx]) links[idx].classList.add('active');
+      }
+    });
+  });
+}
+
+// ── Init ──
+function initAll(){
+  initConstraints();
+  showAnatomy('request', document.querySelector('#anatomy-tabs .btn-tab'));
+  showMethod('GET', document.querySelector('#method-tabs .method-btn'));
+  initStatusCodes();
+  filterStatus('all', document.querySelector('#status-tabs .btn-tab'));
+  showAuth('apikey', document.querySelector('#auth-tabs .btn-tab'));
+  showCompare('overview', document.querySelector('#compare-tabs .btn-tab'));
+  initChecklist();
+  setupScrollSpy();
+}
+</script>
+</body>
+</html>
