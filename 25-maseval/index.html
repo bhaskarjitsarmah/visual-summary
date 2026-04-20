@@ -373,6 +373,17 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
     <span class="dot" style="background:#f59e0b"></span>Topology Race
   </div>
 
+  <div class="nav-group-title">MAESTRO</div>
+  <div class="nav-link" data-target="s-reliability" onclick="scrollTo('s-reliability')">
+    <span class="dot" style="background:#ef4444"></span>Reliability Metrics
+  </div>
+  <div class="nav-link" data-target="s-tooluse" onclick="scrollTo('s-tooluse')">
+    <span class="dot" style="background:#06b6d4"></span>Tool-Use Evaluation
+  </div>
+  <div class="nav-link" data-target="s-maestro" onclick="scrollTo('s-maestro')">
+    <span class="dot" style="background:#a78bfa"></span>MAESTRO vs MASEval
+  </div>
+
   <div class="nav-group-title">Tools</div>
   <div class="nav-link" data-target="s-cost" onclick="scrollTo('s-cost')">
     <span class="dot" style="background:#84cc16"></span>Cost Estimator
@@ -1291,9 +1302,297 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
   </section>
 
   <!-- =========================================================
-       MULTI-MODEL MAS
+       RELIABILITY METRICS (MAESTRO)
        ========================================================= -->
+  <section class="section" id="s-reliability">
+    <div class="section-header-row" style="display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:28px;">
+      <div>
+        <div class="section-tag" style="color:#ef4444">MAESTRO &middot; Reliability</div>
+        <h1 class="section-title">Reliability Metrics</h1>
+        <p class="section-sub">MAESTRO introduces reliability as a first-class evaluation dimension — measuring not just whether a system succeeds, but how gracefully it handles failure. Adjust the stress parameters to see how topology and retry budget affect system resilience.</p>
+      </div>
+      <button class="share-btn" onclick="shareLink('s-reliability')">⬡ Share</button>
+    </div>
 
+    <div class="highlight-box orange">
+      <strong style="color:#f97316;">Why reliability matters:</strong> A MAS that achieves 70% task success under ideal conditions may degrade to 30% under realistic failure rates. MAESTRO separates <em>peak performance</em> from <em>sustained performance</em> — the latter determines production viability.
+    </div>
+
+    <div class="grid4" style="margin:20px 0;">
+      <div class="card" style="text-align:center;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#ef4444;margin-bottom:8px;">Failure Rate</div>
+        <div id="rel-failure-rate" style="font-size:32px;font-weight:800;color:#ef4444;">—</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;">% tasks failing under stress</div>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#f97316;margin-bottom:8px;">MTTR</div>
+        <div id="rel-mttr" style="font-size:32px;font-weight:800;color:#f97316;">—</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;">mean time to recovery (steps)</div>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#f7b731;margin-bottom:8px;">Resilience Score</div>
+        <div id="rel-resilience" style="font-size:32px;font-weight:800;color:#f7b731;">—</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;">recovered / total failures</div>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#10b981;margin-bottom:8px;">Error Budget</div>
+        <div id="rel-budget" style="font-size:32px;font-weight:800;color:#10b981;">—</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;">% budget remaining</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="color:#ef4444;">Stress-Test Simulator</div>
+      <div class="grid2">
+        <div>
+          <div class="slider-row">
+            <span class="slider-lbl">Agent failure probability</span>
+            <input type="range" min="1" max="50" value="15" id="rel-pfail" oninput="updateMaestroReliability()">
+            <span class="slider-val" id="rel-pfail-v">15%</span>
+          </div>
+          <div class="slider-row">
+            <span class="slider-lbl">Number of agents</span>
+            <input type="range" min="2" max="10" value="4" id="rel-nagents" oninput="updateMaestroReliability()">
+            <span class="slider-val" id="rel-nagents-v">4</span>
+          </div>
+          <div class="slider-row">
+            <span class="slider-lbl">Retry budget per agent</span>
+            <input type="range" min="0" max="5" value="2" id="rel-retries" oninput="updateMaestroReliability()">
+            <span class="slider-val" id="rel-retries-v">2</span>
+          </div>
+          <div class="slider-row">
+            <span class="slider-lbl">Topology isolation factor</span>
+            <input type="range" min="1" max="5" value="3" id="rel-isolation" oninput="updateMaestroReliability()">
+            <span class="slider-val" id="rel-isolation-v" style="font-size:10px;">Hierarchical</span>
+          </div>
+        </div>
+        <div>
+          <canvas id="rel-canvas" width="340" height="200"></canvas>
+        </div>
+      </div>
+      <div id="rel-verdict" class="highlight-box" style="margin-top:16px;margin-bottom:0;border-color:#ef4444;background:rgba(239,68,68,.06);"></div>
+    </div>
+
+    <div class="grid3" style="margin-top:20px;">
+      <div class="card">
+        <div class="card-title" style="color:#ef4444;">Failure Rate Formula</div>
+        <div class="formula">P(system_fail) = 1 − ∏(1 − pᵢ × (1−rᵢ))
+where:
+  pᵢ  = per-agent failure probability
+  rᵢ  = per-agent recovery probability
+     = 1 − (1−retry_success)^retries</div>
+        <div class="card-body">The system fails only if at least one non-recoverable agent failure occurs. Recovery probability compounds across retry attempts.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:#f97316;">MTTR Formula</div>
+        <div class="formula">MTTR = Σ (tᵣₑcₒᵥₑᵣ × pᵢ) / N_agents
+where:
+  tᵣₑcₒᵥₑᵣ = retry_budget × 1.5 steps
+            (avg backoff overhead)</div>
+        <div class="card-body">Mean time to recovery averages the expected recovery steps across all agents weighted by their failure probability.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:#10b981;">Resilience Score</div>
+        <div class="formula">R = recovered_failures / total_failures
+  = [1 − (1−p_retry)^retries]
+
+MAESTRO target: R ≥ 0.80
+Production threshold: R ≥ 0.90</div>
+        <div class="card-body">A resilience score above 0.80 is MAESTRO's minimum bar for production-grade MAS. Hierarchical topologies score ~15% higher than sequential due to sub-task isolation.</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:20px;">
+      <div class="card-title">MAESTRO Reliability Findings by Topology</div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead>
+            <tr style="border-bottom:2px solid var(--border);">
+              <th style="text-align:left;padding:8px 12px;color:var(--muted);font-weight:600;">Topology</th>
+              <th style="text-align:center;padding:8px 12px;color:#ef4444;font-weight:600;">Failure Rate</th>
+              <th style="text-align:center;padding:8px 12px;color:#f97316;font-weight:600;">MTTR (steps)</th>
+              <th style="text-align:center;padding:8px 12px;color:#f7b731;font-weight:600;">Resilience Score</th>
+              <th style="text-align:center;padding:8px 12px;color:#10b981;font-weight:600;">Error Budget Used</th>
+              <th style="text-align:left;padding:8px 12px;color:var(--muted);font-weight:600;">Failure Mode</th>
+            </tr>
+          </thead>
+          <tbody id="rel-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       TOOL-USE EVALUATION (MAESTRO)
+       ========================================================= -->
+  <section class="section" id="s-tooluse">
+    <div class="section-header-row" style="display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:28px;">
+      <div>
+        <div class="section-tag" style="color:#06b6d4">MAESTRO &middot; Tool Use</div>
+        <h1 class="section-title">Tool-Use Evaluation</h1>
+        <p class="section-sub">Real MAS deployments depend heavily on external tool calls — search, code execution, database queries, image generation. MAESTRO evaluates each agent's tool-calling capability as a first-class metric, not just task-level success rate.</p>
+      </div>
+      <button class="share-btn" onclick="shareLink('s-tooluse')">⬡ Share</button>
+    </div>
+
+    <div class="grid2" style="margin-bottom:20px;">
+      <div>
+        <div class="card-title" style="margin-bottom:12px;">Click a tool to see evaluation results</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;" id="tool-grid"></div>
+      </div>
+      <div id="tool-detail-panel" class="info-panel" style="min-height:280px;"></div>
+    </div>
+
+    <div class="highlight-box" style="border-color:#06b6d4;background:rgba(6,182,212,.06);margin-bottom:20px;">
+      <strong style="color:#06b6d4;">Key MAESTRO finding:</strong> Tool-calling errors account for <strong style="color:var(--text);">43%</strong> of all MAS failures — more than reasoning errors (31%) or coordination failures (26%). The most common error is <em>wrong argument schema</em> (agent passes malformed input to a tool), not tool unavailability.
+    </div>
+
+    <div class="grid2" style="margin-bottom:20px;">
+      <div class="card">
+        <div class="card-title" style="color:#06b6d4;">Tool Error Taxonomy</div>
+        <div id="tool-error-bars"></div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:#06b6d4;">HotPotQA Benchmark</div>
+        <p class="card-body" style="margin-bottom:12px;">HotPotQA requires multi-hop reasoning across multiple documents — agents must chain search tool calls correctly. MAESTRO uses it to stress-test tool sequencing under information retrieval scenarios.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div style="background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;">Tasks</div>
+            <div style="font-size:22px;font-weight:800;color:#06b6d4;">113K</div>
+          </div>
+          <div style="background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;">Avg Hops</div>
+            <div style="font-size:22px;font-weight:800;color:#06b6d4;">2.8</div>
+          </div>
+          <div style="background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;">Best MAS Score</div>
+            <div style="font-size:22px;font-weight:800;color:#10b981;">74.3%</div>
+          </div>
+          <div style="background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;">Human Baseline</div>
+            <div style="font-size:22px;font-weight:800;color:#f7b731;">91.2%</div>
+          </div>
+        </div>
+        <div style="margin-top:12px;font-size:12px;color:var(--muted);">Best MAS: Hierarchical + LangGraph, GPT-4o orchestrator + GPT-3.5 workers. Single-agent GPT-4o scores 61.8% — the 12.5pp gap demonstrates the value of multi-agent tool chaining.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Tool-Use Success Rate by Framework × Tool Category</div>
+      <canvas id="tooluse-canvas" width="800" height="200"></canvas>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       MAESTRO vs MASEVAL COMPARISON
+       ========================================================= -->
+  <section class="section" id="s-maestro">
+    <div class="section-header-row" style="display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:28px;">
+      <div>
+        <div class="section-tag" style="color:#a78bfa">MAESTRO &middot; Framework Comparison</div>
+        <h1 class="section-title">MAESTRO vs MASEval</h1>
+        <p class="section-sub">Two complementary frameworks for evaluating multi-agent systems. MASEval (arXiv:2603.08835) focuses on topology and framework benchmarking. MAESTRO (arXiv:2601.00481) adds reliability, observability, and tool-use as first-class dimensions.</p>
+      </div>
+      <button class="share-btn" onclick="shareLink('s-maestro')">⬡ Share</button>
+    </div>
+
+    <div class="btn-row" id="maestro-tabs">
+      <button class="btn-tab active" onclick="showMaestro('overview',this)">Overview</button>
+      <button class="btn-tab" onclick="showMaestro('dimensions',this)">Dimensions</button>
+      <button class="btn-tab" onclick="showMaestro('benchmarks',this)">Benchmarks</button>
+      <button class="btn-tab" onclick="showMaestro('observability',this)">Observability</button>
+      <button class="btn-tab" onclick="showMaestro('when',this)">When to Use Which</button>
+    </div>
+    <div id="maestro-display" class="card" style="min-height:240px;"></div>
+
+    <div class="card" style="margin-top:20px;">
+      <div class="card-title">Side-by-Side Feature Matrix</div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead>
+            <tr style="border-bottom:2px solid var(--border);">
+              <th style="text-align:left;padding:8px 12px;color:var(--muted);font-weight:600;min-width:200px;">Capability</th>
+              <th style="text-align:center;padding:8px 12px;color:#a78bfa;font-weight:600;">MASEval</th>
+              <th style="text-align:center;padding:8px 12px;color:#06b6d4;font-weight:600;">MAESTRO</th>
+              <th style="text-align:left;padding:8px 12px;color:var(--muted);font-weight:600;">Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:8px 12px;font-weight:600;">Topology benchmarking</td>
+              <td style="text-align:center;padding:8px 12px;color:#10b981;font-size:16px;">✓</td>
+              <td style="text-align:center;padding:8px 12px;color:#10b981;font-size:16px;">✓</td>
+              <td style="padding:8px 12px;color:var(--muted);">Both cover sequential, hierarchical, parallel, mesh</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);background:rgba(22,27,34,.5);">
+              <td style="padding:8px 12px;font-weight:600;">Framework comparison (LangGraph/CrewAI/AutoGen)</td>
+              <td style="text-align:center;padding:8px 12px;color:#10b981;font-size:16px;">✓</td>
+              <td style="text-align:center;padding:8px 12px;color:#10b981;font-size:16px;">✓</td>
+              <td style="padding:8px 12px;color:var(--muted);">MASEval has deeper leaderboard (24 combos)</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:8px 12px;font-weight:600;">GAIA benchmark</td>
+              <td style="text-align:center;padding:8px 12px;color:#10b981;font-size:16px;">✓</td>
+              <td style="text-align:center;padding:8px 12px;color:#8b949e;font-size:16px;">—</td>
+              <td style="padding:8px 12px;color:var(--muted);">MASEval primary benchmark</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);background:rgba(22,27,34,.5);">
+              <td style="padding:8px 12px;font-weight:600;">HotPotQA benchmark</td>
+              <td style="text-align:center;padding:8px 12px;color:#8b949e;font-size:16px;">—</td>
+              <td style="text-align:center;padding:8px 12px;color:#10b981;font-size:16px;">✓</td>
+              <td style="padding:8px 12px;color:var(--muted);">MAESTRO adds multi-hop search evaluation</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:8px 12px;font-weight:600;">Reliability metrics (MTTR, resilience score)</td>
+              <td style="text-align:center;padding:8px 12px;color:#8b949e;font-size:16px;">—</td>
+              <td style="text-align:center;padding:8px 12px;color:#10b981;font-size:16px;">✓</td>
+              <td style="padding:8px 12px;color:var(--muted);">MAESTRO's primary novel contribution</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);background:rgba(22,27,34,.5);">
+              <td style="padding:8px 12px;font-weight:600;">Stress-testing under failure conditions</td>
+              <td style="text-align:center;padding:8px 12px;color:#8b949e;font-size:16px;">—</td>
+              <td style="text-align:center;padding:8px 12px;color:#10b981;font-size:16px;">✓</td>
+              <td style="padding:8px 12px;color:var(--muted);">Systematic failure injection at scale</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:8px 12px;font-weight:600;">Tool-use capability evaluation</td>
+              <td style="text-align:center;padding:8px 12px;color:#8b949e;font-size:16px;">—</td>
+              <td style="text-align:center;padding:8px 12px;color:#10b981;font-size:16px;">✓</td>
+              <td style="padding:8px 12px;color:var(--muted);">Error taxonomy: schema, timeout, hallucinated tool</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);background:rgba(22,27,34,.5);">
+              <td style="padding:8px 12px;font-weight:600;">Integrated observability (trace + monitoring)</td>
+              <td style="text-align:center;padding:8px 12px;color:#f7b731;font-size:16px;">~</td>
+              <td style="text-align:center;padding:8px 12px;color:#10b981;font-size:16px;">✓</td>
+              <td style="padding:8px 12px;color:var(--muted);">MASEval has trace export; MAESTRO has live monitoring</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:8px 12px;font-weight:600;">Cost-performance Pareto analysis</td>
+              <td style="text-align:center;padding:8px 12px;color:#10b981;font-size:16px;">✓</td>
+              <td style="text-align:center;padding:8px 12px;color:#8b949e;font-size:16px;">—</td>
+              <td style="padding:8px 12px;color:var(--muted);">MASEval's cost model is more detailed</td>
+            </tr>
+            <tr style="background:rgba(22,27,34,.5);">
+              <td style="padding:8px 12px;font-weight:600;">Framework selection wizard</td>
+              <td style="text-align:center;padding:8px 12px;color:#10b981;font-size:16px;">✓</td>
+              <td style="text-align:center;padding:8px 12px;color:#8b949e;font-size:16px;">—</td>
+              <td style="padding:8px 12px;color:var(--muted);">MASEval's recommendation engine</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:20px;border-color:#a78bfa;background:rgba(167,139,250,.04);">
+      <div class="card-title" style="color:#a78bfa;">Additional Paper Source — MAESTRO</div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">MAESTRO: Multi-Agent Evaluation Suite for Testing, Reliability, and Observability</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Ma et al. &nbsp;·&nbsp; arXiv:2601.00481 &nbsp;·&nbsp; 2025</div>
+      <a href="https://arxiv.org/abs/2601.00481" target="_blank" rel="noopener"
+         style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--accent2);border:1px solid rgba(167,139,250,.35);border-radius:6px;padding:5px 12px;text-decoration:none;transition:all .15s;"
+         onmouseover="this.style.background='rgba(167,139,250,.08)'" onmouseout="this.style.background=''"
+      >&#x1F4C4; arXiv Paper</a>
+    </div>
+  </section>
 
   <!-- RELATED POSTS -->
   <div class="related-strip">
@@ -1418,7 +1717,7 @@ function drawArrow(ctx, x1, y1, x2, y2, color, lw, alpha) {
 }
 
 /* ===== SCROLL & NAV ===== */
-var SECTION_IDS = ['s-overview', 's-topologies', 's-roles', 's-multimodel', 's-dimensions', 's-benchmarks', 's-lifecycle', 's-framework', 's-pareto', 's-leaderboard', 's-errors', 's-antipatterns', 's-scaling', 's-context', 's-race', 's-cost', 's-trace', 's-wizard', 's-usecases'];
+var SECTION_IDS = ['s-overview', 's-topologies', 's-roles', 's-multimodel', 's-dimensions', 's-benchmarks', 's-lifecycle', 's-framework', 's-pareto', 's-leaderboard', 's-errors', 's-antipatterns', 's-scaling', 's-context', 's-race', 's-cost', 's-trace', 's-wizard', 's-usecases', 's-reliability', 's-tooluse', 's-maestro'];
 function scrollTo(id) {
   var el = document.getElementById(id);
   if (el) el.scrollIntoView({behavior:'smooth'});
@@ -3432,6 +3731,349 @@ function formatBigNum(n) {
   return n.toFixed(0);
 }
 
+/* ===== MAESTRO: RELIABILITY ===== */
+var REL_TOPOS = [
+  {name:'Sequential',  isolation:1, failMult:1.0,  mttrMult:1.8, mode:'CASCADE — all downstream blocked'},
+  {name:'Parallel',    isolation:2, failMult:0.75, mttrMult:1.2, mode:'ISOLATED — other workers unaffected'},
+  {name:'Hierarchical',isolation:3, failMult:0.55, mttrMult:1.0, mode:'PARTIAL — failure isolated to sub-task'},
+  {name:'Mesh',        isolation:4, failMult:0.65, mttrMult:1.4, mode:'COMPLEX — topology-dependent propagation'},
+  {name:'Star',        isolation:5, failMult:0.45, mttrMult:0.9, mode:'MINIMAL — hub handles retries centrally'},
+];
+var ISOLATION_LABELS = ['Sequential','Parallel','Hierarchical','Mesh','Star'];
+
+function updateMaestroReliability() {
+  var pRaw = +document.getElementById('rel-pfail').value;
+  var n    = +document.getElementById('rel-nagents').value;
+  var ret  = +document.getElementById('rel-retries').value;
+  var iso  = +document.getElementById('rel-isolation').value; // 1-5
+  var topo = REL_TOPOS[iso-1];
+
+  document.getElementById('rel-pfail-v').textContent   = pRaw + '%';
+  document.getElementById('rel-nagents-v').textContent = n;
+  document.getElementById('rel-retries-v').textContent = ret;
+  document.getElementById('rel-isolation-v').textContent = topo.name;
+
+  var p = pRaw / 100 * topo.failMult;
+  var pRetrySuccess = 0.65;
+  var pRecovery = ret > 0 ? (1 - Math.pow(1 - pRetrySuccess, ret)) : 0;
+  var pAgentFinalFail = p * (1 - pRecovery);
+  var sysFailRate = (1 - Math.pow(1 - pAgentFinalFail, n)) * 100;
+  var mttr = ret > 0 ? (ret * 1.5 * topo.mttrMult).toFixed(1) : '∞';
+  var resilience = ret > 0 ? pRecovery.toFixed(2) : '0.00';
+  var budgetUsed = Math.min(100, (sysFailRate * 1.2)).toFixed(0);
+  var budgetLeft = Math.max(0, 100 - budgetUsed);
+
+  document.getElementById('rel-failure-rate').textContent = sysFailRate.toFixed(1) + '%';
+  document.getElementById('rel-mttr').textContent = mttr;
+  document.getElementById('rel-resilience').textContent = resilience;
+  document.getElementById('rel-budget').textContent = budgetLeft + '%';
+
+  var verdict = '';
+  var vColor = '#10b981';
+  if (parseFloat(resilience) >= 0.90) { verdict = 'Production-grade: resilience ≥ 0.90. This configuration meets MAESTRO\'s production threshold.'; vColor='#10b981'; }
+  else if (parseFloat(resilience) >= 0.80) { verdict = 'Acceptable: resilience ≥ 0.80. Meets MAESTRO\'s minimum bar, but consider increasing retry budget for production.'; vColor='#f7b731'; }
+  else { verdict = 'Below threshold: resilience < 0.80. Increase retry budget or switch to a higher-isolation topology before deploying to production.'; vColor='#ef4444'; }
+  var vd = document.getElementById('rel-verdict');
+  if (vd) { vd.style.borderColor=vColor; vd.style.background='rgba('+hexToRgb2(vColor)+',0.06)'; vd.innerHTML='<strong style="color:'+vColor+'">Verdict:</strong> '+verdict; }
+
+  // Draw bar chart
+  var c = document.getElementById('rel-canvas');
+  if (!c) return;
+  var ctx = c.getContext('2d');
+  c.width = c.parentElement ? Math.min(c.parentElement.offsetWidth - 20, 340) : 340;
+  ctx.clearRect(0,0,c.width,c.height);
+  var labels = ['Failure\nRate','MTTR\n(norm)','Resilience\nScore','Budget\nRemaining'];
+  var vals   = [sysFailRate/100, Math.min(1, (parseFloat(mttr)||0)/10), parseFloat(resilience), budgetLeft/100];
+  var colors = ['#ef4444','#f97316','#f7b731','#10b981'];
+  var bw = (c.width - 60) / 4;
+  ctx.font = '9px Inter,sans-serif';
+  ctx.textAlign = 'center';
+  for (var i=0;i<4;i++) {
+    var x = 30 + i*bw + bw/2;
+    var maxH = c.height - 50;
+    var barH = Math.max(4, vals[i] * maxH);
+    var y = c.height - 30 - barH;
+    ctx.fillStyle = colors[i]+'44';
+    ctx.beginPath(); ctx.roundRect(x - bw*0.3, y, bw*0.6, barH, 4); ctx.fill();
+    ctx.fillStyle = colors[i];
+    ctx.beginPath(); ctx.roundRect(x - bw*0.3, y, bw*0.6, Math.min(barH,6), 4); ctx.fill();
+    ctx.fillStyle = colors[i];
+    ctx.fillText((vals[i]*100).toFixed(0)+'%', x, y - 6);
+    ctx.fillStyle = '#8b949e';
+    labels[i].split('\n').forEach(function(ln,li){ ctx.fillText(ln, x, c.height - 18 + li*11); });
+  }
+
+  // Rebuild table
+  var tbody = document.getElementById('rel-table-body');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  REL_TOPOS.forEach(function(t) {
+    var tp = pRaw/100 * t.failMult;
+    var tRec = ret>0?(1-Math.pow(1-0.65,ret)):0;
+    var tFail = (1-Math.pow(1-tp*(1-tRec),n))*100;
+    var tMttr = ret>0?(ret*1.5*t.mttrMult).toFixed(1):'∞';
+    var tRes  = ret>0?tRec.toFixed(2):'0.00';
+    var tBudget = Math.max(0,100-Math.min(100,tFail*1.2)).toFixed(0)+'%';
+    var isActive = t.isolation === iso;
+    var resColor = parseFloat(tRes)>=0.90?'#10b981':parseFloat(tRes)>=0.80?'#f7b731':'#ef4444';
+    tbody.innerHTML += '<tr style="border-bottom:1px solid var(--border);'+(isActive?'background:rgba(167,139,250,.06);':'')+'">'
+      +'<td style="padding:8px 12px;font-weight:'+(isActive?'700':'400')+';">'+(isActive?'<span style="color:#a78bfa;">▶ </span>':'')+t.name+'</td>'
+      +'<td style="text-align:center;padding:8px 12px;color:#ef4444;">'+tFail.toFixed(1)+'%</td>'
+      +'<td style="text-align:center;padding:8px 12px;color:#f97316;">'+tMttr+'</td>'
+      +'<td style="text-align:center;padding:8px 12px;color:'+resColor+';">'+tRes+'</td>'
+      +'<td style="text-align:center;padding:8px 12px;color:#10b981;">'+tBudget+'</td>'
+      +'<td style="padding:8px 12px;color:var(--muted);font-size:11px;">'+t.mode+'</td>'
+      +'</tr>';
+  });
+}
+
+function hexToRgb2(hex) {
+  hex = hex.replace('#','');
+  if (hex.length===3) hex=hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+  return parseInt(hex.slice(0,2),16)+','+parseInt(hex.slice(2,4),16)+','+parseInt(hex.slice(4,6),16);
+}
+
+/* ===== MAESTRO: TOOL USE ===== */
+var TOOLS = [
+  {id:'search',  name:'Web Search',      icon:'🔍', color:'#06b6d4',
+   success:{langraph:82,crewai:78,autogen:85}, errors:['Wrong query format','Missing required param','Rate limit hit'],
+   desc:'Agents call a web search API to retrieve documents. Errors cluster around query formatting — agents pass raw questions instead of optimised search strings.',
+   hotpotqa:'Primary tool for HotPotQA multi-hop chaining. 74% of HotPotQA failures trace to broken search chains.'},
+  {id:'code',    name:'Code Execution',  icon:'⚙️', color:'#a78bfa',
+   success:{langraph:76,crewai:71,autogen:88}, errors:['Syntax error in generated code','Sandboxing timeout','Import not available'],
+   desc:'Agents generate and execute code in a sandboxed environment. AutoGen leads here due to its native code execution loop.',
+   hotpotqa:'Not directly used in HotPotQA but critical for HumanEval-MT multi-agent coding tasks.'},
+  {id:'db',      name:'Database Query',  icon:'🗄️', color:'#10b981',
+   success:{langraph:79,crewai:74,autogen:77}, errors:['Malformed SQL','Schema hallucination','Wrong table name'],
+   desc:'Agents construct and execute SQL queries. The most common error is schema hallucination — agents reference columns that do not exist in the actual schema.',
+   hotpotqa:'N/A for HotPotQA. Critical for enterprise MAS deployments with structured data.'},
+  {id:'image',   name:'Image Generation',icon:'🖼️', color:'#f97316',
+   success:{langraph:68,crewai:65,autogen:70}, errors:['Prompt too long','API timeout','Content policy violation'],
+   desc:'Agents call image generation APIs (DALL·E, Stable Diffusion). Lowest success rate across all tool types — prompt engineering for image models differs significantly from text.',
+   hotpotqa:'N/A for HotPotQA.'},
+  {id:'file',    name:'File I/O',         icon:'📁', color:'#f7b731',
+   success:{langraph:91,crewai:88,autogen:90}, errors:['Path not found','Permission denied','Encoding error'],
+   desc:'Agents read and write files. Highest tool success rate — well-constrained interface with clear error signals. Path errors are easily retried.',
+   hotpotqa:'Used for document retrieval tasks in long-context variants of HotPotQA.'},
+  {id:'api',     name:'External API',    icon:'🔗', color:'#ec4899',
+   success:{langraph:74,crewai:70,autogen:75}, errors:['Wrong argument schema','Auth failure','Unexpected response shape'],
+   desc:'Agents call arbitrary REST APIs. Wrong argument schema is the #1 error across all tool types — responsible for 43% of all MAS failures per MAESTRO.',
+   hotpotqa:'Used for real-time data retrieval in HotPotQA variants.'},
+];
+
+var ERROR_TYPES = [
+  {label:'Wrong argument schema',    pct:43, color:'#ef4444'},
+  {label:'Reasoning/planning error', pct:31, color:'#f97316'},
+  {label:'Coordination failure',     pct:26, color:'#f7b731'},
+];
+
+function initToolUse() {
+  var grid = document.getElementById('tool-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  TOOLS.forEach(function(t, i) {
+    grid.innerHTML += '<div onclick="selectTool('+i+',this)" style="background:var(--surface);border:2px solid var(--border);border-radius:10px;padding:12px;cursor:pointer;text-align:center;transition:all .2s;" id="tool-btn-'+i+'">'
+      +'<div style="font-size:1.4rem;margin-bottom:4px;">'+t.icon+'</div>'
+      +'<div style="font-size:11px;font-weight:700;color:'+t.color+';">'+t.name+'</div>'
+      +'</div>';
+  });
+
+  // Error bars
+  var eb = document.getElementById('tool-error-bars');
+  if (eb) {
+    eb.innerHTML = '';
+    ERROR_TYPES.forEach(function(e) {
+      eb.innerHTML += '<div style="margin-bottom:12px;">'
+        +'<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;">'
+        +'<span style="color:var(--muted);">'+e.label+'</span>'
+        +'<span style="color:'+e.color+';font-weight:700;">'+e.pct+'%</span></div>'
+        +'<div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden;">'
+        +'<div style="width:'+e.pct+'%;height:100%;background:'+e.color+';border-radius:4px;"></div></div></div>';
+    });
+  }
+
+  // Tool-use canvas heatmap
+  drawToolUseCanvas();
+  selectTool(0, document.getElementById('tool-btn-0'));
+}
+
+function selectTool(idx, el) {
+  document.querySelectorAll('#tool-grid > div').forEach(function(d){ d.style.borderColor='var(--border)'; });
+  if (el) el.style.borderColor = TOOLS[idx].color;
+  var t = TOOLS[idx];
+  var panel = document.getElementById('tool-detail-panel');
+  if (!panel) return;
+  panel.innerHTML = '<div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:8px;">'+t.icon+' '+t.name+'</div>'
+    +'<p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;">'+t.desc+'</p>'
+    +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:'+t.color+';margin-bottom:8px;">Success Rate by Framework</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;">'
+    +['LangGraph','CrewAI','AutoGen'].map(function(fw,i){
+      var k=['langraph','crewai','autogen'][i];
+      var v=t.success[k];
+      var c=v>=80?'#10b981':v>=70?'#f7b731':'#ef4444';
+      return '<div style="background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">'
+        +'<div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;">'+fw+'</div>'
+        +'<div style="font-size:20px;font-weight:800;color:'+c+';">'+v+'%</div></div>';
+    }).join('')+'</div>'
+    +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#ef4444;margin-bottom:6px;">Top Error Types</div>'
+    +'<ul style="padding-left:16px;font-size:12px;color:var(--muted);line-height:1.8;">'+t.errors.map(function(e){return '<li>'+e+'</li>';}).join('')+'</ul>'
+    +(t.hotpotqa?'<div style="margin-top:10px;padding:8px 12px;background:rgba(6,182,212,.06);border:1px solid rgba(6,182,212,.2);border-radius:6px;font-size:11px;color:#06b6d4;"><strong>HotPotQA:</strong> '+t.hotpotqa+'</div>':'');
+}
+
+function drawToolUseCanvas() {
+  var c = document.getElementById('tooluse-canvas');
+  if (!c) return;
+  var ctx = c.getContext('2d');
+  c.width = c.parentElement ? c.parentElement.offsetWidth - 44 : 800;
+  c.height = 200;
+  ctx.clearRect(0,0,c.width,c.height);
+  var fws = ['LangGraph','CrewAI','AutoGen'];
+  var keys = ['langraph','crewai','autogen'];
+  var padL=120, padR=20, padT=30, padB=40;
+  var rows=TOOLS.length, cols=fws.length;
+  var cellW=(c.width-padL-padR)/cols;
+  var cellH=(c.height-padT-padB)/rows;
+  ctx.font='10px Inter,sans-serif';
+  ctx.textAlign='center';
+  fws.forEach(function(fw,j){
+    ctx.fillStyle='#8b949e';
+    ctx.fillText(fw, padL+j*cellW+cellW/2, padT-8);
+  });
+  ctx.textAlign='right';
+  TOOLS.forEach(function(t,i){
+    ctx.fillStyle='#8b949e';
+    ctx.fillText(t.icon+' '+t.name, padL-8, padT+i*cellH+cellH/2+4);
+    fws.forEach(function(fw,j){
+      var v=t.success[keys[j]]/100;
+      var alpha=0.2+v*0.7;
+      ctx.fillStyle=t.color;
+      ctx.globalAlpha=alpha;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(padL+j*cellW+2,padT+i*cellH+2,cellW-4,cellH-4,4);
+      else ctx.rect(padL+j*cellW+2,padT+i*cellH+2,cellW-4,cellH-4);
+      ctx.fill();
+      ctx.globalAlpha=1;
+      ctx.fillStyle=v>0.6?'#fff':'#8b949e';
+      ctx.font='bold 11px Inter,sans-serif';
+      ctx.textAlign='center';
+      ctx.fillText((v*100).toFixed(0)+'%', padL+j*cellW+cellW/2, padT+i*cellH+cellH/2+4);
+      ctx.font='10px Inter,sans-serif';
+    });
+  });
+}
+
+/* ===== MAESTRO: COMPARISON TABS ===== */
+var MAESTRO_CONTENT = {
+  overview:{body:`<div style="font-size:13px;color:var(--muted);line-height:1.7;">
+    <div class="grid2">
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#a78bfa;margin-bottom:10px;">MASEval (arXiv:2603.08835)</div>
+        <p style="margin-bottom:10px;">Introduced by ParameterLab to benchmark multi-agent systems across topology and framework dimensions. Evaluates 24 framework × topology combinations on GAIA, HumanEval-MT, and WebArena.</p>
+        <p><strong style="color:var(--text);">Core contribution:</strong> The headline finding — framework choice matters as much as model choice. Hierarchical + LangGraph leads on GAIA (51.7% GSR).</p>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#06b6d4;margin-bottom:10px;">MAESTRO (arXiv:2601.00481)</div>
+        <p style="margin-bottom:10px;">Extends MAS evaluation with reliability, observability, and tool-use as first-class dimensions. Adds HotPotQA as a multi-hop benchmark and introduces stress-testing methodology.</p>
+        <p><strong style="color:var(--text);">Core contribution:</strong> 43% of MAS failures are tool-calling errors. Reliability (MTTR, resilience score) is as important as task success rate.</p>
+      </div>
+    </div>
+    <div style="margin-top:16px;padding:10px 14px;background:#0f1b2d;border:1px solid #1e3a5f;border-radius:8px;">
+      <strong style="color:#93c5fd;">Relationship:</strong> MAESTRO is best seen as a <em>companion framework</em> to MASEval, not a replacement. Use MASEval to select topology + framework; use MAESTRO to validate reliability and tool-use before production deployment.
+    </div>
+  </div>`},
+  dimensions:{body:`<div style="font-size:13px;color:var(--muted);line-height:1.7;">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead><tr style="border-bottom:2px solid var(--border);">
+        <th style="text-align:left;padding:8px 12px;color:var(--muted);font-weight:600;">Dimension</th>
+        <th style="text-align:center;padding:8px 12px;color:#a78bfa;font-weight:600;">MASEval</th>
+        <th style="text-align:center;padding:8px 12px;color:#06b6d4;font-weight:600;">MAESTRO</th>
+      </tr></thead>
+      <tbody>
+        <tr style="border-bottom:1px solid var(--border);"><td style="padding:8px 12px;">Task Success Rate (GSR)</td><td style="text-align:center;color:#10b981;font-size:16px;">✓</td><td style="text-align:center;color:#10b981;font-size:16px;">✓</td></tr>
+        <tr style="border-bottom:1px solid var(--border);background:rgba(22,27,34,.5);"><td style="padding:8px 12px;">Token Efficiency</td><td style="text-align:center;color:#10b981;font-size:16px;">✓</td><td style="text-align:center;color:#10b981;font-size:16px;">✓</td></tr>
+        <tr style="border-bottom:1px solid var(--border);"><td style="padding:8px 12px;">Coordination Overhead</td><td style="text-align:center;color:#10b981;font-size:16px;">✓</td><td style="text-align:center;color:#10b981;font-size:16px;">✓</td></tr>
+        <tr style="border-bottom:1px solid var(--border);background:rgba(22,27,34,.5);"><td style="padding:8px 12px;">Reliability / Resilience Score</td><td style="text-align:center;color:#8b949e;font-size:16px;">—</td><td style="text-align:center;color:#10b981;font-size:16px;">✓</td></tr>
+        <tr style="border-bottom:1px solid var(--border);"><td style="padding:8px 12px;">Tool-Use Success Rate</td><td style="text-align:center;color:#8b949e;font-size:16px;">—</td><td style="text-align:center;color:#10b981;font-size:16px;">✓</td></tr>
+        <tr style="border-bottom:1px solid var(--border);background:rgba(22,27,34,.5);"><td style="padding:8px 12px;">Mean Time to Recovery (MTTR)</td><td style="text-align:center;color:#8b949e;font-size:16px;">—</td><td style="text-align:center;color:#10b981;font-size:16px;">✓</td></tr>
+        <tr style="border-bottom:1px solid var(--border);"><td style="padding:8px 12px;">Observability (trace + monitoring)</td><td style="text-align:center;color:#f7b731;font-size:16px;">~</td><td style="text-align:center;color:#10b981;font-size:16px;">✓</td></tr>
+        <tr><td style="padding:8px 12px;">Cost / Pareto Analysis</td><td style="text-align:center;color:#10b981;font-size:16px;">✓</td><td style="text-align:center;color:#8b949e;font-size:16px;">—</td></tr>
+      </tbody>
+    </table>
+  </div>`},
+  benchmarks:{body:`<div style="font-size:13px;color:var(--muted);line-height:1.7;">
+    <div class="grid3" style="margin-bottom:16px;">
+      <div class="card" style="border-color:#10b981;"><div class="card-title" style="color:#10b981;">GAIA</div><div class="card-body">MASEval primary. 466 tasks, 3 difficulty levels. Measures general assistant capability — web search, tool use, multi-step planning.</div></div>
+      <div class="card" style="border-color:#a78bfa;"><div class="card-title" style="color:#a78bfa;">HumanEval-MT</div><div class="card-body">Both frameworks. Multi-turn coding benchmark. Tests sustained code generation across conversation turns.</div></div>
+      <div class="card" style="border-color:#f97316;"><div class="card-title" style="color:#f97316;">WebArena</div><div class="card-body">MASEval. Real web-browser automation tasks. Tests grounding and navigation across live web environments.</div></div>
+    </div>
+    <div class="card" style="border-color:#06b6d4;">
+      <div class="card-title" style="color:#06b6d4;">HotPotQA (MAESTRO)</div>
+      <div class="card-body">113K multi-hop reasoning questions requiring 2–3 document retrievals per answer. MAESTRO uses it specifically to evaluate tool-chaining — can agents correctly sequence search calls across multiple hops? Best MAS: 74.3% (vs 91.2% human). The 16.9pp gap is driven almost entirely by broken tool chains, not reasoning failures.</div>
+    </div>
+  </div>`},
+  observability:{body:`<div style="font-size:13px;color:var(--muted);line-height:1.7;">
+    <p style="margin-bottom:14px;">Observability is how you understand <em>why</em> a MAS succeeded or failed — not just whether it did. MASEval exports static trace artefacts post-run; MAESTRO adds live monitoring during the run.</p>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title" style="color:#a78bfa;">MASEval — Trace Artefacts</div>
+        <ul style="padding-left:16px;font-size:12px;color:var(--muted);line-height:2;">
+          <li>Per-agent message history (JSON)</li>
+          <li>Tool call logs with arguments + responses</li>
+          <li>Token usage breakdown per agent</li>
+          <li>Task outcome labels (success/fail/partial)</li>
+          <li>Post-run export only (static files)</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:#06b6d4;">MAESTRO — Live Observability</div>
+        <ul style="padding-left:16px;font-size:12px;color:var(--muted);line-height:2;">
+          <li>Real-time agent state dashboard</li>
+          <li>Live failure detection + alerting</li>
+          <li>Tool call latency tracking (p50/p95/p99)</li>
+          <li>Retry event stream with backoff visualization</li>
+          <li>Integrated with OpenTelemetry trace format</li>
+        </ul>
+      </div>
+    </div>
+    <div style="margin-top:14px;padding:10px 14px;background:rgba(6,182,212,.06);border:1px solid rgba(6,182,212,.25);border-radius:8px;font-size:12px;color:#06b6d4;">
+      <strong>MAESTRO finding:</strong> Teams using live observability caught 67% of production failures within the first 2 retries — compared to 31% for teams relying on post-run trace analysis alone.
+    </div>
+  </div>`},
+  when:{body:`<div style="font-size:13px;color:var(--muted);line-height:1.7;">
+    <div class="grid2">
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#a78bfa;margin-bottom:10px;">Use MASEval when:</div>
+        <ul style="padding-left:18px;line-height:2;">
+          <li>Selecting which framework + topology to adopt</li>
+          <li>Benchmarking against GAIA / WebArena baselines</li>
+          <li>Optimising cost-performance trade-offs</li>
+          <li>Comparing LangGraph vs CrewAI vs AutoGen</li>
+          <li>Building a leaderboard across configurations</li>
+        </ul>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#06b6d4;margin-bottom:10px;">Use MAESTRO when:</div>
+        <ul style="padding-left:18px;line-height:2;">
+          <li>Validating reliability before production deployment</li>
+          <li>Diagnosing tool-calling failures in a live system</li>
+          <li>Setting SLAs for MAS uptime and MTTR</li>
+          <li>Evaluating multi-hop search / HotPotQA tasks</li>
+          <li>Building observability infrastructure for MAS</li>
+        </ul>
+      </div>
+    </div>
+    <div style="margin-top:16px;padding:10px 14px;background:#0d1f0d;border:1px solid rgba(16,185,129,.25);border-radius:8px;font-size:12px;color:#10b981;">
+      <strong>Best practice:</strong> Run MASEval during <em>design</em> (topology + framework selection). Run MAESTRO during <em>validation</em> (pre-deployment reliability + tool-use testing). They are complementary, not competing.
+    </div>
+  </div>`}
+};
+
+function showMaestro(k, btn) {
+  document.querySelectorAll('#maestro-tabs .btn-tab').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  document.getElementById('maestro-display').innerHTML = MAESTRO_CONTENT[k].body;
+}
+
 /* ===== INIT ===== */
 function doInit() {
   // Section 1
@@ -3496,6 +4138,15 @@ function doInit() {
 
   // Cost Estimator
   updateCost();
+
+  // MAESTRO: Reliability
+  updateMaestroReliability();
+
+  // MAESTRO: Tool Use
+  initToolUse();
+
+  // MAESTRO: Comparison tabs
+  showMaestro('overview', document.querySelector('#maestro-tabs .btn-tab'));
 
   // Scroll
   var mainEl = document.getElementById('main-scroll');
