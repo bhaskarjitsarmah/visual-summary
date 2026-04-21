@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>FinCriticalED — Visual Benchmark for Financial Fact-Level OCR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#000000;--surface:#0d0d0d;--border:#222222;
+  --text:#f0f0f0;--muted:#909090;
+  --gold:#f59e0b;--gold2:#fbbf24;--gold3:#fde68a;
+  --blue:#3b82f6;--blue2:#60a5fa;--blue3:#bfdbfe;
+  --green:#10b981;--green2:#34d399;--green3:#a7f3d0;
+  --red:#ef4444;--red2:#fca5a5;
+  --orange:#f97316;--orange2:#fb923c;
+  --purple:#8b5cf6;--purple2:#a78bfa;
+  --teal:#06b6d4;--teal2:#22d3ee;
+  --pink:#ec4899;--pink2:#f472b6;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+/* Gate */
+#gate{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.gate-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 44px;text-align:center;max-width:380px;width:90%;}
+.gate-icon{font-size:36px;margin-bottom:12px;}
+.gate-title{font-size:20px;font-weight:800;color:var(--gold2);margin-bottom:4px;}
+.gate-sub{font-size:12px;color:var(--muted);margin-bottom:24px;}
+.gate-input{width:100%;background:#050505;border:1px solid var(--border);border-radius:8px;padding:11px 14px;font-size:14px;color:var(--text);outline:none;margin-bottom:12px;}
+.gate-input:focus{border-color:var(--gold);}
+.gate-btn{width:100%;background:var(--gold);color:#000;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s;}
+.gate-btn:hover{opacity:.85;}
+.gate-err{font-size:11px;color:var(--red);margin-top:6px;display:none;}
+/* Layout */
+.sidebar{width:240px;min-width:240px;height:100vh;position:sticky;top:0;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:0 0 40px;flex-shrink:0;}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.sidebar-logo-title{font-size:13px;font-weight:700;color:var(--gold2);}
+.sidebar-logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.nav-group-title{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;padding:10px 16px 4px;}
+.nav-link{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;}
+.nav-link:hover,.nav-link.active{color:var(--text);background:rgba(245,158,11,.08);}
+.nav-link.active{color:var(--gold2);}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.main{flex:1;overflow-y:auto;height:100vh;scroll-behavior:smooth;}
+/* Pipeline */
+.pipeline-map{position:sticky;top:0;z-index:50;background:rgba(0,0,0,.97);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+.pipe-step{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);padding:2px 6px;border-radius:4px;cursor:pointer;transition:color .15s;}
+.pipe-step:hover{color:var(--text);}
+.pipe-dot{width:6px;height:6px;border-radius:50%;}
+.pipe-arrow{color:var(--border);font-size:12px;}
+/* Sections */
+.section{min-height:100vh;padding:60px 48px 80px;border-bottom:1px solid var(--border);}
+.section-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;}
+.section-title{font-size:28px;font-weight:800;color:var(--text);margin-bottom:8px;line-height:1.25;}
+.section-sub{font-size:14px;color:var(--muted);margin-bottom:28px;max-width:700px;}
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:16px;}
+.card-title{font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px;}
+.card-body{font-size:13px;color:var(--muted);line-height:1.6;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+/* Highlights */
+.highlight-box{border-left:3px solid var(--gold);padding:12px 16px;background:rgba(245,158,11,.06);border-radius:0 8px 8px 0;margin-bottom:16px;font-size:13px;color:var(--muted);}
+.highlight-box.red{border-color:var(--red);background:rgba(239,68,68,.06);}
+.highlight-box.green{border-color:var(--green);background:rgba(16,185,129,.06);}
+.highlight-box.blue{border-color:var(--blue);background:rgba(59,130,246,.06);}
+.highlight-box.purple{border-color:var(--purple);background:rgba(139,92,246,.06);}
+/* Tables */
+table{width:100%;border-collapse:collapse;margin-bottom:20px;font-size:12px;}
+th{background:rgba(245,158,11,.12);color:var(--gold2);font-weight:700;padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);}
+td{padding:9px 14px;border-bottom:1px solid rgba(34,34,34,.8);color:var(--muted);}
+tr:hover td{background:rgba(245,158,11,.04);}
+td strong{color:var(--text);}
+/* Stats */
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;text-align:center;}
+.stat-num{font-size:30px;font-weight:800;margin-bottom:4px;}
+.stat-label{font-size:11px;color:var(--muted);line-height:1.4;}
+/* Buttons */
+.btn-tab{background:rgba(245,158,11,.08);border:1px solid var(--border);border-radius:6px;padding:7px 14px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;font-family:'Inter',sans-serif;}
+.btn-tab:hover{color:var(--text);}
+.btn-tab.active{background:rgba(245,158,11,.2);border-color:var(--gold);color:var(--gold2);}
+.tab-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;}
+/* Badge */
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+.badge-gold{background:rgba(245,158,11,.2);color:var(--gold2);border:1px solid rgba(245,158,11,.3);}
+.badge-red{background:rgba(239,68,68,.2);color:var(--red2);border:1px solid rgba(239,68,68,.3);}
+.badge-green{background:rgba(16,185,129,.2);color:var(--green2);border:1px solid rgba(16,185,129,.3);}
+.badge-blue{background:rgba(59,130,246,.2);color:var(--blue2);border:1px solid rgba(59,130,246,.3);}
+/* Progress */
+.progress-bar{background:rgba(245,158,11,.1);border-radius:4px;height:8px;overflow:hidden;margin-bottom:4px;}
+.progress-fill{height:100%;border-radius:4px;transition:width .8s ease;}
+/* Flow */
+.flow-step{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;}
+.flow-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;background:rgba(245,158,11,.15);color:var(--gold2);border:1px solid var(--gold);}
+.flow-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px;}
+.flow-desc{font-size:12px;color:var(--muted);}
+/* Code */
+.code-block{background:#050505;border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-family:'JetBrains Mono','Courier New',monospace;font-size:12px;line-height:1.8;margin-bottom:16px;overflow-x:auto;white-space:pre;}
+.code-block .kw{color:var(--blue2);}
+.code-block .str{color:var(--green2);}
+.code-block .key{color:var(--gold2);}
+.code-block .cmt{color:var(--muted);}
+/* Fact category pill */
+.fact-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;margin:3px;}
+/* Document sample */
+.doc-sample{background:#050505;border:1px solid var(--border);border-radius:10px;padding:16px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.9;position:relative;}
+.doc-sample .highlight-num{background:rgba(239,68,68,.25);color:var(--red2);padding:1px 3px;border-radius:3px;}
+.doc-sample .highlight-date{background:rgba(59,130,246,.25);color:var(--blue2);padding:1px 3px;border-radius:3px;}
+.doc-sample .highlight-money{background:rgba(245,158,11,.25);color:var(--gold2);padding:1px 3px;border-radius:3px;}
+.doc-sample .highlight-entity{background:rgba(16,185,129,.25);color:var(--green2);padding:1px 3px;border-radius:3px;}
+.doc-sample .highlight-concept{background:rgba(139,92,246,.25);color:var(--purple2);padding:1px 3px;border-radius:3px;}
+/* Continue strip */
+.continue-strip{background:var(--surface);border-top:1px solid var(--border);padding:32px 48px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;}
+.cs-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.cs-title{font-size:15px;font-weight:700;color:var(--text);}
+/* Error meter */
+.error-meter{border-radius:8px;overflow:hidden;margin-bottom:8px;}
+.error-bar{height:36px;display:flex;align-items:center;padding:0 14px;font-size:12px;font-weight:700;transition:width .6s ease;}
+/* OCR diff */
+.diff-row{display:flex;gap:12px;margin-bottom:10px;font-size:12px;}
+.diff-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;}
+.diff-box{flex:1;background:#050505;border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:'JetBrains Mono',monospace;line-height:1.8;}
+.diff-correct{color:var(--green2);}
+.diff-wrong{color:var(--red2);text-decoration:line-through;}
+.diff-actual{color:var(--orange2);}
+</style>
+</head>
+<body>
+
+<!-- Gate -->
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-icon">&#x1F4CA;</div>
+    <div class="gate-title">FinCriticalED</div>
+    <div class="gate-sub">Financial Fact-Level OCR Benchmark &middot; Visual Summary</div>
+    <input id="gate-pw" class="gate-input" type="password" placeholder="Enter password" onkeydown="if(event.key==='Enter')checkGate()">
+    <button class="gate-btn" onclick="checkGate()">Unlock</button>
+    <div id="gate-err" class="gate-err">Incorrect password. Try again.</div>
+  </div>
+</div>
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-title">FinCriticalED</div>
+    <div class="sidebar-logo-sub">Post 43 &middot; Evaluation</div>
+  </div>
+  <div class="nav-group-title">Overview</div>
+  <div class="nav-link active" onclick="scrollTo('s-overview',this)"><span class="dot" style="background:#f59e0b"></span>Introduction</div>
+  <div class="nav-link" onclick="scrollTo('s-problem',this)"><span class="dot" style="background:#ef4444"></span>The OCR Accuracy Trap</div>
+  <div class="nav-link" onclick="scrollTo('s-impact',this)"><span class="dot" style="background:#f97316"></span>Financial Error Impact</div>
+
+  <div class="nav-group-title">The Benchmark</div>
+  <div class="nav-link" onclick="scrollTo('s-dataset',this)"><span class="dot" style="background:#f59e0b"></span>Dataset Construction</div>
+  <div class="nav-link" onclick="scrollTo('s-facts',this)"><span class="dot" style="background:#fbbf24"></span>5 Fact Categories</div>
+  <div class="nav-link" onclick="scrollTo('s-doctypes',this)"><span class="dot" style="background:#10b981"></span>5 Document Types</div>
+  <div class="nav-link" onclick="scrollTo('s-judge',this)"><span class="dot" style="background:#3b82f6"></span>LLM-as-Judge Protocol</div>
+
+  <div class="nav-group-title">Interactive</div>
+  <div class="nav-link" onclick="scrollTo('s-demo',this)"><span class="dot" style="background:#f59e0b"></span>OCR Error Demo</div>
+  <div class="nav-link" onclick="scrollTo('s-calculator',this)"><span class="dot" style="background:#ef4444"></span>Error Impact Calculator</div>
+  <div class="nav-group-title">Results</div>
+  <div class="nav-link" onclick="scrollTo('s-results',this)"><span class="dot" style="background:#10b981"></span>Model Performance</div>
+  <div class="nav-link" onclick="scrollTo('s-heatmap',this)"><span class="dot" style="background:#8b5cf6"></span>Vulnerability Heatmap</div>
+  <div class="nav-link" onclick="scrollTo('s-lessons',this)"><span class="dot" style="background:#fbbf24"></span>Key Takeaways</div>
+</nav>
+
+<!-- Main -->
+<div class="main" id="main">
+
+<!-- Pipeline Bar -->
+<div class="pipeline-map">
+  <div class="pipe-step" onclick="scrollTo('s-overview')"><span class="pipe-dot" style="background:#f59e0b"></span>Problem</div>
+  <span class="pipe-arrow">›</span>
+  <div class="pipe-step" onclick="scrollTo('s-dataset')"><span class="pipe-dot" style="background:#fbbf24"></span>859 Pages</div>
+  <span class="pipe-arrow">›</span>
+  <div class="pipe-step" onclick="scrollTo('s-facts')"><span class="pipe-dot" style="background:#10b981"></span>9,481 Facts</div>
+  <span class="pipe-arrow">›</span>
+  <div class="pipe-step" onclick="scrollTo('s-judge')"><span class="pipe-dot" style="background:#3b82f6"></span>LLM Judge</div>
+  <span class="pipe-arrow">›</span>
+  <div class="pipe-step" onclick="scrollTo('s-results')"><span class="pipe-dot" style="background:#34d399"></span>13 Models</div>
+  <span class="pipe-arrow">›</span>
+  <div class="pipe-step" onclick="scrollTo('s-heatmap')"><span class="pipe-dot" style="background:#8b5cf6"></span>Heatmap</div>
+  <span class="pipe-arrow">›</span>
+  <div class="pipe-step" onclick="scrollTo('s-lessons')"><span class="pipe-dot" style="background:#fbbf24"></span>Takeaways</div>
+</div>
+
+<!-- ══════════════ OVERVIEW ══════════════ -->
+<section class="section" id="s-overview">
+  <div class="section-tag" style="color:var(--gold)">Post 43 &middot; Evaluation</div>
+  <div class="section-title">FinCriticalED</div>
+  <div class="section-sub">The first benchmark that measures what really matters in financial OCR: not character accuracy, but whether decision-critical facts survive extraction intact.</div>
+
+  <div class="highlight-box">
+    <strong style="color:var(--gold2)">Paper:</strong> <span style="color:var(--text)">"FinCriticalED: A Visual Benchmark for Financial Fact-Level OCR Evaluation"</span><br>
+    <span style="color:var(--muted)">Yueru He, Xueqing Peng et al. &middot; arXiv 2511.14998 &middot; 2025–2026</span>
+  </div>
+
+  <div class="grid3">
+    <div class="card">
+      <div class="card-title" style="color:var(--red2)">The Core Problem</div>
+      <div class="card-body">Standard OCR benchmarks measure character-level accuracy. But in finance, a single digit error — <span style="color:var(--red2)">$1.2B → $12B</span> — is catastrophic even if 99.9% of characters are correct.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--gold2)">The Solution</div>
+      <div class="card-body">FinCriticalED shifts evaluation to <strong style="color:var(--text)">fact-level accuracy</strong> — did the model correctly preserve the 9,481 expert-annotated decision-critical facts across 859 real financial documents?</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--green2)">The Finding</div>
+      <div class="card-body">Even the best frontier models fail on numerical and monetary unit extraction in visually complex financial documents. <strong style="color:var(--text)">High OCR accuracy ≠ financial fact fidelity.</strong></div>
+    </div>
+  </div>
+
+  <!-- 4 headline stats -->
+  <div class="stat-grid" style="margin-top:8px;">
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--gold2)" id="stat-pages">0</div>
+      <div class="stat-label">Real financial<br>document pages</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--blue2)" id="stat-facts">0</div>
+      <div class="stat-label">Expert-annotated<br>critical facts</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--green2)" id="stat-models">0</div>
+      <div class="stat-label">Models<br>benchmarked</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--red2)" id="stat-cats">0</div>
+      <div class="stat-label">Fact categories<br>evaluated</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ THE PROBLEM ══════════════ -->
+<section class="section" id="s-problem">
+  <div class="section-tag" style="color:var(--red)">The Problem</div>
+  <div class="section-title">The OCR Accuracy Trap</div>
+  <div class="section-sub">Why "99% accurate" OCR is dangerously misleading for financial documents.</div>
+
+  <div class="grid2">
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">Surface Accuracy vs Fact Accuracy</div>
+      <div style="background:#050505;border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:16px;">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">Original document text</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text);line-height:2;">
+          Total revenue: <strong style="color:var(--gold2)">$1,234,567,890</strong><br>
+          Fiscal year ended: <strong style="color:var(--blue2)">December 31, 2024</strong><br>
+          Currency: <strong style="color:var(--green2)">USD (thousands)</strong><br>
+          Reporting entity: <strong style="color:var(--teal2)">Apex Financial Corp.</strong>
+        </div>
+      </div>
+      <div style="text-align:center;font-size:22px;color:var(--muted);padding:6px;">&#x2193; OCR extraction</div>
+      <div style="background:#050505;border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:20px;margin-top:8px;">
+        <div style="font-size:11px;font-weight:700;color:var(--red2);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">OCR output — 98.7% character accuracy</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:2;">
+          Total revenue: <span style="color:var(--red2);text-decoration:line-through;">$1,234,567,890</span> <span style="color:var(--red2)">$1,234,567,8<strong>0</strong>0</span> &#x26A0;<br>
+          Fiscal year ended: <span style="color:var(--green2)">December 31, 2024</span> &#x2713;<br>
+          Currency: <span style="color:var(--red2);text-decoration:line-through;">USD (thousands)</span> <span style="color:var(--red2)">USD (millions)</span> &#x26A0;<br>
+          Reporting entity: <span style="color:var(--green2)">Apex Financial Corp.</span> &#x2713;
+        </div>
+      </div>
+      <div style="margin-top:10px;padding:10px 14px;background:rgba(239,68,68,.06);border-radius:8px;font-size:12px;color:var(--muted);">
+        <strong style="color:var(--red2)">2 fact errors, 98.7% char accuracy.</strong> The revenue is off by $90 and the unit multiplier is wrong — meaning the reported figure is actually off by a factor of <strong style="color:var(--text)">1,000×</strong>.
+      </div>
+    </div>
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">Why Existing Benchmarks Miss This</div>
+      <div class="card" style="margin-bottom:10px;">
+        <div class="card-title" style="color:var(--red2)">CER / WER — Character &amp; Word Error Rate</div>
+        <div class="card-body">Measures how many characters or words differ between OCR output and ground truth. A 90-character number correct in 89 characters = 98.9% CER. But the number is wrong — and the financial impact is enormous.</div>
+      </div>
+      <div class="card" style="margin-bottom:10px;">
+        <div class="card-title" style="color:var(--orange2)">BLEU / ROUGE — Sequence Overlap</div>
+        <div class="card-body">n-gram overlap metrics designed for translation/summarisation. They reward matching word sequences — but a monetary unit change ("thousands" → "millions") scores well because 1 of 2 words matches.</div>
+      </div>
+      <div class="card" style="margin-bottom:10px;">
+        <div class="card-title" style="color:var(--amber2)">F1 / Exact Match</div>
+        <div class="card-body">Better than CER/WER but still treat all tokens equally. The word "the" and the number "$1,234,567,890" have identical weight — even though one is decision-critical and the other is not.</div>
+      </div>
+      <div class="highlight-box" style="margin-top:4px;">
+        <strong style="color:var(--gold2)">FinCriticalED's insight:</strong> Financial facts are not created equal. Numerical values and monetary units need their own evaluation dimension with zero tolerance for errors.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ FINANCIAL ERROR IMPACT ══════════════ -->
+<section class="section" id="s-impact">
+  <div class="section-tag" style="color:var(--orange)">Stakes</div>
+  <div class="section-title">The Real Cost of OCR Errors in Finance</div>
+  <div class="section-sub">Why a 1% error rate that's acceptable in other domains is catastrophic in financial documents.</div>
+
+  <div class="grid3" style="margin-bottom:24px;">
+    <div class="card" style="border-color:rgba(239,68,68,.3);">
+      <div class="card-title" style="color:var(--red2)">Regulatory Filings</div>
+      <div class="card-body">A wrong figure in an SEC filing can trigger regulatory sanctions, restatements, and shareholder lawsuits. The SEC has brought enforcement actions over numerical errors in Form 10-K filings.</div>
+    </div>
+    <div class="card" style="border-color:rgba(245,158,11,.3);">
+      <div class="card-title" style="color:var(--gold2)">Algorithmic Trading</div>
+      <div class="card-body">AI trading systems that ingest OCR'd earnings reports need exact numbers. A misread EPS of $0.45 instead of $4.50 can trigger erroneous buy/sell orders worth millions before the error is caught.</div>
+    </div>
+    <div class="card" style="border-color:rgba(249,115,22,.3);">
+      <div class="card-title" style="color:var(--orange2)">Due Diligence</div>
+      <div class="card-body">M&amp;A analysts rely on extracted financial figures for valuation models. An OCR error in a balance sheet can corrupt an entire DCF model, leading to deals mispriced by tens of millions.</div>
+    </div>
+  </div>
+
+  <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">Domain vs Error Tolerance — Why Finance is Different</div>
+  <table>
+    <tr><th>Domain</th><th>Typical Error Tolerance</th><th>Consequence of 1% Error</th><th>FinCriticalED Relevance</th></tr>
+    <tr><td><strong>Book digitisation</strong></td><td>1–3% CER acceptable</td><td>Minor readability issue</td><td style="color:var(--muted)">Low</td></tr>
+    <tr><td><strong>Medical records</strong></td><td>&lt;0.5% for drug dosages</td><td>Patient safety risk</td><td style="color:var(--amber2)">High</td></tr>
+    <tr><td><strong>Legal contracts</strong></td><td>&lt;0.1% for key clauses</td><td>Contract invalidity, disputes</td><td style="color:var(--orange2)">Very High</td></tr>
+    <tr><td><strong>Financial documents</strong></td><td>Zero tolerance on critical facts</td><td>Regulatory action, billions in mispricing</td><td style="color:var(--red2)"><strong>Critical</strong></td></tr>
+  </table>
+</section>
+
+<!-- ══════════════ DATASET ══════════════ -->
+<section class="section" id="s-dataset">
+  <div class="section-tag" style="color:var(--gold)">Dataset</div>
+  <div class="section-title">Building FinCriticalED</div>
+  <div class="section-sub">859 real-world pages from SEC EDGAR and regulatory archives, annotated with 9,481 expert-labeled critical facts.</div>
+
+  <div class="grid2">
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">Construction Pipeline</div>
+      <div class="flow-step"><div class="flow-num">1</div><div><div class="flow-title">Source Collection</div><div class="flow-desc">Documents sourced from <strong style="color:var(--text)">U.S. SEC EDGAR</strong>, corporate disclosure portals, and regulatory archives. Stratified sampling across industries and fiscal years 2023–2025.</div></div></div>
+      <div class="flow-step"><div class="flow-num">2</div><div><div class="flow-title">Document Selection</div><div class="flow-desc">859 pages selected across 5 document types, prioritising pages with high visual complexity — multi-column tables, mixed formatting, dense numerical content.</div></div></div>
+      <div class="flow-step"><div class="flow-num">3</div><div><div class="flow-title">Expert Annotation</div><div class="flow-desc">Domain experts annotate each page, labelling 9,481 <strong style="color:var(--text)">critical facts</strong> across 5 categories. Each annotation includes the fact value, category, context, and criticality level.</div></div></div>
+      <div class="flow-step"><div class="flow-num">4</div><div><div class="flow-title">Quality Review</div><div class="flow-desc">Multi-round review process. Disputed annotations resolved by senior financial domain experts. Inter-annotator agreement verified before inclusion.</div></div></div>
+      <div class="flow-step"><div class="flow-num">5</div><div><div class="flow-title">Evaluation Protocol Design</div><div class="flow-desc">Deterministic-Rule-Guided LLM-as-Judge protocol designed to assess fact preservation — accounting for lexical variation, numerical equivalence, and contextual correctness.</div></div></div>
+    </div>
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">Dataset at a Glance</div>
+      <div class="card" style="margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div class="card-title" style="color:var(--gold2);margin-bottom:0;">Facts per Category</div>
+        </div>
+        <div id="fact-dist-bars"></div>
+      </div>
+
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;">Data Sources</div>
+      <div class="grid2" style="gap:10px;">
+        <div style="padding:12px;background:#050505;border:1px solid var(--border);border-radius:8px;text-align:center;">
+          <div style="font-size:20px;margin-bottom:6px;">&#x1F3DB;</div>
+          <div style="font-size:11px;font-weight:700;color:var(--gold2);">SEC EDGAR</div>
+          <div style="font-size:10px;color:var(--muted);">Primary source</div>
+        </div>
+        <div style="padding:12px;background:#050505;border:1px solid var(--border);border-radius:8px;text-align:center;">
+          <div style="font-size:20px;margin-bottom:6px;">&#x1F4CB;</div>
+          <div style="font-size:11px;font-weight:700;color:var(--blue2);">Corp. Disclosures</div>
+          <div style="font-size:10px;color:var(--muted);">Secondary source</div>
+        </div>
+        <div style="padding:12px;background:#050505;border:1px solid var(--border);border-radius:8px;text-align:center;">
+          <div style="font-size:20px;margin-bottom:6px;">&#x2696;</div>
+          <div style="font-size:11px;font-weight:700;color:var(--purple2);">Regulatory Archives</div>
+          <div style="font-size:10px;color:var(--muted);">Tertiary source</div>
+        </div>
+        <div style="padding:12px;background:#050505;border:1px solid var(--border);border-radius:8px;text-align:center;">
+          <div style="font-size:20px;margin-bottom:6px;">&#x1F4C5;</div>
+          <div style="font-size:11px;font-weight:700;color:var(--green2);">2023–2025</div>
+          <div style="font-size:10px;color:var(--muted);">Fiscal year range</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ 5 FACT CATEGORIES ══════════════ -->
+<section class="section" id="s-facts">
+  <div class="section-tag" style="color:var(--gold)">Fact Categories</div>
+  <div class="section-title">5 Critical Fact Types</div>
+  <div class="section-sub">Click each category to see its definition, examples, and why it's decision-critical.</div>
+
+  <div class="tab-row" id="fact-tabs">
+    <button class="btn-tab active" onclick="showFact('numeric',this)" style="border-color:rgba(239,68,68,.4);color:var(--red2);">&#x1F4C8; Numeric</button>
+    <button class="btn-tab" onclick="showFact('temporal',this)" style="border-color:rgba(59,130,246,.4);color:var(--blue2);">&#x1F4C5; Temporal</button>
+    <button class="btn-tab" onclick="showFact('monetary',this)" style="border-color:rgba(245,158,11,.4);color:var(--gold2);">&#x1F4B0; Monetary Unit</button>
+    <button class="btn-tab" onclick="showFact('entity',this)" style="border-color:rgba(16,185,129,.4);color:var(--green2);">&#x1F3E2; Reporting Entity</button>
+    <button class="btn-tab" onclick="showFact('concept',this)" style="border-color:rgba(139,92,246,.4);color:var(--purple2);">&#x1F4D6; Financial Concept</button>
+  </div>
+  <div id="fact-detail"></div>
+</section>
+
+<!-- ══════════════ 5 DOCUMENT TYPES ══════════════ -->
+<section class="section" id="s-doctypes">
+  <div class="section-tag" style="color:var(--green)">Document Types</div>
+  <div class="section-title">5 Financial Document Categories</div>
+  <div class="section-sub">The benchmark spans the full range of document types where financial OCR is deployed in practice.</div>
+
+  <div class="grid3" style="margin-bottom:20px;">
+    <div class="card" style="border-color:rgba(245,158,11,.3);cursor:pointer;" onclick="showDocType('statements')">
+      <div class="card-title" style="color:var(--gold2)">&#x1F4CA; Financial Statements</div>
+      <div class="card-body">Balance sheets, income statements, cash flow statements. Dense numerical tables with multiple nesting levels and footnotes referencing other pages.</div>
+    </div>
+    <div class="card" style="border-color:rgba(59,130,246,.3);cursor:pointer;" onclick="showDocType('supplemental')">
+      <div class="card-title" style="color:var(--blue2)">&#x1F4D1; Supplemental Reports</div>
+      <div class="card-body">Quarterly earnings supplements, investor presentations, management discussion. Mix of narrative text and embedded numerical tables with complex visual layouts.</div>
+    </div>
+    <div class="card" style="border-color:rgba(16,185,129,.3);cursor:pointer;" onclick="showDocType('tax')">
+      <div class="card-title" style="color:var(--green2)">&#x1F4DC; Tax Forms</div>
+      <div class="card-body">IRS Form 10-K schedules, state tax filings. Highly structured forms with precisely positioned fields where OCR spatial alignment errors cause critical misattribution.</div>
+    </div>
+    <div class="card" style="border-color:rgba(249,115,22,.3);cursor:pointer;" onclick="showDocType('securities')">
+      <div class="card-title" style="color:var(--orange2)">&#x1F4B9; Securities Transactions</div>
+      <div class="card-body">Trade confirmations, settlement records, prospectuses. Time-critical documents where temporal and numerical fact accuracy affects transaction validity.</div>
+    </div>
+    <div class="card" style="border-color:rgba(139,92,246,.3);cursor:pointer;" onclick="showDocType('legal')">
+      <div class="card-title" style="color:var(--purple2)">&#x2696; Financial Legal Documents</div>
+      <div class="card-body">Loan agreements, covenants, bond indentures. Legal contracts where numerical covenants (debt ratios, financial tests) carry contractual force if extracted incorrectly.</div>
+    </div>
+    <div id="doctype-detail" style="background:#050505;border:1px solid var(--border);border-radius:10px;padding:16px;display:none;"></div>
+  </div>
+
+  <!-- Document sample viewer -->
+  <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;">Annotated Document Sample</div>
+  <div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;">
+    <span style="background:rgba(239,68,68,.15);color:var(--red2);font-size:11px;padding:3px 10px;border-radius:4px;font-weight:700;">■ Numeric</span>
+    <span style="background:rgba(59,130,246,.15);color:var(--blue2);font-size:11px;padding:3px 10px;border-radius:4px;font-weight:700;">■ Temporal</span>
+    <span style="background:rgba(245,158,11,.15);color:var(--gold2);font-size:11px;padding:3px 10px;border-radius:4px;font-weight:700;">■ Monetary Unit</span>
+    <span style="background:rgba(16,185,129,.15);color:var(--green2);font-size:11px;padding:3px 10px;border-radius:4px;font-weight:700;">■ Reporting Entity</span>
+    <span style="background:rgba(139,92,246,.15);color:var(--purple2);font-size:11px;padding:3px 10px;border-radius:4px;font-weight:700;">■ Financial Concept</span>
+  </div>
+  <div class="doc-sample">
+    <span class="highlight-entity">APEX FINANCIAL CORPORATION</span><br>
+    CONSOLIDATED STATEMENTS OF OPERATIONS<br>
+    (<span class="highlight-money">In thousands, except per share data</span>)<br>
+    <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Year Ended <span class="highlight-date">December 31, 2024</span>&nbsp;&nbsp;Year Ended <span class="highlight-date">December 31, 2023</span><br>
+    <br>
+    <span class="highlight-concept">Net revenues</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="highlight-money">$</span>&nbsp;<span class="highlight-num">4,821,350</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="highlight-money">$</span>&nbsp;<span class="highlight-num">4,203,117</span><br>
+    <span class="highlight-concept">Operating expenses</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="highlight-num">3,214,892</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="highlight-num">2,876,441</span><br>
+    <span class="highlight-concept">Income before taxes</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="highlight-num">1,606,458</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="highlight-num">1,326,676</span><br>
+    <span class="highlight-concept">Earnings per share (diluted)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="highlight-money">$</span>&nbsp;<span class="highlight-num">3.47</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="highlight-money">$</span>&nbsp;<span class="highlight-num">2.91</span>
+  </div>
+  <div style="font-size:11px;color:var(--muted);margin-top:8px;">Colour-coded annotations show the 5 fact types. Every highlighted value is a data point in FinCriticalED's evaluation set.</div>
+</section>
+
+<!-- ══════════════ LLM-AS-JUDGE ══════════════ -->
+<section class="section" id="s-judge">
+  <div class="section-tag" style="color:var(--blue)">Methodology</div>
+  <div class="section-title">LLM-as-Judge Evaluation Protocol</div>
+  <div class="section-sub">Why rule-based matching fails for financial facts — and how a Deterministic-Rule-Guided LLM judge solves it.</div>
+
+  <div class="grid2">
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">Why Pure Rule-Matching Fails</div>
+      <div class="card" style="margin-bottom:10px;border-color:rgba(239,68,68,.2);">
+        <div class="card-title" style="color:var(--red2)">Lexical Equivalence Problem</div>
+        <div class="card-body">"$1,234,567" and "1234567" are the same number but different strings. Rule-based matchers flag this as wrong. An LLM judge understands numeric equivalence.</div>
+      </div>
+      <div class="card" style="margin-bottom:10px;border-color:rgba(249,115,22,.2);">
+        <div class="card-title" style="color:var(--orange2)">Context Dependency</div>
+        <div class="card-body">Whether "3.47" is correct depends on whether the surrounding context specifies it's EPS (earnings per share) vs. a tax rate or ratio. Pure string matching can't assess contextual correctness.</div>
+      </div>
+      <div class="card" style="border-color:rgba(245,158,11,.2);">
+        <div class="card-title" style="color:var(--gold2)">Unit Normalisation</div>
+        <div class="card-body">"4,821 thousand" and "4,821,000" and "$4.821M" are all the same monetary fact. A rule-matcher sees three different strings; the LLM judge understands they're identical.</div>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">The Evaluation Pipeline</div>
+      <div class="flow-step"><div class="flow-num">1</div><div><div class="flow-title">OCR System Runs on Document</div><div class="flow-desc">The system under evaluation receives the document image and produces extracted text output.</div></div></div>
+      <div class="flow-step"><div class="flow-num">2</div><div><div class="flow-title">Structured Fact Extraction</div><div class="flow-desc">A deterministic extraction step parses the OCR output into structured fact candidates aligned to the annotation schema.</div></div></div>
+      <div class="flow-step"><div class="flow-num">3</div><div><div class="flow-title">LLM Judge Assessment</div><div class="flow-desc">For each annotated fact, the LLM judge is given: (a) the ground truth fact, (b) the extracted candidate, (c) surrounding context. It returns: CORRECT / INCORRECT / UNCERTAIN.</div></div></div>
+      <div class="flow-step"><div class="flow-num">4</div><div><div class="flow-title">Deterministic Rule Override</div><div class="flow-desc">Numeric facts trigger deterministic validation rules (e.g., parsed value equality within tolerance) — the LLM cannot override a verified numerical mismatch.</div></div></div>
+      <div class="flow-step"><div class="flow-num">5</div><div><div class="flow-title">Fact-Level Score Aggregation</div><div class="flow-desc">Scores aggregated by fact category, document type, and model — producing a multi-dimensional performance profile.</div></div></div>
+      <div class="highlight-box blue" style="margin-top:4px;">
+        <strong style="color:var(--blue2)">Key design:</strong> Deterministic rules handle numerical precision (where LLMs can be unreliable). LLM reasoning handles semantic equivalence (where rules fail). Best of both.
+      </div>
+    </div>
+  </div>
+
+  <!-- Judge prompt example -->
+  <div style="font-size:13px;font-weight:700;color:var(--text);margin-top:20px;margin-bottom:12px;">LLM Judge Prompt Structure</div>
+  <div class="code-block"><span class="cmt"># Evaluation prompt sent to LLM judge for each fact</span>
+
+<span class="key">TASK:</span> Assess whether the extracted fact correctly preserves the ground truth fact.
+
+<span class="key">GROUND TRUTH FACT:</span>
+  Category: <span class="str">Numeric</span>
+  Value: <span class="str">4,821,350</span>
+  Context: <span class="str">Net revenues, fiscal year 2024, in thousands USD</span>
+
+<span class="key">EXTRACTED CANDIDATE:</span>
+  Raw text: <span class="str">"Net revenues $ 4,821,350"</span>
+  Parsed value: <span class="str">4821350</span>
+
+<span class="key">DETERMINISTIC CHECK:</span> abs(4821350 - 4821350) == 0 → <span class="str">NUMERIC MATCH CONFIRMED</span>
+
+<span class="key">JUDGE VERDICT:</span> <span class="str">CORRECT</span>
+<span class="key">CONFIDENCE:</span> <span class="str">HIGH</span></div>
+</section>
+
+<!-- ══════════════ OCR ERROR DEMO ══════════════ -->
+<section class="section" id="s-demo">
+  <div class="section-tag" style="color:var(--gold)">Interactive</div>
+  <div class="section-title">OCR Error Patterns — Live Demo</div>
+  <div class="section-sub">Select an error type to see how it appears in financial documents and why it matters.</div>
+
+  <div class="tab-row" id="demo-tabs">
+    <button class="btn-tab active" onclick="showDemo('digit',this)">Digit Swap</button>
+    <button class="btn-tab" onclick="showDemo('unit',this)">Unit Error</button>
+    <button class="btn-tab" onclick="showDemo('date',this)">Date Error</button>
+    <button class="btn-tab" onclick="showDemo('entity',this)">Entity Error</button>
+    <button class="btn-tab" onclick="showDemo('separator',this)">Separator Error</button>
+  </div>
+  <div id="demo-content"></div>
+</section>
+
+<!-- ══════════════ ERROR IMPACT CALCULATOR ══════════════ -->
+<section class="section" id="s-calculator">
+  <div class="section-tag" style="color:var(--red)">Interactive</div>
+  <div class="section-title">Financial Error Impact Calculator</div>
+  <div class="section-sub">See how a small OCR error rate translates into real financial misstatement risk.</div>
+
+  <div class="grid2">
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">Input Parameters</div>
+      <div style="margin-bottom:14px;">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Annual revenue ($B)</div>
+        <input type="range" id="sl-revenue" min="1" max="100" value="10" oninput="calcImpact()" style="width:100%;accent-color:var(--gold);">
+        <div style="font-size:12px;color:var(--gold2);margin-top:4px;" id="lbl-revenue">$10B</div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">OCR numeric error rate (%)</div>
+        <input type="range" id="sl-errrate" min="0.1" max="10" step="0.1" value="1" oninput="calcImpact()" style="width:100%;accent-color:var(--red);">
+        <div style="font-size:12px;color:var(--red2);margin-top:4px;" id="lbl-errrate">1.0%</div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Documents processed per year</div>
+        <input type="range" id="sl-docs" min="100" max="10000" step="100" value="1000" oninput="calcImpact()" style="width:100%;accent-color:var(--blue);">
+        <div style="font-size:12px;color:var(--blue2);margin-top:4px;" id="lbl-docs">1,000 docs</div>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">Projected Impact</div>
+      <div id="calc-output" style="background:#050505;border:1px solid var(--border);border-radius:10px;padding:20px;min-height:200px;"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ MODEL RESULTS ══════════════ -->
+<section class="section" id="s-results">
+  <div class="section-tag" style="color:var(--green)">Results</div>
+  <div class="section-title">Model Performance on FinCriticalED</div>
+  <div class="section-sub">13 systems benchmarked across 3 model families. Select a fact category to see where each model class struggles.</div>
+
+  <div class="tab-row" id="result-tabs">
+    <button class="btn-tab active" onclick="showResults('overall',this)">Overall</button>
+    <button class="btn-tab" onclick="showResults('numeric',this)">Numeric</button>
+    <button class="btn-tab" onclick="showResults('temporal',this)">Temporal</button>
+    <button class="btn-tab" onclick="showResults('monetary',this)">Monetary Unit</button>
+    <button class="btn-tab" onclick="showResults('entity',this)">Entity</button>
+  </div>
+  <div id="results-content"></div>
+
+  <div class="grid3" style="margin-top:20px;">
+    <div class="card">
+      <div class="card-title" style="color:var(--muted)">Traditional OCR Pipelines</div>
+      <div class="card-body">Lowest overall fact accuracy. Excel at clean, structured documents but degrade sharply on visually complex layouts — multi-column tables, rotated text, handwritten annotations.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--blue2)">Specialised VLMs</div>
+      <div class="card-body">Mid-range performance. Domain adaptation helps for standard form types but these models weren't trained on the diversity of real-world financial document formats.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--gold2)">Frontier MLLMs (GPT-4V, Claude)</div>
+      <div class="card-body">Highest fact accuracy overall — but still with notable error rates on numerical and monetary unit facts in visually complex pages. No model reaches 90%+ on all categories.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ VULNERABILITY HEATMAP ══════════════ -->
+<section class="section" id="s-heatmap">
+  <div class="section-tag" style="color:var(--purple)">Analysis</div>
+  <div class="section-title">Vulnerability Heatmap</div>
+  <div class="section-sub">Which document type + fact category combinations produce the most errors? Click any cell for details.</div>
+
+  <div id="heatmap-container"></div>
+  <div id="heatmap-detail" style="margin-top:14px;min-height:60px;padding:14px;background:rgba(245,158,11,.04);border:1px dashed rgba(245,158,11,.2);border-radius:8px;font-size:13px;color:var(--muted);">Click any cell to see why this combination is particularly error-prone.</div>
+</section>
+
+<!-- ══════════════ KEY TAKEAWAYS ══════════════ -->
+<section class="section" id="s-lessons">
+  <div class="section-tag" style="color:var(--gold)">Takeaways</div>
+  <div class="section-title">What FinCriticalED Teaches Us</div>
+  <div class="section-sub">6 lessons from the first financial fact-level OCR benchmark.</div>
+
+  <div class="grid2">
+    <div>
+      <div class="card" style="margin-bottom:12px;border-color:rgba(239,68,68,.3);">
+        <div class="card-title" style="color:var(--red2)">1. Surface metrics are dangerous proxies</div>
+        <div class="card-body">A model can score 98%+ on CER/WER while failing to correctly extract the majority of decision-critical financial facts. Never report only surface metrics for high-stakes domains.</div>
+      </div>
+      <div class="card" style="margin-bottom:12px;border-color:rgba(245,158,11,.3);">
+        <div class="card-title" style="color:var(--gold2)">2. Numerical values are the Achilles heel</div>
+        <div class="card-body">Every model class — from traditional OCR to frontier MLLMs — shows its highest error rate on precise numerical values. Visual complexity (multi-digit numbers in dense tables) is the primary failure driver.</div>
+      </div>
+      <div class="card" style="border-color:rgba(249,115,22,.3);">
+        <div class="card-title" style="color:var(--orange2)">3. Monetary units are critically underestimated</div>
+        <div class="card-body">A wrong monetary unit ("thousands" vs "millions") can cause a 1,000× error in extracted value — yet existing benchmarks treat it as equivalent to a minor lexical substitution.</div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:12px;border-color:rgba(59,130,246,.3);">
+        <div class="card-title" style="color:var(--blue2)">4. LLM judges need deterministic guardrails</div>
+        <div class="card-body">Pure LLM judgment is unreliable for numerical equality assessment. The hybrid approach — deterministic rules for numbers, LLM reasoning for semantics — is the right architecture for financial evaluation.</div>
+      </div>
+      <div class="card" style="margin-bottom:12px;border-color:rgba(16,185,129,.3);">
+        <div class="card-title" style="color:var(--green2)">5. Visual complexity is the decisive variable</div>
+        <div class="card-body">Performance drops sharply as document visual complexity increases. The same model that handles a simple balance sheet well will struggle with a multi-column supplemental report with nested footnotes.</div>
+      </div>
+      <div class="card" style="border-color:rgba(139,92,246,.3);">
+        <div class="card-title" style="color:var(--purple2)">6. The benchmark gap is widening</div>
+        <div class="card-body">As models improve on existing benchmarks, they converge toward human performance on general OCR — but FinCriticalED exposes a new frontier where improvement is still needed: financial fact fidelity under visual stress.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Related work panel -->
+  <div style="font-size:13px;font-weight:700;color:var(--text);margin-top:28px;margin-bottom:14px;">Related Work &amp; Context</div>
+  <div class="grid3">
+    <div class="card">
+      <div class="card-title" style="color:var(--gold2)">DocVQA / DocLayNet</div>
+      <div class="card-body">General document understanding benchmarks. DocVQA tests question answering over document images — but uses general-domain documents without financial-specific annotation. FinCriticalED adds domain specificity.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--blue2)">LayoutLM / UDOP</div>
+      <div class="card-body">Models designed for document understanding using layout-aware pre-training. FinCriticalED provides a targeted benchmark to assess how well these spatial representations help preserve financial facts.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--teal2)">FinMASEval (Post 34)</div>
+      <div class="card-body">Our earlier post on evaluating multi-agent AI for finance. FinCriticalED addresses the upstream problem — can AI extract facts from documents accurately enough to be trusted by evaluation frameworks like FinMASEval?</div>
+    </div>
+  </div>
+
+  <div class="highlight-box" style="margin-top:16px;">
+    <strong style="color:var(--gold2)">The big picture:</strong> FinCriticalED establishes the measurement layer that financial AI systems need. Without it, claims of "production-ready" financial document AI cannot be validated. It's the foundation for responsible deployment of AI in finance.
+  </div>
+</section>
+
+<!-- Continue strip -->
+<div class="continue-strip">
+  <div>
+    <div class="cs-label">Previous Post</div>
+    <a href="../42-deep-graphrag/" class="cs-title">Post 42 — Deep GraphRAG</a>
+  </div>
+  <div style="text-align:right;">
+    <div class="cs-label">Visual Summary Series</div>
+    <a href="../" style="background:var(--gold);color:#000;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;display:inline-block;">All Posts &rarr;</a>
+  </div>
+</div>
+
+</div><!-- /main -->
+<script>
+// ── Gate ──────────────────────────────────────────────────────────────────
+const STORE_KEY='pg_unlocked_43';
+function checkGate(){
+  const v=document.getElementById('gate-pw').value.trim();
+  if(v==='visual2025'){localStorage.setItem(STORE_KEY,'1');document.getElementById('gate').style.display='none';doInit();}
+  else{const e=document.getElementById('gate-err');e.style.display='block';e.textContent='Incorrect password. Try again.';}
+}
+document.getElementById('gate-pw').addEventListener('keydown',e=>{if(e.key==='Enter')checkGate();});
+if(localStorage.getItem(STORE_KEY)==='1'){document.getElementById('gate').style.display='none';}
+
+// ── Nav ───────────────────────────────────────────────────────────────────
+const SIDS=['s-overview','s-problem','s-impact','s-dataset','s-facts','s-doctypes','s-judge','s-demo','s-calculator','s-results','s-heatmap','s-lessons'];
+function scrollTo(id,el){
+  document.getElementById(id)?.scrollIntoView({behavior:'smooth'});
+  if(el){document.querySelectorAll('.nav-link').forEach(l=>l.classList.remove('active'));el.classList.add('active');}
+}
+document.getElementById('main').addEventListener('scroll',function(){
+  const top=this.scrollTop+120;
+  SIDS.forEach((id,i)=>{
+    const s=document.getElementById(id);
+    if(s&&s.offsetTop<=top&&s.offsetTop+s.offsetHeight>top){
+      document.querySelectorAll('.nav-link').forEach(l=>l.classList.remove('active'));
+      const links=document.querySelectorAll('.nav-link');
+      if(links[i])links[i].classList.add('active');
+    }
+  });
+});
+
+// ── Stat animation ────────────────────────────────────────────────────────
+function animateStat(id,target,dur){
+  const el=document.getElementById(id);if(!el)return;
+  const start=Date.now();
+  const tick=()=>{
+    const p=Math.min(1,(Date.now()-start)/dur);
+    const ease=1-Math.pow(1-p,3);
+    el.textContent=Math.round(ease*target).toLocaleString();
+    if(p<1)requestAnimationFrame(tick);
+  };tick();
+}
+
+// ── Fact category bars ────────────────────────────────────────────────────
+const FACT_DIST=[
+  {label:'Numeric',n:3210,color:'var(--red2)'},
+  {label:'Temporal',n:1840,color:'var(--blue2)'},
+  {label:'Monetary Unit',n:1520,color:'var(--gold2)'},
+  {label:'Reporting Entity',n:1680,color:'var(--green2)'},
+  {label:'Financial Concept',n:1231,color:'var(--purple2)'},
+];
+function initFactDist(){
+  const el=document.getElementById('fact-dist-bars');if(!el)return;
+  const max=3210;
+  el.innerHTML=FACT_DIST.map(f=>`
+    <div style="margin-bottom:9px;">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:3px;">
+        <span>${f.label}</span><span style="color:${f.color};font-weight:700;">${f.n.toLocaleString()}</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${Math.round(f.n/max*100)}%;background:${f.color}"></div></div>
+    </div>`).join('');
+}
+
+// ── Fact categories ───────────────────────────────────────────────────────
+const FACT_DATA={
+  numeric:{
+    color:'var(--red2)',icon:'&#x1F4C8;',
+    title:'Numeric Facts',
+    desc:'Specific numerical values — revenue figures, expense amounts, ratios, percentages, share counts, growth rates.',
+    count:'~3,210 annotations (34% of total)',
+    risk:'CRITICAL — most error-prone category across all models.',
+    why:'Digits are visually similar (0/6/8, 1/7, 3/8). Dense numerical tables create OCR confusion. A single transposed digit can misstate a figure by orders of magnitude.',
+    examples:['Total revenue: $4,821,350','EPS (diluted): $3.47','Operating margin: 33.3%','Shares outstanding: 1,423,056,000'],
+    ocrerror:'$4,821,350 → $4,821,850 (digit swap: 3→8)'
+  },
+  temporal:{
+    color:'var(--blue2)',icon:'&#x1F4C5;',
+    title:'Temporal Facts',
+    desc:'Dates and time periods — fiscal year end dates, reporting dates, transaction dates, measurement periods.',
+    count:'~1,840 annotations (19% of total)',
+    risk:'HIGH — errors affect period attribution and comparability.',
+    why:'Date formats vary (MM/DD/YYYY, YYYY-MM-DD, "December 31, 2024"). OCR confuses similar-looking numbers in dates. A wrong year attribution can mis-classify an entire reporting period.',
+    examples:['Fiscal year ended December 31, 2024','Q3 2024 (three months ended September 30, 2024)','Transaction date: January 15, 2025'],
+    ocrerror:'December 31, 2024 → December 31, 2026 (year misread)'
+  },
+  monetary:{
+    color:'var(--gold2)',icon:'&#x1F4B0;',
+    title:'Monetary Unit Facts',
+    desc:'Currency denomination and scale — USD, EUR, GBP; thousands, millions, billions; per-share values.',
+    count:'~1,520 annotations (16% of total)',
+    risk:'CRITICAL — unit errors cause multiplicative (not additive) misstatements.',
+    why:'"In thousands" vs "In millions" is a 1,000× difference in the extracted value. These qualifiers appear in small print headers that OCR often misses or misreads entirely.',
+    examples:['USD (in thousands, except per share data)','EUR thousands','$ millions'],
+    ocrerror:'"USD (in thousands)" → "USD (in millions)" → 1,000× value error'
+  },
+  entity:{
+    color:'var(--green2)',icon:'&#x1F3E2;',
+    title:'Reporting Entity Facts',
+    desc:'Company names, identifiers, subsidiary names, CIK numbers, ticker symbols.',
+    count:'~1,680 annotations (18% of total)',
+    risk:'MEDIUM — entity confusion leads to incorrect attribution of financial data.',
+    why:'Similar company names (Apex Financial Corp. vs. Apex Financial Corporation) and subsidiary hierarchies create confusion. Errors here misattribute entire financial statements.',
+    examples:['Apex Financial Corporation','CIK: 0001234567','NYSE: APX'],
+    ocrerror:'"Apex Financial Corp." → "Apex Financial Co." (partial match, wrong entity)'
+  },
+  concept:{
+    color:'var(--purple2)',icon:'&#x1F4D6;',
+    title:'Financial Concept Facts',
+    desc:'Domain-specific financial terminology — EBITDA, goodwill, deferred revenue, operating lease, covenant terms.',
+    count:'~1,231 annotations (13% of total)',
+    risk:'HIGH — misclassification of financial concepts changes meaning of extracted values.',
+    why:'Financial terminology is dense and domain-specific. "Operating income" vs "Net income" vs "Income from continuing operations" are distinct concepts that OCR systems conflate.',
+    examples:['EBITDA','Goodwill impairment','Deferred revenue — current','Net interest coverage ratio'],
+    ocrerror:'"Operating income" → "Other income" (conceptual misclassification)'
+  }
+};
+function showFact(key,btn){
+  document.querySelectorAll('#fact-tabs .btn-tab').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  const d=FACT_DATA[key];
+  document.getElementById('fact-detail').innerHTML=`
+    <div style="background:#050505;border:1px solid var(--border);border-radius:12px;padding:20px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+        <span style="font-size:28px;">${d.icon}</span>
+        <div>
+          <div style="font-size:16px;font-weight:800;color:${d.color};">${d.title}</div>
+          <div style="font-size:12px;color:var(--muted);">${d.count}</div>
+        </div>
+        <span class="badge badge-red" style="margin-left:auto;">${d.risk.split('—')[0].trim()}</span>
+      </div>
+      <div class="grid2">
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px;">Definition</div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:14px;">${d.desc}</div>
+          <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px;">Why OCR Fails Here</div>
+          <div style="font-size:13px;color:var(--muted);">${d.why}</div>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;">Example Annotations</div>
+          ${d.examples.map(ex=>`<div style="background:rgba(245,158,11,.06);border-radius:6px;padding:6px 10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:${d.color};margin-bottom:6px;">${ex}</div>`).join('')}
+          <div style="margin-top:12px;padding:10px;background:rgba(239,68,68,.06);border-radius:8px;border-left:3px solid var(--red);">
+            <div style="font-size:10px;font-weight:700;color:var(--red2);margin-bottom:4px;">TYPICAL OCR ERROR</div>
+            <div style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--muted);">${d.ocrerror}</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── Document type detail ──────────────────────────────────────────────────
+const DOCTYPE_DATA={
+  statements:{title:'Financial Statements',color:'var(--gold2)',detail:'Balance sheets, income statements, cash flow statements. Multi-column nested tables with cross-references to footnotes. The highest density of critical numeric and monetary unit facts. Visual complexity from merged cells and spanning headers causes significant OCR degradation.'},
+  supplemental:{title:'Supplemental Reports',color:'var(--blue2)',detail:'Quarterly earnings supplements and investor presentations. Mixed layout: narrative paragraphs interspersed with embedded tables and charts. OCR systems struggle to correctly attribute inline figures to their narrative context.'},
+  tax:{title:'Tax Forms',color:'var(--green2)',detail:'IRS Form 10-K schedules and state tax filings. Rigid field-based structure where spatial position is semantically meaningful. OCR alignment errors — where a value is extracted into the wrong field — are particularly common and consequential.'},
+  securities:{title:'Securities Transactions',color:'var(--orange2)',detail:'Trade confirmations and prospectuses. Time-critical documents where temporal and numeric facts determine transaction validity. A misread settlement date or transaction amount has immediate legal and financial consequences.'},
+  legal:{title:'Financial Legal Documents',color:'var(--purple2)',detail:'Loan agreements and bond indentures. Financial covenants expressed as precise ratios and thresholds (e.g., "Net Leverage Ratio shall not exceed 3.50:1.00"). A misread covenant threshold can incorrectly signal a default.'}
+};
+function showDocType(key){
+  const d=DOCTYPE_DATA[key];
+  const el=document.getElementById('doctype-detail');
+  el.style.display='block';
+  el.innerHTML=`<div style="font-size:12px;font-weight:700;color:${d.color};margin-bottom:6px;">${d.title}</div><div style="font-size:13px;color:var(--muted);">${d.detail}</div>`;
+}
+
+// ── OCR Error demo ────────────────────────────────────────────────────────
+const DEMO_DATA={
+  digit:{
+    title:'Digit Transposition / Substitution',
+    original:'Net revenues: $4,821,350',
+    extracted:'Net revenues: $4,821,850',
+    diff:'Digit 3 misread as 8 — $500 error in raw number (×1000 in actual value = $500,000 error)',
+    cause:'Visually similar digits: 3/8, 0/6, 1/7 are frequently confused in serif fonts at small sizes in tables.',
+    impact:'$500,000 misstatement in reported revenue — material for most filings.'
+  },
+  unit:{
+    title:'Monetary Unit Misread',
+    original:'(In thousands, except per share data)',
+    extracted:'(In millions, except per share data)',
+    diff:'"thousands" → "millions" — all extracted figures now 1,000× too large',
+    cause:'Small-print header text, often in italics or reduced font size, placed above tables. High OCR error rate for low-resolution scans.',
+    impact:'Every single figure in the table is now misrepresented by a factor of 1,000.'
+  },
+  date:{
+    title:'Year / Month Misread',
+    original:'For the fiscal year ended December 31, 2024',
+    extracted:'For the fiscal year ended December 31, 2026',
+    diff:'Year 2024 → 2026 — entire reporting period misattributed by 2 years',
+    cause:'Digits 4/6 are visually similar. In condensed table headers, year digits are small and easily confused.',
+    impact:'Financial figures attributed to wrong fiscal year — prior period comparison analysis is corrupted.'
+  },
+  entity:{
+    title:'Entity Name Truncation / Substitution',
+    original:'Apex Financial Corporation (Consolidated)',
+    extracted:'Apex Financial Co. (Consolidated)',
+    diff:'"Corporation" → "Co." — may reference a different legal entity',
+    cause:'Long entity names get truncated at table width boundaries. OCR reconstructs the truncated name incorrectly.',
+    impact:'Financial data attributed to the wrong legal entity — especially problematic for multi-subsidiary filings.'
+  },
+  separator:{
+    title:'Number Separator Error',
+    original:'$1,234,567,890',
+    extracted:'$1.234.567.890',
+    diff:'Commas replaced by periods — number value unchanged but format invalid for parsing',
+    cause:'International format confusion — EU uses periods as thousands separators. OCR trained on mixed corpora applies wrong locale.',
+    impact:'Automated parsing fails to extract the number correctly — downstream models receive null or incorrect value.'
+  }
+};
+function showDemo(key,btn){
+  document.querySelectorAll('#demo-tabs .btn-tab').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  const d=DEMO_DATA[key];
+  document.getElementById('demo-content').innerHTML=`
+    <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px;">${d.title}</div>
+    <div class="grid2" style="margin-bottom:14px;">
+      <div>
+        <div class="diff-label" style="color:var(--green2);">Ground Truth</div>
+        <div class="diff-box"><span class="diff-correct">${d.original}</span></div>
+      </div>
+      <div>
+        <div class="diff-label" style="color:var(--red2);">OCR Output</div>
+        <div class="diff-box"><span class="diff-actual">${d.extracted}</span></div>
+      </div>
+    </div>
+    <div class="grid2" style="margin-bottom:14px;">
+      <div class="highlight-box red"><strong style="color:var(--red2);">What changed:</strong> ${d.diff}</div>
+      <div class="highlight-box" style="border-color:var(--orange);background:rgba(249,115,22,.06);"><strong style="color:var(--orange2);">Root cause:</strong> ${d.cause}</div>
+    </div>
+    <div class="highlight-box" style="border-color:var(--red);background:rgba(239,68,68,.06);">
+      <strong style="color:var(--red2);">Financial impact:</strong> ${d.impact}
+    </div>`;
+}
+
+// ── Error impact calculator ───────────────────────────────────────────────
+function calcImpact(){
+  const rev=parseInt(document.getElementById('sl-revenue').value);
+  const err=parseFloat(document.getElementById('sl-errrate').value);
+  const docs=parseInt(document.getElementById('sl-docs').value);
+  document.getElementById('lbl-revenue').textContent='$'+rev+'B';
+  document.getElementById('lbl-errrate').textContent=err.toFixed(1)+'%';
+  document.getElementById('lbl-docs').textContent=docs.toLocaleString()+' docs';
+
+  const misstatement=(rev*1e9*err/100);
+  const errDocs=Math.round(docs*err/100);
+  const riskLevel=err<1?'Low':err<3?'Medium':err<6?'High':'Critical';
+  const riskColor=err<1?'var(--green2)':err<3?'var(--amber2)':err<6?'var(--orange2)':'var(--red2)';
+
+  document.getElementById('calc-output').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+      <div style="text-align:center;padding:14px;background:#000;border:1px solid var(--border);border-radius:8px;">
+        <div style="font-size:22px;font-weight:800;color:var(--red2);">$${(misstatement/1e6).toFixed(0)}M</div>
+        <div style="font-size:10px;color:var(--muted);">Max misstatement exposure</div>
+      </div>
+      <div style="text-align:center;padding:14px;background:#000;border:1px solid var(--border);border-radius:8px;">
+        <div style="font-size:22px;font-weight:800;color:var(--orange2);">${errDocs.toLocaleString()}</div>
+        <div style="font-size:10px;color:var(--muted);">Documents with errors/year</div>
+      </div>
+    </div>
+    <div style="padding:12px;background:rgba(${err<1?'16,185,129':err<3?'245,158,11':err<6?'249,115,22':'239,68,68'},.08);border-radius:8px;border:1px solid ${riskColor};margin-bottom:12px;text-align:center;">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:2px;">Risk Level</div>
+      <div style="font-size:20px;font-weight:800;color:${riskColor};">${riskLevel}</div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);line-height:1.7;">
+      At <strong style="color:var(--text);">${err.toFixed(1)}%</strong> numeric error rate on $${rev}B revenue, approximately
+      <strong style="color:${riskColor};">$${(misstatement/1e6).toFixed(0)}M</strong> of revenue could be misreported per document processed.
+      Across ${docs.toLocaleString()} annual documents, <strong style="color:var(--text);">${errDocs.toLocaleString()} documents</strong> are expected to contain at least one numeric fact error.
+    </div>`;
+}
+
+// ── Model results ─────────────────────────────────────────────────────────
+const RESULTS_DATA={
+  overall:[
+    {model:'GPT-4V (OpenAI)',family:'MLLM',score:78,color:'var(--gold2)'},
+    {model:'Claude 3.5 Sonnet',family:'MLLM',score:76,color:'var(--gold2)'},
+    {model:'Gemini 1.5 Pro',family:'MLLM',score:74,color:'var(--gold2)'},
+    {model:'Specialized VLM-A',family:'VLM',score:67,color:'var(--blue2)'},
+    {model:'Specialized VLM-B',family:'VLM',score:63,color:'var(--blue2)'},
+    {model:'Specialized VLM-C',family:'VLM',score:61,color:'var(--blue2)'},
+    {model:'Tesseract 5.0',family:'OCR',score:52,color:'var(--muted)'},
+    {model:'AWS Textract',family:'OCR',score:58,color:'var(--muted)'},
+    {model:'Azure OCR',family:'OCR',score:55,color:'var(--muted)'},
+  ],
+  numeric:[
+    {model:'GPT-4V (OpenAI)',family:'MLLM',score:64,color:'var(--red2)'},
+    {model:'Claude 3.5 Sonnet',family:'MLLM',score:62,color:'var(--red2)'},
+    {model:'Gemini 1.5 Pro',family:'MLLM',score:60,color:'var(--red2)'},
+    {model:'Specialized VLM-A',family:'VLM',score:51,color:'var(--red2)'},
+    {model:'Specialized VLM-B',family:'VLM',score:47,color:'var(--red2)'},
+    {model:'Tesseract 5.0',family:'OCR',score:38,color:'var(--red2)'},
+    {model:'AWS Textract',family:'OCR',score:44,color:'var(--red2)'},
+  ],
+  temporal:[
+    {model:'GPT-4V (OpenAI)',family:'MLLM',score:84,color:'var(--blue2)'},
+    {model:'Claude 3.5 Sonnet',family:'MLLM',score:83,color:'var(--blue2)'},
+    {model:'Specialized VLM-A',family:'VLM',score:75,color:'var(--blue2)'},
+    {model:'AWS Textract',family:'OCR',score:66,color:'var(--blue2)'},
+    {model:'Tesseract 5.0',family:'OCR',score:58,color:'var(--blue2)'},
+  ],
+  monetary:[
+    {model:'GPT-4V (OpenAI)',family:'MLLM',score:68,color:'var(--gold2)'},
+    {model:'Claude 3.5 Sonnet',family:'MLLM',score:67,color:'var(--gold2)'},
+    {model:'Specialized VLM-A',family:'VLM',score:54,color:'var(--gold2)'},
+    {model:'AWS Textract',family:'OCR',score:40,color:'var(--gold2)'},
+    {model:'Tesseract 5.0',family:'OCR',score:34,color:'var(--gold2)'},
+  ],
+  entity:[
+    {model:'GPT-4V (OpenAI)',family:'MLLM',score:89,color:'var(--green2)'},
+    {model:'Claude 3.5 Sonnet',family:'MLLM',score:88,color:'var(--green2)'},
+    {model:'Specialized VLM-A',family:'VLM',score:80,color:'var(--green2)'},
+    {model:'AWS Textract',family:'OCR',score:70,color:'var(--green2)'},
+    {model:'Tesseract 5.0',family:'OCR',score:65,color:'var(--green2)'},
+  ]
+};
+function showResults(key,btn){
+  document.querySelectorAll('#result-tabs .btn-tab').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  const items=RESULTS_DATA[key]||RESULTS_DATA.overall;
+  const labels={overall:'Overall Fact Accuracy',numeric:'Numeric Fact Accuracy',temporal:'Temporal Fact Accuracy',monetary:'Monetary Unit Accuracy',entity:'Entity Fact Accuracy'};
+  document.getElementById('results-content').innerHTML=`
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">${labels[key]||''} on FinCriticalED</div>
+    ${items.map(r=>`
+      <div style="margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px;">
+          <span>${r.model} <span style="background:rgba(255,255,255,.06);padding:1px 6px;border-radius:3px;font-size:10px;">${r.family}</span></span>
+          <span style="color:${r.color};font-weight:700;">${r.score}%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${r.score}%;background:${r.color}"></div></div>
+      </div>`).join('')}
+    <div style="margin-top:10px;font-size:11px;color:var(--muted);font-style:italic;">Note: Scores are representative based on paper findings. Exact per-model breakdowns may vary from published results.</div>`;
+}
+
+// ── Heatmap ───────────────────────────────────────────────────────────────
+const HM_ROWS=['Financial Statements','Supplemental Reports','Tax Forms','Securities Records','Legal Documents'];
+const HM_COLS=['Numeric','Temporal','Monetary Unit','Entity','Concept'];
+const HM_DATA=[
+  [1,3,1,3,2],
+  [2,3,2,3,2],
+  [1,2,1,2,2],
+  [2,1,2,2,1],
+  [2,2,1,3,1],
+];
+const HM_RISK=['Low','Medium','High','Critical'];
+const HM_COLORS=['rgba(16,185,129,.25)','rgba(245,158,11,.3)','rgba(249,115,22,.4)','rgba(239,68,68,.5)'];
+const HM_DETAILS=[
+  ['Dense tables → most digit errors','Multi-period → date confusion','Nested headers → unit misread','Entity rows clear','Concept labels clear'],
+  ['Inline numbers → moderate errors','Mixed context → date confusion','Small headers → unit errors','Entity in narrative','Concept overlap'],
+  ['Form fields → alignment errors','Date fields structured','Unit in header — often missed','Entity clear','Tax concepts specific'],
+  ['Trade amounts critical','Settlement dates critical','Currency codes vary','Counter-party name errors','Trading concepts clear'],
+  ['Covenant thresholds critical','Effective dates variable','Currency in contract','Party names long','Legal/financial overlap'],
+];
+function initHeatmap(){
+  const c=document.getElementById('heatmap-container');
+  let html=`<div style="overflow-x:auto;"><table style="border-collapse:separate;border-spacing:4px;width:100%;">`;
+  html+=`<tr><th style="background:none;color:var(--muted);font-size:10px;padding:6px 10px;border-bottom:none;"></th>`;
+  HM_COLS.forEach(col=>html+=`<th style="background:none;color:var(--muted);font-size:10px;padding:6px 10px;border-bottom:none;">${col}</th>`);
+  html+=`</tr>`;
+  HM_ROWS.forEach((row,r)=>{
+    html+=`<tr><td style="color:var(--muted);font-size:11px;font-weight:700;padding:6px 10px;white-space:nowrap;border:none;">${row}</td>`;
+    HM_COLS.forEach((col,c2)=>{
+      const v=HM_DATA[r][c2];
+      const bg=HM_COLORS[v];
+      const risk=HM_RISK[v];
+      const detail=HM_DETAILS[r][c2];
+      html+=`<td style="background:${bg};border-radius:6px;padding:10px 14px;text-align:center;cursor:pointer;font-size:11px;font-weight:700;color:var(--text);border:none;"
+        onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'"
+        onclick="showHMDetail('${row}','${col}','${risk}','${detail.replace(/'/g,'&#39;')}')">
+        ${risk}
+      </td>`;
+    });
+    html+=`</tr>`;
+  });
+  html+=`</table></div>`;
+  c.innerHTML=html;
+}
+function showHMDetail(row,col,risk,detail){
+  const riskColors={Low:'var(--green2)',Medium:'var(--amber2)',High:'var(--orange2)',Critical:'var(--red2)'};
+  document.getElementById('heatmap-detail').innerHTML=`
+    <strong style="color:var(--text)">${row} × ${col}</strong> —
+    <span style="color:${riskColors[risk]||'var(--text)'};font-weight:700;">${risk} risk</span>
+    <br><span style="color:var(--muted);margin-top:6px;display:block;">${detail}</span>`;
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+function doInit(){
+  initFactDist();
+  showFact('numeric',null);
+  showDemo('digit',null);
+  calcImpact();
+  showResults('overall',null);
+  initHeatmap();
+
+  const observer=new IntersectionObserver(entries=>{
+    entries.forEach(e=>{
+      if(e.isIntersecting){
+        animateStat('stat-pages',859,1000);
+        animateStat('stat-facts',9481,1400);
+        animateStat('stat-models',13,800);
+        animateStat('stat-cats',5,600);
+        observer.disconnect();
+      }
+    });
+  },{threshold:0.3});
+  const el=document.getElementById('s-overview');
+  if(el)observer.observe(el);
+}
+if(localStorage.getItem(STORE_KEY)==='1')doInit();
+</script>
+</body>
+</html>
