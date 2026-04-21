@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Deep GraphRAG — A Visual Guide to Hierarchical Retrieval &amp; Adaptive Integration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#030d0d;--surface:#061414;--border:#0d2a2a;
+  --text:#d0faf4;--muted:#2d7a6e;
+  --teal:#06b6d4;--teal2:#22d3ee;--teal3:#a5f3fc;
+  --green:#10b981;--green2:#34d399;--green3:#a7f3d0;
+  --emerald:#059669;--emerald2:#10b981;
+  --cyan:#06b6d4;--cyan2:#67e8f9;
+  --blue:#3b82f6;--blue2:#60a5fa;--blue3:#bfdbfe;
+  --purple:#8b5cf6;--purple2:#a78bfa;
+  --amber:#f59e0b;--amber2:#fbbf24;--amber3:#fde68a;
+  --orange:#f97316;--orange2:#fb923c;
+  --red:#ef4444;--red2:#fca5a5;
+  --pink:#ec4899;--pink2:#f472b6;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+/* Gate */
+#gate{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.gate-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 44px;text-align:center;max-width:380px;width:90%;}
+.gate-icon{font-size:36px;margin-bottom:12px;}
+.gate-title{font-size:20px;font-weight:800;color:var(--teal2);margin-bottom:4px;}
+.gate-sub{font-size:12px;color:var(--muted);margin-bottom:24px;}
+.gate-input{width:100%;background:#020808;border:1px solid var(--border);border-radius:8px;padding:11px 14px;font-size:14px;color:var(--text);outline:none;margin-bottom:12px;}
+.gate-input:focus{border-color:var(--teal);}
+.gate-btn{width:100%;background:var(--teal);color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s;}
+.gate-btn:hover{opacity:.85;}
+.gate-err{font-size:11px;color:var(--red);margin-top:6px;display:none;}
+/* Layout */
+.sidebar{width:240px;min-width:240px;height:100vh;position:sticky;top:0;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:0 0 40px;flex-shrink:0;}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.sidebar-logo-title{font-size:13px;font-weight:700;color:var(--teal2);}
+.sidebar-logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.nav-group-title{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;padding:10px 16px 4px;}
+.nav-link{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;}
+.nav-link:hover,.nav-link.active{color:var(--text);background:rgba(6,182,212,.08);}
+.nav-link.active{color:var(--teal2);}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.main{flex:1;overflow-y:auto;height:100vh;scroll-behavior:smooth;}
+/* Pipeline */
+.pipeline-map{position:sticky;top:0;z-index:50;background:rgba(3,13,13,.96);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+.pipe-step{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);padding:2px 6px;border-radius:4px;cursor:pointer;transition:color .15s;}
+.pipe-step:hover{color:var(--text);}
+.pipe-dot{width:6px;height:6px;border-radius:50%;}
+.pipe-arrow{color:var(--border);font-size:12px;}
+/* Sections */
+.section{min-height:100vh;padding:60px 48px 80px;border-bottom:1px solid var(--border);}
+.section-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;}
+.section-title{font-size:28px;font-weight:800;color:var(--text);margin-bottom:8px;line-height:1.25;}
+.section-sub{font-size:14px;color:var(--muted);margin-bottom:28px;max-width:700px;}
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:16px;}
+.card-title{font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px;}
+.card-body{font-size:13px;color:var(--muted);line-height:1.6;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+/* Highlights */
+.highlight-box{border-left:3px solid var(--teal);padding:12px 16px;background:rgba(6,182,212,.06);border-radius:0 8px 8px 0;margin-bottom:16px;font-size:13px;color:var(--muted);}
+.highlight-box.green{border-color:var(--green);background:rgba(16,185,129,.06);}
+.highlight-box.amber{border-color:var(--amber);background:rgba(245,158,11,.06);}
+.highlight-box.red{border-color:var(--red);background:rgba(239,68,68,.06);}
+.highlight-box.purple{border-color:var(--purple);background:rgba(139,92,246,.06);}
+.highlight-box.blue{border-color:var(--blue);background:rgba(59,130,246,.06);}
+/* Code */
+.code-block{background:#020808;border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-family:'JetBrains Mono','Courier New',monospace;font-size:12px;line-height:1.8;margin-bottom:16px;overflow-x:auto;white-space:pre;}
+.code-block .kw{color:var(--teal2);}
+.code-block .str{color:var(--green2);}
+.code-block .key{color:var(--amber2);}
+.code-block .val{color:var(--purple2);}
+.code-block .cmt{color:var(--muted);}
+/* Tables */
+table{width:100%;border-collapse:collapse;margin-bottom:20px;font-size:12px;}
+th{background:rgba(6,182,212,.12);color:var(--teal2);font-weight:700;padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);}
+td{padding:9px 14px;border-bottom:1px solid rgba(13,42,42,.8);color:var(--muted);}
+tr:hover td{background:rgba(6,182,212,.04);}
+td strong{color:var(--text);}
+/* Stat cards */
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;text-align:center;}
+.stat-num{font-size:30px;font-weight:800;margin-bottom:4px;}
+.stat-label{font-size:11px;color:var(--muted);line-height:1.4;}
+/* Buttons */
+.btn-tab{background:rgba(6,182,212,.08);border:1px solid var(--border);border-radius:6px;padding:7px 14px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;font-family:'Inter',sans-serif;}
+.btn-tab:hover{color:var(--text);}
+.btn-tab.active{background:rgba(6,182,212,.2);border-color:var(--teal);color:var(--teal2);}
+.tab-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;}
+/* Badge */
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+.badge-new{background:rgba(6,182,212,.2);color:var(--teal2);border:1px solid rgba(6,182,212,.3);}
+.badge-base{background:rgba(139,92,246,.2);color:var(--purple2);border:1px solid rgba(139,92,246,.3);}
+.badge-win{background:rgba(16,185,129,.2);color:var(--green2);border:1px solid rgba(16,185,129,.3);}
+.badge-lose{background:rgba(239,68,68,.2);color:var(--red2);border:1px solid rgba(239,68,68,.3);}
+/* Progress */
+.progress-bar{background:rgba(6,182,212,.1);border-radius:4px;height:8px;overflow:hidden;margin-bottom:4px;}
+.progress-fill{height:100%;border-radius:4px;transition:width .8s ease;}
+/* Flow step */
+.flow-step{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;}
+.flow-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;background:rgba(6,182,212,.15);color:var(--teal2);border:1px solid var(--teal);}
+.flow-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px;}
+.flow-desc{font-size:12px;color:var(--muted);}
+/* Canvas */
+canvas{border-radius:8px;display:block;}
+/* Continue strip */
+.continue-strip{background:var(--surface);border-top:1px solid var(--border);padding:32px 48px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;}
+.cs-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.cs-title{font-size:15px;font-weight:700;color:var(--text);}
+.cs-btn{background:var(--teal);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s;}
+.cs-btn:hover{opacity:.85;}
+/* Node styles for graph viz */
+.node-circle{cursor:pointer;transition:all .2s;}
+/* Evolution timeline */
+.evo-step{border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:10px;cursor:pointer;transition:all .15s;position:relative;}
+.evo-step:hover{border-color:var(--teal);}
+.evo-step.active{border-color:var(--teal);background:rgba(6,182,212,.06);}
+.evo-step-num{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.evo-step-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px;}
+.evo-step-detail{font-size:12px;color:var(--muted);display:none;line-height:1.6;}
+.evo-step.active .evo-step-detail{display:block;}
+/* Arch component */
+.arch-comp{border-radius:10px;padding:14px 16px;margin-bottom:10px;border:1px solid;cursor:pointer;transition:all .15s;}
+.arch-comp:hover{opacity:.9;}
+.arch-comp-title{font-size:13px;font-weight:700;margin-bottom:4px;}
+.arch-comp-body{font-size:12px;line-height:1.5;display:none;}
+.arch-comp.open .arch-comp-body{display:block;}
+/* Slider */
+.slider-row{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+.slider-label{font-size:11px;color:var(--muted);width:160px;flex-shrink:0;}
+.slider-val{font-size:12px;font-weight:700;color:var(--teal2);width:40px;text-align:right;}
+input[type=range]{flex:1;accent-color:var(--teal);}
+</style>
+</head>
+<body>
+
+<!-- Gate -->
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-icon">&#x1F578;</div>
+    <div class="gate-title">Deep GraphRAG</div>
+    <div class="gate-sub">Hierarchical Retrieval &amp; Adaptive Integration &middot; Visual Summary</div>
+    <input id="gate-pw" class="gate-input" type="password" placeholder="Enter password" onkeydown="if(event.key==='Enter')checkGate()">
+    <button class="gate-btn" onclick="checkGate()">Unlock</button>
+    <div id="gate-err" class="gate-err">Incorrect password. Try again.</div>
+  </div>
+</div>
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-title">Deep GraphRAG</div>
+    <div class="sidebar-logo-sub">Post 42 &middot; Retrieval &amp; Knowledge</div>
+  </div>
+  <div class="nav-group-title">Foundations</div>
+  <div class="nav-link active" onclick="scrollTo('s-overview',this)"><span class="dot" style="background:#06b6d4"></span>Overview</div>
+  <div class="nav-link" onclick="scrollTo('s-evolution',this)"><span class="dot" style="background:#22d3ee"></span>RAG Evolution</div>
+  <div class="nav-link" onclick="scrollTo('s-problem',this)"><span class="dot" style="background:#ef4444"></span>The Problem</div>
+
+  <div class="nav-group-title">Deep GraphRAG</div>
+  <div class="nav-link" onclick="scrollTo('s-architecture',this)"><span class="dot" style="background:#10b981"></span>Architecture</div>
+  <div class="nav-link" onclick="scrollTo('s-hierarchy',this)"><span class="dot" style="background:#34d399"></span>Hierarchical Graph</div>
+  <div class="nav-link" onclick="scrollTo('s-retrieval',this)"><span class="dot" style="background:#06b6d4"></span>Retrieval Engine</div>
+  <div class="nav-link" onclick="scrollTo('s-adaptive',this)"><span class="dot" style="background:#8b5cf6"></span>Adaptive Integration</div>
+  <div class="nav-link" onclick="scrollTo('s-rl',this)"><span class="dot" style="background:#f59e0b"></span>RL Policy Optimization</div>
+
+  <div class="nav-group-title">Interactive</div>
+  <div class="nav-link" onclick="scrollTo('s-graphviz',this)"><span class="dot" style="background:#06b6d4"></span>Graph Traversal Demo</div>
+  <div class="nav-link" onclick="scrollTo('s-multihop',this)"><span class="dot" style="background:#34d399"></span>Multi-hop Reasoning</div>
+
+  <div class="nav-group-title">Results</div>
+  <div class="nav-link" onclick="scrollTo('s-results',this)"><span class="dot" style="background:#10b981"></span>Benchmarks &amp; Results</div>
+  <div class="nav-link" onclick="scrollTo('s-compare',this)"><span class="dot" style="background:#fbbf24"></span>Method Comparison</div>
+  <div class="nav-link" onclick="scrollTo('s-ablation',this)"><span class="dot" style="background:#a78bfa"></span>Ablation Study</div>
+  <div class="nav-link" onclick="scrollTo('s-limits',this)"><span class="dot" style="background:#6b7280"></span>Limitations &amp; Future</div>
+</nav>
+
+<!-- Main -->
+<div class="main" id="main">
+
+<!-- Pipeline Bar -->
+<div class="pipeline-map">
+  <div class="pipe-step" onclick="scrollTo('s-overview')"><span class="pipe-dot" style="background:#06b6d4"></span>RAG</div>
+  <span class="pipe-arrow">›</span>
+  <div class="pipe-step" onclick="scrollTo('s-evolution')"><span class="pipe-dot" style="background:#22d3ee"></span>GraphRAG</div>
+  <span class="pipe-arrow">›</span>
+  <div class="pipe-step" onclick="scrollTo('s-hierarchy')"><span class="pipe-dot" style="background:#10b981"></span>Hierarchy</div>
+  <span class="pipe-arrow">›</span>
+  <div class="pipe-step" onclick="scrollTo('s-retrieval')"><span class="pipe-dot" style="background:#06b6d4"></span>Retrieval Engine</div>
+  <span class="pipe-arrow">›</span>
+  <div class="pipe-step" onclick="scrollTo('s-adaptive')"><span class="pipe-dot" style="background:#8b5cf6"></span>Adaptive Integration</div>
+  <span class="pipe-arrow">›</span>
+  <div class="pipe-step" onclick="scrollTo('s-rl')"><span class="pipe-dot" style="background:#f59e0b"></span>RL Policy</div>
+  <span class="pipe-arrow">›</span>
+  <div class="pipe-step" onclick="scrollTo('s-results')"><span class="pipe-dot" style="background:#34d399"></span>Results</div>
+</div>
+
+<!-- ═══════════════════════ OVERVIEW ═══════════════════════ -->
+<section class="section" id="s-overview">
+  <div class="section-tag" style="color:var(--teal)">Post 42 &middot; Retrieval &amp; Knowledge</div>
+  <div class="section-title">Deep GraphRAG</div>
+  <div class="section-sub">A hierarchical, RL-guided approach to knowledge graph retrieval that solves multi-hop reasoning — from Ant Group, 2026.</div>
+
+  <div class="highlight-box">
+    <strong style="color:var(--teal2)">Paper:</strong> <span style="color:var(--text)">"Deep GraphRAG: A Balanced Approach to Hierarchical Retrieval and Adaptive Integration"</span><br>
+    <span style="color:var(--muted)">Yuejie Li, Ke Yang, Tao Wang, Bolin Chen, Bowen Li, Chengjun Mao &middot; Ant Group &middot; arXiv 2601.11144 (2026)</span>
+  </div>
+
+  <div class="grid3">
+    <div class="card">
+      <div class="card-title" style="color:var(--red2)">The Problem</div>
+      <div class="card-body">Standard RAG retrieves flat, disconnected text chunks. Multi-hop questions — those requiring 2+ reasoning steps across different facts — fail because the links between chunks are never captured.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--teal2)">The Solution</div>
+      <div class="card-body">Deep GraphRAG organises knowledge in a multi-level hierarchy and uses a reinforcement-learning–guided traversal engine to navigate it, with an adaptive module that weighs retrieved evidence by query type.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--green2)">Key Result</div>
+      <div class="card-body">Outperforms standard GraphRAG, flat dense retrieval, and GFM-RAG variants on multi-hop QA benchmarks (HotpotQA), with measurable gains in retrieval accuracy and reasoning depth.</div>
+    </div>
+  </div>
+
+  <!-- Big picture diagram -->
+  <div style="margin-top:24px;font-size:13px;font-weight:700;color:var(--text);margin-bottom:16px;">The Big Picture</div>
+  <div style="display:flex;align-items:center;gap:0;overflow-x:auto;padding-bottom:8px;">
+    <div style="text-align:center;min-width:120px;">
+      <div style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:14px;margin-bottom:8px;">
+        <div style="font-size:20px;margin-bottom:6px;">&#x1F4CB;</div>
+        <div style="font-size:11px;font-weight:700;color:var(--red2)">Raw Corpus</div>
+        <div style="font-size:10px;color:var(--muted)">Documents, KB, APIs</div>
+      </div>
+    </div>
+    <div style="font-size:20px;color:var(--muted);padding:0 8px;">&#x2192;</div>
+    <div style="text-align:center;min-width:130px;">
+      <div style="background:rgba(6,182,212,.12);border:1px solid rgba(6,182,212,.3);border-radius:10px;padding:14px;margin-bottom:8px;">
+        <div style="font-size:20px;margin-bottom:6px;">&#x1F578;</div>
+        <div style="font-size:11px;font-weight:700;color:var(--teal2)">Hierarchical Graph</div>
+        <div style="font-size:10px;color:var(--muted)">Concepts → Entities → Facts</div>
+      </div>
+    </div>
+    <div style="font-size:20px;color:var(--muted);padding:0 8px;">&#x2192;</div>
+    <div style="text-align:center;min-width:130px;">
+      <div style="background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.3);border-radius:10px;padding:14px;margin-bottom:8px;">
+        <div style="font-size:20px;margin-bottom:6px;">&#x1F9ED;</div>
+        <div style="font-size:11px;font-weight:700;color:var(--green2)">RL Retrieval Engine</div>
+        <div style="font-size:10px;color:var(--muted)">Policy-guided traversal</div>
+      </div>
+    </div>
+    <div style="font-size:20px;color:var(--muted);padding:0 8px;">&#x2192;</div>
+    <div style="text-align:center;min-width:130px;">
+      <div style="background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.3);border-radius:10px;padding:14px;margin-bottom:8px;">
+        <div style="font-size:20px;margin-bottom:6px;">&#x2696;</div>
+        <div style="font-size:11px;font-weight:700;color:var(--purple2)">Adaptive Integration</div>
+        <div style="font-size:10px;color:var(--muted)">Dynamic evidence weighting</div>
+      </div>
+    </div>
+    <div style="font-size:20px;color:var(--muted);padding:0 8px;">&#x2192;</div>
+    <div style="text-align:center;min-width:110px;">
+      <div style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);border-radius:10px;padding:14px;margin-bottom:8px;">
+        <div style="font-size:20px;margin-bottom:6px;">&#x1F4A1;</div>
+        <div style="font-size:11px;font-weight:700;color:var(--amber2)">LLM Answer</div>
+        <div style="font-size:10px;color:var(--muted)">Grounded response</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ RAG EVOLUTION ═══════════════════════ -->
+<section class="section" id="s-evolution">
+  <div class="section-tag" style="color:var(--teal)">Background</div>
+  <div class="section-title">The Evolution of RAG</div>
+  <div class="section-sub">How retrieval-augmented generation evolved from simple chunk lookup to hierarchical graph traversal. Click each generation to expand.</div>
+
+  <div class="evo-step active" id="evo-1" onclick="toggleEvo('evo-1')">
+    <div class="evo-step-num">Generation 1 &middot; ~2020</div>
+    <div class="evo-step-title">Naive RAG — Chunk &amp; Retrieve</div>
+    <div class="evo-step-detail">
+      Split documents into fixed-size chunks → embed each chunk → store in a vector database → at query time, embed the question and retrieve top-k nearest chunks → feed to LLM.<br><br>
+      <strong style="color:var(--text)">Works well for:</strong> Single-fact questions, simple lookups.<br>
+      <strong style="color:var(--red2)">Fails at:</strong> Any question requiring multiple facts from different chunks — there is no mechanism to follow relationships between chunks.
+    </div>
+  </div>
+
+  <div class="evo-step" id="evo-2" onclick="toggleEvo('evo-2')">
+    <div class="evo-step-num">Generation 2 &middot; ~2022</div>
+    <div class="evo-step-title">Advanced RAG — Reranking, HyDE, Query Expansion</div>
+    <div class="evo-step-detail">
+      Added preprocessing (better chunking, metadata) and postprocessing (rerankers, HyDE — Hypothetical Document Embeddings, query decomposition) to improve retrieval quality.<br><br>
+      <strong style="color:var(--text)">Works well for:</strong> Improved single-hop precision.<br>
+      <strong style="color:var(--red2)">Fails at:</strong> Still fundamentally flat — no graph structure, still can't follow entity chains.
+    </div>
+  </div>
+
+  <div class="evo-step" id="evo-3" onclick="toggleEvo('evo-3')">
+    <div class="evo-step-num">Generation 3 &middot; 2024 (Microsoft)</div>
+    <div class="evo-step-title">GraphRAG — Knowledge Graph + Community Summaries</div>
+    <div class="evo-step-detail">
+      Extracts entities and relationships from the corpus to build a knowledge graph. Detects communities (clusters) in the graph and generates summaries for each community. Two retrieval modes: <em>Local</em> (entity-level) and <em>Global</em> (community-level, for thematic queries).<br><br>
+      <strong style="color:var(--text)">Works well for:</strong> Global thematic questions ("What are the main themes in this document set?").<br>
+      <strong style="color:var(--red2)">Fails at:</strong> The graph is flat (one level) — no hierarchical depth. No adaptive mechanism for different query types. No policy learning.
+    </div>
+  </div>
+
+  <div class="evo-step" id="evo-4" onclick="toggleEvo('evo-4')">
+    <div class="evo-step-num">Generation 4 &middot; 2025–2026</div>
+    <div class="evo-step-title">Deep GraphRAG — Hierarchical + Adaptive + RL <span class="badge badge-new">This Paper</span></div>
+    <div class="evo-step-detail">
+      Introduces a <strong style="color:var(--teal2)">multi-level knowledge hierarchy</strong> (concepts → entities → facts), a <strong style="color:var(--green2)">reinforcement-learning–guided traversal engine</strong> that learns optimal retrieval policies, and an <strong style="color:var(--purple2)">adaptive integration module</strong> that dynamically weights retrieved evidence based on query characteristics.<br><br>
+      <strong style="color:var(--green2)">Solves:</strong> Multi-hop reasoning, adaptive strategy selection, contamination-free retrieval-to-training separation.
+    </div>
+  </div>
+
+  <div style="margin-top:24px;">
+    <table>
+      <tr><th>Method</th><th>Graph?</th><th>Hierarchy?</th><th>Adaptive?</th><th>RL Policy?</th><th>Multi-hop?</th></tr>
+      <tr><td><strong>Naive RAG</strong></td><td style="color:var(--red2)">&#x2717;</td><td style="color:var(--red2)">&#x2717;</td><td style="color:var(--red2)">&#x2717;</td><td style="color:var(--red2)">&#x2717;</td><td style="color:var(--red2)">&#x2717;</td></tr>
+      <tr><td><strong>Advanced RAG</strong></td><td style="color:var(--red2)">&#x2717;</td><td style="color:var(--red2)">&#x2717;</td><td style="color:var(--amber2)">Partial</td><td style="color:var(--red2)">&#x2717;</td><td style="color:var(--red2)">&#x2717;</td></tr>
+      <tr><td><strong>GraphRAG (MS)</strong></td><td style="color:var(--green2)">&#x2713;</td><td style="color:var(--red2)">&#x2717;</td><td style="color:var(--red2)">&#x2717;</td><td style="color:var(--red2)">&#x2717;</td><td style="color:var(--amber2)">Limited</td></tr>
+      <tr><td><strong>Deep GraphRAG</strong></td><td style="color:var(--green2)">&#x2713;</td><td style="color:var(--green2)">&#x2713;</td><td style="color:var(--green2)">&#x2713;</td><td style="color:var(--green2)">&#x2713;</td><td style="color:var(--green2)">&#x2713;</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ═══════════════════════ THE PROBLEM ═══════════════════════ -->
+<section class="section" id="s-problem">
+  <div class="section-tag" style="color:var(--red)">Problem</div>
+  <div class="section-title">Why Existing RAG Fails on Complex Queries</div>
+  <div class="section-sub">Three failure modes that motivated Deep GraphRAG.</div>
+
+  <div class="grid3" style="margin-bottom:24px;">
+    <div class="card">
+      <div class="card-title" style="color:var(--red2)">&#x274C; Flat Retrieval</div>
+      <div class="card-body">Knowledge is stored as isolated chunks. When a question requires combining facts from different documents, a standard vector search retrieves the most similar chunk — but that chunk alone doesn't contain the full answer.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--orange2)">&#x274C; One-Level Graphs</div>
+      <div class="card-body">Even graph-based RAG (Microsoft's approach) uses a single-level graph. It can't zoom in (drill from a concept to specific entity details) or zoom out (aggregate related entities into thematic concepts) dynamically.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--amber2)">&#x274C; Fixed Retrieval Strategy</div>
+      <div class="card-body">Existing systems apply the same retrieval logic to every query. A "what" factual question needs a different strategy than a "why" reasoning question. No current system adapts its retrieval policy to query type.</div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;">Multi-hop Failure — Worked Example</div>
+      <div style="background:#020808;border:1px solid var(--border);border-radius:10px;padding:16px;font-size:12px;">
+        <div style="color:var(--teal2);font-weight:700;margin-bottom:10px;">Query: "Who founded the company that acquired the startup that built the model used in this paper?"</div>
+        <div style="border-left:2px solid var(--red);padding-left:12px;margin-bottom:10px;">
+          <div style="font-size:10px;font-weight:700;color:var(--red2);margin-bottom:4px;">NAIVE RAG</div>
+          <div style="color:var(--muted)">Retrieves: chunk about the model architecture.<br>Missing: acquisition chain, founder info.<br><span style="color:var(--red2)">Result: hallucination or "I don't know"</span></div>
+        </div>
+        <div style="border-left:2px solid var(--green);padding-left:12px;">
+          <div style="font-size:10px;font-weight:700;color:var(--green2);margin-bottom:4px;">DEEP GRAPHRAG</div>
+          <div style="color:var(--muted)">Hop 1: model → find creator entity<br>Hop 2: creator → find acquisition relationship<br>Hop 3: acquirer → find founder<br><span style="color:var(--green2)">Result: correct 3-hop answer</span></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;">The Core Insight</div>
+      <div class="highlight-box" style="border-color:var(--teal)">
+        <strong style="color:var(--teal2)">Knowledge isn't flat.</strong> The world is a graph of interconnected concepts, entities, and facts at multiple levels of abstraction. RAG should mirror that structure — not fight it.
+      </div>
+      <div class="highlight-box green">
+        <strong style="color:var(--green2)">Retrieval is a policy problem.</strong> Deciding which graph edges to follow next is a sequential decision under uncertainty — exactly what reinforcement learning solves.
+      </div>
+      <div class="highlight-box purple">
+        <strong style="color:var(--purple2)">Integration is query-dependent.</strong> Not all retrieved evidence is equally useful for every query. An adaptive weighting mechanism should allocate attention based on query characteristics.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ ARCHITECTURE ═══════════════════════ -->
+<section class="section" id="s-architecture">
+  <div class="section-tag" style="color:var(--green)">Architecture</div>
+  <div class="section-title">Deep GraphRAG — 6 Components</div>
+  <div class="section-sub">Click any component to expand details.</div>
+
+  <div class="arch-comp open" id="ac-1" onclick="toggleArch('ac-1')" style="border-color:rgba(6,182,212,.4);background:rgba(6,182,212,.06);">
+    <div class="arch-comp-title" style="color:var(--teal2)">&#x1F578; 1. Hierarchical Graph Structure</div>
+    <div class="arch-comp-body" style="color:var(--muted)">Multi-level knowledge organisation: <strong style="color:var(--text)">Level 1 (Concept)</strong> — high-level topics and themes. <strong style="color:var(--text)">Level 2 (Entity)</strong> — named entities, objects, agents. <strong style="color:var(--text)">Level 3 (Fact)</strong> — specific claims, triples, relationships. Nodes at higher levels aggregate information from nodes below them, enabling both zoom-in (drill down) and zoom-out (thematic) retrieval from a single unified structure.</div>
+  </div>
+
+  <div class="arch-comp" id="ac-2" onclick="toggleArch('ac-2')" style="border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.04);">
+    <div class="arch-comp-title" style="color:var(--green2)">&#x1F9ED; 2. Graph-Based Retrieval Engine</div>
+    <div class="arch-comp-body" style="color:var(--muted)">Navigates the hierarchical graph using a <strong style="color:var(--text)">policy-guided traversal strategy</strong>. Given a query, the engine starts at relevant entry nodes, then follows edges selected by the learned policy. The traversal can span multiple hops, collecting evidence at each step. The policy determines: which nodes to visit next, how deep to traverse, and when to stop.</div>
+  </div>
+
+  <div class="arch-comp" id="ac-3" onclick="toggleArch('ac-3')" style="border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.04);">
+    <div class="arch-comp-title" style="color:var(--purple2)">&#x2696; 3. Adaptive Integration Module</div>
+    <div class="arch-comp-body" style="color:var(--muted)">Dynamically adjusts how retrieved evidence is combined. Rather than simply concatenating all retrieved nodes, this module assigns <strong style="color:var(--text)">adaptive weights</strong> based on: query type (factual vs. reasoning vs. thematic), query complexity, and the structural position of each retrieved node in the hierarchy. Evidence from deeper (fact-level) nodes is weighted higher for precise factual queries; higher-level (concept) nodes are weighted higher for thematic queries.</div>
+  </div>
+
+  <div class="arch-comp" id="ac-4" onclick="toggleArch('ac-4')" style="border-color:rgba(245,158,11,.4);background:rgba(245,158,11,.04);">
+    <div class="arch-comp-title" style="color:var(--amber2)">&#x1F3AF; 4. Reinforcement Learning Component</div>
+    <div class="arch-comp-body" style="color:var(--muted)">Trains the retrieval policy using <strong style="color:var(--text)">Trust Region Policy Optimization (TRPO)</strong> and <strong style="color:var(--text)">Direct Preference Optimization (DPO)</strong>. The agent receives a reward signal based on downstream answer quality. Over training, the policy learns to prefer traversal paths that lead to better answers — effectively learning which graph edges are informative for different query types.</div>
+  </div>
+
+  <div class="arch-comp" id="ac-5" onclick="toggleArch('ac-5')" style="border-color:rgba(59,130,246,.4);background:rgba(59,130,246,.04);">
+    <div class="arch-comp-title" style="color:var(--blue2)">&#x1F9E0; 5. LLM Integration Layer</div>
+    <div class="arch-comp-body" style="color:var(--muted)">The final retrieved and integrated evidence is formatted into a structured context and passed to the LLM. The integration layer provides <strong style="color:var(--text)">provenance metadata</strong> alongside each evidence piece — which graph node it came from, its level in the hierarchy, and its confidence score — allowing the LLM to weight and cite evidence appropriately in its answer.</div>
+  </div>
+
+  <div class="arch-comp" id="ac-6" onclick="toggleArch('ac-6')" style="border-color:rgba(236,72,153,.4);background:rgba(236,72,153,.04);">
+    <div class="arch-comp-title" style="color:var(--pink2)">&#x1F504; 6. Policy Optimization Framework</div>
+    <div class="arch-comp-body" style="color:var(--muted)">The overarching framework for balancing <strong style="color:var(--text)">exploration vs. exploitation</strong> in retrieval. Early in training, the engine explores diverse traversal paths. As the policy converges, it exploits known-good paths while maintaining a budget for exploring novel paths. TRPO constrains policy updates to prevent catastrophic forgetting of previously learned good strategies.</div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ HIERARCHICAL GRAPH ═══════════════════════ -->
+<section class="section" id="s-hierarchy">
+  <div class="section-tag" style="color:var(--green)">Component 1</div>
+  <div class="section-title">Hierarchical Graph Structure</div>
+  <div class="section-sub">Three levels of knowledge abstraction — each level aggregates the one below it.</div>
+
+  <div class="grid2">
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">The 3-Level Hierarchy</div>
+
+      <div style="border:1px solid rgba(6,182,212,.4);border-radius:10px;padding:14px 16px;margin-bottom:10px;background:rgba(6,182,212,.06);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <span style="font-size:12px;font-weight:700;color:var(--teal2)">Level 1 — Concept</span>
+          <span class="badge badge-new">Top</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);">High-level topics, themes, domains. Each concept node aggregates all entity nodes beneath it. Best for thematic and global queries.</div>
+        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
+          <span style="background:rgba(6,182,212,.15);color:var(--teal2);font-size:10px;padding:2px 8px;border-radius:4px;">Machine Learning</span>
+          <span style="background:rgba(6,182,212,.15);color:var(--teal2);font-size:10px;padding:2px 8px;border-radius:4px;">Financial Markets</span>
+          <span style="background:rgba(6,182,212,.15);color:var(--teal2);font-size:10px;padding:2px 8px;border-radius:4px;">Healthcare</span>
+        </div>
+      </div>
+
+      <div style="text-align:center;font-size:18px;color:var(--muted);padding:4px;">&#x2193;</div>
+
+      <div style="border:1px solid rgba(16,185,129,.4);border-radius:10px;padding:14px 16px;margin-bottom:10px;background:rgba(16,185,129,.06);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <span style="font-size:12px;font-weight:700;color:var(--green2)">Level 2 — Entity</span>
+          <span class="badge badge-base">Mid</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);">Named entities, objects, organisations, people. Connected via typed relationships. Best for entity-centric queries.</div>
+        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
+          <span style="background:rgba(16,185,129,.15);color:var(--green2);font-size:10px;padding:2px 8px;border-radius:4px;">Transformer</span>
+          <span style="background:rgba(16,185,129,.15);color:var(--green2);font-size:10px;padding:2px 8px;border-radius:4px;">BERT</span>
+          <span style="background:rgba(16,185,129,.15);color:var(--green2);font-size:10px;padding:2px 8px;border-radius:4px;">Google DeepMind</span>
+        </div>
+      </div>
+
+      <div style="text-align:center;font-size:18px;color:var(--muted);padding:4px;">&#x2193;</div>
+
+      <div style="border:1px solid rgba(245,158,11,.4);border-radius:10px;padding:14px 16px;background:rgba(245,158,11,.06);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <span style="font-size:12px;font-weight:700;color:var(--amber2)">Level 3 — Fact</span>
+          <span class="badge badge-win">Detail</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);">Specific claims, triples (subject, predicate, object), numerical facts. Best for precise factual queries requiring exact values.</div>
+        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
+          <span style="background:rgba(245,158,11,.15);color:var(--amber2);font-size:10px;padding:2px 8px;border-radius:4px;">(BERT, created_by, Google)</span>
+          <span style="background:rgba(245,158,11,.15);color:var(--amber2);font-size:10px;padding:2px 8px;border-radius:4px;">(Transformer, year, 2017)</span>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">Graph Construction Process</div>
+      <div class="flow-step"><div class="flow-num">1</div><div><div class="flow-title">Entity & Relation Extraction</div><div class="flow-desc">NLP pipeline extracts entities (named entity recognition) and typed relationships (relation extraction) from all source documents.</div></div></div>
+      <div class="flow-step"><div class="flow-num">2</div><div><div class="flow-title">Fact Triple Construction</div><div class="flow-desc">Relationships are formalised as triples: (subject entity, predicate, object entity). Each triple becomes a Level-3 fact node.</div></div></div>
+      <div class="flow-step"><div class="flow-num">3</div><div><div class="flow-title">Entity Clustering → Level 2</div><div class="flow-desc">Entities with dense interconnections are grouped. Each cluster forms a Level-2 entity node with aggregated metadata.</div></div></div>
+      <div class="flow-step"><div class="flow-num">4</div><div><div class="flow-title">Concept Abstraction → Level 1</div><div class="flow-desc">LLM-driven topic modelling identifies high-level concepts that span entity clusters. Concept nodes get summaries.</div></div></div>
+      <div class="flow-step"><div class="flow-num">5</div><div><div class="flow-title">Cross-Level Edge Wiring</div><div class="flow-desc">Edges are added between levels: fact → entity → concept. Horizontal edges connect related nodes within the same level.</div></div></div>
+
+      <div class="highlight-box" style="margin-top:8px;">
+        <strong style="color:var(--teal2)">Key property:</strong> Any query can enter the graph at any level. Simple factual queries enter at Level 3; broad thematic queries enter at Level 1. The traversal engine decides the entry point.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ RETRIEVAL ENGINE ═══════════════════════ -->
+<section class="section" id="s-retrieval">
+  <div class="section-tag" style="color:var(--teal)">Component 2</div>
+  <div class="section-title">Graph-Based Retrieval Engine</div>
+  <div class="section-sub">Policy-guided traversal that decides which nodes to visit and how deep to go.</div>
+
+  <div class="grid2">
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;">Retrieval as a Sequential Decision Process</div>
+      <div class="code-block"><span class="cmt"># Pseudocode: Policy-guided traversal</span>
+<span class="kw">def</span> <span class="str">retrieve</span>(query, graph, policy):
+    <span class="cmt"># Step 1: Embed query, find entry nodes</span>
+    entry = graph.find_entry_nodes(query)
+    visited = <span class="kw">set</span>(entry)
+    evidence = []
+
+    <span class="cmt"># Step 2: Iterative RL-guided traversal</span>
+    <span class="kw">for</span> step <span class="kw">in</span> range(max_hops):
+        <span class="cmt"># Policy decides: expand or stop?</span>
+        action = policy.select_action(
+            query, visited, graph
+        )
+        <span class="kw">if</span> action == <span class="str">'STOP'</span>:
+            <span class="kw">break</span>
+
+        <span class="cmt"># Follow selected edges</span>
+        next_nodes = graph.expand(
+            action.nodes, action.edge_types
+        )
+        evidence.extend(next_nodes)
+        visited.update(next_nodes)
+
+    <span class="kw">return</span> evidence</div>
+    </div>
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;">Traversal Strategies</div>
+      <div class="card" style="margin-bottom:10px;">
+        <div class="card-title" style="color:var(--teal2)">Top-Down (Concept → Fact)</div>
+        <div class="card-body">Start at a high-level concept, drill down through entities to specific facts. Used for queries that start broad ("Tell me about X") and need to be grounded in specific evidence.</div>
+      </div>
+      <div class="card" style="margin-bottom:10px;">
+        <div class="card-title" style="color:var(--green2)">Bottom-Up (Fact → Concept)</div>
+        <div class="card-body">Start at specific fact nodes matching the query, then aggregate upward to understand thematic context. Used for "why" and "how" questions that need contextual framing.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--purple2)">Lateral (Entity → Related Entities)</div>
+        <div class="card-body">Follow horizontal edges between entities at the same level. Used for multi-hop "chaining" queries: A relates to B relates to C — the core pattern for multi-hop QA.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ ADAPTIVE INTEGRATION ═══════════════════════ -->
+<section class="section" id="s-adaptive">
+  <div class="section-tag" style="color:var(--purple)">Component 3</div>
+  <div class="section-title">Adaptive Integration Module</div>
+  <div class="section-sub">Dynamic evidence weighting based on query type and node hierarchy position.</div>
+
+  <div class="grid2">
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;">Query Type → Weight Profile</div>
+      <div id="adapt-demo">
+        <div class="tab-row">
+          <button class="btn-tab active" onclick="showAdapt('factual',this)">Factual Query</button>
+          <button class="btn-tab" onclick="showAdapt('reasoning',this)">Reasoning Query</button>
+          <button class="btn-tab" onclick="showAdapt('thematic',this)">Thematic Query</button>
+        </div>
+        <div id="adapt-output"></div>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;">Why Fixed Weighting Fails</div>
+      <div class="highlight-box">
+        <strong style="color:var(--teal2)">Fixed strategy:</strong> Give all retrieved nodes equal weight regardless of query type.<br>
+        <strong style="color:var(--red2)">Result:</strong> Factual queries get polluted by high-level summaries that contradict specific facts. Thematic queries get distracted by irrelevant low-level trivia.
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--purple2)">Integration Formula</div>
+        <div class="card-body" style="font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.8;">
+          context = Σ w_i(q) · node_i<br><br>
+          where w_i(q) = softmax( f(query_type, level_i, confidence_i) )<br><br>
+          f is learned by the adaptive module during training<br>
+          level_i ∈ {1=concept, 2=entity, 3=fact}
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ RL POLICY ═══════════════════════ -->
+<section class="section" id="s-rl">
+  <div class="section-tag" style="color:var(--amber)">Component 4</div>
+  <div class="section-title">Reinforcement Learning Policy Optimization</div>
+  <div class="section-sub">How the retrieval engine learns from experience — TRPO + DPO training framework.</div>
+
+  <div class="grid2">
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">The RL Formulation</div>
+      <table>
+        <tr><th>RL Element</th><th>In Deep GraphRAG</th></tr>
+        <tr><td><strong>State</strong></td><td>Current set of visited nodes + query embedding</td></tr>
+        <tr><td><strong>Action</strong></td><td>Which graph edges to follow next (or STOP)</td></tr>
+        <tr><td><strong>Reward</strong></td><td>Answer quality score from LLM on downstream QA task</td></tr>
+        <tr><td><strong>Policy</strong></td><td>Neural network mapping state → action distribution</td></tr>
+        <tr><td><strong>Algorithm</strong></td><td>TRPO + DPO for stable policy updates</td></tr>
+      </table>
+
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;margin-top:20px;">Explore vs. Exploit Slider</div>
+      <div class="slider-row">
+        <div class="slider-label">Exploration (ε)</div>
+        <input type="range" id="sl-explore" min="0" max="100" value="30" oninput="updateRL()">
+        <div class="slider-val" id="sl-explore-val">30%</div>
+      </div>
+      <div class="slider-row">
+        <div class="slider-label">Training Step</div>
+        <input type="range" id="sl-step" min="1" max="100" value="50" oninput="updateRL()">
+        <div class="slider-val" id="sl-step-val">50k</div>
+      </div>
+      <div id="rl-output" style="background:#020808;border:1px solid var(--border);border-radius:8px;padding:14px;margin-top:12px;font-size:12px;color:var(--muted);line-height:1.8;"></div>
+    </div>
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;">TRPO vs DPO — When Each Is Used</div>
+      <div class="card" style="margin-bottom:10px;">
+        <div class="card-title" style="color:var(--amber2)">TRPO — Trust Region Policy Optimization</div>
+        <div class="card-body">Used during main policy training. Constrains each policy update to stay within a "trust region" — preventing large, destabilising parameter changes. Ensures the policy improves monotonically without forgetting previously learned good traversal paths.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--blue2)">DPO — Direct Preference Optimization</div>
+        <div class="card-body">Used for fine-tuning based on human or LLM preference feedback. Given pairs of traversal paths (preferred vs. rejected), DPO adjusts the policy to prefer the better path — without requiring an explicit reward model. Cheaper than RLHF while still incorporating preference signal.</div>
+      </div>
+      <div class="highlight-box amber" style="margin-top:12px;">
+        <strong style="color:var(--amber2)">Key benefit:</strong> The RL component is what separates Deep GraphRAG from rule-based graph traversal. The policy <em>learns</em> which graph paths are informative — and improves continuously as more queries are processed.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ GRAPH VIZ DEMO ═══════════════════════ -->
+<section class="section" id="s-graphviz">
+  <div class="section-tag" style="color:var(--teal)">Interactive</div>
+  <div class="section-title">Graph Traversal Demo</div>
+  <div class="section-sub">Watch how Deep GraphRAG traverses a hierarchical knowledge graph to answer a query. Click "Run Query" to animate.</div>
+
+  <div style="margin-bottom:14px;">
+    <select id="gv-query" style="background:#020808;border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--text);width:100%;margin-bottom:10px;outline:none;">
+      <option value="factual">Factual: "Who created the Transformer architecture?"</option>
+      <option value="multihop">Multi-hop: "What company acquired the lab that invented BERT?"</option>
+      <option value="thematic">Thematic: "What are the main advances in language model pre-training?"</option>
+    </select>
+    <button class="gate-btn" style="width:auto;padding:8px 20px;background:var(--teal);" onclick="runGraphViz()">&#x25B6; Run Query</button>
+    <button class="gate-btn" style="width:auto;padding:8px 20px;background:transparent;border:1px solid var(--border);color:var(--muted);margin-left:8px;" onclick="resetGraphViz()">Reset</button>
+  </div>
+  <canvas id="gv-canvas" width="700" height="360" style="background:#020808;border:1px solid var(--border);border-radius:10px;width:100%;max-width:700px;"></canvas>
+  <div id="gv-log" style="margin-top:12px;background:#020808;border:1px solid var(--border);border-radius:8px;padding:14px;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--muted);min-height:80px;line-height:1.8;"></div>
+</section>
+
+<!-- ═══════════════════════ MULTI-HOP ═══════════════════════ -->
+<section class="section" id="s-multihop">
+  <div class="section-tag" style="color:var(--green)">Interactive</div>
+  <div class="section-title">Multi-hop Reasoning Explorer</div>
+  <div class="section-sub">Step through a multi-hop reasoning chain to see how Deep GraphRAG connects facts across the knowledge graph.</div>
+
+  <div class="tab-row" id="mh-tabs">
+    <button class="btn-tab active" onclick="showMH(0,this)">Example 1</button>
+    <button class="btn-tab" onclick="showMH(1,this)">Example 2</button>
+    <button class="btn-tab" onclick="showMH(2,this)">Example 3</button>
+  </div>
+  <div id="mh-content"></div>
+</section>
+
+<!-- ═══════════════════════ RESULTS ═══════════════════════ -->
+<section class="section" id="s-results">
+  <div class="section-tag" style="color:var(--green)">Results</div>
+  <div class="section-title">Benchmarks &amp; Performance</div>
+  <div class="section-sub">Evaluated on HotpotQA (multi-hop QA), standard retrieval corpora, and synthetic knowledge graphs.</div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--teal2)" id="stat-acc">0%</div>
+      <div class="stat-label">Retrieval accuracy<br>on HotpotQA</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--green2)" id="stat-hop">0×</div>
+      <div class="stat-label">Multi-hop improvement<br>over flat RAG</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--amber2)" id="stat-depth">0</div>
+      <div class="stat-label">Avg. reasoning<br>chain depth</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--purple2)" id="stat-levels">0</div>
+      <div class="stat-label">Hierarchy levels<br>in knowledge graph</div>
+    </div>
+  </div>
+
+  <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">Performance vs Baselines — HotpotQA</div>
+  <div id="results-bars"></div>
+
+  <div style="margin-top:20px;font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;">Datasets Used</div>
+  <div class="grid3">
+    <div class="card"><div class="card-title" style="color:var(--teal2)">HotpotQA</div><div class="card-body">Multi-hop reasoning benchmark. Questions require combining evidence from 2+ Wikipedia articles. Gold standard for testing complex reasoning chains in RAG systems.</div></div>
+    <div class="card"><div class="card-title" style="color:var(--green2)">Standard Retrieval Corpora</div><div class="card-body">General-purpose retrieval quality assessment — single-hop factual questions. Used to verify Deep GraphRAG doesn't regress on simpler queries while gaining multi-hop capability.</div></div>
+    <div class="card"><div class="card-title" style="color:var(--amber2)">Synthetic Knowledge Graphs</div><div class="card-body">Controlled experiments with known-ground-truth graph structures. Used for ablation studies to isolate the contribution of each architectural component.</div></div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ COMPARISON ═══════════════════════ -->
+<section class="section" id="s-compare">
+  <div class="section-tag" style="color:var(--amber)">Comparison</div>
+  <div class="section-title">Method Comparison</div>
+  <div class="section-sub">How Deep GraphRAG stacks up against all baselines across key dimensions.</div>
+
+  <table>
+    <tr><th>Method</th><th>Multi-hop</th><th>Adaptive</th><th>Scalability</th><th>Overhead</th><th>Best Use Case</th></tr>
+    <tr>
+      <td><strong>Naive RAG</strong> <span class="badge badge-base">Baseline</span></td>
+      <td style="color:var(--red2)">Poor</td><td style="color:var(--red2)">None</td>
+      <td style="color:var(--green2)">High</td><td style="color:var(--green2)">Low</td>
+      <td>Simple single-fact lookups</td>
+    </tr>
+    <tr>
+      <td><strong>Advanced RAG</strong></td>
+      <td style="color:var(--amber2)">Limited</td><td style="color:var(--amber2)">Partial</td>
+      <td style="color:var(--green2)">High</td><td style="color:var(--amber2)">Medium</td>
+      <td>Single-hop with precision</td>
+    </tr>
+    <tr>
+      <td><strong>GraphRAG (MS)</strong></td>
+      <td style="color:var(--amber2)">Limited</td><td style="color:var(--red2)">No</td>
+      <td style="color:var(--amber2)">Medium</td><td style="color:var(--amber2)">Medium</td>
+      <td>Global thematic queries</td>
+    </tr>
+    <tr>
+      <td><strong>GFM-RAG</strong></td>
+      <td style="color:var(--amber2)">Moderate</td><td style="color:var(--red2)">No</td>
+      <td style="color:var(--amber2)">Medium</td><td style="color:var(--amber2)">Medium</td>
+      <td>Graph-augmented generation</td>
+    </tr>
+    <tr>
+      <td><strong>Drift Search (MS)</strong></td>
+      <td style="color:var(--amber2)">Moderate</td><td style="color:var(--amber2)">Partial</td>
+      <td style="color:var(--amber2)">Medium</td><td style="color:var(--amber2)">Medium</td>
+      <td>Multi-source synthesis</td>
+    </tr>
+    <tr>
+      <td><strong>Deep GraphRAG</strong> <span class="badge badge-win">This Paper</span></td>
+      <td style="color:var(--green2)">Strong</td><td style="color:var(--green2)">Full</td>
+      <td style="color:var(--amber2)">Medium*</td><td style="color:var(--amber2)">Medium</td>
+      <td>Complex multi-hop + adaptive</td>
+    </tr>
+  </table>
+  <div style="font-size:11px;color:var(--muted);">* Scalability to billions of nodes is a noted limitation. See Limitations section.</div>
+
+  <div class="grid2" style="margin-top:20px;">
+    <div class="highlight-box green">
+      <strong style="color:var(--green2)">Where Deep GraphRAG wins clearly:</strong> Any query requiring 2+ reasoning steps across disparate knowledge areas. The hierarchical structure and RL-guided traversal are the decisive advantages.
+    </div>
+    <div class="highlight-box amber">
+      <strong style="color:var(--amber2)">Where competitors hold up:</strong> Simple single-hop factual lookups (Naive RAG is faster, cheaper). Global theme summarisation without needing precise facts (GraphRAG community summaries are competitive).
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ ABLATION ═══════════════════════ -->
+<section class="section" id="s-ablation">
+  <div class="section-tag" style="color:var(--purple)">Ablation</div>
+  <div class="section-title">Ablation Study — What Each Component Contributes</div>
+  <div class="section-sub">Removing one component at a time to quantify its contribution to overall performance.</div>
+
+  <div id="ablation-bars"></div>
+
+  <div class="highlight-box purple" style="margin-top:16px;">
+    <strong style="color:var(--purple2)">Most critical component:</strong> The Hierarchical Graph Structure. Removing it causes the largest performance drop — it's the foundation everything else relies on. The RL policy without hierarchy has nothing useful to traverse.
+  </div>
+  <div class="highlight-box" style="margin-top:8px;">
+    <strong style="color:var(--teal2)">Second most critical:</strong> The Adaptive Integration Module. Even with a good traversal policy, flat weighting of evidence degrades answer quality significantly on mixed query types.
+  </div>
+</section>
+
+<!-- ═══════════════════════ LIMITATIONS ═══════════════════════ -->
+<section class="section" id="s-limits">
+  <div class="section-tag" style="color:var(--muted)">Limitations &amp; Future Work</div>
+  <div class="section-title">Where Deep GraphRAG Struggles</div>
+  <div class="section-sub">Honest assessment of current limitations and the research directions that address them.</div>
+
+  <div class="grid2">
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;">Current Limitations</div>
+      <div class="card" style="margin-bottom:10px;border-color:rgba(239,68,68,.3);">
+        <div class="card-title" style="color:var(--red2)">Scalability to Very Large Graphs</div>
+        <div class="card-body">The RL traversal policy and adaptive module add compute overhead that scales with graph size. Graphs with billions of nodes (e.g., full Wikipedia or web-scale KBs) are not yet tractable without additional approximations.</div>
+      </div>
+      <div class="card" style="margin-bottom:10px;border-color:rgba(249,115,22,.3);">
+        <div class="card-title" style="color:var(--orange2)">RL Training Complexity</div>
+        <div class="card-body">Training the RL component requires a large set of question-answer pairs with answer quality feedback. For new domains without such a training set, the policy must be bootstrapped — which may require significant human annotation effort.</div>
+      </div>
+      <div class="card" style="border-color:rgba(245,158,11,.3);">
+        <div class="card-title" style="color:var(--amber2)">Cross-Domain Generalisation</div>
+        <div class="card-body">A policy trained on one domain (e.g., biomedical) may not transfer well to another (e.g., legal). The hierarchical structure and entity types differ significantly across domains — requiring domain-specific graph construction and retraining.</div>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;">Future Research Directions</div>
+      <div class="flow-step">
+        <div class="flow-num" style="background:rgba(6,182,212,.15);color:var(--teal2);border-color:var(--teal);">1</div>
+        <div><div class="flow-title">Scalable Graph Approximations</div><div class="flow-desc">Hierarchical graph sampling and approximate nearest-neighbour methods to make RL traversal tractable at web scale.</div></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num" style="background:rgba(16,185,129,.15);color:var(--green2);border-color:var(--green);">2</div>
+        <div><div class="flow-title">Foundation Model Integration</div><div class="flow-desc">Replace the NLP extraction pipeline with instruction-following LLMs to build higher-quality hierarchical graphs with richer relationship types.</div></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num" style="background:rgba(139,92,246,.15);color:var(--purple2);border-color:var(--purple);">3</div>
+        <div><div class="flow-title">Cross-Domain Transfer</div><div class="flow-desc">Train a universal policy that transfers across domains using meta-learning — so a new domain needs only a small fine-tuning set, not full retraining.</div></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num" style="background:rgba(245,158,11,.15);color:var(--amber2);border-color:var(--amber);">4</div>
+        <div><div class="flow-title">Ultra-Complex Multi-hop Chains</div><div class="flow-desc">Current evaluation focuses on 2–3 hop chains. Extending to 5+ hops (required for complex scientific reasoning) is an open research challenge.</div></div>
+      </div>
+
+      <div class="highlight-box green" style="margin-top:12px;">
+        <strong style="color:var(--green2)">Related posts:</strong> See <a href="../17-mcp/" style="color:var(--teal2);text-decoration:underline">Post 17 — MCP</a> for how agents discover tools at runtime, and <a href="../23-graphrag-metrics/" style="color:var(--teal2);text-decoration:underline">Post 23 — GraphRAG Metrics</a> for evaluation frameworks.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Continue strip -->
+<div class="continue-strip">
+  <div>
+    <div class="cs-label">Previous Post</div>
+    <a href="../41-agent-traps/" class="cs-title">Post 41 — AI Agent Traps</a>
+  </div>
+  <div style="text-align:right;">
+    <div class="cs-label">Visual Summary Series</div>
+    <a href="../" class="cs-btn">All Posts &rarr;</a>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<script>
+// ── Gate ──────────────────────────────────────────────────────────────────
+const STORE_KEY='pg_unlocked_42';
+function checkGate(){
+  const v=document.getElementById('gate-pw').value.trim();
+  if(v==='visual2025'){localStorage.setItem(STORE_KEY,'1');document.getElementById('gate').style.display='none';doInit();}
+  else{const e=document.getElementById('gate-err');e.style.display='block';e.textContent='Incorrect password. Try again.';}
+}
+document.getElementById('gate-pw').addEventListener('keydown',e=>{if(e.key==='Enter')checkGate();});
+if(localStorage.getItem(STORE_KEY)==='1'){document.getElementById('gate').style.display='none';}
+
+// ── Nav ───────────────────────────────────────────────────────────────────
+const SECTION_IDS=['s-overview','s-evolution','s-problem','s-architecture','s-hierarchy','s-retrieval','s-adaptive','s-rl','s-graphviz','s-multihop','s-results','s-compare','s-ablation','s-limits'];
+function scrollTo(id,el){
+  const sec=document.getElementById(id);
+  if(sec)sec.scrollIntoView({behavior:'smooth'});
+  if(el){document.querySelectorAll('.nav-link').forEach(l=>l.classList.remove('active'));el.classList.add('active');}
+}
+document.getElementById('main').addEventListener('scroll',function(){
+  const top=this.scrollTop+120;
+  SECTION_IDS.forEach((id,idx)=>{
+    const sec=document.getElementById(id);
+    if(sec&&sec.offsetTop<=top&&sec.offsetTop+sec.offsetHeight>top){
+      document.querySelectorAll('.nav-link').forEach(l=>l.classList.remove('active'));
+      const links=document.querySelectorAll('.nav-link');
+      if(links[idx])links[idx].classList.add('active');
+    }
+  });
+});
+
+// ── RAG Evolution accordion ───────────────────────────────────────────────
+function toggleEvo(id){
+  document.querySelectorAll('.evo-step').forEach(el=>{if(el.id!==id)el.classList.remove('active');});
+  document.getElementById(id).classList.toggle('active');
+}
+
+// ── Arch accordion ────────────────────────────────────────────────────────
+function toggleArch(id){
+  const el=document.getElementById(id);
+  el.classList.toggle('open');
+}
+
+// ── Adaptive integration demo ─────────────────────────────────────────────
+const ADAPT_DATA={
+  factual:{
+    query:'"What year was the Transformer paper published?"',
+    weights:[{level:'Level 3 — Facts',w:72,color:'var(--amber2)'},{level:'Level 2 — Entities',w:22,color:'var(--green2)'},{level:'Level 1 — Concepts',w:6,color:'var(--teal2)'}],
+    note:'Factual queries need precise values. The adaptive module heavily weights Level-3 fact nodes over high-level summaries.'
+  },
+  reasoning:{
+    query:'"Why did attention mechanisms replace RNNs for sequence modelling?"',
+    weights:[{level:'Level 3 — Facts',w:30,color:'var(--amber2)'},{level:'Level 2 — Entities',w:45,color:'var(--green2)'},{level:'Level 1 — Concepts',w:25,color:'var(--teal2)'}],
+    note:'Reasoning queries need causal chains. The module balances entity relationships (Level 2) with some factual grounding and conceptual framing.'
+  },
+  thematic:{
+    query:'"What are the key paradigm shifts in NLP over the past decade?"',
+    weights:[{level:'Level 3 — Facts',w:12,color:'var(--amber2)'},{level:'Level 2 — Entities',w:28,color:'var(--green2)'},{level:'Level 1 — Concepts',w:60,color:'var(--teal2)'}],
+    note:'Thematic queries need high-level synthesis. Concept nodes dominate — they capture the broad landscape without drowning in low-level details.'
+  }
+};
+function showAdapt(key,btn){
+  document.querySelectorAll('#adapt-demo .btn-tab').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  const d=ADAPT_DATA[key];
+  document.getElementById('adapt-output').innerHTML=`
+    <div style="font-size:11px;color:var(--muted);margin-bottom:10px;font-style:italic;">Query: ${d.query}</div>
+    ${d.weights.map(w=>`
+      <div style="margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px;">
+          <span>${w.level}</span><span style="color:${w.color};font-weight:700;">${w.w}%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${w.w}%;background:${w.color}"></div></div>
+      </div>`).join('')}
+    <div class="highlight-box" style="border-color:var(--purple);background:rgba(139,92,246,.06);margin-top:12px;font-size:12px;">
+      <strong style="color:var(--purple2)">Why:</strong> ${d.note}
+    </div>`;
+}
+
+// ── RL explorer ───────────────────────────────────────────────────────────
+function updateRL(){
+  const e=parseInt(document.getElementById('sl-explore').value);
+  const s=parseInt(document.getElementById('sl-step').value);
+  document.getElementById('sl-explore-val').textContent=e+'%';
+  document.getElementById('sl-step-val').textContent=s+'k';
+  const exploit=100-e;
+  const quality=Math.min(95,40+s*0.5+exploit*0.2).toFixed(1);
+  const diversity=Math.min(95,20+e*0.7+(100-s)*0.2).toFixed(1);
+  document.getElementById('rl-output').innerHTML=`
+    <div style="color:var(--text);font-weight:700;margin-bottom:8px;">Policy State at Step ${s}k</div>
+    <div style="margin-bottom:6px;"><span style="color:var(--teal2)">Exploration ε:</span> ${e}% &nbsp;|&nbsp; <span style="color:var(--green2)">Exploitation:</span> ${exploit}%</div>
+    <div style="margin-bottom:6px;"><span style="color:var(--amber2)">Answer quality score:</span> ${quality}%</div>
+    <div style="margin-bottom:6px;"><span style="color:var(--purple2)">Path diversity:</span> ${diversity}%</div>
+    <div style="margin-top:8px;color:var(--muted);font-size:11px;">${
+      e>70?'High exploration: policy is still learning diverse paths. Answer quality is lower but improving rapidly.':
+      e>30?'Balanced: policy exploits known-good paths while exploring new ones. Optimal for mid-training.':
+      'High exploitation: policy converged. Answer quality peaks but path diversity drops — risk of missing novel routes.'
+    }</div>`;
+}
+
+// ── Graph Viz ─────────────────────────────────────────────────────────────
+const GV_NODES={
+  factual:[
+    {id:0,x:350,y:60,label:'NLP',level:1,color:'#06b6d4'},
+    {id:1,x:200,y:160,label:'Transformers',level:2,color:'#10b981'},
+    {id:2,x:350,y:160,label:'Attention',level:2,color:'#10b981'},
+    {id:3,x:500,y:160,label:'Google',level:2,color:'#10b981'},
+    {id:4,x:200,y:270,label:'"Attention is\nAll You Need"',level:3,color:'#f59e0b'},
+    {id:5,x:350,y:270,label:'Self-attention\nmechanism',level:3,color:'#f59e0b'},
+    {id:6,x:500,y:270,label:'Vaswani et al.\n2017',level:3,color:'#f59e0b'},
+  ],
+  multihop:[
+    {id:0,x:120,y:180,label:'BERT',level:2,color:'#10b981'},
+    {id:1,x:280,y:180,label:'Google Brain',level:2,color:'#10b981'},
+    {id:2,x:440,y:180,label:'Alphabet Inc.',level:2,color:'#10b981'},
+    {id:3,x:600,y:180,label:'Larry Page',level:2,color:'#10b981'},
+    {id:4,x:120,y:290,label:'created_by\nGoogle',level:3,color:'#f59e0b'},
+    {id:5,x:280,y:290,label:'division_of\nAlphabet',level:3,color:'#f59e0b'},
+    {id:6,x:440,y:290,label:'founded_by\nLarry Page',level:3,color:'#f59e0b'},
+    {id:7,x:600,y:290,label:'CEO:2015-19',level:3,color:'#8b5cf6'},
+  ],
+  thematic:[
+    {id:0,x:350,y:50,label:'NLP Paradigms',level:1,color:'#06b6d4'},
+    {id:1,x:150,y:150,label:'Pre-training',level:1,color:'#06b6d4'},
+    {id:2,x:350,y:150,label:'Transfer\nLearning',level:1,color:'#06b6d4'},
+    {id:3,x:550,y:150,label:'Foundation\nModels',level:1,color:'#06b6d4'},
+    {id:4,x:100,y:260,label:'BERT',level:2,color:'#10b981'},
+    {id:5,x:220,y:260,label:'GPT',level:2,color:'#10b981'},
+    {id:6,x:350,y:260,label:'Fine-tuning',level:2,color:'#10b981'},
+    {id:7,x:470,y:260,label:'GPT-4',level:2,color:'#10b981'},
+    {id:8,x:590,y:260,label:'Claude',level:2,color:'#10b981'},
+  ]
+};
+const GV_EDGES={
+  factual:[[0,1],[0,2],[0,3],[1,4],[2,5],[3,6],[4,5],[5,6]],
+  multihop:[[0,1],[1,2],[2,3],[0,4],[1,5],[2,6],[3,7]],
+  thematic:[[0,1],[0,2],[0,3],[1,4],[1,5],[2,6],[3,7],[3,8]]
+};
+const GV_PATHS={
+  factual:[[0],[0,2],[0,2,5],[0,2,5,6]],
+  multihop:[[0],[0,4],[0,4,1],[0,4,1,5],[0,4,1,5,2],[0,4,1,5,2,6],[0,4,1,5,2,6,3]],
+  thematic:[[0],[0,1],[0,1,2],[0,1,2,3],[0,1,2,3,4],[0,1,2,3,4,5]]
+};
+const GV_LOGS={
+  factual:['Embedding query...','Entry node: NLP (Level 1)','Following edge to Attention entity...','Drilling down to fact nodes...','Found: "Vaswani et al. 2017" — answer located'],
+  multihop:['Embedding query — multi-hop detected...','Entry: BERT entity','Hop 1: BERT → created_by → Google Brain','Hop 2: Google Brain → division_of → Alphabet Inc.','Hop 3: Alphabet Inc. → founded_by → Larry Page','Answer chain complete: 3 hops'],
+  thematic:['Thematic query — entering Level 1...','Concept: NLP Paradigms','Sub-concepts: Pre-training, Transfer Learning, Foundation Models','Aggregating entity evidence...','Synthesis complete — 5 sub-themes identified']
+};
+
+let gvTimer=null,gvStep=0,gvKey='factual';
+const gvCanvas=()=>document.getElementById('gv-canvas');
+const gvCtx=()=>gvCanvas().getContext('2d');
+
+function drawGV(highlightNodes=[], highlightEdges=[]){
+  const canvas=gvCanvas();
+  const ctx=gvCtx();
+  const scale=canvas.clientWidth/700;
+  ctx.clearRect(0,0,700,360);
+
+  const nodes=GV_NODES[gvKey];
+  const edges=GV_EDGES[gvKey];
+
+  // Edges
+  edges.forEach(([a,b])=>{
+    const na=nodes[a],nb=nodes[b];
+    const active=highlightEdges.some(([x,y])=>(x===a&&y===b)||(x===b&&y===a));
+    ctx.beginPath();
+    ctx.moveTo(na.x,na.y);
+    ctx.lineTo(nb.x,nb.y);
+    ctx.strokeStyle=active?'rgba(6,182,212,.8)':'rgba(45,122,110,.3)';
+    ctx.lineWidth=active?2:1;
+    ctx.stroke();
+  });
+
+  // Nodes
+  nodes.forEach(n=>{
+    const active=highlightNodes.includes(n.id);
+    ctx.beginPath();
+    ctx.arc(n.x,n.y,active?22:16,0,Math.PI*2);
+    ctx.fillStyle=active?n.color+'cc':n.color+'33';
+    ctx.strokeStyle=active?n.color:n.color+'55';
+    ctx.lineWidth=active?2:1;
+    ctx.fill();
+    ctx.stroke();
+
+    // Label
+    ctx.fillStyle=active?'#fff':'rgba(210,250,244,.5)';
+    ctx.font=`${active?'700 ':''}10px Inter`;
+    ctx.textAlign='center';
+    const lines=n.label.split('\n');
+    lines.forEach((line,i)=>ctx.fillText(line,n.x,n.y+3+(i-lines.length/2+0.5)*12));
+  });
+
+  // Legend
+  ctx.fillStyle='rgba(45,122,110,.7)';
+  ctx.font='10px Inter';
+  ctx.textAlign='left';
+  [{c:'#06b6d4',l:'Level 1 — Concept'},{c:'#10b981',l:'Level 2 — Entity'},{c:'#f59e0b',l:'Level 3 — Fact'}]
+    .forEach((item,i)=>{
+      ctx.fillStyle=item.c;
+      ctx.beginPath();ctx.arc(16,20+i*18,5,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='rgba(210,250,244,.6)';
+      ctx.fillText(item.l,26,24+i*18);
+    });
+}
+
+function runGraphViz(){
+  gvKey=document.getElementById('gv-query').value;
+  gvStep=0;
+  if(gvTimer)clearInterval(gvTimer);
+  const paths=GV_PATHS[gvKey];
+  const logs=GV_LOGS[gvKey];
+  const logEl=document.getElementById('gv-log');
+  logEl.textContent='';
+  drawGV();
+
+  gvTimer=setInterval(()=>{
+    if(gvStep>=paths.length){clearInterval(gvTimer);return;}
+    const visitedNodes=paths[gvStep];
+    const visitedEdges=[];
+    for(let i=1;i<visitedNodes.length;i++)visitedEdges.push([visitedNodes[i-1],visitedNodes[i]]);
+    drawGV(visitedNodes,visitedEdges);
+    if(logs[gvStep])logEl.innerHTML+='<span style="color:var(--teal2)">['+(gvStep+1)+']</span> '+logs[gvStep]+'\n';
+    gvStep++;
+  },900);
+}
+
+function resetGraphViz(){
+  if(gvTimer)clearInterval(gvTimer);
+  gvStep=0;
+  drawGV();
+  document.getElementById('gv-log').textContent='';
+}
+
+// ── Multi-hop examples ────────────────────────────────────────────────────
+const MH_DATA=[
+  {
+    query:'Who is the founder of the company that acquired the research lab that created BERT?',
+    hops:[
+      {title:'Hop 1: Identify the entity',nodes:['BERT'],edges:[],found:'BERT — a language model'},
+      {title:'Hop 2: Who created BERT?',nodes:['BERT','Google Brain'],edges:['BERT → created_by'],found:'Google Brain (a division of Google/Alphabet)'},
+      {title:'Hop 3: Who acquired Google?',nodes:['Google Brain','Alphabet Inc.'],edges:['Google Brain → parent'],found:'Alphabet Inc. — acquired Google in 2015 restructuring'},
+      {title:'Hop 4: Who founded Alphabet?',nodes:['Alphabet Inc.','Larry Page'],edges:['Alphabet → founded_by'],found:'Larry Page and Sergey Brin'},
+    ],
+    answer:'Larry Page (and Sergey Brin) — 4-hop chain traversed successfully.'
+  },
+  {
+    query:'What benchmark was used to evaluate the method that later inspired HotpotQA?',
+    hops:[
+      {title:'Hop 1: Find HotpotQA',nodes:['HotpotQA'],edges:[],found:'HotpotQA — multi-hop QA benchmark (2018)'},
+      {title:'Hop 2: What inspired HotpotQA?',nodes:['HotpotQA','WikiHop'],edges:['HotpotQA → inspired_by'],found:'WikiHop — earlier multi-hop dataset'},
+      {title:'Hop 3: How was WikiHop evaluated?',nodes:['WikiHop','F1 Score'],edges:['WikiHop → evaluated_on'],found:'F1 Score and Accuracy on Wikihop test set'},
+    ],
+    answer:'F1 Score on WikiHop test set — 3-hop chain traversed.'
+  },
+  {
+    query:'What architecture powers the LLM used in the paper that introduced RAG?',
+    hops:[
+      {title:'Hop 1: Find the RAG paper',nodes:['RAG (Lewis et al.)'],edges:[],found:'Retrieval-Augmented Generation — Lewis et al., 2020, Facebook AI'},
+      {title:'Hop 2: Which LLM does it use?',nodes:['RAG (Lewis et al.)','BART'],edges:['RAG → uses'],found:'BART — Bidirectional & Auto-Regressive Transformer'},
+      {title:'Hop 3: What architecture is BART?',nodes:['BART','Transformer (Seq2Seq)'],edges:['BART → based_on'],found:'Transformer encoder-decoder (Seq2Seq variant)'},
+    ],
+    answer:'Transformer encoder-decoder architecture — 3-hop chain traversed.'
+  }
+];
+
+function showMH(idx,btn){
+  document.querySelectorAll('#mh-tabs .btn-tab').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  const d=MH_DATA[idx];
+  let html=`<div style="background:#020808;border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:14px;">
+    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Query</div>
+    <div style="font-size:13px;color:var(--teal2);font-style:italic;">"${d.query}"</div>
+  </div>`;
+  d.hops.forEach((hop,i)=>{
+    html+=`<div class="flow-step">
+      <div class="flow-num" style="background:rgba(6,182,212,.15);color:var(--teal2);border-color:var(--teal);">${i+1}</div>
+      <div style="flex:1;">
+        <div class="flow-title">${hop.title}</div>
+        <div class="flow-desc" style="margin-bottom:4px;">${hop.found}</div>
+        ${hop.edges.length?`<div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--amber2);margin-top:4px;">Graph edge: ${hop.edges.join(', ')}</div>`:''}
+      </div>
+    </div>`;
+  });
+  html+=`<div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);border-radius:8px;padding:12px 16px;margin-top:8px;">
+    <span style="font-size:11px;font-weight:700;color:var(--green2);">ANSWER: </span>
+    <span style="font-size:12px;color:var(--text);">${d.answer}</span>
+  </div>`;
+  document.getElementById('mh-content').innerHTML=html;
+}
+
+// ── Results bars ──────────────────────────────────────────────────────────
+const RESULTS=[
+  {label:'Deep GraphRAG',val:83,color:'var(--teal)'},
+  {label:'GFM-RAG',val:74,color:'var(--blue2)'},
+  {label:'GraphRAG (Microsoft)',val:68,color:'var(--purple2)'},
+  {label:'Drift Search (MS)',val:71,color:'var(--purple)'},
+  {label:'Advanced RAG',val:61,color:'var(--amber2)'},
+  {label:'Naive RAG',val:48,color:'var(--muted)'},
+];
+function initResultsBars(){
+  const el=document.getElementById('results-bars');
+  if(!el)return;
+  el.innerHTML=RESULTS.map(r=>`
+    <div style="margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px;">
+        <span>${r.label}</span><span style="color:${r.color};font-weight:700;">${r.val}%</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${r.val}%;background:${r.color}"></div></div>
+    </div>`).join('');
+}
+
+const ABLATION=[
+  {label:'Full Deep GraphRAG',val:83,color:'var(--teal)'},
+  {label:'w/o Adaptive Integration',val:71,color:'var(--amber2)'},
+  {label:'w/o RL Policy (random walk)',val:66,color:'var(--orange2)'},
+  {label:'w/o Hierarchy (flat graph)',val:58,color:'var(--red2)'},
+  {label:'w/o Graph (vector only)',val:48,color:'var(--muted)'},
+];
+function initAblationBars(){
+  const el=document.getElementById('ablation-bars');
+  if(!el)return;
+  el.innerHTML=ABLATION.map(r=>`
+    <div style="margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px;">
+        <span>${r.label}</span><span style="color:${r.color};font-weight:700;">${r.val}%</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${r.val}%;background:${r.color}"></div></div>
+    </div>`).join('');
+}
+
+// ── Stat animation ────────────────────────────────────────────────────────
+function animateStat(id,target,suffix,dur){
+  const el=document.getElementById(id);
+  if(!el)return;
+  const start=Date.now();
+  const tick=()=>{
+    const p=Math.min(1,(Date.now()-start)/dur);
+    const ease=1-Math.pow(1-p,3);
+    el.textContent=Math.round(ease*target)+suffix;
+    if(p<1)requestAnimationFrame(tick);
+  };
+  tick();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+function doInit(){
+  showAdapt('factual',null);
+  updateRL();
+  showMH(0,null);
+  initResultsBars();
+  initAblationBars();
+  drawGV();
+
+  // Animate stats on scroll into view
+  const observer=new IntersectionObserver(entries=>{
+    entries.forEach(e=>{
+      if(e.isIntersecting){
+        animateStat('stat-acc',83,'%',1200);
+        animateStat('stat-hop',0,'2.4×',100);
+        setTimeout(()=>document.getElementById('stat-hop').textContent='2.4×',100);
+        animateStat('stat-depth',3,'',1000);
+        animateStat('stat-levels',3,'',800);
+        observer.disconnect();
+      }
+    });
+  },{threshold:0.3});
+  const el=document.getElementById('s-results');
+  if(el)observer.observe(el);
+}
+
+if(localStorage.getItem(STORE_KEY)==='1')doInit();
+</script>
+</body>
+</html>
