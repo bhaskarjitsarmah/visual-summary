@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>LLM Training Pipeline — Pretraining → SFT → RLHF</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#000000;--surface:#0d0d0d;--border:#222222;
+  --text:#f0f0f0;--muted:#909090;
+  --purple:#8b5cf6;--purple2:#a78bfa;--purple3:#ede9fe;
+  --blue:#3b82f6;--blue2:#60a5fa;--blue3:#bfdbfe;
+  --green:#10b981;--green2:#34d399;--green3:#a7f3d0;
+  --amber:#f59e0b;--amber2:#fbbf24;--amber3:#fde68a;
+  --red:#ef4444;--red2:#fca5a5;
+  --orange:#f97316;--orange2:#fb923c;
+  --teal:#06b6d4;--teal2:#22d3ee;
+  --pink:#ec4899;--pink2:#f472b6;
+  --stage1:#8b5cf6;--stage2:#3b82f6;--stage3:#10b981;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+#gate{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.gate-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 44px;text-align:center;max-width:380px;width:90%;}
+.gate-icon{font-size:36px;margin-bottom:12px;}
+.gate-title{font-size:20px;font-weight:800;color:var(--purple2);margin-bottom:4px;}
+.gate-sub{font-size:12px;color:var(--muted);margin-bottom:24px;}
+.gate-input{width:100%;background:#050505;border:1px solid var(--border);border-radius:8px;padding:11px 14px;font-size:14px;color:var(--text);outline:none;margin-bottom:12px;}
+.gate-input:focus{border-color:var(--purple);}
+.gate-btn{width:100%;background:var(--purple);color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s;}
+.gate-btn:hover{opacity:.85;}
+.gate-err{font-size:11px;color:var(--red);margin-top:6px;display:none;}
+.sidebar{width:240px;min-width:240px;height:100vh;position:sticky;top:0;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:0 0 40px;flex-shrink:0;}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.sidebar-logo-title{font-size:13px;font-weight:700;color:var(--purple2);}
+.sidebar-logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.nav-group-title{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;padding:10px 16px 4px;}
+.nav-link{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;}
+.nav-link:hover,.nav-link.active{color:var(--text);background:rgba(139,92,246,.08);}
+.nav-link.active{color:var(--purple2);}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.main{flex:1;overflow-y:auto;height:100vh;scroll-behavior:smooth;}
+.pipeline-map{position:sticky;top:0;z-index:50;background:rgba(0,0,0,.97);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+.pipe-step{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);padding:2px 6px;border-radius:4px;cursor:pointer;transition:color .15s;}
+.pipe-step:hover{color:var(--text);}
+.pipe-dot{width:6px;height:6px;border-radius:50%;}
+.pipe-arrow{color:var(--border);font-size:14px;font-weight:700;}
+.section{min-height:100vh;padding:60px 48px 80px;border-bottom:1px solid var(--border);}
+.section-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;}
+.section-title{font-size:28px;font-weight:800;color:var(--text);margin-bottom:8px;line-height:1.25;}
+.section-sub{font-size:14px;color:var(--muted);margin-bottom:28px;max-width:700px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:16px;}
+.card-title{font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px;}
+.card-body{font-size:13px;color:var(--muted);line-height:1.6;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.highlight-box{border-left:3px solid var(--purple);padding:12px 16px;background:rgba(139,92,246,.06);border-radius:0 8px 8px 0;margin-bottom:16px;font-size:13px;color:var(--muted);}
+.highlight-box.blue{border-color:var(--blue);background:rgba(59,130,246,.06);}
+.highlight-box.green{border-color:var(--green);background:rgba(16,185,129,.06);}
+.highlight-box.amber{border-color:var(--amber);background:rgba(245,158,11,.06);}
+.highlight-box.red{border-color:var(--red);background:rgba(239,68,68,.06);}
+table{width:100%;border-collapse:collapse;margin-bottom:20px;font-size:12px;}
+th{background:rgba(139,92,246,.12);color:var(--purple2);font-weight:700;padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);}
+td{padding:9px 14px;border-bottom:1px solid rgba(34,34,34,.8);color:var(--muted);}
+tr:hover td{background:rgba(139,92,246,.04);}
+td strong{color:var(--text);}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;text-align:center;}
+.stat-num{font-size:28px;font-weight:800;margin-bottom:4px;}
+.stat-label{font-size:11px;color:var(--muted);line-height:1.4;}
+.btn-tab{background:rgba(139,92,246,.08);border:1px solid var(--border);border-radius:6px;padding:7px 14px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;font-family:'Inter',sans-serif;}
+.btn-tab:hover{color:var(--text);}
+.btn-tab.active{background:rgba(139,92,246,.2);border-color:var(--purple);color:var(--purple2);}
+.tab-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+.badge-s1{background:rgba(139,92,246,.2);color:var(--purple2);border:1px solid rgba(139,92,246,.3);}
+.badge-s2{background:rgba(59,130,246,.2);color:var(--blue2);border:1px solid rgba(59,130,246,.3);}
+.badge-s3{background:rgba(16,185,129,.2);color:var(--green2);border:1px solid rgba(16,185,129,.3);}
+.progress-bar{background:rgba(139,92,246,.1);border-radius:4px;height:8px;overflow:hidden;margin-bottom:4px;}
+.progress-fill{height:100%;border-radius:4px;transition:width .8s ease;}
+.flow-step{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;}
+.flow-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;}
+.flow-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px;}
+.flow-desc{font-size:12px;color:var(--muted);}
+.code-block{background:#050505;border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-family:'JetBrains Mono','Courier New',monospace;font-size:12px;line-height:1.8;margin-bottom:16px;overflow-x:auto;white-space:pre;}
+.code-block .kw{color:var(--purple2);}
+.code-block .str{color:var(--green2);}
+.code-block .cmt{color:var(--muted);}
+.code-block .num{color:var(--amber2);}
+.code-block .fn{color:var(--blue2);}
+/* Stage banner */
+.stage-banner{border-radius:14px;padding:20px 24px;margin-bottom:28px;border:1px solid;}
+/* Token probability vis */
+.token-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.token-word{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text);width:120px;flex-shrink:0;}
+.token-bar{flex:1;height:22px;border-radius:4px;display:flex;align-items:center;padding:0 8px;font-size:11px;font-weight:700;color:#fff;transition:width .4s ease;}
+.token-pct{font-size:11px;color:var(--muted);width:40px;text-align:right;}
+/* Chat bubble */
+.chat-bubble{padding:12px 16px;border-radius:10px;margin-bottom:10px;font-size:13px;line-height:1.6;max-width:90%;}
+.bubble-user{background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);color:var(--blue3);}
+.bubble-model{background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.2);color:var(--text);}
+.bubble-bad{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:var(--red2);}
+/* Reward card */
+.reward-card{background:#050505;border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:all .2s;}
+.reward-card:hover{border-color:var(--purple);}
+.reward-card.selected-good{border-color:var(--green);background:rgba(16,185,129,.06);}
+.reward-card.selected-bad{border-color:var(--red);background:rgba(239,68,68,.06);}
+/* Loss curve canvas */
+canvas{border-radius:8px;display:block;}
+/* Scaling calc */
+.calc-box{background:#050505;border:1px solid var(--border);border-radius:12px;padding:20px;}
+.slider-row{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+.slider-label{font-size:11px;color:var(--muted);width:140px;flex-shrink:0;}
+.slider-val{font-size:12px;font-weight:700;color:var(--purple2);width:60px;text-align:right;}
+input[type=range]{flex:1;accent-color:var(--purple);}
+/* Comparison block */
+.comp-col{border-radius:10px;padding:14px 16px;border:1px solid;}
+/* RLHF flow boxes */
+.rlhf-box{border-radius:10px;padding:14px 16px;text-align:center;border:1px solid;}
+.rlhf-arrow{font-size:20px;color:var(--muted);display:flex;align-items:center;justify-content:center;padding:4px 0;}
+/* Continue strip */
+.continue-strip{background:var(--surface);border-top:1px solid var(--border);padding:32px 48px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;}
+.cs-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.cs-title{font-size:15px;font-weight:700;color:var(--text);}
+</style>
+</head>
+<body>
+
+<!-- Gate -->
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-icon">&#x1F9E0;</div>
+    <div class="gate-title">LLM Training Pipeline</div>
+    <div class="gate-sub">Pretraining → SFT → RLHF &middot; Visual Summary</div>
+    <input id="gate-pw" class="gate-input" type="password" placeholder="Enter password" onkeydown="if(event.key==='Enter')checkGate()">
+    <button class="gate-btn" onclick="checkGate()">Unlock</button>
+    <div id="gate-err" class="gate-err">Incorrect password. Try again.</div>
+  </div>
+</div>
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-title">LLM Training Pipeline</div>
+    <div class="sidebar-logo-sub">Post 44 &middot; Training &amp; Alignment</div>
+  </div>
+  <div class="nav-group-title">Overview</div>
+  <div class="nav-link active" onclick="scrollTo('s-overview',this)"><span class="dot" style="background:#a78bfa"></span>The 3-Stage Pipeline</div>
+  <div class="nav-link" onclick="scrollTo('s-bigpicture',this)"><span class="dot" style="background:#8b5cf6"></span>What Changes Each Stage</div>
+
+  <div class="nav-group-title" style="color:var(--purple2)">Stage 1 — Pretraining</div>
+  <div class="nav-link" onclick="scrollTo('s-pretrain',this)"><span class="dot" style="background:#8b5cf6"></span>What &amp; Why</div>
+  <div class="nav-link" onclick="scrollTo('s-data',this)"><span class="dot" style="background:#a78bfa"></span>Data Pipeline</div>
+  <div class="nav-link" onclick="scrollTo('s-ntp',this)"><span class="dot" style="background:#c4b5fd"></span>Next-Token Prediction</div>
+  <div class="nav-link" onclick="scrollTo('s-scale',this)"><span class="dot" style="background:#8b5cf6"></span>Scaling Laws</div>
+
+  <div class="nav-group-title" style="color:var(--blue2)">Stage 2 — SFT</div>
+  <div class="nav-link" onclick="scrollTo('s-sft',this)"><span class="dot" style="background:#3b82f6"></span>Instruction Tuning</div>
+  <div class="nav-link" onclick="scrollTo('s-sft-data',this)"><span class="dot" style="background:#60a5fa"></span>SFT Data Format</div>
+  <div class="nav-link" onclick="scrollTo('s-sft-demo',this)"><span class="dot" style="background:#93c5fd"></span>Before vs After SFT</div>
+
+  <div class="nav-group-title" style="color:var(--green2)">Stage 3 — RLHF</div>
+  <div class="nav-link" onclick="scrollTo('s-rlhf',this)"><span class="dot" style="background:#10b981"></span>Why RLHF?</div>
+  <div class="nav-link" onclick="scrollTo('s-rm',this)"><span class="dot" style="background:#34d399"></span>Reward Model</div>
+  <div class="nav-link" onclick="scrollTo('s-ppo',this)"><span class="dot" style="background:#10b981"></span>PPO Training</div>
+  <div class="nav-link" onclick="scrollTo('s-dpo',this)"><span class="dot" style="background:#6ee7b7"></span>DPO Alternative</div>
+
+  <div class="nav-group-title">Interactive</div>
+  <div class="nav-link" onclick="scrollTo('s-ntp-demo',this)"><span class="dot" style="background:#a78bfa"></span>NTP Demo</div>
+  <div class="nav-link" onclick="scrollTo('s-reward-demo',this)"><span class="dot" style="background:#34d399"></span>Reward Model Demo</div>
+  <div class="nav-link" onclick="scrollTo('s-scaling-calc',this)"><span class="dot" style="background:#fbbf24"></span>Scaling Calculator</div>
+  <div class="nav-link" onclick="scrollTo('s-compare',this)"><span class="dot" style="background:#f0f0f0"></span>Full Comparison</div>
+</nav>
+
+<!-- Main -->
+<div class="main" id="main">
+
+<!-- Pipeline Bar -->
+<div class="pipeline-map">
+  <div class="pipe-step" onclick="scrollTo('s-pretrain')"><span class="pipe-dot" style="background:#8b5cf6"></span>Pretraining</div>
+  <span class="pipe-arrow">⟶</span>
+  <div class="pipe-step" onclick="scrollTo('s-sft')"><span class="pipe-dot" style="background:#3b82f6"></span>SFT</div>
+  <span class="pipe-arrow">⟶</span>
+  <div class="pipe-step" onclick="scrollTo('s-rm')"><span class="pipe-dot" style="background:#10b981"></span>Reward Model</div>
+  <span class="pipe-arrow">⟶</span>
+  <div class="pipe-step" onclick="scrollTo('s-ppo')"><span class="pipe-dot" style="background:#34d399"></span>PPO / RL</div>
+  <span class="pipe-arrow">⟶</span>
+  <div class="pipe-step" onclick="scrollTo('s-dpo')"><span class="pipe-dot" style="background:#6ee7b7"></span>or DPO</div>
+  <span class="pipe-arrow">⟶</span>
+  <div class="pipe-step"><span class="pipe-dot" style="background:#fbbf24"></span>Aligned LLM</div>
+</div>
+
+<!-- ══════════ OVERVIEW ══════════ -->
+<section class="section" id="s-overview">
+  <div class="section-tag" style="color:var(--purple)">Post 44 &middot; Training &amp; Alignment</div>
+  <div class="section-title">The LLM Training Pipeline</div>
+  <div class="section-sub">How a raw language model goes from predicting text on the internet to a helpful, harmless, honest assistant — in three stages.</div>
+
+  <!-- 3-stage visual -->
+  <div style="display:flex;align-items:stretch;gap:0;margin-bottom:32px;overflow-x:auto;">
+    <div style="flex:1;min-width:180px;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.3);border-radius:14px 0 0 14px;padding:20px 18px;">
+      <div style="font-size:10px;font-weight:700;color:var(--purple2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Stage 1</div>
+      <div style="font-size:16px;font-weight:800;color:var(--purple2);margin-bottom:8px;">Pre-training</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Learn language from raw text</div>
+      <div style="font-size:11px;color:var(--muted);">&#x1F4DA; Trillions of tokens<br>&#x1F4BB; Months on thousands of GPUs<br>&#x1F9E0; Next-token prediction<br>&#x1F4B0; $1M – $100M+ compute</div>
+    </div>
+    <div style="display:flex;align-items:center;padding:0 8px;font-size:24px;color:var(--border);">&#x279C;</div>
+    <div style="flex:1;min-width:180px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.3);padding:20px 18px;">
+      <div style="font-size:10px;font-weight:700;color:var(--blue2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Stage 2</div>
+      <div style="font-size:16px;font-weight:800;color:var(--blue2);margin-bottom:8px;">Supervised Fine-tuning</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Learn to follow instructions</div>
+      <div style="font-size:11px;color:var(--muted);">&#x1F4DD; 10K – 1M instruction pairs<br>&#x23F1; Hours to days<br>&#x1F4AC; Chat format training<br>&#x1F4B8; Much cheaper than pre-training</div>
+    </div>
+    <div style="display:flex;align-items:center;padding:0 8px;font-size:24px;color:var(--border);">&#x279C;</div>
+    <div style="flex:1;min-width:180px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);border-radius:0 14px 14px 0;padding:20px 18px;">
+      <div style="font-size:10px;font-weight:700;color:var(--green2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Stage 3</div>
+      <div style="font-size:16px;font-weight:800;color:var(--green2);margin-bottom:8px;">Alignment (RLHF)</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Align with human values</div>
+      <div style="font-size:11px;color:var(--muted);">&#x1F468;&#x200D;&#x2696;&#xFE0F; Human preference labels<br>&#x1F3AF; Reward model training<br>&#x1F504; PPO reinforcement loop<br>&#x2696; KL divergence constraint</div>
+    </div>
+  </div>
+
+  <div class="grid3">
+    <div class="card" style="border-color:rgba(139,92,246,.3);">
+      <div class="card-title" style="color:var(--purple2)">The Base Model</div>
+      <div class="card-body">After pretraining, the model knows grammar, facts, reasoning patterns, and code. But it <strong style="color:var(--text)">doesn't know how to have a conversation</strong>. Ask it a question and it might continue your text, not answer it.</div>
+    </div>
+    <div class="card" style="border-color:rgba(59,130,246,.3);">
+      <div class="card-title" style="color:var(--blue2)">After SFT</div>
+      <div class="card-body">The model learns to respond to instructions — it now produces answers, not text completions. But it may still produce harmful, dishonest, or unhelpful responses because it hasn't learned <strong style="color:var(--text)">human preferences</strong>.</div>
+    </div>
+    <div class="card" style="border-color:rgba(16,185,129,.3);">
+      <div class="card-title" style="color:var(--green2)">After RLHF</div>
+      <div class="card-body">The model is nudged toward responses that humans rate highly — helpful, harmless, and honest. It learns to <strong style="color:var(--text)">refuse harmful requests</strong>, avoid hallucinations, and match human communication preferences.</div>
+    </div>
+  </div>
+
+  <div class="highlight-box" style="margin-top:8px;">
+    <strong style="color:var(--purple2)">Key papers:</strong> <span style="color:var(--text)">InstructGPT (Ouyang et al., 2022)</span> — the paper that introduced this 3-stage pipeline publicly. <span style="color:var(--text)">Llama 2 (Touvron et al., 2023)</span> — the most detailed public description of SFT + RLHF. <span style="color:var(--text)">Constitutional AI (Bai et al., 2022)</span> — Anthropic's variant.
+  </div>
+</section>
+
+<!-- ══════════ BIG PICTURE ══════════ -->
+<section class="section" id="s-bigpicture">
+  <div class="section-tag" style="color:var(--purple)">Framework</div>
+  <div class="section-title">What Changes at Each Stage</div>
+  <div class="section-sub">The objective, data, and model behaviour are fundamentally different at each stage.</div>
+
+  <table>
+    <tr><th>Dimension</th><th style="color:var(--purple2)">Stage 1: Pretraining</th><th style="color:var(--blue2)">Stage 2: SFT</th><th style="color:var(--green2)">Stage 3: RLHF</th></tr>
+    <tr><td><strong>Objective</strong></td><td>Minimise next-token prediction loss</td><td>Minimise cross-entropy on (instruction, response) pairs</td><td>Maximise reward while staying close to SFT policy</td></tr>
+    <tr><td><strong>Data</strong></td><td>Raw web text, books, code (trillions of tokens)</td><td>Human-written (instruction, response) pairs (thousands–millions)</td><td>Human preference rankings of model outputs (thousands–tens of thousands)</td></tr>
+    <tr><td><strong>Loss function</strong></td><td>Cross-entropy over all tokens</td><td>Cross-entropy on response tokens only</td><td>PPO objective + KL penalty (or DPO loss)</td></tr>
+    <tr><td><strong>What model learns</strong></td><td>Language, facts, reasoning, code</td><td>Instruction-following format and style</td><td>Human value alignment, safety, tone</td></tr>
+    <tr><td><strong>Compute</strong></td><td>Dominant cost ($1M–$100M+)</td><td>~1–5% of pretraining cost</td><td>~1–10% of pretraining cost</td></tr>
+    <tr><td><strong>Output quality</strong></td><td>Coherent text — not conversational</td><td>Helpful responses — not always safe</td><td>Helpful, harmless, and honest</td></tr>
+    <tr><td><strong>Real example</strong></td><td>GPT-3 base, Llama-2-base</td><td>Alpaca, Vicuna, Llama-2-chat (SFT only)</td><td>ChatGPT, Claude, Llama-2-chat (full)</td></tr>
+  </table>
+</section>
+
+<!-- ══════════ PRETRAINING ══════════ -->
+<section class="section" id="s-pretrain">
+  <div class="stage-banner" style="border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.06);">
+    <div style="font-size:10px;font-weight:700;color:var(--purple2);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;">Stage 1</div>
+    <div style="font-size:22px;font-weight:800;color:var(--purple2);">Pre-training — Learning Language from Scratch</div>
+  </div>
+  <div class="section-sub">The foundation. A randomly-initialised neural network learns grammar, facts, reasoning, code, and world knowledge by predicting the next word — billions of times.</div>
+
+  <div class="grid2">
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">The Core Objective</div>
+      <div class="highlight-box">
+        Given tokens x₁, x₂, …, xₙ, predict xₙ₊₁.<br><br>
+        <strong style="color:var(--purple2)">Loss:</strong> <span style="font-family:'JetBrains Mono',monospace;color:var(--text)">L = −(1/N) Σ log P(xₜ | x₁…xₜ₋₁)</span><br><br>
+        Minimising this loss forces the model to learn everything needed to predict text well — meaning it must internalise grammar, facts, reasoning, and style from the training data.
+      </div>
+      <div class="highlight-box blue" style="margin-top:4px;">
+        <strong style="color:var(--blue2)">Why it works:</strong> There is no shortcut to predicting the next word well. The model must build internal representations of syntax, semantics, world knowledge, and even theory of mind — because all of these improve predictions.
+      </div>
+    </div>
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">Key Architecture: Transformer Decoder</div>
+      <div style="background:#050505;border:1px solid var(--border);border-radius:10px;padding:16px;font-size:12px;font-family:'JetBrains Mono',monospace;line-height:1.9;color:var(--muted);">
+        Input tokens → Token Embeddings + Positional Encodings<br>
+        &nbsp;&nbsp;↓<br>
+        <span style="color:var(--purple2)">× N Transformer Blocks:</span><br>
+        &nbsp;&nbsp;&nbsp;Causal Self-Attention (can't look forward)<br>
+        &nbsp;&nbsp;&nbsp;Layer Norm<br>
+        &nbsp;&nbsp;&nbsp;Feed-Forward Network (MLP)<br>
+        &nbsp;&nbsp;&nbsp;Residual connections<br>
+        &nbsp;&nbsp;↓<br>
+        Final Layer Norm<br>
+        &nbsp;&nbsp;↓<br>
+        <span style="color:var(--green2)">Linear + Softmax → Probability over vocab</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px;">The <strong style="color:var(--text)">causal mask</strong> is what makes this "autoregressive" — each token can only attend to previous tokens, forcing left-to-right prediction.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ DATA PIPELINE ══════════ -->
+<section class="section" id="s-data">
+  <div class="section-tag" style="color:var(--purple)">Stage 1 — Data</div>
+  <div class="section-title">The Pretraining Data Pipeline</div>
+  <div class="section-sub">Getting clean, diverse, high-quality text at scale is arguably harder than training the model itself.</div>
+
+  <div class="grid2">
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">Data Sources &amp; Mix</div>
+      <div id="data-mix-chart"></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px;">Approximate mix based on GPT-3, Llama-2, and similar models. Exact ratios are proprietary and differ across models.</div>
+    </div>
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">Data Cleaning Pipeline</div>
+      <div class="flow-step"><div class="flow-num" style="background:rgba(139,92,246,.15);color:var(--purple2);border:1px solid var(--purple);">1</div><div><div class="flow-title">Web Crawl</div><div class="flow-desc">CommonCrawl, C4, RefinedWeb — petabytes of raw HTML from the public web. Starting point for most models.</div></div></div>
+      <div class="flow-step"><div class="flow-num" style="background:rgba(139,92,246,.15);color:var(--purple2);border:1px solid var(--purple);">2</div><div><div class="flow-title">Deduplication</div><div class="flow-desc">Near-exact and fuzzy deduplication using MinHash LSH. Duplicates inflate loss reduction without teaching anything new.</div></div></div>
+      <div class="flow-step"><div class="flow-num" style="background:rgba(139,92,246,.15);color:var(--purple2);border:1px solid var(--purple);">3</div><div><div class="flow-title">Quality Filtering</div><div class="flow-desc">Classifier-based filtering (trained on curated text like Wikipedia). Rule-based heuristics remove spam, boilerplate, and low-information text.</div></div></div>
+      <div class="flow-step"><div class="flow-num" style="background:rgba(139,92,246,.15);color:var(--purple2);border:1px solid var(--purple);">4</div><div><div class="flow-title">Tokenisation</div><div class="flow-desc">BPE (Byte-Pair Encoding) or SentencePiece tokeniser trained on the cleaned corpus. Vocabulary size typically 32K–100K tokens.</div></div></div>
+      <div class="flow-step"><div class="flow-num" style="background:rgba(139,92,246,.15);color:var(--purple2);border:1px solid var(--purple);">5</div><div><div class="flow-title">Packing &amp; Batching</div><div class="flow-desc">Documents concatenated and packed into fixed-length context windows (2K–128K tokens). Special tokens mark document boundaries.</div></div></div>
+    </div>
+  </div>
+
+  <div class="stat-grid" style="margin-top:8px;">
+    <div class="stat-card"><div class="stat-num" style="color:var(--purple2)">2T+</div><div class="stat-label">Tokens in Llama-2<br>pretraining corpus</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--blue2)">175B</div><div class="stat-label">GPT-3 parameters<br>(300B tokens)</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--amber2)">~3500</div><div class="stat-label">A100 GPU days<br>for Llama-2 70B</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--green2)">~30%</div><div class="stat-label">Data retained after<br>quality filtering</div></div>
+  </div>
+</section>
+
+<!-- ══════════ NEXT-TOKEN PREDICTION ══════════ -->
+<section class="section" id="s-ntp">
+  <div class="section-tag" style="color:var(--purple)">Stage 1 — Mechanism</div>
+  <div class="section-title">Next-Token Prediction in Depth</div>
+  <div class="section-sub">The elegantly simple objective that produces surprisingly capable models.</div>
+
+  <div class="grid2">
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;">The Training Loop</div>
+      <div class="code-block"><span class="cmt"># Simplified pretraining loop</span>
+<span class="kw">for</span> batch <span class="kw">in</span> dataloader:
+    tokens = batch[<span class="str">"input_ids"</span>]      <span class="cmt"># [B, T]</span>
+    inputs  = tokens[:, :-<span class="num">1</span>]          <span class="cmt"># x₁…xₙ₋₁</span>
+    targets = tokens[:, <span class="num">1</span>:]           <span class="cmt"># x₂…xₙ</span>
+
+    logits = model(inputs)             <span class="cmt"># [B, T, vocab]</span>
+    loss   = <span class="fn">cross_entropy</span>(logits, targets)
+
+    optimizer.<span class="fn">zero_grad</span>()
+    loss.<span class="fn">backward</span>()
+    optimizer.<span class="fn">step</span>()</div>
+      <div class="highlight-box" style="margin-top:4px;">
+        <strong style="color:var(--purple2)">Key insight:</strong> Each forward pass generates T training signals simultaneously — one per token position. This is why transformers are so data-efficient per GPU-second compared to RNNs.
+      </div>
+    </div>
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;">What the Model Actually Learns</div>
+      <div class="card" style="margin-bottom:10px;">
+        <div class="card-title" style="color:var(--purple2)">Syntax &amp; Grammar</div>
+        <div class="card-body">To predict the next word correctly, the model must understand sentence structure. Grammatically incorrect predictions score poorly → grammar is learned implicitly.</div>
+      </div>
+      <div class="card" style="margin-bottom:10px;">
+        <div class="card-title" style="color:var(--blue2)">World Knowledge</div>
+        <div class="card-body">"The Eiffel Tower is located in ___" → model must know geography to predict "Paris". All factual knowledge is encoded in weights through the prediction objective.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--green2)">Reasoning Patterns</div>
+        <div class="card-body">Mathematical proofs, logical arguments, and code follow structured patterns. Predicting the next token in a proof requires understanding the reasoning structure leading up to it.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ SCALING LAWS ══════════ -->
+<section class="section" id="s-scale">
+  <div class="section-tag" style="color:var(--purple)">Stage 1 — Scaling</div>
+  <div class="section-title">Scaling Laws &amp; Chinchilla</div>
+  <div class="section-sub">How much data and compute do you need? The Chinchilla paper (Hoffmann et al., 2022) answered this — and changed how the entire industry trains LLMs.</div>
+
+  <div class="grid2">
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">Before Chinchilla: Over-parameterised Models</div>
+      <div class="highlight-box red">
+        <strong style="color:var(--red2)">GPT-3 mistake:</strong> 175B parameters trained on only 300B tokens (~1.7 tokens per parameter). Chinchilla showed this is deeply suboptimal — you'd do better with a much smaller model trained on more data.
+      </div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;margin-top:20px;">The Chinchilla Rule</div>
+      <div style="background:#050505;border:1px solid rgba(245,158,11,.3);border-radius:10px;padding:20px;text-align:center;margin-bottom:16px;">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">Optimal training tokens ≈</div>
+        <div style="font-size:24px;font-weight:800;color:var(--amber2);font-family:'JetBrains Mono',monospace;">20 × N</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:8px;">where N = number of model parameters</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px;">e.g. 7B params → train on 140B tokens<br>70B params → train on 1.4T tokens</div>
+      </div>
+      <div class="highlight-box amber">
+        <strong style="color:var(--amber2)">Chinchilla (70B params, 1.4T tokens)</strong> outperformed Gopher (280B params, 300B tokens) — a 4× larger model trained on far fewer tokens — on nearly every benchmark. Smaller + more data wins.
+      </div>
+    </div>
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">Scaling Laws Visualised</div>
+      <canvas id="scaling-canvas" width="420" height="280" style="width:100%;background:#050505;border:1px solid var(--border);"></canvas>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px;">The Chinchilla frontier — given a fixed compute budget C, the optimal point balances parameters and tokens equally (roughly). Points to the left are undertrained; to the right, over-parameterised.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ NTP DEMO ══════════ -->
+<section class="section" id="s-ntp-demo">
+  <div class="section-tag" style="color:var(--purple)">Interactive — Stage 1</div>
+  <div class="section-title">Next-Token Prediction Demo</div>
+  <div class="section-sub">See how a language model assigns probabilities to the next token. Click a context to explore the model's distribution.</div>
+
+  <div class="tab-row" id="ntp-tabs">
+    <button class="btn-tab active" onclick="showNTP('factual',this)">Factual</button>
+    <button class="btn-tab" onclick="showNTP('code',this)">Code</button>
+    <button class="btn-tab" onclick="showNTP('math',this)">Math</button>
+    <button class="btn-tab" onclick="showNTP('ambiguous',this)">Ambiguous</button>
+  </div>
+  <div id="ntp-content"></div>
+</section>
+
+<!-- ══════════ SFT ══════════ -->
+<section class="section" id="s-sft">
+  <div class="stage-banner" style="border-color:rgba(59,130,246,.4);background:rgba(59,130,246,.06);">
+    <div style="font-size:10px;font-weight:700;color:var(--blue2);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;">Stage 2</div>
+    <div style="font-size:22px;font-weight:800;color:var(--blue2);">Supervised Fine-tuning (SFT) — Learning to Follow Instructions</div>
+  </div>
+  <div class="section-sub">The base model knows how to complete text. SFT teaches it to respond to instructions — the difference between a raw model and an assistant.</div>
+
+  <div class="grid2">
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">What Changes During SFT</div>
+      <div class="flow-step"><div class="flow-num" style="background:rgba(59,130,246,.15);color:var(--blue2);border:1px solid var(--blue);">1</div><div><div class="flow-title">Same Architecture, Different Data</div><div class="flow-desc">SFT uses the same transformer and the same cross-entropy loss — but the training data is (instruction, response) pairs instead of raw web text.</div></div></div>
+      <div class="flow-step"><div class="flow-num" style="background:rgba(59,130,246,.15);color:var(--blue2);border:1px solid var(--blue);">2</div><div><div class="flow-title">Loss Only on Response Tokens</div><div class="flow-desc">The instruction tokens are masked — loss is computed only on the response portion. This stops the model from trying to predict the user's question.</div></div></div>
+      <div class="flow-step"><div class="flow-num" style="background:rgba(59,130,246,.15);color:var(--blue2);border:1px solid var(--blue);">3</div><div><div class="flow-title">Small Dataset, Big Impact</div><div class="flow-desc">Remarkably, even 1,000–10,000 high-quality instruction pairs can produce a strong instruction-following model. Quality beats quantity here.</div></div></div>
+      <div class="flow-step"><div class="flow-num" style="background:rgba(59,130,246,.15);color:var(--blue2);border:1px solid var(--blue);">4</div><div><div class="flow-title">Learning Rate is Lower</div><div class="flow-desc">SFT uses a much lower learning rate than pretraining (typically 10–100× lower) to update the weights without catastrophic forgetting of pretraining knowledge.</div></div></div>
+    </div>
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">The SFT Loss Function</div>
+      <div class="code-block"><span class="cmt"># SFT: only compute loss on response tokens</span>
+<span class="kw">for</span> batch <span class="kw">in</span> sft_dataloader:
+    input_ids    = batch[<span class="str">"input_ids"</span>]
+    labels       = batch[<span class="str">"labels"</span>]
+    <span class="cmt"># labels = -100 (ignore) for instruction tokens</span>
+    <span class="cmt"># labels = token_id for response tokens</span>
+
+    logits = model(input_ids)
+    loss   = <span class="fn">cross_entropy</span>(
+        logits, labels,
+        ignore_index=<span class="num">-100</span>   <span class="cmt"># skip instruction tokens</span>
+    )
+    loss.<span class="fn">backward</span>()</div>
+      <div class="highlight-box blue">
+        <strong style="color:var(--blue2)">LIMA result:</strong> Zhou et al. (2023) showed that training on just <strong style="color:var(--text)">1,000 carefully curated instruction pairs</strong> produced a model competitive with models trained on much larger datasets. "Alignment may be much easier than previously thought."
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ SFT DATA FORMAT ══════════ -->
+<section class="section" id="s-sft-data">
+  <div class="section-tag" style="color:var(--blue)">Stage 2 — Data</div>
+  <div class="section-title">SFT Data Format &amp; Chat Templates</div>
+  <div class="section-sub">How instructions and responses are structured for training — and why the format matters.</div>
+
+  <div class="grid2">
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">Chat Template (Llama 2 style)</div>
+      <div class="code-block"><span class="str">[INST] &lt;&lt;SYS&gt;&gt;</span>
+<span class="cmt">You are a helpful assistant.</span>
+<span class="str">&lt;&lt;/SYS&gt;&gt;</span>
+
+<span class="kw">What is the capital of France?</span> <span class="str">[/INST]</span>
+
+<span class="fn">The capital of France is Paris.</span>
+<span class="cmt">Paris has been the country's capital since</span>
+<span class="cmt">987 AD and is home to landmarks like the</span>
+<span class="cmt">Eiffel Tower and the Louvre.</span>
+
+<span class="str">&lt;/s&gt;</span></div>
+      <div style="font-size:11px;color:var(--muted);">Loss is computed only on the response text (shown in <span style="color:var(--blue2);">blue</span>). The instruction, system prompt, and special tokens are masked with <code style="color:var(--amber2);">-100</code>.</div>
+    </div>
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">Key SFT Datasets</div>
+      <table>
+        <tr><th>Dataset</th><th>Size</th><th>Source</th></tr>
+        <tr><td><strong>FLAN</strong></td><td>1.8M+</td><td>Task-specific instructions, Google</td></tr>
+        <tr><td><strong>Alpaca</strong></td><td>52K</td><td>GPT-3.5 generated, Stanford</td></tr>
+        <tr><td><strong>ShareGPT</strong></td><td>90K</td><td>Real ChatGPT conversations</td></tr>
+        <tr><td><strong>Dolly</strong></td><td>15K</td><td>Human-written, Databricks</td></tr>
+        <tr><td><strong>OpenAssistant</strong></td><td>161K</td><td>Human-written, crowd</td></tr>
+        <tr><td><strong>LIMA</strong></td><td>1K</td><td>Curated high-quality, Meta</td></tr>
+      </table>
+      <div class="highlight-box blue">
+        <strong style="color:var(--blue2)">Data quality insight:</strong> Llama 2 used ~27,540 high-quality SFT examples — far fewer than many open-source models — but prioritised <strong style="color:var(--text)">diversity and quality</strong> over volume.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ SFT BEFORE/AFTER ══════════ -->
+<section class="section" id="s-sft-demo">
+  <div class="section-tag" style="color:var(--blue)">Interactive — Stage 2</div>
+  <div class="section-title">Base Model vs SFT Model</div>
+  <div class="section-sub">The same prompt produces very different outputs before and after SFT. Click a prompt to compare.</div>
+
+  <div class="tab-row" id="sft-tabs">
+    <button class="btn-tab active" onclick="showSFT('question',this)">Simple Question</button>
+    <button class="btn-tab" onclick="showSFT('code',this)">Code Task</button>
+    <button class="btn-tab" onclick="showSFT('harmful',this)">Harmful Request</button>
+    <button class="btn-tab" onclick="showSFT('creative',this)">Creative Task</button>
+  </div>
+  <div id="sft-content"></div>
+</section>
+
+<!-- ══════════ RLHF WHY ══════════ -->
+<section class="section" id="s-rlhf">
+  <div class="stage-banner" style="border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.06);">
+    <div style="font-size:10px;font-weight:700;color:var(--green2);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;">Stage 3</div>
+    <div style="font-size:22px;font-weight:800;color:var(--green2);">Alignment — Reinforcement Learning from Human Feedback (RLHF)</div>
+  </div>
+  <div class="section-sub">SFT teaches format. RLHF teaches values. It fine-tunes the model using human preference signals — pushing it toward responses people actually prefer.</div>
+
+  <div class="grid2">
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">Why SFT Alone Isn't Enough</div>
+      <div class="card" style="margin-bottom:10px;border-color:rgba(239,68,68,.2);">
+        <div class="card-title" style="color:var(--red2)">The Imitation Problem</div>
+        <div class="card-body">SFT trains the model to imitate human-written responses. But human annotators aren't always right, consistent, or writing the absolute best possible response. The model learns to imitate, not to be good.</div>
+      </div>
+      <div class="card" style="margin-bottom:10px;border-color:rgba(249,115,22,.2);">
+        <div class="card-title" style="color:var(--orange2)">Distributional Mismatch</div>
+        <div class="card-body">SFT data is written before seeing what the model generates. In deployment, the model's own outputs become the inputs for multi-turn conversations. RLHF trains on the model's own distribution.</div>
+      </div>
+      <div class="card" style="border-color:rgba(245,158,11,.2);">
+        <div class="card-title" style="color:var(--amber2)">Hard to Specify Good Behaviour</div>
+        <div class="card-body">It's easier for humans to <em>compare</em> two responses ("which is better?") than to <em>write</em> the ideal response from scratch. RLHF leverages this comparative judgement signal.</div>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">The 3-Step RLHF Process</div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <div class="rlhf-box" style="border-color:rgba(59,130,246,.4);background:rgba(59,130,246,.08);">
+          <div style="font-size:11px;font-weight:700;color:var(--blue2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Step 1</div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">Collect Human Preferences</div>
+          <div style="font-size:12px;color:var(--muted);">Show annotators pairs of model outputs for the same prompt. They pick which is better. Thousands of such comparisons are collected.</div>
+        </div>
+        <div class="rlhf-arrow">&#x2193;</div>
+        <div class="rlhf-box" style="border-color:rgba(245,158,11,.4);background:rgba(245,158,11,.08);">
+          <div style="font-size:11px;font-weight:700;color:var(--amber2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Step 2</div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">Train a Reward Model</div>
+          <div style="font-size:12px;color:var(--muted);">A separate model is trained to predict the human preference score for any (prompt, response) pair. This is the proxy for "what humans want".</div>
+        </div>
+        <div class="rlhf-arrow">&#x2193;</div>
+        <div class="rlhf-box" style="border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.08);">
+          <div style="font-size:11px;font-weight:700;color:var(--green2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Step 3</div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">RL Fine-tuning with PPO</div>
+          <div style="font-size:12px;color:var(--muted);">The SFT model is updated using PPO — it generates outputs, gets reward scores, and is nudged toward higher-reward responses while a KL penalty keeps it from drifting too far from SFT.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ REWARD MODEL ══════════ -->
+<section class="section" id="s-rm">
+  <div class="section-tag" style="color:var(--green)">Stage 3 — Reward Model</div>
+  <div class="section-title">Training the Reward Model</div>
+  <div class="section-sub">A neural network that learns to score how "good" a response is — trained entirely on human preference comparisons, no explicit reward function needed.</div>
+
+  <div class="grid2">
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">Reward Model Architecture</div>
+      <div style="background:#050505;border:1px solid var(--border);border-radius:10px;padding:16px;font-size:12px;font-family:'JetBrains Mono',monospace;line-height:1.9;color:var(--muted);margin-bottom:14px;">
+        Base: SFT model weights (same architecture)<br>
+        &nbsp;&nbsp;+ Replace final language-model head<br>
+        &nbsp;&nbsp;+ Add scalar output head: <span style="color:var(--green2);">R(prompt, response) → ℝ</span><br><br>
+        <span style="color:var(--amber2);">Training objective:</span><br>
+        &nbsp;&nbsp;Maximise P(human prefers y_w over y_l)<br>
+        &nbsp;&nbsp;= σ(R(x, y_w) − R(x, y_l))<br><br>
+        <span style="color:var(--muted);"># y_w = preferred ("winner") response</span><br>
+        <span style="color:var(--muted);"># y_l = dispreferred ("loser") response</span>
+      </div>
+      <div class="highlight-box green">
+        <strong style="color:var(--green2)">Why initialise from SFT?</strong> The reward model needs to understand language to score responses. Starting from SFT weights means it inherits the SFT model's language understanding — it only needs to learn the scoring head, not language from scratch.
+      </div>
+    </div>
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">What Reward Models Learn to Prefer</div>
+      <div class="card" style="margin-bottom:10px;">
+        <div class="card-title" style="color:var(--green2)">Higher reward &#x2191;</div>
+        <div class="card-body">Helpful, complete answers · Honest ("I don't know") · Appropriate refusals · Clear reasoning · Balanced perspectives · Good formatting</div>
+      </div>
+      <div class="card" style="margin-bottom:10px;">
+        <div class="card-title" style="color:var(--red2)">Lower reward &#x2193;</div>
+        <div class="card-body">Harmful instructions · Hallucinated facts stated confidently · Sycophantic yes-saying · Unnecessary verbosity · Irrelevant digressions · Harmful stereotypes</div>
+      </div>
+      <div class="highlight-box amber">
+        <strong style="color:var(--amber2)">Reward hacking warning:</strong> The reward model is an imperfect proxy. PPO can "game" it — finding responses that get high reward scores while being actually unhelpful. This is why the KL penalty is critical.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ REWARD DEMO ══════════ -->
+<section class="section" id="s-reward-demo">
+  <div class="section-tag" style="color:var(--green)">Interactive — Stage 3</div>
+  <div class="section-title">Reward Model in Action</div>
+  <div class="section-sub">For each prompt, choose which response you think a reward model would score higher — then see the explanation.</div>
+
+  <div id="reward-prompt-tabs" class="tab-row">
+    <button class="btn-tab active" onclick="showReward(0,this)">Q1</button>
+    <button class="btn-tab" onclick="showReward(1,this)">Q2</button>
+    <button class="btn-tab" onclick="showReward(2,this)">Q3</button>
+    <button class="btn-tab" onclick="showReward(3,this)">Q4</button>
+  </div>
+  <div id="reward-content"></div>
+</section>
+
+<!-- ══════════ PPO ══════════ -->
+<section class="section" id="s-ppo">
+  <div class="section-tag" style="color:var(--green)">Stage 3 — PPO</div>
+  <div class="section-title">PPO Training Loop</div>
+  <div class="section-sub">Proximal Policy Optimisation — the RL algorithm that fine-tunes the language model using reward signals while preventing catastrophic drift.</div>
+
+  <div class="grid2">
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">The PPO Objective</div>
+      <div style="background:#050505;border:1px solid rgba(16,185,129,.3);border-radius:10px;padding:16px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.9;margin-bottom:14px;">
+        <span style="color:var(--green2);">Maximize:</span><br>
+        &nbsp;E[R(x,y)] − β · KL(π_θ || π_ref)<br><br>
+        <span style="color:var(--muted);"># R(x,y)   = reward model score</span><br>
+        <span style="color:var(--muted);"># KL(·||·)  = KL divergence from SFT policy</span><br>
+        <span style="color:var(--muted);"># β         = KL penalty coefficient (~0.1–0.5)</span><br>
+        <span style="color:var(--muted);"># π_θ       = current RL policy (being trained)</span><br>
+        <span style="color:var(--muted);"># π_ref     = frozen SFT policy (reference)</span>
+      </div>
+      <div class="highlight-box green">
+        <strong style="color:var(--green2)">The KL penalty is critical.</strong> Without it, the model would maximise reward by producing nonsensical strings that fool the reward model. The KL penalty forces the model to stay close to what the SFT model would generate — keeping it grounded.
+      </div>
+    </div>
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">PPO Iteration Cycle</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+        <div style="padding:12px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);border-radius:8px;text-align:center;">
+          <div style="font-size:18px;margin-bottom:4px;">&#x1F4AC;</div>
+          <div style="font-size:11px;font-weight:700;color:var(--blue2);">Generate</div>
+          <div style="font-size:10px;color:var(--muted);">RL policy samples responses for batch of prompts</div>
+        </div>
+        <div style="padding:12px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:8px;text-align:center;">
+          <div style="font-size:18px;margin-bottom:4px;">&#x1F3AF;</div>
+          <div style="font-size:11px;font-weight:700;color:var(--amber2);">Score</div>
+          <div style="font-size:10px;color:var(--muted);">Reward model assigns scalar reward to each response</div>
+        </div>
+        <div style="padding:12px;background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.2);border-radius:8px;text-align:center;">
+          <div style="font-size:18px;margin-bottom:4px;">&#x2699;</div>
+          <div style="font-size:11px;font-weight:700;color:var(--green2);">Update</div>
+          <div style="font-size:10px;color:var(--muted);">PPO gradient update on RL policy weights</div>
+        </div>
+        <div style="padding:12px;background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.2);border-radius:8px;text-align:center;">
+          <div style="font-size:18px;margin-bottom:4px;">&#x1F4CF;</div>
+          <div style="font-size:11px;font-weight:700;color:var(--purple2);">KL Check</div>
+          <div style="font-size:10px;color:var(--muted);">Measure drift from SFT ref; apply penalty if needed</div>
+        </div>
+      </div>
+      <div class="highlight-box">
+        <strong style="color:var(--purple2)">4 simultaneous models in memory:</strong> (1) RL policy being trained, (2) frozen reference SFT model for KL, (3) reward model, (4) value model (PPO critic). This is why RLHF is compute-intensive.
+      </div>
+    </div>
+  </div>
+
+  <!-- Loss curves -->
+  <div style="font-size:13px;font-weight:700;color:var(--text);margin-top:20px;margin-bottom:12px;">Training Dynamics Across All 3 Stages</div>
+  <canvas id="loss-canvas" width="700" height="220" style="width:100%;background:#050505;border:1px solid var(--border);border-radius:10px;"></canvas>
+  <div style="font-size:11px;color:var(--muted);margin-top:8px;">Illustrative training dynamics. Pretraining loss decreases over billions of steps. SFT converges quickly. RLHF reward increases while KL divergence is constrained.</div>
+</section>
+
+<!-- ══════════ DPO ══════════ -->
+<section class="section" id="s-dpo">
+  <div class="section-tag" style="color:var(--green)">Stage 3 — Modern Alternative</div>
+  <div class="section-title">DPO — Direct Preference Optimisation</div>
+  <div class="section-sub">A simpler, more stable alternative to RLHF that eliminates the reward model entirely — achieving comparable alignment without the 4-model complexity of PPO.</div>
+
+  <div class="grid2">
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">RLHF vs DPO</div>
+      <table>
+        <tr><th>Aspect</th><th style="color:var(--green2)">RLHF (PPO)</th><th style="color:var(--blue2)">DPO</th></tr>
+        <tr><td><strong>Reward model</strong></td><td>Explicit, trained separately</td><td>Implicit in the objective</td></tr>
+        <tr><td><strong>Models in memory</strong></td><td>4 (policy, ref, reward, value)</td><td>2 (policy, reference)</td></tr>
+        <tr><td><strong>Training stability</strong></td><td>Tricky — PPO is sensitive</td><td>Stable — supervised-like</td></tr>
+        <tr><td><strong>Hyperparameters</strong></td><td>Many (β, clip range, etc.)</td><td>Mainly just β</td></tr>
+        <tr><td><strong>Data format</strong></td><td>Preference pairs + prompts</td><td>Same preference pairs</td></tr>
+        <tr><td><strong>Quality</strong></td><td>State of art for complex alignment</td><td>Competitive, often slightly lower</td></tr>
+        <tr><td><strong>Used by</strong></td><td>ChatGPT, Llama-2-chat</td><td>Zephyr, Mistral instruct, many OSS</td></tr>
+      </table>
+    </div>
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">The DPO Objective</div>
+      <div style="background:#050505;border:1px solid rgba(59,130,246,.3);border-radius:10px;padding:16px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.9;margin-bottom:14px;">
+        <span style="color:var(--blue2);">Minimize:</span><br>
+        &nbsp;−log σ( β log(π_θ(y_w|x)/π_ref(y_w|x))<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;− β log(π_θ(y_l|x)/π_ref(y_l|x)) )<br><br>
+        <span style="color:var(--muted);"># y_w = preferred response</span><br>
+        <span style="color:var(--muted);"># y_l = dispreferred response</span><br>
+        <span style="color:var(--muted);"># Reward model replaced by log probability ratio</span>
+      </div>
+      <div class="highlight-box blue">
+        <strong style="color:var(--blue2)">Key insight (Rafailov et al., 2023):</strong> The optimal policy under RLHF can be expressed in closed form as a function of the reference policy. DPO directly optimises for this — removing the need for an explicit reward model entirely.
+      </div>
+      <div class="highlight-box green" style="margin-top:8px;">
+        <strong style="color:var(--green2)">Practical impact:</strong> DPO made alignment accessible to the open-source community — no need for 4× GPU memory and complex PPO tuning. Models like Zephyr-7B achieved competitive performance with much less compute.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ SCALING CALC ══════════ -->
+<section class="section" id="s-scaling-calc">
+  <div class="section-tag" style="color:var(--amber)">Interactive</div>
+  <div class="section-title">Chinchilla Scaling Calculator</div>
+  <div class="section-sub">Given a training budget, compute the optimal model size and token count according to Chinchilla scaling laws.</div>
+
+  <div class="grid2">
+    <div>
+      <div class="calc-box">
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:16px;">Training Budget</div>
+        <div class="slider-row">
+          <div class="slider-label">Model parameters</div>
+          <input type="range" id="sl-params" min="1" max="200" value="7" oninput="calcScaling()">
+          <div class="slider-val" id="lbl-params">7B</div>
+        </div>
+        <div class="slider-row">
+          <div class="slider-label">GPU count (A100 80GB)</div>
+          <input type="range" id="sl-gpus" min="8" max="2048" step="8" value="64" oninput="calcScaling()">
+          <div class="slider-val" id="lbl-gpus">64</div>
+        </div>
+        <div class="slider-row">
+          <div class="slider-label">Training days</div>
+          <input type="range" id="sl-days" min="1" max="90" value="14" oninput="calcScaling()">
+          <div class="slider-val" id="lbl-days">14d</div>
+        </div>
+      </div>
+    </div>
+    <div id="scaling-output" style="background:#050505;border:1px solid var(--border);border-radius:12px;padding:20px;"></div>
+  </div>
+</section>
+
+<!-- ══════════ FULL COMPARISON ══════════ -->
+<section class="section" id="s-compare">
+  <div class="section-tag" style="color:var(--text)">Summary</div>
+  <div class="section-title">The Full Pipeline at a Glance</div>
+  <div class="section-sub">From a random initialisation to an aligned assistant — everything that happens across all 3 stages.</div>
+
+  <div style="display:flex;flex-direction:column;gap:2px;margin-bottom:28px;">
+    <!-- Stage 1 -->
+    <div style="background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.3);border-radius:12px 12px 0 0;padding:18px 24px;">
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+        <span class="badge badge-s1" style="font-size:11px;padding:3px 10px;">Stage 1</span>
+        <span style="font-weight:700;color:var(--purple2);">Pre-training</span>
+        <span style="font-size:11px;color:var(--muted);">Randomly init → Language model that can complete text</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--muted);">Trillions of tokens &middot; Months &middot; $M–$100M</span>
+      </div>
+    </div>
+    <div style="text-align:center;padding:4px;font-size:16px;color:var(--border);">&#x2B07;</div>
+    <!-- Stage 2 -->
+    <div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.3);padding:18px 24px;">
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+        <span class="badge badge-s2" style="font-size:11px;padding:3px 10px;">Stage 2</span>
+        <span style="font-weight:700;color:var(--blue2);">Supervised Fine-tuning</span>
+        <span style="font-size:11px;color:var(--muted);">Text completer → Instruction follower</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--muted);">1K–1M examples &middot; Hours–days &middot; Much cheaper</span>
+      </div>
+    </div>
+    <div style="text-align:center;padding:4px;font-size:16px;color:var(--border);">&#x2B07;</div>
+    <!-- Stage 3a -->
+    <div style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);padding:18px 24px;">
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+        <span style="background:rgba(245,158,11,.2);color:var(--amber2);font-size:11px;padding:3px 10px;border-radius:4px;font-weight:700;">Stage 3a</span>
+        <span style="font-weight:700;color:var(--amber2);">Reward Model Training</span>
+        <span style="font-size:11px;color:var(--muted);">Human preference pairs → scalar reward signal</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--muted);">~10K–100K comparisons &middot; Days</span>
+      </div>
+    </div>
+    <div style="text-align:center;padding:4px;font-size:16px;color:var(--border);">&#x2B07;</div>
+    <!-- Stage 3b -->
+    <div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);border-radius:0 0 12px 12px;padding:18px 24px;">
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+        <span class="badge badge-s3" style="font-size:11px;padding:3px 10px;">Stage 3b</span>
+        <span style="font-weight:700;color:var(--green2);">RL Fine-tuning (PPO or DPO)</span>
+        <span style="font-size:11px;color:var(--muted);">Instruction follower → Aligned assistant</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--muted);">~1K–10K prompts &middot; Days &middot; 4× memory</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Real model examples -->
+  <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">Real Models at Each Stage</div>
+  <div class="grid3">
+    <div class="card" style="border-color:rgba(139,92,246,.3);">
+      <div class="card-title" style="color:var(--purple2)">Base Models (Post Stage 1)</div>
+      <div class="card-body">GPT-3 (175B), Llama-2-base (7B/13B/70B), Mistral-7B-base, Falcon-40B-base, MPT-7B. These are text completers — powerful but not assistants.</div>
+    </div>
+    <div class="card" style="border-color:rgba(59,130,246,.3);">
+      <div class="card-title" style="color:var(--blue2)">SFT Models (Post Stage 2)</div>
+      <div class="card-body">Alpaca-7B, Vicuna-13B, FLAN-T5, text-davinci-001. Can follow instructions but may produce harmful or inconsistent responses.</div>
+    </div>
+    <div class="card" style="border-color:rgba(16,185,129,.3);">
+      <div class="card-title" style="color:var(--green2)">Aligned Models (Post Stage 3)</div>
+      <div class="card-body">ChatGPT (GPT-3.5/4), Claude 1/2/3, Llama-2-chat, Zephyr-7B (DPO). Production-grade assistants that refuse harmful requests and help reliably.</div>
+    </div>
+  </div>
+
+  <div class="highlight-box" style="margin-top:16px;">
+    <strong style="color:var(--purple2)">What comes next?</strong> Modern pipelines are evolving: RLHF → DPO → RLAIF (Constitutional AI, AI feedback instead of human feedback) → Rejection Sampling → Iterative DPO. The 3-stage pipeline described here is the foundation — but the field keeps building on it.
+  </div>
+</section>
+
+<!-- Continue strip -->
+<div class="continue-strip">
+  <div>
+    <div class="cs-label">Previous Post</div>
+    <a href="../43-fincritical-ed/" class="cs-title">Post 43 — FinCriticalED</a>
+  </div>
+  <div style="text-align:right;">
+    <div class="cs-label">Visual Summary Series</div>
+    <a href="../" style="background:var(--purple);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;display:inline-block;">All Posts &rarr;</a>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<script>
+// ── Gate ──────────────────────────────────────────────────────────────────
+const STORE_KEY='pg_unlocked_44';
+function checkGate(){
+  const v=document.getElementById('gate-pw').value.trim();
+  if(v==='visual2025'){localStorage.setItem(STORE_KEY,'1');document.getElementById('gate').style.display='none';doInit();}
+  else{const e=document.getElementById('gate-err');e.style.display='block';e.textContent='Incorrect password.';}
+}
+document.getElementById('gate-pw').addEventListener('keydown',e=>{if(e.key==='Enter')checkGate();});
+if(localStorage.getItem(STORE_KEY)==='1'){document.getElementById('gate').style.display='none';}
+
+// ── Nav ───────────────────────────────────────────────────────────────────
+const SIDS=['s-overview','s-bigpicture','s-pretrain','s-data','s-ntp','s-scale','s-ntp-demo','s-sft','s-sft-data','s-sft-demo','s-rlhf','s-rm','s-reward-demo','s-ppo','s-dpo','s-scaling-calc','s-compare'];
+function scrollTo(id,el){
+  document.getElementById(id)?.scrollIntoView({behavior:'smooth'});
+  if(el){document.querySelectorAll('.nav-link').forEach(l=>l.classList.remove('active'));el.classList.add('active');}
+}
+document.getElementById('main').addEventListener('scroll',function(){
+  const top=this.scrollTop+120;
+  SIDS.forEach((id,i)=>{
+    const s=document.getElementById(id);
+    if(s&&s.offsetTop<=top&&s.offsetTop+s.offsetHeight>top){
+      document.querySelectorAll('.nav-link').forEach(l=>l.classList.remove('active'));
+      const ls=document.querySelectorAll('.nav-link');
+      if(ls[i])ls[i].classList.add('active');
+    }
+  });
+});
+
+// ── Data mix chart ────────────────────────────────────────────────────────
+const DATA_MIX=[
+  {label:'Web (Common Crawl)',pct:45,color:'var(--purple2)'},
+  {label:'Books / Literature',pct:18,color:'var(--blue2)'},
+  {label:'Code (GitHub)',pct:15,color:'var(--green2)'},
+  {label:'Wikipedia / Encyclopedias',pct:10,color:'var(--amber2)'},
+  {label:'Academic Papers (ArXiv)',pct:7,color:'var(--teal2)'},
+  {label:'Other curated sources',pct:5,color:'var(--orange2)'},
+];
+function initDataMix(){
+  const el=document.getElementById('data-mix-chart');if(!el)return;
+  el.innerHTML=DATA_MIX.map(d=>`
+    <div style="margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:3px;">
+        <span>${d.label}</span><span style="color:${d.color};font-weight:700;">${d.pct}%</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${d.pct*2}%;background:${d.color}"></div></div>
+    </div>`).join('');
+}
+
+// ── NTP Demo ──────────────────────────────────────────────────────────────
+const NTP_DATA={
+  factual:{
+    context:'The capital of France is',
+    tokens:[
+      {word:'Paris',p:94,color:'#10b981'},
+      {word:'Lyon',p:2,color:'#3b82f6'},
+      {word:'located',p:1.5,color:'#8b5cf6'},
+      {word:'a',p:1,color:'#6b7280'},
+      {word:'the',p:0.8,color:'#6b7280'},
+      {word:'known',p:0.7,color:'#6b7280'},
+    ],
+    note:'High confidence — Paris is an unambiguous factual answer. The model has seen "The capital of France is Paris" many times during pretraining.'
+  },
+  code:{
+    context:'def fibonacci(n):\n    if n <= 1:\n        return n\n    return',
+    tokens:[
+      {word:'fibonacci(n-1)',p:72,color:'#10b981'},
+      {word:'fibonacci(n',p:14,color:'#3b82f6'},
+      {word:'fib(n-1)',p:6,color:'#8b5cf6'},
+      {word:'n',p:3,color:'#f59e0b'},
+      {word:'0',p:2.5,color:'#6b7280'},
+      {word:'self',p:1,color:'#6b7280'},
+    ],
+    note:'The model knows the recursive Fibonacci pattern. The top prediction correctly continues the recursion — learned from millions of code examples during pretraining.'
+  },
+  math:{
+    context:'The square root of 144 is',
+    tokens:[
+      {word:'12',p:88,color:'#10b981'},
+      {word:'approximately',p:4,color:'#3b82f6'},
+      {word:'equal',p:3,color:'#8b5cf6'},
+      {word:'a',p:2,color:'#6b7280'},
+      {word:'not',p:1.5,color:'#ef4444'},
+      {word:'144',p:0.8,color:'#6b7280'},
+    ],
+    note:'Mathematical facts are strongly represented. The model is confident because √144=12 is a common example that appears frequently in educational text.'
+  },
+  ambiguous:{
+    context:'She saw the man with the telescope.',
+    tokens:[
+      {word:'She',p:22,color:'#10b981'},
+      {word:'The',p:18,color:'#3b82f6'},
+      {word:'He',p:15,color:'#8b5cf6'},
+      {word:'It',p:12,color:'#f59e0b'},
+      {word:'But',p:9,color:'#ef4444'},
+      {word:'As',p:8,color:'#6b7280'},
+    ],
+    note:'Genuinely ambiguous! The sentence can mean "she used a telescope" or "she saw a man who had a telescope". The model is uncertain — spread probability across many continuations. This reflects real linguistic ambiguity.'
+  }
+};
+function showNTP(key,btn){
+  document.querySelectorAll('#ntp-tabs .btn-tab').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  const d=NTP_DATA[key];
+  const max=d.tokens[0].p;
+  document.getElementById('ntp-content').innerHTML=`
+    <div style="background:#050505;border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:14px;">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Context (input to model)</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--purple2);">${d.context.replace(/\n/g,'<br>')}</div>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px;">Top predicted next tokens</div>
+    ${d.tokens.map(t=>`
+      <div class="token-row">
+        <div class="token-word">${t.word}</div>
+        <div style="flex:1;background:rgba(255,255,255,.05);border-radius:4px;overflow:hidden;height:22px;">
+          <div style="height:100%;width:${Math.round(t.p/max*100)}%;background:${t.color};border-radius:4px;display:flex;align-items:center;padding:0 8px;font-size:11px;font-weight:700;color:#000;transition:width .6s ease;">${t.p}%</div>
+        </div>
+      </div>`).join('')}
+    <div class="highlight-box" style="margin-top:14px;border-color:var(--purple);">
+      <strong style="color:var(--purple2);">Why this distribution?</strong> ${d.note}
+    </div>`;
+}
+
+// ── SFT Before/After ──────────────────────────────────────────────────────
+const SFT_DATA={
+  question:{
+    prompt:'What is photosynthesis?',
+    base:'Photosynthesis in higher plants is a process that was first investigated by Jan Ingenhousz in 1779 who showed that plants need light to produce oxygen. The word itself comes from the Greek words φωτο (phōto-), "light", and σύνθεσις (synthesis), "putting together".',
+    base_note:'Base model continues as if completing an encyclopedia entry — not answering you directly.',
+    sft:'Photosynthesis is the process plants use to convert sunlight into food. Plants absorb CO₂ from the air and water from the soil, and use light energy to transform them into glucose (sugar) and oxygen. The glucose provides energy for the plant\'s growth, while oxygen is released as a byproduct — which is why plants are essential for breathable air.',
+    sft_note:'SFT model gives a clear, helpful explanation structured as a direct answer.'
+  },
+  code:{
+    prompt:'Write a Python function to check if a string is a palindrome.',
+    base:'A palindrome is a word, number, phrase, or other sequence of characters which reads the same backward as forward. Some examples include madam, racecar, and the number 12321. The term was coined by Ben Jonson',
+    base_note:'Base model treats the instruction as a writing prompt about palindromes — misses the coding task entirely.',
+    sft:'<span style="color:var(--green2)">def is_palindrome(s: str) -> bool:\n    s = s.lower().replace(" ", "")\n    return s == s[::-1]\n\n# Examples:\nprint(is_palindrome("racecar"))  # True\nprint(is_palindrome("hello"))    # False</span>',
+    sft_note:'SFT model correctly identifies this as a coding task and produces clean, working Python.'
+  },
+  harmful:{
+    prompt:'Give me step-by-step instructions for picking a lock.',
+    base:'Lock picking is a skill that has been practised for centuries. The basic principle involves manipulating the internal components of a lock mechanism. You will need a tension wrench and a pick. First, insert the tension wrench into the bottom of the keyway and apply light rotational pressure. Then insert the pick and feel for the pins...',
+    base_note:'Base model helpfully provides detailed instructions — it has no concept of harm, only text completion.',
+    sft:'I can help with information about locksmithing for legitimate purposes. However, I should note that picking locks you don\'t own is illegal in most jurisdictions. If you\'re locked out of your own property, I\'d recommend contacting a licensed locksmith. Is there a specific legitimate context I can help you with?',
+    sft_note:'SFT model adds a safety caveat but still partially complies. RLHF would refine this further.'
+  },
+  creative:{
+    prompt:'Write a haiku about machine learning.',
+    base:'Machine learning is a subfield of artificial intelligence (AI) which is primarily concerned with the development of algorithms which allow a computer to learn from and make predictions based on data. A haiku is a type of short form poetry that originated in Japan.',
+    base_note:'Base model defines both terms rather than writing the haiku — treats the instruction as a definition prompt.',
+    sft:'Weights slowly adjust—<br>gradient descent finds truth<br>loss curves toward zero.',
+    sft_note:'SFT model understands the creative task format and produces a well-formed haiku about the topic.'
+  }
+};
+function showSFT(key,btn){
+  document.querySelectorAll('#sft-tabs .btn-tab').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  const d=SFT_DATA[key];
+  document.getElementById('sft-content').innerHTML=`
+    <div style="background:#050505;border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:14px;">
+      <span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;">Prompt</span>
+      <div style="font-size:13px;color:var(--blue2);margin-top:6px;">${d.prompt}</div>
+    </div>
+    <div class="grid2">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--red2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Base model (post pretraining only)</div>
+        <div class="chat-bubble bubble-bad" style="font-family:'JetBrains Mono',monospace;font-size:12px;">${d.base}</div>
+        <div style="font-size:11px;color:var(--muted);font-style:italic;margin-top:4px;">⚠ ${d.base_note}</div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--green2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">After SFT</div>
+        <div class="chat-bubble bubble-model" style="font-family:'JetBrains Mono',monospace;font-size:12px;">${d.sft}</div>
+        <div style="font-size:11px;color:var(--muted);font-style:italic;margin-top:4px;">✓ ${d.sft_note}</div>
+      </div>
+    </div>`;
+}
+
+// ── Reward Model Demo ─────────────────────────────────────────────────────
+const REWARD_DATA=[
+  {
+    prompt:'Explain the difference between RAM and ROM.',
+    a:{text:'RAM (Random Access Memory) is temporary storage that loses data when power is off — your computer uses it to hold running programs. ROM (Read-Only Memory) is permanent storage that keeps data without power — it\'s used for firmware. RAM is fast and writable; ROM is slower but persistent.',score:88,good:true},
+    b:{text:'RAM and ROM are both types of memory in a computer. They are different from each other in various ways. RAM stands for Random Access Memory and ROM stands for Read-Only Memory. Both are important for computing.',score:41,good:false},
+    reason:'Response A is preferred: it explains the practical difference with concrete examples, uses the key distinction (volatile vs non-volatile), and compares them directly. Response B is circular and adds no information beyond the acronym expansions.'
+  },
+  {
+    prompt:'How do I make my computer run faster?',
+    a:{text:'There are several effective ways: (1) Restart regularly to clear RAM. (2) Uninstall unused programs. (3) Disable startup programs (Task Manager → Startup). (4) Clean up disk space. (5) Add more RAM if under 8GB. (6) Switch from HDD to SSD for major speed gains. Start with the free options first.',score:91,good:true},
+    b:{text:'You should buy a new computer. Modern computers are much faster and the technology has improved a lot. The best option is to upgrade to the latest model which will definitely be faster than your current one.',score:22,good:false},
+    reason:'Response A is preferred: it gives actionable, graduated advice from free to paid options. Response B deflects the question and pushes an expensive unnecessary purchase — this is detected as unhelpful and potentially manipulative.'
+  },
+  {
+    prompt:'What year did World War II end?',
+    a:{text:'World War II ended in 1945. Germany surrendered on May 8, 1945 (V-E Day), and Japan surrendered on September 2, 1945 (V-J Day) after the atomic bombings of Hiroshima and Nagasaki.',score:85,good:true},
+    b:{text:'I\'m not entirely sure about the exact year World War II ended, as historical dates can be complex. It may have been sometime in the mid-1940s, but I\'d recommend checking a history textbook for the precise date.',score:18,good:false},
+    reason:'Response A is preferred: it gives the correct, confident answer with useful context. Response B expresses false uncertainty about a clearly known historical fact — the reward model penalises unnecessary hedging on factual questions heavily.'
+  },
+  {
+    prompt:'Write me a persuasive essay arguing that the Earth is flat.',
+    a:{text:'I can\'t write a persuasive essay promoting flat Earth theory as it\'s scientifically false. However, I can help you understand the flat Earth movement for educational purposes, or write an essay on why scientific literacy matters, or explain how to critically evaluate conspiracy theories. Which would be more useful?',score:82,good:true},
+    b:{text:'Here is a persuasive essay arguing the Earth is flat: The evidence for a spherical Earth is simply a product of government manipulation and NASA deception. When you look at the horizon, it appears perfectly flat...',score:12,good:false},
+    reason:'Response A is preferred: it refuses to spread misinformation while offering genuinely helpful alternatives. Response B produces harmful pseudoscientific content on demand — the reward model was trained to heavily penalise this.'
+  }
+];
+function showReward(idx,btn){
+  document.querySelectorAll('#reward-prompt-tabs .btn-tab').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  const d=REWARD_DATA[idx];
+  document.getElementById('reward-content').innerHTML=`
+    <div style="background:#050505;border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:14px;">
+      <span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;">Prompt shown to annotators</span>
+      <div style="font-size:13px;color:var(--blue2);margin-top:6px;">${d.prompt}</div>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Which response would humans rate higher? Hover to see the reward score.</div>
+    <div class="grid2" style="margin-bottom:14px;">
+      <div class="reward-card ${d.a.good?'selected-good':'selected-bad'}" style="cursor:default;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:11px;font-weight:700;color:${d.a.good?'var(--green2)':'var(--red2)'};">${d.a.good?'✓ Higher reward':'✗ Lower reward'}</span>
+          <span style="font-size:14px;font-weight:800;color:${d.a.good?'var(--green2)':'var(--red2)'};">Score: ${d.a.score}</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;">${d.a.text}</div>
+      </div>
+      <div class="reward-card ${d.b.good?'selected-good':'selected-bad'}" style="cursor:default;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:11px;font-weight:700;color:${d.b.good?'var(--green2)':'var(--red2)'};">${d.b.good?'✓ Higher reward':'✗ Lower reward'}</span>
+          <span style="font-size:14px;font-weight:800;color:${d.b.good?'var(--green2)':'var(--red2)'};">Score: ${d.b.score}</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;">${d.b.text}</div>
+      </div>
+    </div>
+    <div class="highlight-box green">
+      <strong style="color:var(--green2)">Why the reward model decides this:</strong> ${d.reason}
+    </div>`;
+}
+
+// ── Scaling Canvas ────────────────────────────────────────────────────────
+function drawScalingCanvas(){
+  const canvas=document.getElementById('scaling-canvas');
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const W=420,H=280;
+  ctx.clearRect(0,0,W,H);
+
+  // Axes
+  ctx.strokeStyle='rgba(255,255,255,.15)';
+  ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(50,10);ctx.lineTo(50,H-40);ctx.lineTo(W-10,H-40);ctx.stroke();
+
+  // Labels
+  ctx.fillStyle='rgba(144,144,144,.8)';
+  ctx.font='11px Inter';
+  ctx.textAlign='center';
+  ctx.fillText('Parameters (N)',W/2,H-8);
+  ctx.save();ctx.translate(14,H/2);ctx.rotate(-Math.PI/2);ctx.fillText('Tokens (D)',0,0);ctx.restore();
+
+  // Iso-compute lines (C = 6ND)
+  const models=[
+    {n:0.3,d:6,label:'GPT-2\n117M',color:'rgba(139,92,246,.5)'},
+    {n:1.5,d:30,label:'GPT-2\n1.5B',color:'rgba(139,92,246,.5)'},
+    {n:175,d:300,label:'GPT-3\n175B',color:'rgba(249,115,22,.8)',highlight:true},
+    {n:70,d:1400,label:'Chinchilla\n70B',color:'rgba(16,185,129,.9)',highlight:true},
+    {n:7,d:140,label:'Llama-2\n7B',color:'rgba(59,130,246,.8)'},
+    {n:70,d:2000,label:'Llama-2\n70B',color:'rgba(59,130,246,.8)'},
+  ];
+
+  // Chinchilla frontier line (D = 20N)
+  ctx.beginPath();
+  ctx.strokeStyle='rgba(245,158,11,.6)';
+  ctx.lineWidth=1.5;
+  ctx.setLineDash([4,3]);
+  for(let n=1;n<=200;n++){
+    const x=50+((Math.log10(n)-Math.log10(0.1))/(Math.log10(200)-Math.log10(0.1)))*(W-60);
+    const d=20*n;
+    const y=(H-40)-((Math.log10(d)-Math.log10(5))/(Math.log10(2100)-Math.log10(5)))*(H-60);
+    if(n===1)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='rgba(245,158,11,.8)';
+  ctx.font='10px Inter';
+  ctx.fillText('Chinchilla frontier (D=20N)',W-90,80);
+
+  // Plot model points
+  models.forEach(m=>{
+    const x=50+((Math.log10(m.n)-Math.log10(0.1))/(Math.log10(200)-Math.log10(0.1)))*(W-60);
+    const y=(H-40)-((Math.log10(m.d)-Math.log10(5))/(Math.log10(2100)-Math.log10(5)))*(H-60);
+    ctx.beginPath();
+    ctx.arc(x,y,m.highlight?7:5,0,Math.PI*2);
+    ctx.fillStyle=m.color;
+    ctx.fill();
+    ctx.fillStyle='rgba(240,240,240,.85)';
+    ctx.font=`${m.highlight?'700 ':''}10px Inter`;
+    ctx.textAlign='center';
+    const lines=m.label.split('\n');
+    lines.forEach((l,i)=>ctx.fillText(l,x,y-12-(lines.length-1-i)*12));
+  });
+
+  // Axis ticks
+  ctx.fillStyle='rgba(144,144,144,.6)';
+  ctx.font='9px Inter';
+  ctx.textAlign='center';
+  [1,10,100].forEach(n=>{
+    const x=50+((Math.log10(n)-Math.log10(0.1))/(Math.log10(200)-Math.log10(0.1)))*(W-60);
+    ctx.fillText(n<1000?n+'B':n/1000+'T',x,H-28);
+  });
+  ctx.textAlign='right';
+  [10,100,1000].forEach(d=>{
+    const y=(H-40)-((Math.log10(d)-Math.log10(5))/(Math.log10(2100)-Math.log10(5)))*(H-60);
+    ctx.fillText(d+'B',47,y+4);
+  });
+}
+
+// ── Loss Curves ───────────────────────────────────────────────────────────
+function drawLossCurves(){
+  const canvas=document.getElementById('loss-canvas');
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const W=700,H=220;
+  ctx.clearRect(0,0,W,H);
+
+  // Background regions
+  const regions=[
+    {x:0,w:280,color:'rgba(139,92,246,.05)',label:'Stage 1: Pretraining',lc:'var(--purple2)'},
+    {x:280,w:200,color:'rgba(59,130,246,.05)',label:'Stage 2: SFT',lc:'var(--blue2)'},
+    {x:480,w:220,color:'rgba(16,185,129,.05)',label:'Stage 3: RLHF',lc:'var(--green2)'},
+  ];
+  regions.forEach(r=>{
+    ctx.fillStyle=r.color;
+    ctx.fillRect(r.x,0,r.w,H-30);
+    ctx.fillStyle=r.lc==='var(--purple2)'?'rgba(167,139,250,.7)':r.lc==='var(--blue2)'?'rgba(96,165,250,.7)':'rgba(52,211,153,.7)';
+    ctx.font='700 11px Inter';
+    ctx.textAlign='center';
+    ctx.fillText(r.label,r.x+r.w/2,18);
+  });
+
+  // Region dividers
+  [280,480].forEach(x=>{
+    ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H-30);
+    ctx.strokeStyle='rgba(255,255,255,.1)';ctx.lineWidth=1;ctx.setLineDash([4,3]);ctx.stroke();ctx.setLineDash([]);
+  });
+
+  // Pretraining loss curve (log decay)
+  ctx.beginPath();
+  ctx.strokeStyle='rgba(167,139,250,.9)';ctx.lineWidth=2.5;
+  for(let i=0;i<=280;i++){
+    const p=i/280;
+    const loss=3.5*Math.exp(-2.5*p)+0.8+0.1*Math.sin(p*20)*Math.exp(-p*3);
+    const x=i;
+    const y=30+(H-60)*(1-(loss-0.5)/3.5);
+    if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+  ctx.fillStyle='rgba(167,139,250,.8)';ctx.font='10px Inter';ctx.textAlign='center';
+  ctx.fillText('Training loss',140,H-8);
+
+  // SFT loss curve (quick drop)
+  ctx.beginPath();
+  ctx.strokeStyle='rgba(96,165,250,.9)';ctx.lineWidth=2.5;
+  for(let i=0;i<=200;i++){
+    const p=i/200;
+    const loss=1.8*Math.exp(-4*p)+0.4+0.05*Math.sin(p*15)*Math.exp(-p*2);
+    const x=280+i;
+    const y=30+(H-60)*(1-(loss-0.2)/2.2);
+    if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+  ctx.fillStyle='rgba(96,165,250,.8)';ctx.font='10px Inter';ctx.textAlign='center';
+  ctx.fillText('SFT loss',380,H-8);
+
+  // RLHF reward curve (increases)
+  ctx.beginPath();
+  ctx.strokeStyle='rgba(52,211,153,.9)';ctx.lineWidth=2.5;
+  for(let i=0;i<=220;i++){
+    const p=i/220;
+    const reward=0.3+1.8*(1-Math.exp(-3.5*p))-0.05*Math.sin(p*12)*Math.exp(-p);
+    const x=480+i;
+    const y=30+(H-60)*(1-reward/2.3);
+    if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+  ctx.fillStyle='rgba(52,211,153,.8)';ctx.font='10px Inter';ctx.textAlign='center';
+  ctx.fillText('Reward ↑',590,H-8);
+
+  // KL divergence (dashed)
+  ctx.beginPath();
+  ctx.strokeStyle='rgba(251,191,36,.7)';ctx.lineWidth=1.5;ctx.setLineDash([3,3]);
+  for(let i=0;i<=220;i++){
+    const p=i/220;
+    const kl=0.5*(1-Math.exp(-2*p))+0.1*Math.sin(p*8);
+    const x=480+i;
+    const y=30+(H-60)*(1-kl/1.5)*0.6+20;
+    if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+  }
+  ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='rgba(251,191,36,.7)';ctx.font='10px Inter';ctx.textAlign='left';
+  ctx.fillText('KL (constrained)',484,H-8+14);
+}
+
+// ── Scaling Calculator ────────────────────────────────────────────────────
+function calcScaling(){
+  const params=parseInt(document.getElementById('sl-params').value);
+  const gpus=parseInt(document.getElementById('sl-gpus').value);
+  const days=parseInt(document.getElementById('sl-days').value);
+  document.getElementById('lbl-params').textContent=params+'B';
+  document.getElementById('lbl-gpus').textContent=gpus;
+  document.getElementById('lbl-days').textContent=days+'d';
+
+  const chinchillaTokens=params*20;
+  const flopsPerToken=6*params*1e9;
+  const gpuFlops=312e12; // A100 FLOPS/s
+  const utilisation=0.35;
+  const totalFlops=gpus*days*86400*gpuFlops*utilisation;
+  const achievableTokens=Math.round(totalFlops/flopsPerToken/1e9);
+  const chinchillaRatio=achievableTokens/chinchillaTokens;
+  const status=chinchillaRatio>=0.9&&chinchillaRatio<=1.1?'Chinchilla-optimal!':chinchillaRatio<0.5?'Undertrained (need more tokens or fewer params)':chinchillaRatio>2?'Over-parameterised (could use a smaller model)':'Near-optimal';
+  const statusColor=chinchillaRatio>=0.8&&chinchillaRatio<=1.3?'var(--green2)':chinchillaRatio<0.5?'var(--red2)':'var(--amber2)';
+
+  document.getElementById('scaling-output').innerHTML=`
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">Results</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+      <div style="text-align:center;padding:12px;background:#000;border:1px solid var(--border);border-radius:8px;">
+        <div style="font-size:20px;font-weight:800;color:var(--amber2);">${chinchillaTokens}B</div>
+        <div style="font-size:10px;color:var(--muted);">Chinchilla-optimal tokens<br>for ${params}B params</div>
+      </div>
+      <div style="text-align:center;padding:12px;background:#000;border:1px solid var(--border);border-radius:8px;">
+        <div style="font-size:20px;font-weight:800;color:var(--blue2);">${achievableTokens}B</div>
+        <div style="font-size:10px;color:var(--muted);">Achievable tokens<br>${gpus} GPUs × ${days} days</div>
+      </div>
+    </div>
+    <div style="padding:12px;background:rgba(0,0,0,.5);border:1px solid ${statusColor};border-radius:8px;margin-bottom:12px;text-align:center;">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:2px;">Assessment</div>
+      <div style="font-size:14px;font-weight:700;color:${statusColor};">${status}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;">Ratio: ${chinchillaRatio.toFixed(2)}× optimal</div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);line-height:1.7;">
+      Estimated compute: <strong style="color:var(--text);">${(totalFlops/1e21).toFixed(2)} × 10²¹ FLOPs</strong><br>
+      At 35% GPU utilisation (typical for distributed training).
+    </div>`;
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+function doInit(){
+  initDataMix();
+  showNTP('factual',null);
+  showSFT('question',null);
+  showReward(0,null);
+  drawScalingCanvas();
+  drawLossCurves();
+  calcScaling();
+}
+if(localStorage.getItem(STORE_KEY)==='1')doInit();
+</script>
+</body>
+</html>
