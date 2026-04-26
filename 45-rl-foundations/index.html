@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Foundations of Reinforcement Learning — Bandits &amp; Exploration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#000000;--surface:#0d0d0d;--border:#222222;
+  --text:#f0f0f0;--muted:#909090;
+  --teal:#10b981;--teal2:#34d399;--teal3:#a7f3d0;
+  --cyan:#06b6d4;--cyan2:#22d3ee;--cyan3:#a5f3fc;
+  --blue:#3b82f6;--blue2:#60a5fa;--blue3:#bfdbfe;
+  --purple:#8b5cf6;--purple2:#a78bfa;
+  --amber:#f59e0b;--amber2:#fbbf24;--amber3:#fde68a;
+  --red:#ef4444;--red2:#fca5a5;
+  --green:#10b981;--green2:#34d399;
+  --pink:#ec4899;--pink2:#f472b6;
+  --acc1:#10b981;--acc2:#06b6d4;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+#gate{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.gate-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 44px;text-align:center;max-width:380px;width:90%;}
+.gate-icon{font-size:36px;margin-bottom:12px;}
+.gate-title{font-size:20px;font-weight:800;color:var(--teal2);margin-bottom:4px;}
+.gate-sub{font-size:12px;color:var(--muted);margin-bottom:24px;}
+.gate-input{width:100%;background:#050505;border:1px solid var(--border);border-radius:8px;padding:11px 14px;font-size:14px;color:var(--text);outline:none;margin-bottom:12px;}
+.gate-input:focus{border-color:var(--teal);}
+.gate-btn{width:100%;background:var(--teal);color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s;}
+.gate-btn:hover{opacity:.85;}
+.gate-err{font-size:11px;color:var(--red);margin-top:6px;display:none;}
+.sidebar{width:240px;min-width:240px;height:100vh;position:sticky;top:0;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:0 0 40px;flex-shrink:0;}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.sidebar-logo-title{font-size:13px;font-weight:700;color:var(--teal2);}
+.sidebar-logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.nav-group-title{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;padding:10px 16px 4px;}
+.nav-link{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;}
+.nav-link:hover,.nav-link.active{color:var(--text);background:rgba(16,185,129,.08);}
+.nav-link.active{color:var(--teal2);}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.main{flex:1;overflow-y:auto;height:100vh;scroll-behavior:smooth;}
+.top-bar{position:sticky;top:0;z-index:50;background:rgba(0,0,0,.97);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+.bar-step{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);padding:2px 6px;border-radius:4px;cursor:pointer;transition:color .15s;}
+.bar-step:hover{color:var(--text);}
+.bar-dot{width:6px;height:6px;border-radius:50%;}
+.bar-arrow{color:var(--border);font-size:14px;font-weight:700;}
+.section{min-height:100vh;padding:60px 48px 80px;border-bottom:1px solid var(--border);}
+.section-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;}
+.section-title{font-size:28px;font-weight:800;color:var(--text);margin-bottom:8px;line-height:1.25;}
+.section-sub{font-size:14px;color:var(--muted);margin-bottom:28px;max-width:700px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:16px;}
+.card-title{font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px;}
+.card-body{font-size:13px;color:var(--muted);line-height:1.6;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;}
+.hl{border-left:3px solid var(--teal);padding:12px 16px;background:rgba(16,185,129,.06);border-radius:0 8px 8px 0;margin-bottom:16px;font-size:13px;color:var(--muted);}
+.hl.cyan{border-color:var(--cyan);background:rgba(6,182,212,.06);}
+.hl.amber{border-color:var(--amber);background:rgba(245,158,11,.06);}
+.hl.red{border-color:var(--red);background:rgba(239,68,68,.06);}
+.hl.blue{border-color:var(--blue);background:rgba(59,130,246,.06);}
+.hl.purple{border-color:var(--purple);background:rgba(139,92,246,.06);}
+table{width:100%;border-collapse:collapse;margin-bottom:20px;font-size:12px;}
+th{background:rgba(16,185,129,.12);color:var(--teal2);font-weight:700;padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);}
+td{padding:9px 14px;border-bottom:1px solid rgba(34,34,34,.8);color:var(--muted);}
+tr:hover td{background:rgba(16,185,129,.04);}
+td strong{color:var(--text);}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;text-align:center;}
+.stat-num{font-size:28px;font-weight:800;margin-bottom:4px;}
+.stat-label{font-size:11px;color:var(--muted);line-height:1.4;}
+.btn-tab{background:rgba(16,185,129,.08);border:1px solid var(--border);border-radius:6px;padding:7px 14px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;font-family:'Inter',sans-serif;}
+.btn-tab:hover{color:var(--text);}
+.btn-tab.active{background:rgba(16,185,129,.2);border-color:var(--teal);color:var(--teal2);}
+.tab-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+.badge-teal{background:rgba(16,185,129,.2);color:var(--teal2);border:1px solid rgba(16,185,129,.3);}
+.badge-cyan{background:rgba(6,182,212,.2);color:var(--cyan2);border:1px solid rgba(6,182,212,.3);}
+.badge-amber{background:rgba(245,158,11,.2);color:var(--amber2);border:1px solid rgba(245,158,11,.3);}
+.badge-red{background:rgba(239,68,68,.2);color:var(--red2);border:1px solid rgba(239,68,68,.3);}
+.badge-blue{background:rgba(59,130,246,.2);color:var(--blue2);border:1px solid rgba(59,130,246,.3);}
+.badge-purple{background:rgba(139,92,246,.2);color:var(--purple2);border:1px solid rgba(139,92,246,.3);}
+.code-block{background:#050505;border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-family:'JetBrains Mono','Courier New',monospace;font-size:12px;line-height:1.8;margin-bottom:16px;overflow-x:auto;white-space:pre;}
+.code-block .kw{color:var(--purple2);}
+.code-block .str{color:var(--teal2);}
+.code-block .cmt{color:var(--muted);}
+.code-block .num{color:var(--amber2);}
+.code-block .fn{color:var(--cyan2);}
+.flow-step{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;}
+.flow-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;}
+.flow-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px;}
+.flow-desc{font-size:12px;color:var(--muted);}
+canvas{border-radius:8px;display:block;}
+/* Agent-env loop */
+.loop-box{border-radius:12px;padding:16px 20px;text-align:center;border:1px solid;}
+.loop-arrow{font-size:22px;color:var(--muted);display:flex;align-items:center;justify-content:center;}
+/* Strategy cards */
+.strategy-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;transition:border-color .2s;}
+.strategy-card:hover{border-color:var(--teal);}
+.strategy-title{font-size:14px;font-weight:800;margin-bottom:4px;}
+.strategy-formula{font-family:'JetBrains Mono',monospace;font-size:12px;padding:8px 12px;background:#050505;border-radius:6px;margin:8px 0;color:var(--teal2);}
+.strategy-pros{font-size:12px;color:var(--teal2);margin-top:6px;}
+.strategy-cons{font-size:12px;color:var(--red2);}
+/* Interactive bandit */
+.arm-btn{background:#050505;border:2px solid var(--border);border-radius:10px;padding:12px 8px;cursor:pointer;transition:all .2s;font-size:12px;color:var(--muted);text-align:center;min-width:60px;}
+.arm-btn:hover{border-color:var(--teal);color:var(--text);}
+.arm-btn.pulled{border-color:var(--teal);color:var(--teal2);}
+.arms-grid{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+.reward-flash{font-size:22px;font-weight:800;text-align:center;padding:14px;border-radius:8px;margin-bottom:12px;}
+/* UCB formula */
+.formula-box{background:#050505;border:1px solid var(--teal);border-radius:12px;padding:20px 24px;margin-bottom:20px;text-align:center;}
+.formula-main{font-family:'JetBrains Mono',monospace;font-size:15px;color:var(--teal2);margin-bottom:8px;letter-spacing:.5px;}
+.formula-part{display:inline-block;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:700;margin:2px;}
+/* Slider */
+.slider-row{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+.slider-label{font-size:11px;color:var(--muted);width:160px;flex-shrink:0;}
+.slider-val{font-size:12px;font-weight:700;color:var(--teal2);width:60px;text-align:right;}
+input[type=range]{flex:1;accent-color:var(--teal);}
+/* Continue strip */
+.continue-strip{background:var(--surface);border-top:1px solid var(--border);padding:32px 48px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;}
+.cs-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.cs-title{font-size:15px;font-weight:700;color:var(--text);}
+.cs-title:hover{color:var(--teal2);}
+/* Comparison table bar */
+.perf-bar{height:10px;border-radius:4px;margin-top:4px;}
+/* RL vs SL/UL table */
+.compare-cell{padding:10px 12px;border:1px solid var(--border);border-radius:8px;margin:4px 0;font-size:12px;color:var(--muted);}
+.compare-cell.yes{border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.05);color:var(--teal2);}
+.compare-cell.no{border-color:rgba(239,68,68,.3);background:rgba(239,68,68,.04);color:var(--red2);}
+/* Belief dist visual */
+.dist-bar-wrap{display:flex;align-items:flex-end;gap:2px;height:60px;}
+.dist-bar{border-radius:2px 2px 0 0;transition:height .3s ease;}
+</style>
+</head>
+<body>
+
+<!-- Gate -->
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-icon">&#x1F3B0;</div>
+    <div class="gate-title">Foundations of RL</div>
+    <div class="gate-sub">Bandits, Exploration &amp; the Agent-Environment Loop &middot; Visual Summary</div>
+    <input id="gate-pw" class="gate-input" type="password" placeholder="Enter password" onkeydown="if(event.key==='Enter')checkGate()">
+    <button class="gate-btn" onclick="checkGate()">Unlock</button>
+    <div id="gate-err" class="gate-err">Incorrect password. Try again.</div>
+  </div>
+</div>
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-title">Foundations of RL</div>
+    <div class="sidebar-logo-sub">Post 45 &middot; Foundations</div>
+  </div>
+  <div class="nav-group-title">Introduction</div>
+  <div class="nav-link active" onclick="scrollTo('s-intro',this)"><span class="dot" style="background:#10b981"></span>Why RL Now?</div>
+  <div class="nav-link" onclick="scrollTo('s-what',this)"><span class="dot" style="background:#34d399"></span>What is RL?</div>
+
+  <div class="nav-group-title" style="color:var(--teal2)">RL Fundamentals</div>
+  <div class="nav-link" onclick="scrollTo('s-diff',this)"><span class="dot" style="background:#10b981"></span>4 Defining Properties</div>
+  <div class="nav-link" onclick="scrollTo('s-loop',this)"><span class="dot" style="background:#34d399"></span>Agent-Environment Loop</div>
+  <div class="nav-link" onclick="scrollTo('s-loop-demo',this)"><span class="dot" style="background:#6ee7b7"></span>Loop Interactive Demo</div>
+
+  <div class="nav-group-title" style="color:var(--cyan2)">Multi-Armed Bandits</div>
+  <div class="nav-link" onclick="scrollTo('s-bandits',this)"><span class="dot" style="background:#06b6d4"></span>The Problem</div>
+  <div class="nav-link" onclick="scrollTo('s-estimate',this)"><span class="dot" style="background:#22d3ee"></span>Estimating Values</div>
+  <div class="nav-link" onclick="scrollTo('s-strategies',this)"><span class="dot" style="background:#06b6d4"></span>4 Strategies</div>
+  <div class="nav-link" onclick="scrollTo('s-ucb',this)"><span class="dot" style="background:#67e8f9"></span>UCB Deep Dive</div>
+
+  <div class="nav-group-title">Interactive</div>
+  <div class="nav-link" onclick="scrollTo('s-bandit-sim',this)"><span class="dot" style="background:#10b981"></span>Live Bandit Simulator</div>
+  <div class="nav-link" onclick="scrollTo('s-testbed',this)"><span class="dot" style="background:#fbbf24"></span>10-Armed Testbed</div>
+  <div class="nav-link" onclick="scrollTo('s-compare',this)"><span class="dot" style="background:#f0f0f0"></span>Strategy Comparison</div>
+</nav>
+
+<!-- Main -->
+<div class="main" id="main">
+
+<!-- Top Bar -->
+<div class="top-bar">
+  <div class="bar-step" onclick="scrollTo('s-diff')"><span class="bar-dot" style="background:#10b981"></span>RL Properties</div>
+  <span class="bar-arrow">⟶</span>
+  <div class="bar-step" onclick="scrollTo('s-loop')"><span class="bar-dot" style="background:#34d399"></span>Agent Loop</div>
+  <span class="bar-arrow">⟶</span>
+  <div class="bar-step" onclick="scrollTo('s-bandits')"><span class="bar-dot" style="background:#06b6d4"></span>Bandits</div>
+  <span class="bar-arrow">⟶</span>
+  <div class="bar-step" onclick="scrollTo('s-strategies')"><span class="bar-dot" style="background:#22d3ee"></span>Strategies</div>
+  <span class="bar-arrow">⟶</span>
+  <div class="bar-step" onclick="scrollTo('s-bandit-sim')"><span class="bar-dot" style="background:#fbbf24"></span>Simulator</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Section 1 — Why RL Now? -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-intro">
+  <div class="section-tag" style="color:var(--teal2)">Introduction</div>
+  <h1 class="section-title">Why Reinforcement Learning, Why Now?</h1>
+  <p class="section-sub">On 5 March 2025, Sutton &amp; Barto won the 2024 ACM Turing Award for "the conceptual and algorithmic foundations of reinforcement learning." Their 1998 textbook has been cited 75,000+ times. Then every major LLM shifted to RL post-training.</p>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="stat-num" style="color:var(--teal2)">75K+</div><div class="stat-label">Citations of<br>Sutton &amp; Barto</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--cyan2)">1990s</div><div class="stat-label">TD-Gammon,<br>first RL milestone</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--amber2)">2016</div><div class="stat-label">AlphaGo beats<br>Lee Sedol</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--teal2)">2025</div><div class="stat-label">Turing Award<br>+ agentic RL</div></div>
+  </div>
+
+  <!-- RL milestones timeline -->
+  <div class="card">
+    <div class="card-title" style="color:var(--teal2)">RL Milestones</div>
+    <div style="position:relative;padding-left:20px;">
+      <div style="position:absolute;left:8px;top:4px;bottom:4px;width:2px;background:linear-gradient(180deg,#10b981,#06b6d4,#fbbf24);border-radius:2px;"></div>
+      <div style="margin-bottom:14px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><div style="width:8px;height:8px;border-radius:50%;background:#10b981;flex-shrink:0;margin-left:-23px;border:2px solid #000;"></div><span style="font-size:11px;font-weight:700;color:var(--teal2);">1994 — TD-Gammon</span></div>
+        <div class="card-body" style="margin-left:4px;">Gerald Tesauro's TD-Gammon learns backgammon at near-expert level using temporal difference learning — RL's first major proof of concept.</div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><div style="width:8px;height:8px;border-radius:50%;background:#34d399;flex-shrink:0;margin-left:-23px;border:2px solid #000;"></div><span style="font-size:11px;font-weight:700;color:var(--teal2);">2013 — DQN</span></div>
+        <div class="card-body" style="margin-left:4px;">DeepMind's DQN combines Q-learning with deep neural networks, achieving superhuman Atari performance from raw pixels.</div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><div style="width:8px;height:8px;border-radius:50%;background:#06b6d4;flex-shrink:0;margin-left:-23px;border:2px solid #000;"></div><span style="font-size:11px;font-weight:700;color:var(--cyan2);">2016 — AlphaGo</span></div>
+        <div class="card-body" style="margin-left:4px;">AlphaGo defeats Lee Sedol 4-1. Monte Carlo Tree Search + deep RL. Go's 10<sup>170</sup> states had been considered unsolvable.</div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><div style="width:8px;height:8px;border-radius:50%;background:#fbbf24;flex-shrink:0;margin-left:-23px;border:2px solid #000;"></div><span style="font-size:11px;font-weight:700;color:var(--amber2);">2022–2024 — RLHF era</span></div>
+        <div class="card-body" style="margin-left:4px;">ChatGPT, GPT-4, Claude, Gemini — all use RLHF or DPO for alignment. RL becomes the defining post-training step for LLMs.</div>
+      </div>
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><div style="width:8px;height:8px;border-radius:50%;background:#f472b6;flex-shrink:0;margin-left:-23px;border:2px solid #000;"></div><span style="font-size:11px;font-weight:700;color:var(--pink2);">2025 — Agentic RL</span></div>
+        <div class="card-body" style="margin-left:4px;">DeepSeek-R1 trains reasoning chains via GRPO. RL is now used to teach <em>thinking</em> — not just helpfulness. Turing Award for Sutton &amp; Barto.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Section 2 — What is RL? -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-what">
+  <div class="section-tag" style="color:var(--teal2)">Overview</div>
+  <h2 class="section-title">What Is Reinforcement Learning?</h2>
+  <p class="section-sub">RL is the third paradigm of ML. An agent interacts with an environment, takes actions, and learns from scalar reward signals — with no teacher providing correct answers.</p>
+
+  <div class="grid3" style="margin-bottom:24px;">
+    <div class="card">
+      <div class="card-title" style="color:var(--blue2)">Supervised Learning</div>
+      <div class="card-body">
+        <div style="margin-bottom:6px;"><span class="badge badge-blue">Input</span> Feature vector</div>
+        <div style="margin-bottom:6px;"><span class="badge badge-blue">Label</span> Correct answer given</div>
+        <div style="margin-bottom:6px;"><span class="badge badge-blue">Signal</span> Error vs ground truth</div>
+        <div style="margin-top:10px;font-size:11px;color:var(--blue2);">Learns mapping X → Y</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--purple2)">Unsupervised Learning</div>
+      <div class="card-body">
+        <div style="margin-bottom:6px;"><span class="badge badge-purple">Input</span> Feature vector</div>
+        <div style="margin-bottom:6px;"><span class="badge badge-purple">Label</span> No labels</div>
+        <div style="margin-bottom:6px;"><span class="badge badge-purple">Signal</span> Reconstruction / density</div>
+        <div style="margin-top:10px;font-size:11px;color:var(--purple2);">Learns structure in X</div>
+      </div>
+    </div>
+    <div class="card" style="border-color:rgba(16,185,129,.3);">
+      <div class="card-title" style="color:var(--teal2)">Reinforcement Learning</div>
+      <div class="card-body">
+        <div style="margin-bottom:6px;"><span class="badge badge-teal">Input</span> State observation</div>
+        <div style="margin-bottom:6px;"><span class="badge badge-teal">Label</span> Reward (evaluative)</div>
+        <div style="margin-bottom:6px;"><span class="badge badge-teal">Signal</span> Cumulative future reward</div>
+        <div style="margin-top:10px;font-size:11px;color:var(--teal2);">Learns policy π: S → A</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hl">
+    <strong style="color:var(--text);">The core RL loop:</strong> The agent observes state S<sub>t</sub>, chooses action A<sub>t</sub>, the environment transitions to S<sub>t+1</sub> and emits reward R<sub>t+1</sub>. The agent's goal is to maximize the expected sum of future rewards.
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Section 3 — 4 Defining Properties -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-diff">
+  <div class="section-tag" style="color:var(--teal2)">What Makes RL Different</div>
+  <h2 class="section-title">4 Properties That Define RL</h2>
+  <p class="section-sub">These four characteristics distinguish RL from supervised and unsupervised learning — they also explain why RL is fundamentally harder.</p>
+
+  <div class="grid2" style="margin-bottom:24px;">
+    <!-- Property 1 -->
+    <div class="card" style="border-left:3px solid var(--teal);">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <div style="width:28px;height:28px;border-radius:50%;background:rgba(16,185,129,.15);border:1px solid var(--teal);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--teal2);">1</div>
+        <div class="card-title" style="color:var(--teal2);margin:0;">Evaluative, Not Instructive</div>
+      </div>
+      <div class="card-body">
+        In SL, the teacher tells you the correct answer: "the label is <em>cat</em>." In RL, the environment only says "that was worth +1" or "-5" — it <strong style="color:var(--text);">evaluates</strong> what you did, without telling you what you <em>should</em> have done. The agent must infer which action was actually best.
+      </div>
+      <div style="margin-top:10px;display:flex;gap:8px;">
+        <div style="flex:1;background:#050505;border-radius:6px;padding:8px;font-size:11px;text-align:center;border:1px solid rgba(239,68,68,.3);color:var(--red2);">SL: "correct answer is A"</div>
+        <div style="flex:1;background:#050505;border-radius:6px;padding:8px;font-size:11px;text-align:center;border:1px solid rgba(16,185,129,.3);color:var(--teal2);">RL: "reward = +3"</div>
+      </div>
+    </div>
+
+    <!-- Property 2 -->
+    <div class="card" style="border-left:3px solid var(--cyan);">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <div style="width:28px;height:28px;border-radius:50%;background:rgba(6,182,212,.15);border:1px solid var(--cyan);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--cyan2);">2</div>
+        <div class="card-title" style="color:var(--cyan2);margin:0;">Non-i.i.d. Data Distribution</div>
+      </div>
+      <div class="card-body">
+        In SL, training samples are independent and identically distributed (i.i.d.) — the distribution is fixed. In RL, the agent's own actions determine which states it visits next. <strong style="color:var(--text);">Policy changes the data distribution.</strong> A policy that explores widely collects different data than a greedy one.
+      </div>
+      <div class="hl cyan" style="margin-top:10px;margin-bottom:0;font-size:11px;">The training data is a function of the agent's current behavior — this creates a feedback loop absent in SL.</div>
+    </div>
+
+    <!-- Property 3 -->
+    <div class="card" style="border-left:3px solid var(--amber);">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <div style="width:28px;height:28px;border-radius:50%;background:rgba(245,158,11,.15);border:1px solid var(--amber);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--amber2);">3</div>
+        <div class="card-title" style="color:var(--amber2);margin:0;">Delayed Consequences</div>
+      </div>
+      <div class="card-body">
+        Actions have consequences that only become clear later. A chess move might look neutral but set up a winning position 10 moves ahead. This is the <strong style="color:var(--text);">credit assignment problem</strong> — which of the past actions actually caused the reward?
+      </div>
+      <div style="margin-top:10px;background:#050505;border-radius:6px;padding:10px;font-size:11px;color:var(--muted);">
+        <div style="color:var(--amber2);font-weight:700;margin-bottom:4px;">Example — Chess</div>
+        Move 1 → Move 2 → ... → Move 40 → Win (+1)<br>
+        <span style="color:var(--amber2);">Which moves contributed to the win?</span> The credit assignment problem.
+      </div>
+    </div>
+
+    <!-- Property 4 -->
+    <div class="card" style="border-left:3px solid var(--red);">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <div style="width:28px;height:28px;border-radius:50%;background:rgba(239,68,68,.15);border:1px solid var(--red);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--red2);">4</div>
+        <div class="card-title" style="color:var(--red2);margin:0;">Exploration vs. Exploitation</div>
+      </div>
+      <div class="card-body">
+        Should the agent use what it already knows (exploit) or try new things to discover better options (explore)? <strong style="color:var(--text);">Pure exploitation locks in suboptimal actions.</strong> Pure exploration wastes time on arms you've already evaluated.
+      </div>
+      <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px;">
+        <div style="background:#050505;border:1px solid rgba(239,68,68,.3);border-radius:6px;padding:8px;color:var(--red2);">Exploit only → Miss better options</div>
+        <div style="background:#050505;border:1px solid rgba(16,185,129,.3);border-radius:6px;padding:8px;color:var(--teal2);">Balance → Long-run optimum</div>
+      </div>
+    </div>
+  </div>
+
+  <table>
+    <thead><tr><th>Property</th><th>Supervised Learning</th><th>Reinforcement Learning</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Feedback type</strong></td><td>Instructive (correct label given)</td><td>Evaluative (reward only)</td></tr>
+      <tr><td><strong>Data distribution</strong></td><td>i.i.d., fixed</td><td>Non-i.i.d., policy-dependent</td></tr>
+      <tr><td><strong>Temporal structure</strong></td><td>No (each sample independent)</td><td>Yes (actions affect future states)</td></tr>
+      <tr><td><strong>Exploration needed?</strong></td><td>No</td><td>Yes — fundamental challenge</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Section 4 — Agent-Environment Loop -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-loop">
+  <div class="section-tag" style="color:var(--teal2)">Formalism</div>
+  <h2 class="section-title">The Agent-Environment Loop</h2>
+  <p class="section-sub">The formal skeleton of every RL problem. At each timestep t, the agent observes a state, takes an action, and receives a reward and next state.</p>
+
+  <!-- Loop diagram -->
+  <div style="display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin-bottom:28px;">
+    <div class="loop-box" style="border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.06);min-width:120px;">
+      <div style="font-size:10px;font-weight:700;color:var(--teal2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;">Agent</div>
+      <div style="font-size:12px;color:var(--muted);">Has policy π</div>
+      <div style="font-size:12px;color:var(--muted);">Picks action A<sub>t</sub></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;align-items:center;">
+      <div style="display:flex;align-items:center;gap:4px;">
+        <div style="font-size:11px;font-weight:700;color:var(--teal2);">A<sub>t</sub></div>
+        <div style="width:60px;height:2px;background:var(--teal);position:relative;">
+          <div style="position:absolute;right:-5px;top:-4px;border-left:8px solid var(--teal);border-top:5px solid transparent;border-bottom:5px solid transparent;"></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;flex-direction:row-reverse;">
+        <div style="font-size:10px;font-weight:700;color:var(--cyan2);">S<sub>t</sub>, R<sub>t</sub></div>
+        <div style="width:60px;height:2px;background:var(--cyan);position:relative;">
+          <div style="position:absolute;left:-5px;top:-4px;border-right:8px solid var(--cyan);border-top:5px solid transparent;border-bottom:5px solid transparent;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="loop-box" style="border-color:rgba(6,182,212,.4);background:rgba(6,182,212,.06);min-width:120px;">
+      <div style="font-size:10px;font-weight:700;color:var(--cyan2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;">Environment</div>
+      <div style="font-size:12px;color:var(--muted);">Emits R<sub>t+1</sub></div>
+      <div style="font-size:12px;color:var(--muted);">Transitions to S<sub>t+1</sub></div>
+    </div>
+  </div>
+
+  <div class="grid2" style="margin-bottom:24px;">
+    <div>
+      <div class="card">
+        <div class="card-title" style="color:var(--teal2);">Key Definitions</div>
+        <div style="margin-bottom:8px;">
+          <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:2px;">State S<sub>t</sub></div>
+          <div class="card-body">The agent's observation of the world at time t. May be partial (partial observability = POMDP).</div>
+        </div>
+        <div style="margin-bottom:8px;">
+          <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:2px;">Action A<sub>t</sub></div>
+          <div class="card-body">The choice the agent makes. Discrete (chess moves) or continuous (robot joint torques).</div>
+        </div>
+        <div style="margin-bottom:8px;">
+          <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:2px;">Reward R<sub>t+1</sub></div>
+          <div class="card-body">Scalar signal from the environment after action A<sub>t</sub>. The only feedback the agent gets.</div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:2px;">Policy π</div>
+          <div class="card-body">Mapping from states to actions (or action distributions): A<sub>t</sub> ~ π(· | S<sub>t</sub>). The thing being learned.</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-title" style="color:var(--cyan2);">Trajectory &amp; Return</div>
+        <div class="card-body" style="margin-bottom:12px;">A <strong style="color:var(--text);">trajectory</strong> (or episode) is the sequence generated by one run:</div>
+        <div class="code-block">τ = S₀, A₀, R₁, S₁, A₁, R₂, S₂, ...</div>
+        <div class="card-body" style="margin-bottom:12px;">The agent's objective is to maximise the <strong style="color:var(--text);">return</strong> — discounted cumulative reward:</div>
+        <div class="code-block">G<sub>t</sub> = R<sub>t+1</sub> + γ·R<sub>t+2</sub> + γ²·R<sub>t+3</sub> + ...</div>
+        <div class="hl" style="margin-bottom:0;">γ ∈ [0,1] is the <strong style="color:var(--text);">discount factor</strong>. γ=0 = myopic (only next reward). γ=1 = infinite horizon (all future rewards equally).</div>
+      </div>
+      <div class="card" style="margin-top:0;">
+        <div class="card-title" style="color:var(--amber2);">The Agent-Environment Boundary</div>
+        <div class="card-body">The boundary is drawn at the limits of the agent's <em>direct control</em>, not physical limits. A robot arm's controller is the agent; the arm mechanics and physics are the environment — even if both run in the same process.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Section 5 — Loop Interactive Demo -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-loop-demo">
+  <div class="section-tag" style="color:var(--teal2)">Interactive</div>
+  <h2 class="section-title">Agent-Environment Loop: Step Through It</h2>
+  <p class="section-sub">Watch a simulated agent navigate a grid. Each step shows S<sub>t</sub> → A<sub>t</sub> → R<sub>t+1</sub> → S<sub>t+1</sub> explicitly.</p>
+
+  <div class="card" style="max-width:680px;">
+    <!-- Grid world -->
+    <div style="margin-bottom:16px;">
+      <div style="display:grid;grid-template-columns:repeat(5,52px);gap:4px;margin:0 auto 14px;width:fit-content;" id="grid-world"></div>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:12px;">
+        <button class="btn-tab" onclick="stepLoop()">Step</button>
+        <button class="btn-tab" onclick="autoLoop()" id="auto-btn">Auto Play</button>
+        <button class="btn-tab" onclick="resetLoop()">Reset</button>
+      </div>
+    </div>
+    <!-- Trajectory log -->
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;">Trajectory</div>
+    <div id="traj-log" style="background:#050505;border-radius:8px;padding:10px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);min-height:60px;max-height:120px;overflow-y:auto;line-height:1.8;"></div>
+    <!-- Step info -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-top:12px;" id="step-info">
+      <div style="text-align:center;padding:10px;background:#050505;border-radius:8px;"><div style="font-size:16px;font-weight:800;color:var(--teal2);" id="si-s">—</div><div style="font-size:10px;color:var(--muted);">State S<sub>t</sub></div></div>
+      <div style="text-align:center;padding:10px;background:#050505;border-radius:8px;"><div style="font-size:16px;font-weight:800;color:var(--cyan2);" id="si-a">—</div><div style="font-size:10px;color:var(--muted);">Action A<sub>t</sub></div></div>
+      <div style="text-align:center;padding:10px;background:#050505;border-radius:8px;"><div style="font-size:16px;font-weight:800;color:var(--amber2);" id="si-r">—</div><div style="font-size:10px;color:var(--muted);">Reward R<sub>t+1</sub></div></div>
+      <div style="text-align:center;padding:10px;background:#050505;border-radius:8px;"><div style="font-size:16px;font-weight:800;color:var(--teal2);" id="si-g">0</div><div style="font-size:10px;color:var(--muted);">Return G<sub>t</sub></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Section 6 — Multi-Armed Bandits -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-bandits">
+  <div class="section-tag" style="color:var(--cyan2)">Multi-Armed Bandits</div>
+  <h2 class="section-title">The Multi-Armed Bandit Problem</h2>
+  <p class="section-sub">The simplest RL setting that isolates exploration vs. exploitation. No states, no dynamics — just k arms with unknown reward distributions. The purest version of the exploration problem.</p>
+
+  <!-- Metaphor -->
+  <div class="card" style="border-color:rgba(6,182,212,.3);margin-bottom:24px;">
+    <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
+      <div style="flex:1;min-width:240px;">
+        <div class="card-title" style="color:var(--cyan2);">The Casino Analogy</div>
+        <div class="card-body">You walk into a casino with k slot machines ("one-armed bandits"). Each machine has an unknown payout distribution. You want to maximise total reward over n pulls. You don't know which machine is best — you have to learn by pulling.</div>
+      </div>
+      <div style="flex:1;min-width:240px;">
+        <div class="card-title" style="color:var(--teal2);">Formal Setup</div>
+        <div class="card-body">
+          <div style="margin-bottom:6px;">k arms, each with unknown true value <strong style="color:var(--text);">q*(a)</strong></div>
+          <div style="margin-bottom:6px;">Agent picks action a<sub>t</sub> ∈ {1,...,k} each step</div>
+          <div style="margin-bottom:6px;">Receives reward R<sub>t</sub> ~ N(q*(a<sub>t</sub>), 1)</div>
+          <div>Goal: maximise cumulative reward Σ R<sub>t</sub></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="code-block"><span class="cmt"># Bandit setup — true values unknown to agent</span>
+<span class="fn">q_star</span> = np.random.<span class="fn">randn</span>(k)          <span class="cmt"># drawn once from N(0,1), hidden</span>
+<span class="fn">reward</span> = np.random.<span class="fn">normal</span>(q_star[a], <span class="num">1</span>)  <span class="cmt"># observed per pull</span></div>
+
+  <!-- The challenge visual -->
+  <div class="hl cyan">
+    <strong style="color:var(--text);">The challenge:</strong> You can't compute q*(a) — only estimate it from noisy samples. Pull arm 3 five times and get rewards [0.2, 1.4, -0.3, 0.8, 1.1]. The true q*(3) could be anywhere. How confident are you?
+  </div>
+
+  <div style="margin-top:20px;">
+    <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:12px;">Why Bandits Matter for LLMs</div>
+    <div class="grid3">
+      <div class="card" style="border-left:2px solid var(--teal);">
+        <div class="card-title" style="color:var(--teal2);font-size:10px;">RLHF Reward Model</div>
+        <div class="card-body">Each response is an "arm". The reward model evaluates quality — like a bandit signal for alignment training.</div>
+      </div>
+      <div class="card" style="border-left:2px solid var(--cyan);">
+        <div class="card-title" style="color:var(--cyan2);font-size:10px;">Beam Search</div>
+        <div class="card-body">Choosing which partial sequences to expand is a bandit-style tradeoff: exploit known good prefixes vs explore new paths.</div>
+      </div>
+      <div class="card" style="border-left:2px solid var(--amber);">
+        <div class="card-title" style="color:var(--amber2);font-size:10px;">A/B Testing</div>
+        <div class="card-body">Multi-armed bandit algorithms power adaptive A/B tests — allocating traffic to versions while learning which is better.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Section 7 — Estimating Values -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-estimate">
+  <div class="section-tag" style="color:var(--cyan2)">Value Estimation</div>
+  <h2 class="section-title">Estimating Action Values</h2>
+  <p class="section-sub">Since q*(a) is unknown, we estimate it. The sample average is the natural estimator — and its incremental form is efficient and online-updatable.</p>
+
+  <div class="grid2" style="margin-bottom:24px;">
+    <div>
+      <div class="card">
+        <div class="card-title" style="color:var(--teal2)">Sample Average Estimate</div>
+        <div class="code-block" style="margin-bottom:12px;">Q_t(a) = (sum of rewards when a was chosen)
+       ─────────────────────────────────────
+       (number of times a was chosen)</div>
+        <div class="hl" style="margin-bottom:0;">By the Law of Large Numbers: Q<sub>t</sub>(a) → q*(a) as N<sub>t</sub>(a) → ∞. More pulls = better estimate.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--cyan2)">Incremental Update Rule</div>
+        <div class="card-body" style="margin-bottom:10px;">Recomputing the full average each time is wasteful. Derive the online update:</div>
+        <div class="code-block">Q_{n+1} = Q_n + (1/n) * (R_n - Q_n)</div>
+        <div class="card-body" style="margin-top:10px;">This is a <strong style="color:var(--text);">stochastic gradient descent step</strong> toward the new observation R<sub>n</sub>, with step size 1/n. <span style="color:var(--teal2);">No need to store all past rewards.</span></div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-title" style="color:var(--amber2)">Why the Incremental Form Matters</div>
+        <div class="flow-step">
+          <div class="flow-num" style="background:rgba(245,158,11,.15);color:var(--amber2);border:1px solid var(--amber);">1</div>
+          <div><div class="flow-title">Memory O(1)</div><div class="flow-desc">Store only Q<sub>n</sub> and N. No list of past rewards needed.</div></div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num" style="background:rgba(245,158,11,.15);color:var(--amber2);border:1px solid var(--amber);">2</div>
+          <div><div class="flow-title">Constant time per step</div><div class="flow-desc">O(1) update regardless of how many times the arm has been pulled.</div></div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num" style="background:rgba(245,158,11,.15);color:var(--amber2);border:1px solid var(--amber);">3</div>
+          <div><div class="flow-title">Generalizes to non-stationary</div><div class="flow-desc">Replace 1/n with constant α for non-stationary bandits (recent rewards count more).</div></div>
+        </div>
+        <div class="flow-step" style="margin-bottom:0;">
+          <div class="flow-num" style="background:rgba(245,158,11,.15);color:var(--amber2);border:1px solid var(--amber);">4</div>
+          <div><div class="flow-title">Same pattern everywhere in RL</div><div class="flow-desc">TD-learning, Q-learning, and policy gradients all use this "nudge toward target" structure.</div></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:0;">
+        <div class="card-title" style="color:var(--cyan2)">General Update Form</div>
+        <div class="code-block">NewEstimate ← OldEstimate
+         + StepSize × (Target − OldEstimate)</div>
+        <div class="card-body">The term (Target − OldEstimate) is the <strong style="color:var(--text);">error</strong>. The step size controls how fast we move toward the new target. This pattern appears throughout RL.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Section 8 — 4 Strategies -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-strategies">
+  <div class="section-tag" style="color:var(--cyan2)">Exploration Strategies</div>
+  <h2 class="section-title">4 Action-Selection Strategies</h2>
+  <p class="section-sub">Each strategy answers "given my current estimates Q<sub>t</sub>(a), which arm should I pull next?" differently — trading off exploration and exploitation in different ways.</p>
+
+  <div class="grid2" style="margin-bottom:24px;">
+    <!-- Greedy -->
+    <div class="strategy-card">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span class="badge badge-red">Greedy</span>
+        <span style="font-size:10px;color:var(--muted);">Pure exploitation</span>
+      </div>
+      <div class="strategy-title">Greedy Selection</div>
+      <div class="strategy-formula">A_t = argmax_a Q_t(a)</div>
+      <div class="card-body" style="margin-bottom:10px;">Always pick the arm with the highest current estimate. Zero exploration after initialization.</div>
+      <div class="strategy-pros">+ Fastest short-term gains</div>
+      <div class="strategy-cons">− Locks in on first good arm found. Misses globally optimal arms. Gets stuck in local optima.</div>
+      <div class="hl red" style="margin-top:10px;margin-bottom:0;font-size:11px;">On the 10-armed testbed: only finds the best arm ~33% of runs — just by chance on first pull.</div>
+    </div>
+
+    <!-- ε-greedy -->
+    <div class="strategy-card">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span class="badge badge-teal">ε-Greedy</span>
+        <span style="font-size:10px;color:var(--muted);">Simplest exploration</span>
+      </div>
+      <div class="strategy-title">Epsilon-Greedy</div>
+      <div class="strategy-formula">With prob ε: random arm
+With prob 1-ε: argmax Q_t(a)</div>
+      <div class="card-body" style="margin-bottom:10px;">With probability ε explore uniformly at random; otherwise exploit. ε=0.1 means 10% random exploration.</div>
+      <div class="strategy-pros">+ Simple, robust, guaranteed exploration</div>
+      <div class="strategy-cons">− Explores uniformly — wastes pulls on clearly bad arms. Fixed ε wastes even late in learning.</div>
+      <div class="hl" style="margin-top:10px;margin-bottom:0;font-size:11px;">ε=0.1 reaches ~80% optimal action rate at step 1000 on the testbed.</div>
+    </div>
+
+    <!-- Optimistic Initial Values -->
+    <div class="strategy-card">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span class="badge badge-amber">Optimistic Init</span>
+        <span style="font-size:10px;color:var(--muted);">Exploration via optimism</span>
+      </div>
+      <div class="strategy-title">Optimistic Initial Values</div>
+      <div class="strategy-formula">Q_0(a) = +5  (all arms)
+then: Greedy selection</div>
+      <div class="card-body" style="margin-bottom:10px;">Initialize all estimates high. The agent is "disappointed" by every arm it pulls (actual rewards are lower), forcing it to try all arms early. The optimism fades as more samples arrive.</div>
+      <div class="strategy-pros">+ Automatic early exploration without ε parameter</div>
+      <div class="strategy-cons">− Only works for stationary bandits. Q₀ must be tuned. No adaptation when environment changes.</div>
+      <div class="hl amber" style="margin-top:10px;margin-bottom:0;font-size:11px;">Exploration is front-loaded — strong early, then purely greedy.</div>
+    </div>
+
+    <!-- UCB -->
+    <div class="strategy-card" style="border-color:rgba(6,182,212,.3);">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span class="badge badge-cyan">UCB</span>
+        <span style="font-size:10px;color:var(--muted);">Principled exploration</span>
+      </div>
+      <div class="strategy-title">Upper Confidence Bound</div>
+      <div class="strategy-formula">A_t = argmax_a [ Q_t(a) + c√(ln(t)/N_t(a)) ]</div>
+      <div class="card-body" style="margin-bottom:10px;">Select the arm that could plausibly be best. The bonus <span style="color:var(--cyan2);">c√(ln(t)/N_t(a))</span> is large for rarely-pulled arms (high uncertainty) and shrinks as we gather more data.</div>
+      <div class="strategy-pros">+ Smart, targeted exploration. Provably near-optimal (Lai-Robbins lower bound)</div>
+      <div class="strategy-cons">− Harder to tune (c parameter). Slower start than ε-greedy on early steps.</div>
+      <div class="hl cyan" style="margin-top:10px;margin-bottom:0;font-size:11px;">Best long-run performance on the testbed. Focuses exploration on <em>uncertain</em> arms, not random ones.</div>
+    </div>
+  </div>
+
+  <table>
+    <thead><tr><th>Strategy</th><th>Exploration</th><th>Convergence</th><th>Non-stationary?</th><th>Parameters</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Greedy</strong></td><td>None (after init)</td><td>Suboptimal</td><td>No</td><td>None</td></tr>
+      <tr><td><strong>ε-Greedy</strong></td><td>Uniform random</td><td>ε=0.1 → ~80% opt</td><td>Yes (explore adapts)</td><td>ε</td></tr>
+      <tr><td><strong>Optimistic Init</strong></td><td>Forced early</td><td>Fast start, then greedy</td><td>No</td><td>Q₀</td></tr>
+      <tr><td><strong>UCB</strong></td><td>Uncertainty-weighted</td><td>Near-optimal</td><td>Partial</td><td>c</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Section 9 — UCB Deep Dive -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-ucb">
+  <div class="section-tag" style="color:var(--cyan2)">UCB Formula Explorer</div>
+  <h2 class="section-title">Upper Confidence Bound — Deep Dive</h2>
+  <p class="section-sub">UCB is built on a simple insight: when choosing, optimistically assume each arm is as good as it could plausibly be. The "upper confidence bound" is the optimistic ceiling.</p>
+
+  <div class="formula-box">
+    <div class="formula-main">A<sub>t</sub> = argmax<sub>a</sub> [ Q<sub>t</sub>(a) + c · √( ln(t) / N<sub>t</sub>(a) ) ]</div>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px;">
+      <span class="formula-part" style="background:rgba(16,185,129,.15);color:var(--teal2);">Q<sub>t</sub>(a) = current estimate</span>
+      <span class="formula-part" style="background:rgba(6,182,212,.15);color:var(--cyan2);">+ exploration bonus</span>
+      <span class="formula-part" style="background:rgba(245,158,11,.15);color:var(--amber2);">c = confidence level</span>
+      <span class="formula-part" style="background:rgba(139,92,246,.15);color:var(--purple2);">ln(t) = time pressure grows</span>
+      <span class="formula-part" style="background:rgba(239,68,68,.15);color:var(--red2);">N<sub>t</sub>(a) = pulls so far</span>
+    </div>
+  </div>
+
+  <div class="grid2" style="margin-bottom:24px;">
+    <div>
+      <div class="card">
+        <div class="card-title" style="color:var(--cyan2)">Why ln(t) in the Numerator?</div>
+        <div class="card-body">ln(t) grows slowly — exploration pressure <em>increases</em> over time but at a sub-linear rate. This means every arm gets pulled infinitely often, but the most uncertain arms get pulled <strong style="color:var(--text);">much</strong> more. It's the "optimism in the face of uncertainty" principle.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--teal2)">Why N<sub>t</sub>(a) in the Denominator?</div>
+        <div class="card-body">As you pull arm a more, the bonus shrinks. <strong style="color:var(--text);">Well-sampled arms need less exploration</strong> because you're confident in Q<sub>t</sub>(a). Under-sampled arms get a larger bonus — they're prioritized for exploration automatically.</div>
+      </div>
+    </div>
+    <div>
+      <!-- UCB interactive slider -->
+      <div class="card" style="border-color:rgba(6,182,212,.3);">
+        <div class="card-title" style="color:var(--cyan2)">UCB Score Explorer</div>
+        <div class="card-body" style="margin-bottom:16px;">Adjust parameters to see how the UCB score changes.</div>
+        <div class="slider-row">
+          <span class="slider-label">Current estimate Q<sub>t</sub>(a)</span>
+          <input type="range" min="-2" max="3" step="0.1" value="1.0" id="ucb-q" oninput="calcUCB()">
+          <span class="slider-val" id="ucb-q-val">1.0</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-label">Confidence c</span>
+          <input type="range" min="0.5" max="4" step="0.5" value="2" id="ucb-c" oninput="calcUCB()">
+          <span class="slider-val" id="ucb-c-val">2.0</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-label">Total steps t</span>
+          <input type="range" min="1" max="500" step="1" value="100" id="ucb-t" oninput="calcUCB()">
+          <span class="slider-val" id="ucb-t-val">100</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-label">Times pulled N<sub>t</sub>(a)</span>
+          <input type="range" min="1" max="100" step="1" value="5" id="ucb-n" oninput="calcUCB()">
+          <span class="slider-val" id="ucb-n-val">5</span>
+        </div>
+        <div id="ucb-result" style="margin-top:16px;background:#050505;border-radius:10px;padding:16px;text-align:center;">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">UCB Score</div>
+          <div id="ucb-score" style="font-size:28px;font-weight:800;color:var(--cyan2);">—</div>
+          <div id="ucb-breakdown" style="font-size:11px;color:var(--muted);margin-top:6px;font-family:'JetBrains Mono',monospace;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hl cyan">
+    <strong style="color:var(--text);">Key insight:</strong> UCB selects the arm at the top of a credible interval, not the arm with the best point estimate. This is why it handles uncertainty correctly — an arm pulled once with reward 0.5 gets a bigger bonus than an arm pulled 200 times with estimate 0.3.
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Section 10 — Live Bandit Simulator -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-bandit-sim">
+  <div class="section-tag" style="color:var(--teal2)">Interactive Simulator</div>
+  <h2 class="section-title">Live Multi-Armed Bandit Simulator</h2>
+  <p class="section-sub">Pull arms manually or let a strategy play automatically. The true values q*(a) are hidden — can you find the best arm?</p>
+
+  <div class="card" style="max-width:780px;">
+    <!-- Controls -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center;">
+      <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.8px;">Strategy:</div>
+      <button class="btn-tab active" id="strat-manual" onclick="setStrat('manual',this)">Manual</button>
+      <button class="btn-tab" id="strat-greedy" onclick="setStrat('greedy',this)">Greedy</button>
+      <button class="btn-tab" id="strat-egreedy" onclick="setStrat('egreedy',this)">ε-Greedy (0.1)</button>
+      <button class="btn-tab" id="strat-ucb" onclick="setStrat('ucb',this)">UCB (c=2)</button>
+      <button class="btn-tab" id="strat-opt" onclick="setStrat('opt',this)">Optimistic</button>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center;">
+      <button class="btn-tab" onclick="runSim(10)">Run 10 steps</button>
+      <button class="btn-tab" onclick="runSim(100)">Run 100 steps</button>
+      <button class="btn-tab" onclick="autoSim()" id="sim-auto-btn">Auto Play</button>
+      <button class="btn-tab" onclick="resetSim()">New Bandit</button>
+      <div style="flex:1;"></div>
+      <div style="font-size:11px;color:var(--muted);">True best: <span id="sim-best" style="color:var(--teal2);font-weight:700;">Arm ?</span></div>
+    </div>
+    <!-- Arms -->
+    <div class="arms-grid" id="sim-arms"></div>
+    <!-- Stats -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;">
+      <div style="text-align:center;padding:10px;background:#050505;border-radius:8px;"><div style="font-size:18px;font-weight:800;color:var(--teal2);" id="sim-total-r">0.0</div><div style="font-size:10px;color:var(--muted);">Total Reward</div></div>
+      <div style="text-align:center;padding:10px;background:#050505;border-radius:8px;"><div style="font-size:18px;font-weight:800;color:var(--cyan2);" id="sim-steps">0</div><div style="font-size:10px;color:var(--muted);">Steps</div></div>
+      <div style="text-align:center;padding:10px;background:#050505;border-radius:8px;"><div style="font-size:18px;font-weight:800;color:var(--amber2);" id="sim-avg-r">0.0</div><div style="font-size:10px;color:var(--muted);">Avg Reward</div></div>
+      <div style="text-align:center;padding:10px;background:#050505;border-radius:8px;"><div style="font-size:18px;font-weight:800;color:var(--purple2);" id="sim-opt-pct">0%</div><div style="font-size:10px;color:var(--muted);">Optimal %</div></div>
+    </div>
+    <!-- Reward chart -->
+    <canvas id="sim-canvas" width="700" height="160" style="width:100%;background:#050505;border:1px solid var(--border);"></canvas>
+    <!-- Last reward flash -->
+    <div id="sim-flash" style="display:none;" class="reward-flash"></div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Section 11 — 10-Armed Testbed Results -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-testbed">
+  <div class="section-tag" style="color:var(--amber2)">Classic Benchmark</div>
+  <h2 class="section-title">The 10-Armed Testbed</h2>
+  <p class="section-sub">The canonical benchmark from Sutton &amp; Barto Ch. 2. 2,000 runs × 1,000 steps each. Four strategies compared head-to-head.</p>
+
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title" style="color:var(--amber2)">Setup</div>
+    <div class="grid4">
+      <div style="text-align:center;padding:12px;background:#050505;border-radius:8px;"><div style="font-size:20px;font-weight:800;color:var(--amber2);">k=10</div><div style="font-size:10px;color:var(--muted);">Arms</div></div>
+      <div style="text-align:center;padding:12px;background:#050505;border-radius:8px;"><div style="font-size:20px;font-weight:800;color:var(--teal2);">N(0,1)</div><div style="font-size:10px;color:var(--muted);">q*(a) distribution</div></div>
+      <div style="text-align:center;padding:12px;background:#050505;border-radius:8px;"><div style="font-size:20px;font-weight:800;color:var(--cyan2);">2000</div><div style="font-size:10px;color:var(--muted);">Independent runs</div></div>
+      <div style="text-align:center;padding:12px;background:#050505;border-radius:8px;"><div style="font-size:20px;font-weight:800;color:var(--purple2);">1000</div><div style="font-size:10px;color:var(--muted);">Steps per run</div></div>
+    </div>
+  </div>
+
+  <!-- Animated learning curves -->
+  <div class="card" style="margin-bottom:24px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+      <div class="card-title" style="color:var(--teal2)">Average Reward Over Time</div>
+      <div class="tab-row" style="margin-bottom:0;">
+        <button class="btn-tab active" onclick="showCurve('avg',this)">Avg Reward</button>
+        <button class="btn-tab" onclick="showCurve('opt',this)">% Optimal Action</button>
+      </div>
+    </div>
+    <canvas id="testbed-canvas" width="700" height="220" style="width:100%;background:#050505;border:1px solid var(--border);border-radius:6px;"></canvas>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;">
+      <div style="display:flex;align-items:center;gap:6px;"><div style="width:14px;height:3px;background:#ef4444;border-radius:1px;"></div><div style="font-size:11px;color:var(--muted);">Greedy</div></div>
+      <div style="display:flex;align-items:center;gap:6px;"><div style="width:14px;height:3px;background:#f59e0b;border-radius:1px;"></div><div style="font-size:11px;color:var(--muted);">ε=0.01</div></div>
+      <div style="display:flex;align-items:center;gap:6px;"><div style="width:14px;height:3px;background:#10b981;border-radius:1px;"></div><div style="font-size:11px;color:var(--muted);">ε=0.1</div></div>
+      <div style="display:flex;align-items:center;gap:6px;"><div style="width:14px;height:3px;background:#06b6d4;border-radius:1px;"></div><div style="font-size:11px;color:var(--muted);">UCB c=2</div></div>
+    </div>
+  </div>
+
+  <!-- Final step results table -->
+  <div class="card">
+    <div class="card-title" style="color:var(--amber2)">Results at Step 1000</div>
+    <table style="margin-bottom:0;">
+      <thead><tr><th>Strategy</th><th>Avg Reward</th><th>% Optimal Action</th><th>Exploration</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Greedy</strong></td>
+          <td style="color:var(--red2);">~1.00</td>
+          <td style="color:var(--red2);">~33%</td>
+          <td>None</td>
+          <td>Fails — locks in early</td>
+        </tr>
+        <tr>
+          <td><strong>ε=0.01</strong></td>
+          <td style="color:var(--amber2);">~1.35</td>
+          <td style="color:var(--amber2);">~60%</td>
+          <td>Too little</td>
+          <td>Slow — misses optimal</td>
+        </tr>
+        <tr>
+          <td><strong>ε=0.1</strong></td>
+          <td style="color:var(--teal2);">~1.45</td>
+          <td style="color:var(--teal2);">~80%</td>
+          <td>Good balance</td>
+          <td>Strong — simple &amp; robust</td>
+        </tr>
+        <tr>
+          <td><strong>UCB c=2</strong></td>
+          <td style="color:var(--cyan2);">~1.55</td>
+          <td style="color:var(--cyan2);">~92%</td>
+          <td>Smart</td>
+          <td>Best — principled exploration</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="hl amber" style="margin-top:20px;">
+    <strong style="color:var(--text);">The signature of exploration-exploitation:</strong> Greedy rises fastest early (pure exploitation) then stalls. ε-greedy rises slower but keeps improving. UCB starts slower still (tries all arms) but eventually dominates. The strategy best <em>right now</em> is rarely best in 1,000 steps.
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Section 12 — Strategy Comparison -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-compare">
+  <div class="section-tag" style="color:var(--text)">Summary</div>
+  <h2 class="section-title">Full Strategy Comparison</h2>
+  <p class="section-sub">When to use each strategy — the practical guide.</p>
+
+  <div class="grid2" style="margin-bottom:24px;">
+    <div class="card">
+      <div class="card-title" style="color:var(--text);">Decision Guide</div>
+      <div class="flow-step">
+        <div class="flow-num" style="background:rgba(239,68,68,.15);color:var(--red2);border:1px solid var(--red);">?</div>
+        <div>
+          <div class="flow-title">Do you have infinite time?</div>
+          <div class="flow-desc">If not, greedy is too risky. Any exploration is better than none.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num" style="background:rgba(245,158,11,.15);color:var(--amber2);border:1px solid var(--amber);">?</div>
+        <div>
+          <div class="flow-title">Is the environment stationary?</div>
+          <div class="flow-desc">Stationary → optimistic init works well. Non-stationary → ε-greedy or UCB with constant α.</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num" style="background:rgba(16,185,129,.15);color:var(--teal2);border:1px solid var(--teal);">?</div>
+        <div>
+          <div class="flow-title">Do you need simplicity?</div>
+          <div class="flow-desc">ε-greedy: one parameter, easy to tune, surprisingly robust in practice.</div>
+        </div>
+      </div>
+      <div class="flow-step" style="margin-bottom:0;">
+        <div class="flow-num" style="background:rgba(6,182,212,.15);color:var(--cyan2);border:1px solid var(--cyan);">?</div>
+        <div>
+          <div class="flow-title">Want provable guarantees?</div>
+          <div class="flow-desc">UCB: achieves Lai-Robbins lower bound on regret. Recommended when asymptotic optimality matters.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="color:var(--teal2);">The Big Picture</div>
+      <div class="card-body" style="margin-bottom:16px;">Bandits are the <strong style="color:var(--text);">simplest possible RL problem</strong> — no state transitions. But they capture the core tension of RL. Every algorithm in full RL generalizes from bandit intuitions.</div>
+      <table style="margin-bottom:0;">
+        <thead><tr><th>Concept</th><th>In Bandits</th><th>In Full RL</th></tr></thead>
+        <tbody>
+          <tr><td>Value estimation</td><td>Q<sub>t</sub>(a)</td><td>Q(s,a) or V(s)</td></tr>
+          <tr><td>Exploration</td><td>Arm selection</td><td>Policy entropy, UCB</td></tr>
+          <tr><td>Update rule</td><td>Q ← Q + α(R-Q)</td><td>TD error δ = R + γV(s') - V(s)</td></tr>
+          <tr><td>Credit assignment</td><td>Immediate</td><td>Temporal difference</td></tr>
+          <tr><td>Optimal policy</td><td>argmax Q*(a)</td><td>π*(s) = argmax Q*(s,a)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="hl">
+    <strong style="color:var(--text);">What's next:</strong> Part 2 of this RL series will introduce the full Markov Decision Process (MDP), value functions, Bellman equations, and dynamic programming — the foundations for Q-learning, policy gradients, and modern deep RL.
+  </div>
+</section>
+
+<!-- Continue strip -->
+<div class="continue-strip">
+  <div>
+    <div class="cs-label">&#8592; Previous Post</div>
+    <a href="../44-llm-training-pipeline/" class="cs-title">Post 44 — LLM Training Pipeline</a>
+  </div>
+  <div style="text-align:right;">
+    <div class="cs-label">All Posts &#8594;</div>
+    <a href="../" class="cs-title" style="color:var(--teal2);">Visual Summary</a>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<script>
+const STORE_KEY = 'pg_unlocked_45';
+const PW = 'visual2025';
+
+function checkGate(){
+  const v = document.getElementById('gate-pw').value;
+  if(v === PW){
+    localStorage.setItem(STORE_KEY,'1');
+    document.getElementById('gate').style.display='none';
+    doInit();
+  } else {
+    const e = document.getElementById('gate-err');
+    e.style.display='block';
+    setTimeout(()=>e.style.display='none',2000);
+  }
+}
+
+function scrollTo(id,el){
+  document.getElementById(id)?.scrollIntoView({behavior:'smooth'});
+  if(el){
+    document.querySelectorAll('.nav-link').forEach(n=>n.classList.remove('active'));
+    el.classList.add('active');
+  }
+}
+
+// ── UCB Calculator ─────────────────────────────────────────────
+function calcUCB(){
+  const q = parseFloat(document.getElementById('ucb-q').value);
+  const c = parseFloat(document.getElementById('ucb-c').value);
+  const t = parseInt(document.getElementById('ucb-t').value);
+  const n = parseInt(document.getElementById('ucb-n').value);
+  document.getElementById('ucb-q-val').textContent = q.toFixed(1);
+  document.getElementById('ucb-c-val').textContent = c.toFixed(1);
+  document.getElementById('ucb-t-val').textContent = t;
+  document.getElementById('ucb-n-val').textContent = n;
+  const bonus = c * Math.sqrt(Math.log(t) / n);
+  const score = q + bonus;
+  document.getElementById('ucb-score').textContent = score.toFixed(3);
+  document.getElementById('ucb-breakdown').textContent =
+    `${q.toFixed(2)} + ${c.toFixed(1)} × √(ln(${t})/${n}) = ${q.toFixed(2)} + ${bonus.toFixed(3)}`;
+}
+
+// ── Agent-Environment Loop Grid ────────────────────────────────
+const GRID_W=5, GRID_H=4;
+const GOAL=[3,4]; const TRAP=[1,2];
+let agPos=[0,0], agReturn=0, agStep=0, agTimer=null;
+const ACTIONS=['→','←','↑','↓'];
+const ADX=[1,-1,0,0], ADY=[0,0,-1,1];
+const REWARDS={normal:-0.1,goal:1.0,trap:-1.0};
+
+function buildGrid(){
+  const el=document.getElementById('grid-world');
+  el.innerHTML='';
+  for(let r=0;r<GRID_H;r++){
+    for(let c=0;c<GRID_W;c++){
+      const d=document.createElement('div');
+      d.id=`gc-${r}-${c}`;
+      d.style.cssText='width:52px;height:52px;border-radius:8px;border:1px solid #222;display:flex;align-items:center;justify-content:center;font-size:16px;background:#0d0d0d;transition:background .2s;';
+      if(r===GOAL[0]&&c===GOAL[1]) d.style.background='rgba(16,185,129,.12)';
+      if(r===TRAP[0]&&c===TRAP[1]) d.style.background='rgba(239,68,68,.12)';
+      el.appendChild(d);
+    }
+  }
+  renderGrid();
+}
+
+function renderGrid(){
+  for(let r=0;r<GRID_H;r++)
+    for(let c=0;c<GRID_W;c++){
+      const d=document.getElementById(`gc-${r}-${c}`);
+      let content='';
+      if(r===agPos[0]&&c===agPos[1]) content='🤖';
+      else if(r===GOAL[0]&&c===GOAL[1]) content='⭐';
+      else if(r===TRAP[0]&&c===TRAP[1]) content='💀';
+      d.textContent=content;
+    }
+}
+
+function stepLoop(){
+  const aIdx=Math.floor(Math.random()*4);
+  const act=ACTIONS[aIdx];
+  const nr=Math.max(0,Math.min(GRID_H-1,agPos[0]+ADY[aIdx]));
+  const nc=Math.max(0,Math.min(GRID_W-1,agPos[1]+ADX[aIdx]));
+  let rew=REWARDS.normal;
+  if(nr===GOAL[0]&&nc===GOAL[1]) rew=REWARDS.goal;
+  if(nr===TRAP[0]&&nc===TRAP[1]) rew=REWARDS.trap;
+  const oldPos=[...agPos];
+  agPos=[nr,nc];
+  agReturn+=rew;
+  agStep++;
+  // Update info
+  document.getElementById('si-s').textContent=`(${oldPos[0]},${oldPos[1]})`;
+  document.getElementById('si-a').textContent=act;
+  document.getElementById('si-r').textContent=rew.toFixed(1);
+  document.getElementById('si-g').textContent=agReturn.toFixed(1);
+  // Log
+  const log=document.getElementById('traj-log');
+  const line=`t=${agStep}: S=(${oldPos[0]},${oldPos[1]}) A=${act} → R=${rew.toFixed(1)} → S'=(${nr},${nc})\n`;
+  log.textContent+=line;
+  log.scrollTop=log.scrollHeight;
+  renderGrid();
+  if(nr===GOAL[0]&&nc===GOAL[1]||nr===TRAP[0]&&nc===TRAP[1]){
+    setTimeout(()=>{agPos=[0,0];renderGrid();},800);
+  }
+}
+
+function autoLoop(){
+  const btn=document.getElementById('auto-btn');
+  if(agTimer){clearInterval(agTimer);agTimer=null;btn.textContent='Auto Play';btn.classList.remove('active');}
+  else{agTimer=setInterval(stepLoop,500);btn.textContent='Stop';btn.classList.add('active');}
+}
+
+function resetLoop(){
+  if(agTimer){clearInterval(agTimer);agTimer=null;}
+  const btn=document.getElementById('auto-btn');
+  btn.textContent='Auto Play';btn.classList.remove('active');
+  agPos=[0,0];agReturn=0;agStep=0;
+  document.getElementById('traj-log').textContent='';
+  ['si-s','si-a','si-r'].forEach(id=>document.getElementById(id).textContent='—');
+  document.getElementById('si-g').textContent='0';
+  renderGrid();
+}
+
+// ── Bandit Simulator ──────────────────────────────────────────
+const K=8;
+let simQStar=[], simQ=[], simN=[], simT=0, simTotalR=0, simOptCt=0;
+let simStrat='manual', simAutoTimer=null;
+let simRewards=[];
+
+function gaussRng(mean=0,std=1){
+  const u=1-Math.random(),v=Math.random();
+  return mean+std*Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+}
+
+function resetSim(){
+  if(simAutoTimer){clearInterval(simAutoTimer);simAutoTimer=null;document.getElementById('sim-auto-btn').textContent='Auto Play';document.getElementById('sim-auto-btn').classList.remove('active');}
+  simQStar=Array.from({length:K},()=>gaussRng(0,1));
+  simQ=Array(K).fill(simStrat==='opt'?5:0);
+  simN=Array(K).fill(0);
+  simT=0;simTotalR=0;simOptCt=0;simRewards=[];
+  updateSimUI();
+  drawSimCanvas();
+  // Show best arm after brief delay for fairness
+  const bestArm=simQStar.indexOf(Math.max(...simQStar));
+  document.getElementById('sim-best').textContent='Arm '+(bestArm+1);
+  document.getElementById('sim-best').style.color='#10b981';
+}
+
+function updateSimUI(){
+  const arms=document.getElementById('sim-arms');
+  arms.innerHTML='';
+  for(let i=0;i<K;i++){
+    const btn=document.createElement('div');
+    btn.className='arm-btn'+(simN[i]>0?' pulled':'');
+    const pulls=simN[i];
+    const est=simN[i]>0?simQ[i].toFixed(2):'?';
+    btn.innerHTML=`<div style="font-size:13px;font-weight:800;color:var(--teal2)">Arm ${i+1}</div><div style="font-size:10px;color:var(--muted);margin-top:4px;">Q̂=${est}</div><div style="font-size:9px;color:var(--muted);">pulls=${pulls}</div>`;
+    if(simStrat==='manual') btn.onclick=()=>simPull(i);
+    arms.appendChild(btn);
+  }
+  document.getElementById('sim-total-r').textContent=simTotalR.toFixed(2);
+  document.getElementById('sim-steps').textContent=simT;
+  document.getElementById('sim-avg-r').textContent=simT>0?(simTotalR/simT).toFixed(2):'0.0';
+  document.getElementById('sim-opt-pct').textContent=simT>0?((simOptCt/simT)*100).toFixed(0)+'%':'0%';
+}
+
+function simPull(arm){
+  const r=gaussRng(simQStar[arm],1);
+  simN[arm]++;
+  simQ[arm]+=( r-simQ[arm])/simN[arm];
+  simT++;
+  simTotalR+=r;
+  const best=simQStar.indexOf(Math.max(...simQStar));
+  if(arm===best) simOptCt++;
+  simRewards.push(r);
+  // Flash
+  const flash=document.getElementById('sim-flash');
+  flash.style.display='block';
+  flash.style.background=r>0?'rgba(16,185,129,.12)':'rgba(239,68,68,.08)';
+  flash.style.color=r>0?'var(--teal2)':'var(--red2)';
+  flash.textContent=`Arm ${arm+1}: R = ${r.toFixed(3)}`;
+  setTimeout(()=>flash.style.display='none',900);
+  updateSimUI();
+  drawSimCanvas();
+}
+
+function stratSelect(){
+  if(simStrat==='greedy') return simQ.indexOf(Math.max(...simQ));
+  if(simStrat==='egreedy') return Math.random()<0.1?Math.floor(Math.random()*K):simQ.indexOf(Math.max(...simQ));
+  if(simStrat==='opt') return simQ.indexOf(Math.max(...simQ));
+  if(simStrat==='ucb'){
+    if(simN.some(n=>n===0)) return simN.indexOf(0);
+    const scores=simQ.map((q,i)=>q+2*Math.sqrt(Math.log(simT+1)/simN[i]));
+    return scores.indexOf(Math.max(...scores));
+  }
+  return 0;
+}
+
+function runSim(n){
+  if(simStrat==='manual') return;
+  for(let i=0;i<n;i++) simPull(stratSelect());
+}
+
+function autoSim(){
+  const btn=document.getElementById('sim-auto-btn');
+  if(simAutoTimer){clearInterval(simAutoTimer);simAutoTimer=null;btn.textContent='Auto Play';btn.classList.remove('active');}
+  else{
+    simAutoTimer=setInterval(()=>{
+      if(simStrat==='manual'){clearInterval(simAutoTimer);simAutoTimer=null;btn.textContent='Auto Play';btn.classList.remove('active');return;}
+      simPull(stratSelect());
+    },80);
+    btn.textContent='Stop';btn.classList.add('active');
+  }
+}
+
+function setStrat(s,el){
+  simStrat=s;
+  document.querySelectorAll('#strat-manual,#strat-greedy,#strat-egreedy,#strat-ucb,#strat-opt').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  if(simAutoTimer){clearInterval(simAutoTimer);simAutoTimer=null;document.getElementById('sim-auto-btn').textContent='Auto Play';document.getElementById('sim-auto-btn').classList.remove('active');}
+  resetSim();
+}
+
+function drawSimCanvas(){
+  const canvas=document.getElementById('sim-canvas');
+  if(!canvas) return;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#050505';
+  ctx.fillRect(0,0,W,H);
+  if(simRewards.length<2) return;
+  const max=Math.max(...simRewards,1);
+  const min=Math.min(...simRewards,-1);
+  const range=max-min;
+  const pad=20;
+  const drawW=W-pad*2,drawH=H-pad*2;
+  // Zero line
+  ctx.strokeStyle='#333';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+  const zeroY=pad+drawH*(1-(0-min)/range);
+  ctx.beginPath();ctx.moveTo(pad,zeroY);ctx.lineTo(W-pad,zeroY);ctx.stroke();
+  ctx.setLineDash([]);
+  // Reward line
+  ctx.strokeStyle='#10b981';ctx.lineWidth=2;
+  ctx.beginPath();
+  simRewards.forEach((r,i)=>{
+    const x=pad+i/(simRewards.length-1)*drawW;
+    const y=pad+drawH*(1-(r-min)/range);
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+  // Running avg
+  ctx.strokeStyle='#06b6d4';ctx.lineWidth=2;
+  ctx.beginPath();
+  let sum=0;
+  simRewards.forEach((r,i)=>{
+    sum+=r;
+    const avg=sum/(i+1);
+    const x=pad+i/(simRewards.length-1)*drawW;
+    const y=pad+drawH*(1-(avg-min)/range);
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+  // Legend
+  ctx.fillStyle='#10b981';ctx.font='10px Inter';ctx.fillText('Reward',pad+4,14);
+  ctx.fillStyle='#06b6d4';ctx.fillText('Running Avg',pad+70,14);
+}
+
+// ── Testbed Learning Curves ────────────────────────────────────
+let curveMode='avg';
+
+function showCurve(mode,el){
+  curveMode=mode;
+  document.querySelectorAll('#testbed-canvas').forEach(()=>{});
+  document.querySelectorAll('.btn-tab').forEach(b=>{
+    if(b.onclick&&b.onclick.toString().includes('showCurve')) b.classList.remove('active');
+  });
+  el.classList.add('active');
+  drawTestbedCanvas();
+}
+
+function generateCurveData(steps){
+  // Approximate curves matching Sutton & Barto Fig 2.2
+  const data={
+    greedy:{avg:[],opt:[]},
+    eps001:{avg:[],opt:[]},
+    eps01:{avg:[],opt:[]},
+    ucb:{avg:[],opt:[]}
+  };
+  for(let t=1;t<=steps;t++){
+    const p=t/steps;
+    // Avg reward curves (asymptote: greedy~1.0, eps001~1.35, eps01~1.45, ucb~1.55)
+    data.greedy.avg.push(1.0-(0.6)*Math.exp(-t/8)+gaussNoise(0.015));
+    data.eps001.avg.push(1.35-(0.95)*Math.exp(-t/60)+gaussNoise(0.012));
+    data.eps01.avg.push(1.45-(1.05)*Math.exp(-t/30)+gaussNoise(0.01));
+    data.ucb.avg.push(1.55-(1.15)*Math.exp(-t/40)+gaussNoise(0.012));
+    // % Optimal action (greedy~33%, eps001~60%, eps01~80%, ucb~92%)
+    data.greedy.opt.push((0.33+(0.0)*p)*100+gaussNoise(1.5));
+    data.eps001.opt.push((0.33+(0.27)*Math.min(1,p*2))*100+gaussNoise(1.2));
+    data.eps01.opt.push((0.33+(0.47)*(1-Math.exp(-t/50)))*100+gaussNoise(1.0));
+    data.ucb.opt.push((0.4+(0.52)*(1-Math.exp(-t/30)))*100+gaussNoise(0.9));
+  }
+  return data;
+}
+
+function gaussNoise(std){return (Math.random()-0.5)*std*4;}
+
+let tbData=null;
+function drawTestbedCanvas(){
+  const canvas=document.getElementById('testbed-canvas');
+  if(!canvas) return;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#050505';ctx.fillRect(0,0,W,H);
+  if(!tbData) tbData=generateCurveData(300);
+
+  const colors=['#ef4444','#f59e0b','#10b981','#06b6d4'];
+  const keys=['greedy','eps001','eps01','ucb'];
+  const pad={t:16,b:24,l:40,r:16};
+  const drawW=W-pad.l-pad.r,drawH=H-pad.t-pad.b;
+  const isOpt=curveMode==='opt';
+  const yMin=isOpt?0:0;
+  const yMax=isOpt?100:2.0;
+
+  // Grid lines
+  ctx.strokeStyle='#1a1a1a';ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){
+    const y=pad.t+i*(drawH/4);
+    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(W-pad.r,y);ctx.stroke();
+    const label=isOpt?(100-i*25)+'%':(2.0-i*0.5).toFixed(1);
+    ctx.fillStyle='#555';ctx.font='9px Inter';ctx.textAlign='right';
+    ctx.fillText(label,pad.l-4,y+4);
+  }
+
+  keys.forEach((k,ki)=>{
+    const arr=tbData[k][curveMode];
+    ctx.strokeStyle=colors[ki];ctx.lineWidth=2.5;ctx.setLineDash([]);
+    ctx.beginPath();
+    arr.forEach((v,i)=>{
+      const x=pad.l+i/(arr.length-1)*drawW;
+      const y=pad.t+drawH*(1-(v-yMin)/(yMax-yMin));
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+  });
+
+  // X axis labels
+  ctx.fillStyle='#555';ctx.font='9px Inter';ctx.textAlign='center';
+  [0,150,300].forEach(t=>{
+    const x=pad.l+t/(300-1)*drawW;
+    ctx.fillText(t===0?'0':(t*3.3).toFixed(0)+'',x,H-pad.b+14);
+  });
+  ctx.fillStyle='#444';ctx.font='9px Inter';ctx.textAlign='left';
+  ctx.fillText('Steps',W-pad.r-24,H-2);
+}
+
+// ── Init ──────────────────────────────────────────────────────
+function doInit(){
+  buildGrid();
+  calcUCB();
+  resetSim();
+  setTimeout(drawTestbedCanvas, 100);
+}
+
+if(localStorage.getItem(STORE_KEY)==='1'){
+  document.getElementById('gate').style.display='none';
+  doInit();
+}
+</script>
+</body>
+</html>
