@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Hermes Agent — The Self-Improving Agent Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#000000;--surface:#0d0d0d;--border:#222222;
+  --text:#f0f0f0;--muted:#909090;
+  --amber:#f59e0b;--amber2:#fbbf24;--amber3:#fde68a;
+  --orange:#f97316;--orange2:#fb923c;--orange3:#fed7aa;
+  --teal:#10b981;--teal2:#34d399;
+  --blue:#3b82f6;--blue2:#60a5fa;--blue3:#bfdbfe;
+  --purple:#8b5cf6;--purple2:#a78bfa;
+  --red:#ef4444;--red2:#fca5a5;
+  --green:#10b981;--green2:#34d399;
+  --pink:#ec4899;--pink2:#f472b6;
+  --cyan:#06b6d4;--cyan2:#22d3ee;
+  --acc1:#f59e0b;--acc2:#f97316;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+#gate{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.gate-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 44px;text-align:center;max-width:380px;width:90%;}
+.gate-icon{font-size:36px;margin-bottom:12px;}
+.gate-title{font-size:20px;font-weight:800;color:var(--amber2);margin-bottom:4px;}
+.gate-sub{font-size:12px;color:var(--muted);margin-bottom:24px;}
+.gate-input{width:100%;background:#050505;border:1px solid var(--border);border-radius:8px;padding:11px 14px;font-size:14px;color:var(--text);outline:none;margin-bottom:12px;}
+.gate-input:focus{border-color:var(--amber);}
+.gate-btn{width:100%;background:var(--amber);color:#000;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s;}
+.gate-btn:hover{opacity:.85;}
+.gate-err{font-size:11px;color:var(--red);margin-top:6px;display:none;}
+.sidebar{width:240px;min-width:240px;height:100vh;position:sticky;top:0;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:0 0 40px;flex-shrink:0;}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.sidebar-logo-title{font-size:13px;font-weight:700;color:var(--amber2);}
+.sidebar-logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.nav-group-title{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;padding:10px 16px 4px;}
+.nav-link{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;}
+.nav-link:hover,.nav-link.active{color:var(--text);background:rgba(245,158,11,.08);}
+.nav-link.active{color:var(--amber2);}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.main{flex:1;overflow-y:auto;height:100vh;scroll-behavior:smooth;}
+.top-bar{position:sticky;top:0;z-index:50;background:rgba(0,0,0,.97);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+.bar-step{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);padding:2px 6px;border-radius:4px;cursor:pointer;transition:color .15s;}
+.bar-step:hover{color:var(--text);}
+.bar-dot{width:6px;height:6px;border-radius:50%;}
+.bar-arrow{color:var(--border);font-size:14px;font-weight:700;}
+.section{min-height:100vh;padding:60px 48px 80px;border-bottom:1px solid var(--border);}
+.section-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;}
+.section-title{font-size:28px;font-weight:800;color:var(--text);margin-bottom:8px;line-height:1.25;}
+.section-sub{font-size:14px;color:var(--muted);margin-bottom:28px;max-width:700px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:16px;}
+.card-title{font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px;}
+.card-body{font-size:13px;color:var(--muted);line-height:1.6;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;}
+.hl{border-left:3px solid var(--amber);padding:12px 16px;background:rgba(245,158,11,.06);border-radius:0 8px 8px 0;margin-bottom:16px;font-size:13px;color:var(--muted);}
+.hl.orange{border-color:var(--orange);background:rgba(249,115,22,.06);}
+.hl.blue{border-color:var(--blue);background:rgba(59,130,246,.06);}
+.hl.green{border-color:var(--teal);background:rgba(16,185,129,.06);}
+.hl.red{border-color:var(--red);background:rgba(239,68,68,.06);}
+.hl.purple{border-color:var(--purple);background:rgba(139,92,246,.06);}
+.hl.cyan{border-color:var(--cyan);background:rgba(6,182,212,.06);}
+table{width:100%;border-collapse:collapse;margin-bottom:20px;font-size:12px;}
+th{background:rgba(245,158,11,.12);color:var(--amber2);font-weight:700;padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);}
+td{padding:9px 14px;border-bottom:1px solid rgba(34,34,34,.8);color:var(--muted);}
+tr:hover td{background:rgba(245,158,11,.04);}
+td strong{color:var(--text);}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;text-align:center;}
+.stat-num{font-size:28px;font-weight:800;margin-bottom:4px;}
+.stat-label{font-size:11px;color:var(--muted);line-height:1.4;}
+.btn-tab{background:rgba(245,158,11,.08);border:1px solid var(--border);border-radius:6px;padding:7px 14px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;font-family:'Inter',sans-serif;}
+.btn-tab:hover{color:var(--text);}
+.btn-tab.active{background:rgba(245,158,11,.2);border-color:var(--amber);color:var(--amber2);}
+.tab-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+.badge-amber{background:rgba(245,158,11,.2);color:var(--amber2);border:1px solid rgba(245,158,11,.3);}
+.badge-orange{background:rgba(249,115,22,.2);color:var(--orange2);border:1px solid rgba(249,115,22,.3);}
+.badge-blue{background:rgba(59,130,246,.2);color:var(--blue2);border:1px solid rgba(59,130,246,.3);}
+.badge-purple{background:rgba(139,92,246,.2);color:var(--purple2);border:1px solid rgba(139,92,246,.3);}
+.badge-teal{background:rgba(16,185,129,.2);color:var(--teal2);border:1px solid rgba(16,185,129,.3);}
+.badge-red{background:rgba(239,68,68,.2);color:var(--red2);border:1px solid rgba(239,68,68,.3);}
+.code-block{background:#050505;border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-family:'JetBrains Mono','Courier New',monospace;font-size:12px;line-height:1.8;margin-bottom:16px;overflow-x:auto;white-space:pre;}
+.code-block .kw{color:var(--amber2);}
+.code-block .str{color:var(--teal2);}
+.code-block .cmt{color:var(--muted);}
+.code-block .num{color:var(--orange2);}
+.code-block .fn{color:var(--blue2);}
+.code-block .key{color:var(--pink2);}
+.flow-step{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;}
+.flow-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;}
+.flow-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px;}
+.flow-desc{font-size:12px;color:var(--muted);}
+canvas{border-radius:8px;display:block;}
+/* Memory tier cards */
+.tier-card{border-radius:14px;border:1px solid;padding:20px 22px;cursor:pointer;transition:all .2s;}
+.tier-card:hover{transform:translateY(-2px);}
+.tier-card.active-tier{box-shadow:0 0 0 2px var(--amber);}
+/* Skill lifecycle */
+.lifecycle-state{border-radius:10px;padding:14px 16px;text-align:center;border:2px solid;transition:all .3s;cursor:pointer;}
+.lifecycle-state.ls-active{border-color:var(--teal);background:rgba(16,185,129,.08);}
+.lifecycle-state.ls-stale{border-color:var(--amber);background:rgba(245,158,11,.08);}
+.lifecycle-state.ls-archived{border-color:var(--muted);background:rgba(144,144,144,.06);}
+.lifecycle-state.ls-restored{border-color:var(--blue);background:rgba(59,130,246,.08);}
+.lifecycle-state.ls-pinned{border-color:var(--orange);background:rgba(249,115,22,.08);}
+/* GEPA vs GRPO */
+.compare-col{border-radius:12px;padding:16px 18px;border:1px solid;}
+/* Entry point badge */
+.ep-badge{display:flex;align-items:center;gap:8px;background:#050505;border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:12px;}
+.ep-icon{font-size:16px;flex-shrink:0;}
+/* Memory interactive */
+.mem-tier-btn{background:#050505;border:1px solid var(--border);border-radius:8px;padding:12px 16px;cursor:pointer;transition:all .2s;font-family:'Inter',sans-serif;text-align:left;width:100%;}
+.mem-tier-btn:hover{border-color:var(--amber);}
+.mem-tier-btn.active{border-color:var(--amber);background:rgba(245,158,11,.08);}
+/* Skill anatomy */
+.skill-part{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:8px;margin-bottom:6px;border:1px solid var(--border);}
+.skill-part-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;width:90px;flex-shrink:0;padding-top:1px;}
+/* Continue strip */
+.continue-strip{background:var(--surface);border-top:1px solid var(--border);padding:32px 48px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;}
+.cs-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.cs-title{font-size:15px;font-weight:700;color:var(--text);}
+.cs-title:hover{color:var(--amber2);}
+</style>
+</head>
+<body>
+
+<!-- Gate -->
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-icon">&#x1F9E0;</div>
+    <div class="gate-title">Hermes Agent</div>
+    <div class="gate-sub">The Self-Improving Agent Architecture &middot; Visual Summary</div>
+    <input id="gate-pw" class="gate-input" type="password" placeholder="Enter password" onkeydown="if(event.key==='Enter')checkGate()">
+    <button class="gate-btn" onclick="checkGate()">Unlock</button>
+    <div id="gate-err" class="gate-err">Incorrect password. Try again.</div>
+  </div>
+</div>
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-title">Hermes Agent</div>
+    <div class="sidebar-logo-sub">Post 46 &middot; Agents &amp; Systems</div>
+  </div>
+  <div class="nav-group-title">Overview</div>
+  <div class="nav-link active" onclick="scrollTo('s-intro',this)"><span class="dot" style="background:#f59e0b"></span>Why Hermes?</div>
+  <div class="nav-link" onclick="scrollTo('s-arch',this)"><span class="dot" style="background:#fbbf24"></span>Architecture</div>
+  <div class="nav-link" onclick="scrollTo('s-vs',this)"><span class="dot" style="background:#f97316"></span>Hermes vs OpenClaw</div>
+
+  <div class="nav-group-title" style="color:var(--amber2)">Identity &amp; Memory</div>
+  <div class="nav-link" onclick="scrollTo('s-soul',this)"><span class="dot" style="background:#f59e0b"></span>SOUL.md — Identity</div>
+  <div class="nav-link" onclick="scrollTo('s-memory',this)"><span class="dot" style="background:#fbbf24"></span>Three-Tier Memory</div>
+  <div class="nav-link" onclick="scrollTo('s-mem-demo',this)"><span class="dot" style="background:#fde68a"></span>Memory Explorer</div>
+
+  <div class="nav-group-title" style="color:var(--orange2)">Learning Loop</div>
+  <div class="nav-link" onclick="scrollTo('s-skills',this)"><span class="dot" style="background:#f97316"></span>Self-Evolving Skills</div>
+  <div class="nav-link" onclick="scrollTo('s-curator',this)"><span class="dot" style="background:#fb923c"></span>The Curator (GC)</div>
+  <div class="nav-link" onclick="scrollTo('s-lifecycle',this)"><span class="dot" style="background:#fed7aa"></span>Skill Lifecycle</div>
+
+  <div class="nav-group-title" style="color:var(--amber2)">Optimization</div>
+  <div class="nav-link" onclick="scrollTo('s-gepa',this)"><span class="dot" style="background:#f59e0b"></span>GEPA</div>
+  <div class="nav-link" onclick="scrollTo('s-grpo',this)"><span class="dot" style="background:#fbbf24"></span>GEPA vs GRPO</div>
+
+  <div class="nav-group-title">Summary</div>
+  <div class="nav-link" onclick="scrollTo('s-summary',this)"><span class="dot" style="background:#f0f0f0"></span>The Full Loop</div>
+</nav>
+
+<!-- Main -->
+<div class="main" id="main">
+
+<!-- Top Bar -->
+<div class="top-bar">
+  <div class="bar-step" onclick="scrollTo('s-soul')"><span class="bar-dot" style="background:#f59e0b"></span>SOUL.md</div>
+  <span class="bar-arrow">⟶</span>
+  <div class="bar-step" onclick="scrollTo('s-memory')"><span class="bar-dot" style="background:#fbbf24"></span>Memory</div>
+  <span class="bar-arrow">⟶</span>
+  <div class="bar-step" onclick="scrollTo('s-skills')"><span class="bar-dot" style="background:#f97316"></span>Skills</div>
+  <span class="bar-arrow">⟶</span>
+  <div class="bar-step" onclick="scrollTo('s-curator')"><span class="bar-dot" style="background:#fb923c"></span>Curator</div>
+  <span class="bar-arrow">⟶</span>
+  <div class="bar-step" onclick="scrollTo('s-gepa')"><span class="bar-dot" style="background:#fbbf24"></span>GEPA</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Section 1 — Why Hermes? -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-intro">
+  <div class="section-tag" style="color:var(--amber2)">Introduction</div>
+  <h1 class="section-title">Hermes Agent: The Agent That Gets Better</h1>
+  <p class="section-sub">Hermes Agent crossed 148,000 GitHub stars by May 2026 — reaching 90K in just two months. It ships with a learning loop that no other open-source agent combines: runtime skill learning, persistent multi-layer memory, and an offline optimization pipeline.</p>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="stat-num" style="color:var(--amber2)">148K</div><div class="stat-label">GitHub stars<br>as of May 2026</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--orange2)">90K</div><div class="stat-label">Stars in<br>first 2 months</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--amber2)">47</div><div class="stat-label">Built-in tools<br>dispatched</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--orange2)">687</div><div class="stat-label">Skills across<br>18 categories</div></div>
+  </div>
+
+  <div class="grid2" style="margin-bottom:24px;">
+    <div class="card" style="border-color:rgba(245,158,11,.3);">
+      <div class="card-title" style="color:var(--amber2)">The One-Line Pitch</div>
+      <div class="card-body" style="font-size:14px;color:var(--text);font-weight:600;margin-bottom:10px;">"An agent that gets better the longer you use it."</div>
+      <div class="card-body">Three usually separate capabilities sit in one framework: <strong style="color:var(--text);">runtime skill learning</strong>, <strong style="color:var(--text);">persistent multi-layer memory</strong>, and an optional <strong style="color:var(--text);">weight-free training pipeline</strong>. No other open-source agent ships all three.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--orange2)">The 4-Part Learning Loop</div>
+      <div class="flow-step">
+        <div class="flow-num" style="background:rgba(245,158,11,.15);color:var(--amber2);border:1px solid var(--amber);">1</div>
+        <div><div class="flow-title">Remembers across sessions</div><div class="flow-desc">Three-tier memory persists facts, procedures, and conversation history.</div></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num" style="background:rgba(245,158,11,.15);color:var(--amber2);border:1px solid var(--amber);">2</div>
+        <div><div class="flow-title">Writes its own reusable skills</div><div class="flow-desc">One-time discoveries become permanent procedural memory (SKILL.md files).</div></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num" style="background:rgba(249,115,22,.15);color:var(--orange2);border:1px solid var(--orange);">3</div>
+        <div><div class="flow-title">Prunes them in the background</div><div class="flow-desc">The Curator consolidates stale and overlapping skills automatically.</div></div>
+      </div>
+      <div class="flow-step" style="margin-bottom:0;">
+        <div class="flow-num" style="background:rgba(249,115,22,.15);color:var(--orange2);border:1px solid var(--orange);">4</div>
+        <div><div class="flow-title">Validates them offline via GEPA</div><div class="flow-desc">Genetic-Pareto Prompt Evolution tests and improves skills without GPUs.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Section 2 — Architecture -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-arch">
+  <div class="section-tag" style="color:var(--amber2)">Architecture</div>
+  <h2 class="section-title">How It's Built</h2>
+  <p class="section-sub">Everything flows through a single AIAgent class in run_agent.py. CLI, messaging gateway, IDE, batch runner — all entry points into the same core agent. This is what makes "platform-agnostic" actually work.</p>
+
+  <!-- Core loop -->
+  <div class="card" style="border-color:rgba(245,158,11,.3);margin-bottom:24px;">
+    <div class="card-title" style="color:var(--amber2)">The Core Loop — ReAct Style</div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:16px;background:#050505;border-radius:8px;font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;">
+      <span style="color:var(--amber2);">Build prompt</span>
+      <span style="color:var(--border);">→</span>
+      <span style="color:var(--amber2);">Check compression</span>
+      <span style="color:var(--border);">→</span>
+      <span style="color:var(--amber2);">API call (interruptible)</span>
+      <span style="color:var(--border);">→</span>
+      <span style="color:var(--amber2);">Execute tool calls</span>
+      <span style="color:var(--border);">→</span>
+      <span style="color:var(--orange2);">Loop (max 90 turns)</span>
+    </div>
+  </div>
+
+  <div class="grid2" style="margin-bottom:24px;">
+    <div>
+      <div class="card">
+        <div class="card-title" style="color:var(--amber2)">Entry Points</div>
+        <div class="ep-badge"><span class="ep-icon">&#x276F;_</span><div><div style="font-size:12px;font-weight:700;color:var(--text);">CLI</div><div style="font-size:11px;color:var(--muted);">Terminal chat interface, primary mode</div></div></div>
+        <div class="ep-badge"><span class="ep-icon">&#x2022;&#x2022;&#x2022;</span><div><div style="font-size:12px;font-weight:700;color:var(--text);">Gateway</div><div style="font-size:11px;color:var(--muted);">Telegram, Slack, Discord (18+ channels)</div></div></div>
+        <div class="ep-badge"><span class="ep-icon">&#x3C;/&#x3E;</span><div><div style="font-size:12px;font-weight:700;color:var(--text);">ACP (IDE)</div><div style="font-size:11px;color:var(--muted);">VS Code, Cursor, JetBrains integration</div></div></div>
+        <div class="ep-badge"><span class="ep-icon">&#x25A4;</span><div><div style="font-size:12px;font-weight:700;color:var(--text);">Batch</div><div style="font-size:11px;color:var(--muted);">Automated pipeline runs</div></div></div>
+        <div class="ep-badge" style="margin-bottom:0;"><span class="ep-icon">&#x2193;</span><div><div style="font-size:12px;font-weight:700;color:var(--text);">API Server</div><div style="font-size:11px;color:var(--muted);">REST endpoint for programmatic access</div></div></div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-title" style="color:var(--orange2)">Key Design Decisions</div>
+        <div style="margin-bottom:12px;">
+          <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:4px;">6 Execution Backends</div>
+          <div class="card-body">Local terminal, Docker, SSH, Modal, Daytona, or Singularity — same code, one config change. Move from laptop to cloud GPU without touching the agent.</div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:4px;">3 API Modes (Any Model)</div>
+          <div class="card-body">A translation layer routes any provider through one of three API formats. Swap Claude → GPT → Gemini → Ollama with one command.</div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:4px;">90-Turn Hard Cap</div>
+          <div class="card-body">Without it, a stuck agent (retrying a failing API, re-reading the same file) silently burns credits. Subagents share the same budget — no runaway delegation chains.</div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:0;">
+        <div class="card-title" style="color:var(--amber2)">Tool Backends (47 tools)</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          <span class="badge badge-amber">Terminal (6 backends)</span>
+          <span class="badge badge-orange">Browser</span>
+          <span class="badge badge-blue">Web</span>
+          <span class="badge badge-purple">MCP</span>
+          <span class="badge badge-teal">File</span>
+          <span class="badge badge-amber">Vision</span>
+          <span class="badge badge-orange">TTS</span>
+          <span class="badge badge-blue">SQLite</span>
+          <span class="badge badge-teal">skill_manage</span>
+          <span class="badge badge-purple">session_search</span>
+          <span class="badge badge-amber">cronjob</span>
+          <span class="badge badge-orange">delegate_task</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Section 3 — Hermes vs OpenClaw -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-vs">
+  <div class="section-tag" style="color:var(--orange2)">Framework Comparison</div>
+  <h2 class="section-title">Hermes vs OpenClaw</h2>
+  <p class="section-sub">The closest open-source comparison. Both are persistent and messaging-friendly, but they make opposite architectural choices. <a href="../11-openclaw/" style="color:var(--amber2);text-decoration:underline;">Post 11 covers OpenClaw in depth →</a></p>
+
+  <div class="hl orange" style="margin-bottom:24px;">
+    <strong style="color:var(--text);">"Hermes packages a gateway around a learning agent. OpenClaw packages an agent around a messaging gateway."</strong><br>— Kilo blog
+  </div>
+
+  <div class="grid2" style="margin-bottom:24px;">
+    <div class="compare-col" style="border-color:rgba(59,130,246,.3);background:rgba(59,130,246,.03);">
+      <div style="font-size:13px;font-weight:800;color:var(--blue2);margin-bottom:12px;">OpenClaw</div>
+      <div class="card-body" style="margin-bottom:8px;"><strong style="color:var(--text);">Gateway-first.</strong> WebSocket routing with agent attached. 50+ messaging channels, 13,700+ community skills. Memory is plain Markdown files.</div>
+      <div style="margin-top:12px;font-size:11px;color:var(--muted);">Skills stay static — no learning loop. But the community skill ecosystem is vastly larger.</div>
+      <div style="margin-top:8px;font-size:11px;color:var(--red2);">6 CVEs in 2026, 341+ malicious skills flagged, 135K+ exposed Shodan instances.</div>
+    </div>
+    <div class="compare-col" style="border-color:rgba(245,158,11,.3);background:rgba(245,158,11,.03);">
+      <div style="font-size:13px;font-weight:800;color:var(--amber2);margin-bottom:12px;">Hermes Agent</div>
+      <div class="card-body" style="margin-bottom:8px;"><strong style="color:var(--text);">Agent-first.</strong> Learning runtime with gateway as one entry point. 18+ channels, ~120 bundled skills + GitHub taps. Memory is three-tier (Markdown + SQLite + 8 providers).</div>
+      <div style="margin-top:12px;font-size:11px;color:var(--muted);">Skills self-evolve, Curator prunes, GEPA optimizes offline. Smaller channel count but deeper learning.</div>
+      <div style="margin-top:8px;font-size:11px;color:var(--teal2);">Zero agent-specific CVEs as of April 2026. Snapshot rollback before every file op.</div>
+    </div>
+  </div>
+
+  <table>
+    <thead><tr><th>Dimension</th><th>OpenClaw</th><th>Hermes Agent</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Architecture</strong></td><td>Gateway-first, WebSocket routing</td><td>Agent-first, learning runtime</td></tr>
+      <tr><td><strong>Channel breadth</strong></td><td>50+ messaging channels</td><td>18+ focused channels</td></tr>
+      <tr><td><strong>Skill ecosystem</strong></td><td>13,700+ community skills</td><td>~120 bundled + skills.sh + GitHub taps</td></tr>
+      <tr><td><strong>Learning loop</strong></td><td>Skills stay static</td><td>Self-evolve, Curator prunes, GEPA optimizes</td></tr>
+      <tr><td><strong>Memory</strong></td><td>Plain Markdown files</td><td>Three-tier: bounded MD, FTS5 search, 8 providers</td></tr>
+      <tr><td><strong>Safety</strong></td><td>6 CVEs, 341+ malicious skills flagged</td><td>Zero agent CVEs, snapshot rollback</td></tr>
+    </tbody>
+  </table>
+
+  <div class="hl">
+    <strong style="color:var(--text);">When to choose Hermes:</strong> You want an agent that improves over time with your workflow, care about safety, and don't need 50 messaging channels. <strong style="color:var(--text);">When to choose OpenClaw:</strong> You need the broadest channel support or the largest pre-built skill library, and don't need runtime learning.
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Section 4 — SOUL.md -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-soul">
+  <div class="section-tag" style="color:var(--amber2)">Identity Layer</div>
+  <h2 class="section-title">SOUL.md — Before Memory, Before Skills</h2>
+  <p class="section-sub">Memory is what the agent knows. Skills are how it does things. But neither tells you <em>who it is</em> when it shows up. SOUL.md solves this — it's the identity that everything else flows through.</p>
+
+  <div class="grid2" style="margin-bottom:24px;">
+    <div>
+      <div class="card" style="border-color:rgba(245,158,11,.3);">
+        <div class="card-title" style="color:var(--amber2)">What SOUL.md Is</div>
+        <div class="flow-step">
+          <div class="flow-num" style="background:rgba(245,158,11,.15);color:var(--amber2);border:1px solid var(--amber);">1</div>
+          <div><div class="flow-title">Slot #1 in the system prompt</div><div class="flow-desc">Loaded before MEMORY.md, USER.md, or any skills. The fixed foundation everything else builds on.</div></div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num" style="background:rgba(245,158,11,.15);color:var(--amber2);border:1px solid var(--amber);">2</div>
+          <div><div class="flow-title">Hand-authored and static</div><div class="flow-desc">You write it once, tweak it over time. Never auto-generated — unlike memories and skills.</div></div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num" style="background:rgba(245,158,11,.15);color:var(--amber2);border:1px solid var(--amber);">3</div>
+          <div><div class="flow-title">Defines personality, tone, limits</div><div class="flow-desc">Communication style, hard limits, what to optimize for, what to refuse.</div></div>
+        </div>
+        <div class="flow-step" style="margin-bottom:0;">
+          <div class="flow-num" style="background:rgba(245,158,11,.15);color:var(--amber2);border:1px solid var(--amber);">4</div>
+          <div><div class="flow-title">Per-profile isolation</div><div class="flow-desc">Each profile (designer, programmer, researcher) has its own SOUL.md. Same engine, genuinely different agents.</div></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="code-block"><span class="cmt"># ~/.hermes/SOUL.md  (default engineer)</span>
+
+<span class="key">You are a pragmatic senior engineer</span>
+<span class="str">with strong taste.</span>
+<span class="str">You optimize for truth, clarity,</span>
+<span class="str">and usefulness over politeness theater.</span></div>
+      <div class="code-block"><span class="cmt"># ~/.hermes/profiles/programmer/SOUL.md</span>
+
+<span class="key">You are my staff engineer.</span>
+<span class="str">Terse, direct, pragmatic.</span>
+
+<span class="str">You read code before you write code.</span>
+<span class="str">You write the smallest change that</span>
+<span class="str">solves the problem. Standard library</span>
+<span class="str">over dependencies, boring tech over</span>
+<span class="str">shiny tech, explicit over clever.</span>
+
+<span class="str">Always check: does this already exist?</span>
+<span class="str">Are there tests? What breaks if this fails?</span>
+<span class="str">Run the tests before saying "done."</span></div>
+      <div class="hl" style="margin-bottom:0;font-size:12px;">If SOUL.md is missing, Hermes falls back to a built-in default identity. But the fallback is generic — the self-improvement story loses its frame without a custom SOUL.md.</div>
+    </div>
+  </div>
+
+  <div class="hl orange">
+    <strong style="color:var(--text);">Why it matters for self-improvement:</strong> Every memory the agent writes, every skill it creates, every way it consolidates knowledge — all happen through the lens of this identity. SOUL.md is the fixed frame. Memory and skills are the moving parts inside it.
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Section 5 — Three-Tier Memory -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-memory">
+  <div class="section-tag" style="color:var(--amber2)">Memory System</div>
+  <h2 class="section-title">Three-Tier Memory: Three Speeds</h2>
+  <p class="section-sub">Hermes doesn't have a single "memory." Each tier trades speed for capacity. The agent picks the right one for the question.</p>
+
+  <div class="grid3" style="margin-bottom:28px;">
+    <!-- Tier 1 -->
+    <div class="tier-card" style="border-color:rgba(245,158,11,.4);background:rgba(245,158,11,.04);">
+      <div style="font-size:10px;font-weight:700;color:var(--amber2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">Tier 1 — In-Prompt</div>
+      <div style="font-size:15px;font-weight:800;color:var(--text);margin-bottom:6px;">Tiny Markdown Files</div>
+      <div class="card-body" style="margin-bottom:12px;">MEMORY.md (2,200 chars) + USER.md (1,375 chars). Injected as a <strong style="color:var(--text);">frozen snapshot</strong> at session start. Prefix-cache safe.</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <span class="badge badge-teal">Speed: Instant</span>
+        <span class="badge badge-red">Capacity: Tiny</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.6;">Changes written mid-session persist to disk immediately but don't appear in the system prompt until next session. At ~80% capacity, agent must consolidate — merging related entries into denser forms.</div>
+    </div>
+    <!-- Tier 2 -->
+    <div class="tier-card" style="border-color:rgba(249,115,22,.4);background:rgba(249,115,22,.04);">
+      <div style="font-size:10px;font-weight:700;color:var(--orange2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">Tier 2 — Session Search</div>
+      <div style="font-size:15px;font-weight:800;color:var(--text);margin-bottom:6px;">SQLite + FTS5</div>
+      <div class="card-body" style="margin-bottom:12px;">Every conversation (CLI and messaging) stored in SQLite with full-text search. Agent can search <strong style="color:var(--text);">weeks of past conversations</strong> on demand. Summaries via Gemini Flash.</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <span class="badge badge-amber">Speed: On-demand</span>
+        <span class="badge badge-teal">Capacity: ∞</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.6;">Requires active search + LLM summarization — not free to access. Critical facts live in Tier 1. Everything else is searchable here.</div>
+    </div>
+    <!-- Tier 3 -->
+    <div class="tier-card" style="border-color:rgba(59,130,246,.4);background:rgba(59,130,246,.04);">
+      <div style="font-size:10px;font-weight:700;color:var(--blue2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">Tier 3 — External Providers</div>
+      <div style="font-size:15px;font-weight:800;color:var(--text);margin-bottom:6px;">8 Pluggable Backends</div>
+      <div class="card-body" style="margin-bottom:12px;">8 memory providers that run <strong style="color:var(--text);">alongside</strong> built-in memory (never replacing it). Only one active at a time. Prefetches before each turn, syncs after response, extracts on session end.</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <span class="badge badge-red">Speed: Slower</span>
+        <span class="badge badge-blue">Capacity: Deep</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.6;">Each provider has unique features: Honcho (dialectic user modeling), Holographic (HRR algebra + trust scoring), Supermemory (context fencing, multi-container).</div>
+    </div>
+  </div>
+
+  <table>
+    <thead><tr><th>Provider</th><th>Storage</th><th>Cost</th><th>Unique Feature</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Honcho</strong></td><td>Cloud</td><td>Paid</td><td>Dialectic user modeling + session-scoped context</td></tr>
+      <tr><td><strong>OpenViking</strong></td><td>Self-hosted</td><td>Free</td><td>Filesystem hierarchy + tiered loading</td></tr>
+      <tr><td><strong>Mem0</strong></td><td>Cloud</td><td>Paid</td><td>Server-side LLM extraction</td></tr>
+      <tr><td><strong>Hindsight</strong></td><td>Cloud/Local</td><td>Free/Paid</td><td>Knowledge graph + reflect synthesis</td></tr>
+      <tr><td><strong>Holographic</strong></td><td>Local</td><td>Free</td><td>HRR algebra + trust scoring</td></tr>
+      <tr><td><strong>RetainDB</strong></td><td>Cloud</td><td>$20/mo</td><td>Delta compression</td></tr>
+      <tr><td><strong>ByteRover</strong></td><td>Local/Cloud</td><td>Free/Paid</td><td>Pre-compression extraction</td></tr>
+      <tr><td><strong>Supermemory</strong></td><td>Cloud</td><td>Paid</td><td>Context fencing + session graph + multi-container</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Section 6 — Memory Explorer (Interactive) -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-mem-demo">
+  <div class="section-tag" style="color:var(--amber2)">Interactive</div>
+  <h2 class="section-title">Memory System Explorer</h2>
+  <p class="section-sub">Step through what gets stored in each tier, when it's accessed, and how consolidation works.</p>
+
+  <div class="card" style="max-width:740px;">
+    <div class="tab-row">
+      <button class="btn-tab active" onclick="showMem('tier1',this)">Tier 1 — In-Prompt</button>
+      <button class="btn-tab" onclick="showMem('tier2',this)">Tier 2 — Session Search</button>
+      <button class="btn-tab" onclick="showMem('tier3',this)">Tier 3 — External</button>
+      <button class="btn-tab" onclick="showMem('consolidate',this)">Consolidation</button>
+    </div>
+
+    <!-- Tier 1 -->
+    <div id="mem-tier1">
+      <div class="grid2" style="margin-bottom:16px;">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--amber2);margin-bottom:8px;">MEMORY.md (2,200 chars max)</div>
+          <div class="code-block" style="font-size:11px;">## Environment
+- Python 3.12, uv package manager
+- Repo: ~/projects/api-server
+
+## Tool Quirks
+- docker ps hangs on VPN — use ssh backend
+
+## Lessons Learned
+- Always run uv sync before testing
+- main branch needs PR, never force push
+
+## Project State
+- Auth refactor in progress (branch: feat/auth)
+<span class="cmt">[capacity: 71%]</span></div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--orange2);margin-bottom:8px;">USER.md (1,375 chars max)</div>
+          <div class="code-block" style="font-size:11px;">## Profile
+- Name: Bhaskarjit
+- Timezone: IST (UTC+5:30)
+- Skill level: Senior engineer
+
+## Preferences
+- Terse responses — no summaries
+- Prefer standard library
+- Dark mode code blocks
+
+## Avoid
+- Emoji in code comments
+- Long explanations when brief works
+<span class="cmt">[capacity: 58%]</span></div>
+        </div>
+      </div>
+      <div class="hl">Both files are loaded as a <strong style="color:var(--text);">frozen snapshot</strong> when the session starts. Mid-session writes persist to disk but don't enter the active context until next session. This is intentional — it prevents mid-conversation context drift.</div>
+    </div>
+
+    <!-- Tier 2 -->
+    <div id="mem-tier2" style="display:none;">
+      <div class="card-body" style="margin-bottom:14px;">Every conversation is written to SQLite with FTS5 full-text search indexing. The agent uses a <code style="background:#050505;padding:2px 6px;border-radius:3px;font-family:'JetBrains Mono',monospace;color:var(--teal2);">session_search</code> tool to query it.</div>
+      <div class="code-block"><span class="cmt"># Example: agent recalls a past debugging session</span>
+<span class="fn">session_search</span>(<span class="str">"docker VPN hang fix"</span>, limit=<span class="num">3</span>)
+
+<span class="cmt"># Returns:</span>
+<span class="str">"2026-04-12: Discovered docker ps hangs on corp VPN.</span>
+<span class="str"> Fix: switch terminal backend to ssh. Confirmed working."</span></div>
+      <div class="hl orange">Tier 2 has <strong style="color:var(--text);">unlimited capacity</strong> but requires active search + LLM summarization — it's not free to access. The agent decides when to search based on task context. Critical facts should be in Tier 1 for instant access.</div>
+    </div>
+
+    <!-- Tier 3 -->
+    <div id="mem-tier3" style="display:none;">
+      <div class="card-body" style="margin-bottom:14px;">When a Tier 3 provider is active, Hermes runs a 3-phase lifecycle automatically — no manual calls needed:</div>
+      <div class="flow-step">
+        <div class="flow-num" style="background:rgba(245,158,11,.15);color:var(--amber2);border:1px solid var(--amber);font-size:10px;">PRE</div>
+        <div><div class="flow-title">Prefetch before each turn</div><div class="flow-desc">Provider returns relevant memories based on the incoming message. Injected into context.</div></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num" style="background:rgba(249,115,22,.15);color:var(--orange2);border:1px solid var(--orange);font-size:10px;">SYNC</div>
+        <div><div class="flow-title">Sync after each response</div><div class="flow-desc">Conversation turns written to the provider's store for future retrieval.</div></div>
+      </div>
+      <div class="flow-step" style="margin-bottom:0;">
+        <div class="flow-num" style="background:rgba(59,130,246,.15);color:var(--blue2);border:1px solid var(--blue);font-size:10px;">END</div>
+        <div><div class="flow-title">Extract on session end</div><div class="flow-desc">Provider runs extraction/distillation (e.g., Mem0's server-side LLM extraction) to build durable memories.</div></div>
+      </div>
+    </div>
+
+    <!-- Consolidation -->
+    <div id="mem-consolidate" style="display:none;">
+      <div class="card-body" style="margin-bottom:14px;">When MEMORY.md hits ~80% capacity (shown in the system prompt header), the agent consolidates automatically:</div>
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;margin-bottom:16px;">
+        <div style="background:#050505;border:1px solid rgba(239,68,68,.4);border-radius:8px;padding:12px;font-size:11px;color:var(--muted);">
+          <div style="color:var(--red2);font-weight:700;margin-bottom:6px;">Before (80%+ full)</div>
+          - Python 3.12 installed<br>
+          - Python version is 3.12<br>
+          - uv is package manager<br>
+          - Using uv, not pip<br>
+          - docker hangs on VPN<br>
+          - Don't use docker on VPN<br>
+          - Always use ssh backend on VPN
+        </div>
+        <div style="font-size:20px;color:var(--amber2);">→</div>
+        <div style="background:#050505;border:1px solid rgba(16,185,129,.4);border-radius:8px;padding:12px;font-size:11px;color:var(--muted);">
+          <div style="color:var(--teal2);font-weight:700;margin-bottom:6px;">After (consolidated)</div>
+          - Stack: Python 3.12, uv<br>
+          - On corp VPN: use ssh terminal<br>
+            backend (docker ps hangs)
+        </div>
+      </div>
+      <div class="hl green">Only useful information survives. The agent must actively compress — there's no infinite memory. This forces good epistemic hygiene: low-value notes get dropped, high-signal facts get denser.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Section 7 — Self-Evolving Skills -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-skills">
+  <div class="section-tag" style="color:var(--orange2)">Procedural Memory</div>
+  <h2 class="section-title">Self-Evolving Skills</h2>
+  <p class="section-sub">Memory handles facts. Skills handle procedures. They are Markdown files with YAML frontmatter — the agent's procedural memory that it writes, reads, and improves autonomously.</p>
+
+  <!-- Skill anatomy -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-title" style="color:var(--amber2)">Anatomy of a Skill File</div>
+    <div class="code-block"><span class="cmt">---</span>
+<span class="key">name</span>: <span class="str">k8s-pod-debug</span>
+<span class="key">description</span>: >
+  Activate for crashing pods, CrashLoopBackOff,
+  "why is my pod restarting", container failures.
+<span class="key">version</span>: <span class="num">1.2.0</span>
+<span class="key">author</span>: <span class="str">agent</span>
+<span class="key">platforms</span>: [linux, macos]
+<span class="cmt">---</span>
+
+<span class="fn">## Procedure</span>
+1. Get pod status → check events → pull logs
+2. Look for OOMKilled, ImagePullBackOff, config errors
+
+<span class="fn">## Pitfalls</span>
+- Forgetting --previous flag on restarted containers
+
+<span class="fn">## Verification</span>
+- Pod stays Running with 0 restarts for 5+ minutes</div>
+  </div>
+
+  <!-- Progressive disclosure -->
+  <div class="grid2" style="margin-bottom:24px;">
+    <div>
+      <div class="card">
+        <div class="card-title" style="color:var(--orange2)">Progressive Disclosure — Token Efficiency</div>
+        <div style="margin-bottom:10px;">
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#050505;border-radius:8px;margin-bottom:6px;border-left:3px solid var(--amber);">
+            <div style="font-size:11px;font-weight:700;color:var(--amber2);width:60px;flex-shrink:0;">Level 0</div>
+            <div style="font-size:11px;color:var(--muted);">Names + descriptions only. ~3k tokens for the full catalog of 687 skills. Always in context.</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#050505;border-radius:8px;margin-bottom:6px;border-left:3px solid var(--orange);">
+            <div style="font-size:11px;font-weight:700;color:var(--orange2);width:60px;flex-shrink:0;">Level 1</div>
+            <div style="font-size:11px;color:var(--muted);">Full skill content loaded when the agent determines this skill is needed. On-demand.</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#050505;border-radius:8px;border-left:3px solid var(--blue);">
+            <div style="font-size:11px;font-weight:700;color:var(--blue2);width:60px;flex-shrink:0;">Level 2</div>
+            <div style="font-size:11px;color:var(--muted);">Drill into specific reference files within a skill (scripts, configs, golden test sets).</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-title" style="color:var(--amber2)">When Skills Are Created</div>
+        <div class="card-body" style="margin-bottom:12px;">The agent creates skills autonomously via the <code style="background:#050505;padding:2px 5px;border-radius:3px;color:var(--orange2);font-family:'JetBrains Mono',monospace;">skill_manage</code> tool. Creation triggers when:</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);"><span style="color:var(--amber2);">▸</span> Complex task completed (5+ tool calls)</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);"><span style="color:var(--amber2);">▸</span> Errors or dead ends found and resolved</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);"><span style="color:var(--amber2);">▸</span> User corrects the agent's approach</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);"><span style="color:var(--amber2);">▸</span> Non-trivial workflow discovered</div>
+        </div>
+        <div class="card-title" style="color:var(--orange2);margin-top:16px;">skill_manage Actions</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">
+          <span class="badge badge-teal">create</span>
+          <span class="badge badge-amber">patch (preferred)</span>
+          <span class="badge badge-orange">edit (full rewrite)</span>
+          <span class="badge badge-red">delete</span>
+          <span class="badge badge-blue">write_file</span>
+          <span class="badge badge-purple">remove_file</span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px;"><strong style="color:var(--text);">patch</strong> is preferred — it's token-efficient (targeted fix, not full rewrite).</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- The self-improvement loop visual -->
+  <div class="card" style="border-color:rgba(245,158,11,.3);">
+    <div class="card-title" style="color:var(--amber2)">The Self-Improvement Loop</div>
+    <div style="display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;padding:16px 0;">
+      <div style="text-align:center;padding:12px 16px;background:#050505;border:1px solid rgba(239,68,68,.4);border-radius:8px;font-size:11px;min-width:100px;">
+        <div style="color:var(--red2);font-weight:700;margin-bottom:4px;">Problem</div>
+        <div style="color:var(--muted);">e.g. CrashLoopBackOff</div>
+      </div>
+      <span style="color:var(--border);font-size:18px;">→</span>
+      <div style="text-align:center;padding:12px 16px;background:#050505;border:1px solid rgba(245,158,11,.3);border-radius:8px;font-size:11px;min-width:100px;">
+        <div style="color:var(--amber2);font-weight:700;margin-bottom:4px;">Trial &amp; Error</div>
+        <div style="color:var(--muted);">5+ tool calls, retries</div>
+      </div>
+      <span style="color:var(--border);font-size:18px;">→</span>
+      <div style="text-align:center;padding:12px 16px;background:#050505;border:1px solid rgba(16,185,129,.4);border-radius:8px;font-size:11px;min-width:100px;">
+        <div style="color:var(--teal2);font-weight:700;margin-bottom:4px;">Working Solution</div>
+        <div style="color:var(--muted);">Found</div>
+      </div>
+      <span style="color:var(--border);font-size:18px;">→</span>
+      <div style="text-align:center;padding:12px 16px;background:#050505;border:1px solid rgba(249,115,22,.4);border-radius:8px;font-size:11px;min-width:100px;">
+        <div style="color:var(--orange2);font-weight:700;margin-bottom:4px;">skill_manage</div>
+        <div style="color:var(--muted);">create / patch</div>
+      </div>
+      <span style="color:var(--border);font-size:18px;">→</span>
+      <div style="text-align:center;padding:12px 16px;background:#050505;border:1px solid rgba(245,158,11,.4);border-radius:8px;font-size:11px;min-width:100px;">
+        <div style="color:var(--amber2);font-weight:700;margin-bottom:4px;">SKILL.md Saved</div>
+        <div style="color:var(--muted);">~/.hermes/skills/</div>
+      </div>
+      <span style="color:var(--border);font-size:18px;">→</span>
+      <div style="text-align:center;padding:12px 16px;background:#050505;border:1px solid rgba(59,130,246,.4);border-radius:8px;font-size:11px;min-width:100px;">
+        <div style="color:var(--blue2);font-weight:700;margin-bottom:4px;">Next Session</div>
+        <div style="color:var(--muted);">Loads at Level 0</div>
+      </div>
+    </div>
+    <div style="text-align:center;font-size:11px;color:var(--muted);margin-top:8px;font-style:italic;">One-time discoveries become permanent procedural memory.</div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Section 8 — The Curator -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-curator">
+  <div class="section-tag" style="color:var(--orange2)">Garbage Collection</div>
+  <h2 class="section-title">The Curator — Background Skill Maintenance</h2>
+  <p class="section-sub">Without maintenance, agent-created skills pile up — dozens of narrow, overlapping playbooks that waste tokens and pollute the catalog. The Curator handles this automatically.</p>
+
+  <div class="grid2" style="margin-bottom:24px;">
+    <div>
+      <div class="card" style="border-color:rgba(249,115,22,.3);">
+        <div class="card-title" style="color:var(--orange2)">Trigger Conditions</div>
+        <div class="card-body" style="margin-bottom:12px;">The Curator runs on an <strong style="color:var(--text);">inactivity check</strong>, not a cron daemon:</div>
+        <div style="display:flex;gap:10px;flex-direction:column;">
+          <div style="background:#050505;border:1px solid var(--border);border-radius:8px;padding:10px;font-size:12px;"><span style="color:var(--amber2);">Condition 1:</span> 7+ days since last Curator run</div>
+          <div style="text-align:center;font-size:14px;color:var(--muted);">AND</div>
+          <div style="background:#050505;border:1px solid var(--border);border-radius:8px;padding:10px;font-size:12px;"><span style="color:var(--amber2);">Condition 2:</span> Agent idle for 2+ hours</div>
+          <div style="text-align:center;font-size:14px;color:var(--amber2);">↓</div>
+          <div style="background:#050505;border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:10px;font-size:12px;">Background fork spins up with its own prompt cache — never touching the active conversation.</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-title" style="color:var(--amber2)">Two Operating Phases</div>
+        <div style="margin-bottom:12px;">
+          <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:4px;">Phase 1 — Deterministic (no LLM)</div>
+          <div class="card-body">Skills unused for <strong style="color:var(--amber2);">30 days</strong> → Stale. Skills unused for <strong style="color:var(--orange2);">90 days</strong> → Archived. No judgement, just timestamp math.</div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:4px;">Phase 2 — LLM Review (up to 8 iterations)</div>
+          <div class="card-body">A forked agent surveys all agent-created skills and decides per-skill: <span class="badge badge-teal">keep</span> <span class="badge badge-amber">patch</span> <span class="badge badge-blue">consolidate</span> <span class="badge badge-red">archive</span></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:0;border-color:rgba(16,185,129,.3);">
+        <div class="card-title" style="color:var(--teal2)">Safety Constraints</div>
+        <div class="flow-step" style="margin-bottom:8px;">
+          <div style="color:var(--teal2);font-size:14px;">✓</div>
+          <div class="card-body">Never touches bundled or hub-installed skills. Only agent-authored ones.</div>
+        </div>
+        <div class="flow-step" style="margin-bottom:8px;">
+          <div style="color:var(--teal2);font-size:14px;">✓</div>
+          <div class="card-body">Never auto-deletes. Worst outcome: archival to <code style="background:#050505;padding:2px 4px;border-radius:3px;color:var(--orange2);font-family:'JetBrains Mono',monospace;">~/.hermes/skills/.archive/</code> — one command to restore.</div>
+        </div>
+        <div class="flow-step" style="margin-bottom:0;">
+          <div style="color:var(--teal2);font-size:14px;">✓</div>
+          <div class="card-body">tar.gz snapshot before every pass. Rollback is one command. Rollbacks are themselves reversible.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hl orange">
+    <strong style="color:var(--text);">Pin critical skills:</strong> <code style="background:#050505;padding:2px 6px;border-radius:3px;color:var(--amber2);font-family:'JetBrains Mono',monospace;">hermes curator pin &lt;skill&gt;</code> protects a skill from archival and deletion permanently. Patches and edits still go through — the agent can improve a pinned skill without unpinning it first.
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Section 9 — Skill Lifecycle (Interactive) -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-lifecycle">
+  <div class="section-tag" style="color:var(--orange2)">Interactive</div>
+  <h2 class="section-title">Skill Lifecycle Simulator</h2>
+  <p class="section-sub">Click each state to see what triggers the transition and what it means.</p>
+
+  <div class="card" style="max-width:740px;">
+    <!-- State buttons -->
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;" id="lifecycle-grid">
+      <div class="lifecycle-state ls-pinned" onclick="showState('pinned',this)" style="border-color:rgba(249,115,22,.6);background:rgba(249,115,22,.08);">
+        <div style="font-size:16px;margin-bottom:4px;">&#x1F4CC;</div>
+        <div style="font-size:11px;font-weight:700;color:var(--orange2);">Pinned</div>
+        <div style="font-size:9px;color:var(--muted);">Protected</div>
+      </div>
+      <div class="lifecycle-state ls-active" onclick="showState('active',this)" style="border-color:rgba(16,185,129,.6);background:rgba(16,185,129,.08);">
+        <div style="font-size:16px;margin-bottom:4px;">&#x26A1;</div>
+        <div style="font-size:11px;font-weight:700;color:var(--teal2);">Active</div>
+        <div style="font-size:9px;color:var(--muted);">Used recently</div>
+      </div>
+      <div class="lifecycle-state ls-stale" onclick="showState('stale',this)" style="border-color:rgba(245,158,11,.6);background:rgba(245,158,11,.08);">
+        <div style="font-size:16px;margin-bottom:4px;">&#x1F4C5;</div>
+        <div style="font-size:11px;font-weight:700;color:var(--amber2);">Stale</div>
+        <div style="font-size:9px;color:var(--muted);">30d unused</div>
+      </div>
+      <div class="lifecycle-state ls-archived" onclick="showState('archived',this)" style="border-color:rgba(144,144,144,.5);background:rgba(144,144,144,.06);">
+        <div style="font-size:16px;margin-bottom:4px;">&#x1F4E6;</div>
+        <div style="font-size:11px;font-weight:700;color:var(--muted);">Archived</div>
+        <div style="font-size:9px;color:var(--muted);">90d unused</div>
+      </div>
+      <div class="lifecycle-state ls-restored" onclick="showState('restored',this)" style="border-color:rgba(59,130,246,.6);background:rgba(59,130,246,.08);">
+        <div style="font-size:16px;margin-bottom:4px;">&#x21BA;</div>
+        <div style="font-size:11px;font-weight:700;color:var(--blue2);">Restored</div>
+        <div style="font-size:9px;color:var(--muted);">1 command</div>
+      </div>
+    </div>
+
+    <!-- State detail panel -->
+    <div id="state-detail" style="background:#050505;border-radius:10px;padding:18px 20px;min-height:120px;">
+      <div style="font-size:12px;color:var(--muted);">Click a state above to learn about it.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Section 10 — GEPA -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-gepa">
+  <div class="section-tag" style="color:var(--amber2)">Offline Optimization</div>
+  <h2 class="section-title">GEPA — Genetic-Pareto Prompt Evolution</h2>
+  <p class="section-sub">The in-agent learning loop has a known weakness: the agent tends toward self-congratulation. GEPA solves this by reading execution traces instead of asking the agent how it did.</p>
+
+  <div class="hl red" style="margin-bottom:24px;">
+    <strong style="color:var(--text);">The Problem with Self-Evaluation:</strong> The agent almost always thinks it performed well, even when it didn't. Community feedback on Hermes has confirmed this. Worse, the system that auto-generates skills can also overwrite manual customizations with worse versions.
+  </div>
+
+  <div class="grid2" style="margin-bottom:24px;">
+    <div>
+      <div class="card">
+        <div class="card-title" style="color:var(--amber2)">What GEPA Is</div>
+        <div class="card-body" style="margin-bottom:12px;">GEPA is <strong style="color:var(--text);">not built into the Hermes runtime</strong>. It lives in a companion repo (<code style="background:#050505;padding:2px 5px;border-radius:3px;color:var(--orange2);font-family:'JetBrains Mono',monospace;">NousResearch/hermes-agent-self-evolution</code>) and operates as an offline optimization pipeline.</div>
+        <div class="card-body">Core idea: instead of asking "did you do well?", GEPA reads execution traces to understand <strong style="color:var(--text);">why things failed</strong>, then proposes targeted improvements through evolutionary search.</div>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <span class="badge badge-teal">No GPU required</span>
+          <span class="badge badge-amber">API calls only</span>
+          <span class="badge badge-orange">$2–10 per run</span>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-title" style="color:var(--orange2)">The 6-Step Pipeline</div>
+        <div class="flow-step">
+          <div class="flow-num" style="background:rgba(245,158,11,.15);color:var(--amber2);border:1px solid var(--amber);">1</div>
+          <div><div class="flow-desc">Read the current skill from the Hermes repo</div></div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num" style="background:rgba(245,158,11,.15);color:var(--amber2);border:1px solid var(--amber);">2</div>
+          <div><div class="flow-desc">Generate evaluation dataset (Claude Opus synthetic cases, real SQLite history, or curated golden sets)</div></div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num" style="background:rgba(249,115,22,.15);color:var(--orange2);border:1px solid var(--orange);">3</div>
+          <div><div class="flow-desc">Run GEPA optimizer: read traces → understand failure points → generate candidate variants</div></div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num" style="background:rgba(249,115,22,.15);color:var(--orange2);border:1px solid var(--orange);">4</div>
+          <div><div class="flow-desc">Evaluate candidates with LLM-as-judge rubrics (not binary pass/fail)</div></div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num" style="background:rgba(245,158,11,.15);color:var(--amber2);border:1px solid var(--amber);">5</div>
+          <div><div class="flow-desc">Apply constraint gates: 100% test suite pass, &lt;15KB skill size, semantic purpose must not drift</div></div>
+        </div>
+        <div class="flow-step" style="margin-bottom:0;">
+          <div class="flow-num" style="background:rgba(245,158,11,.15);color:var(--amber2);border:1px solid var(--amber);">6</div>
+          <div><div class="flow-desc">Best variant goes out as a <strong style="color:var(--text);">PR</strong> against the Hermes repo — never a direct commit</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Section 11 — GEPA vs GRPO -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-grpo">
+  <div class="section-tag" style="color:var(--amber2)">Optimization Comparison</div>
+  <h2 class="section-title">GEPA vs GRPO — Same Rollout, Different Signal</h2>
+  <p class="section-sub">GRPO (used in Blog 44's RLHF section and Blog 6's GRPO deep-dive) and GEPA both improve agent behavior from experience. But they handle the signal very differently.</p>
+
+  <div class="grid2" style="margin-bottom:24px;">
+    <div class="compare-col" style="border-color:rgba(139,92,246,.3);background:rgba(139,92,246,.03);">
+      <div style="font-size:14px;font-weight:800;color:var(--purple2);margin-bottom:12px;">GRPO</div>
+      <div class="flow-step">
+        <div class="flow-num" style="background:rgba(139,92,246,.15);color:var(--purple2);border:1px solid var(--purple);font-size:10px;">IN</div>
+        <div><div class="flow-desc">Reads execution trace (reasoning steps, tool calls, compiler errors, judge rationale)</div></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num" style="background:rgba(139,92,246,.15);color:var(--purple2);border:1px solid var(--purple);font-size:10px;">⟶</div>
+        <div><div class="flow-desc"><strong style="color:var(--red2);">Reduces to a scalar reward (+1 or -1)</strong>. Discards the full trace signal.</div></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num" style="background:rgba(139,92,246,.15);color:var(--purple2);border:1px solid var(--purple);font-size:10px;">⟶</div>
+        <div><div class="flow-desc">Spreads policy gradient across all tokens in the rollout. Which module broke? Unclear.</div></div>
+      </div>
+      <div class="flow-step" style="margin-bottom:0;">
+        <div class="flow-num" style="background:rgba(139,92,246,.15);color:var(--purple2);border:1px solid var(--purple);font-size:10px;">OUT</div>
+        <div><div class="flow-desc">Updates model weights. Needs ~24,000 rollouts. Opaque — hard to inspect what changed.</div></div>
+      </div>
+      <div style="margin-top:12px;padding:10px;background:#050505;border-radius:6px;font-size:11px;color:var(--muted);text-align:center;">Signal kept: <strong style="color:var(--red2);">1 bit</strong> (scalar reward)</div>
+    </div>
+
+    <div class="compare-col" style="border-color:rgba(245,158,11,.3);background:rgba(245,158,11,.03);">
+      <div style="font-size:14px;font-weight:800;color:var(--amber2);margin-bottom:12px;">GEPA</div>
+      <div class="flow-step">
+        <div class="flow-num" style="background:rgba(245,158,11,.15);color:var(--amber2);border:1px solid var(--amber);font-size:10px;">IN</div>
+        <div><div class="flow-desc">Reads the full execution trace with a reflection LLM. Keeps all the signal.</div></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num" style="background:rgba(245,158,11,.15);color:var(--amber2);border:1px solid var(--amber);font-size:10px;">⟶</div>
+        <div><div class="flow-desc"><strong style="color:var(--teal2);">Diagnosis localized to one module</strong>. Understands exactly which step failed and why.</div></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num" style="background:rgba(249,115,22,.15);color:var(--orange2);border:1px solid var(--orange);font-size:10px;">⟶</div>
+        <div><div class="flow-desc">Generates a new prompt for only that module. Module A, B, or C — only the broken one updates.</div></div>
+      </div>
+      <div class="flow-step" style="margin-bottom:0;">
+        <div class="flow-num" style="background:rgba(249,115,22,.15);color:var(--orange2);border:1px solid var(--orange);font-size:10px;">OUT</div>
+        <div><div class="flow-desc">Updates SKILL.md prompts (not weights). Needs ~678 rollouts. Readable — diff the SKILL.md.</div></div>
+      </div>
+      <div style="margin-top:12px;padding:10px;background:#050505;border-radius:6px;font-size:11px;color:var(--muted);text-align:center;">Signal kept: <strong style="color:var(--teal2);">full trace</strong></div>
+    </div>
+  </div>
+
+  <table>
+    <thead><tr><th>Dimension</th><th>GRPO</th><th>GEPA</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Rollouts needed</strong></td><td style="color:var(--red2);">~24,000</td><td style="color:var(--teal2);">~678</td></tr>
+      <tr><td><strong>What updates</strong></td><td>Model weights</td><td>Skill/prompt files</td></tr>
+      <tr><td><strong>Interpretability</strong></td><td>Opaque (weight delta)</td><td>Readable (diff the SKILL.md)</td></tr>
+      <tr><td><strong>GPU required</strong></td><td>Yes (large clusters)</td><td>No (API calls only)</td></tr>
+      <tr><td><strong>Cost</strong></td><td>$$$$ (compute)</td><td>$2–10 per run</td></tr>
+      <tr><td><strong>Signal used</strong></td><td>1 bit (scalar)</td><td>Full trace</td></tr>
+    </tbody>
+  </table>
+
+  <div class="hl amber">
+    <strong style="color:var(--text);">GEPA discards the signal. GEPA reads it.</strong> Try GEPA before moving to full fine-tuning or RL-based fine-tuning. It's a great intermediate step when you've hit a wall on skill quality without the infrastructure cost of GRPO.
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Section 12 — Summary -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s-summary">
+  <div class="section-tag" style="color:var(--text)">Summary</div>
+  <h2 class="section-title">The Full Hermes Learning Loop</h2>
+  <p class="section-sub">Four layers, each with a distinct role. Remove any one of them and you lose a meaningful piece of the self-improvement story.</p>
+
+  <div class="grid4" style="margin-bottom:28px;">
+    <div class="card" style="border-color:rgba(245,158,11,.4);text-align:center;">
+      <div style="font-size:24px;margin-bottom:8px;">&#x1F9D0;</div>
+      <div class="card-title" style="color:var(--amber2);text-align:center;">SOUL.md</div>
+      <div class="card-body" style="text-align:center;">Sets the identity. The fixed frame through which everything else operates.</div>
+    </div>
+    <div class="card" style="border-color:rgba(249,115,22,.4);text-align:center;">
+      <div style="font-size:24px;margin-bottom:8px;">&#x1F504;</div>
+      <div class="card-title" style="color:var(--orange2);text-align:center;">Runtime Loop</div>
+      <div class="card-body" style="text-align:center;">Captures experience. ReAct loop that writes memories and creates skills autonomously.</div>
+    </div>
+    <div class="card" style="border-color:rgba(245,158,11,.4);text-align:center;">
+      <div style="font-size:24px;margin-bottom:8px;">&#x1F9F9;</div>
+      <div class="card-title" style="color:var(--amber2);text-align:center;">Curator</div>
+      <div class="card-body" style="text-align:center;">Keeps the library clean. Prunes stale skills and consolidates overlapping ones.</div>
+    </div>
+    <div class="card" style="border-color:rgba(249,115,22,.4);text-align:center;">
+      <div style="font-size:24px;margin-bottom:8px;">&#x1F9EC;</div>
+      <div class="card-title" style="color:var(--orange2);text-align:center;">GEPA</div>
+      <div class="card-body" style="text-align:center;">Makes sure what's in the library actually works. Offline validation via execution traces.</div>
+    </div>
+  </div>
+
+  <div class="card" style="border-color:rgba(245,158,11,.3);">
+    <div class="card-title" style="color:var(--amber2)">vs Other Agent Approaches</div>
+    <table style="margin-bottom:0;">
+      <thead><tr><th>Approach</th><th>Identity</th><th>Memory</th><th>Learns Skills?</th><th>Prunes Skills?</th><th>Offline Validation?</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Plain ReAct Agent</strong></td><td>System prompt</td><td>None / window</td><td>No</td><td>No</td><td>No</td></tr>
+        <tr><td><strong>OpenClaw</strong></td><td>System prompt</td><td>Markdown files</td><td>No (static)</td><td>No</td><td>No</td></tr>
+        <tr><td><strong>Hermes Agent</strong></td><td>SOUL.md (slot #1)</td><td>3-tier (MD + SQLite + 8 providers)</td><td>Yes (skill_manage)</td><td>Yes (Curator)</td><td>Yes (GEPA)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- Continue strip -->
+<div class="continue-strip">
+  <div>
+    <div class="cs-label">&#8592; Previous Post</div>
+    <a href="../45-rl-foundations/" class="cs-title">Post 45 — Foundations of RL</a>
+  </div>
+  <div style="text-align:right;">
+    <div class="cs-label">All Posts &#8594;</div>
+    <a href="../" class="cs-title" style="color:var(--amber2);">Visual Summary</a>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<script>
+const STORE_KEY = 'pg_unlocked_46';
+const PW = 'visual2025';
+
+function checkGate(){
+  const v = document.getElementById('gate-pw').value;
+  if(v === PW){
+    localStorage.setItem(STORE_KEY,'1');
+    document.getElementById('gate').style.display='none';
+    doInit();
+  } else {
+    const e = document.getElementById('gate-err');
+    e.style.display='block';
+    setTimeout(()=>e.style.display='none',2000);
+  }
+}
+
+function scrollTo(id,el){
+  document.getElementById(id)?.scrollIntoView({behavior:'smooth'});
+  if(el){
+    document.querySelectorAll('.nav-link').forEach(n=>n.classList.remove('active'));
+    el.classList.add('active');
+  }
+}
+
+// ── Memory Explorer ────────────────────────────────────────────
+function showMem(tier, el){
+  ['mem-tier1','mem-tier2','mem-tier3','mem-consolidate'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.style.display='none';
+  });
+  const target=document.getElementById('mem-'+tier);
+  if(target) target.style.display='block';
+  document.querySelectorAll('.btn-tab').forEach(b=>{
+    if(b.onclick&&b.onclick.toString().includes('showMem')) b.classList.remove('active');
+  });
+  el.classList.add('active');
+}
+
+// ── Skill Lifecycle ────────────────────────────────────────────
+const STATE_DATA = {
+  pinned:{
+    icon:'&#x1F4CC;',
+    color:'var(--orange2)',
+    title:'Pinned — Protected Forever',
+    trigger:'Manual: <code style="background:#0a0a0a;padding:2px 6px;border-radius:3px;color:var(--amber2);font-family:\'JetBrains Mono\',monospace;">hermes curator pin &lt;skill&gt;</code>',
+    desc:'Pinned skills can never be archived or auto-deleted by the Curator. Patches and edits still apply — the agent can improve the skill without unpinning. Use for skills you\'ve heavily customized and don\'t want the learning loop to overwrite.',
+    transitions:'The Curator skips pinned skills entirely. They live until you manually unpin or delete them.'
+  },
+  active:{
+    icon:'&#x26A1;',
+    color:'var(--teal2)',
+    title:'Active — Used Recently',
+    trigger:'Default state when a skill is created or accessed.',
+    desc:'The skill has been used within the last 30 days. It appears at Level 0 (name + description) in every session\'s context. When the agent determines it\'s relevant, it loads to Level 1 (full content).',
+    transitions:'Stays Active as long as it\'s used. Goes Stale after 30 days without access.'
+  },
+  stale:{
+    icon:'&#x1F4C5;',
+    color:'var(--amber2)',
+    title:'Stale — 30 Days Unused',
+    trigger:'Deterministic (no LLM): 30 days without the skill being loaded at Level 1.',
+    desc:'The Curator marks the skill Stale in Phase 1 automatically. A Stale skill still appears at Level 0 in context — it\'s still accessible. In Phase 2, the LLM Curator review may consolidate it with similar skills or patch it.',
+    transitions:'Can return to Active if used. Goes Archived after 90 days without access.'
+  },
+  archived:{
+    icon:'&#x1F4E6;',
+    color:'var(--muted)',
+    title:'Archived — 90 Days Unused',
+    trigger:'Deterministic (no LLM): 90 days without being loaded at Level 1. Moved to <code style="background:#0a0a0a;padding:2px 5px;border-radius:3px;color:var(--orange2);font-family:\'JetBrains Mono\',monospace;">~/.hermes/skills/.archive/</code>',
+    desc:'The skill no longer appears in the Level 0 catalog. It\'s completely invisible to the agent. A tar.gz snapshot of the entire skills directory was taken before the Curator ran — you can rollback everything if needed.',
+    transitions:'Recoverable with one command: <code style="background:#0a0a0a;padding:2px 5px;border-radius:3px;color:var(--amber2);font-family:\'JetBrains Mono\',monospace;">hermes skills restore &lt;skill&gt;</code>'
+  },
+  restored:{
+    icon:'&#x21BA;',
+    color:'var(--blue2)',
+    title:'Restored — Back to Active',
+    trigger:'Manual: one hermes command. Rollbacks are themselves reversible.',
+    desc:'A restored skill returns to Active status and reappears in the Level 0 catalog. The Curator\'s tar.gz snapshots make this safe — every pass creates a checkpoint. Even undoing a rollback is supported.',
+    transitions:'After restoration, the skill is Active again and subject to normal Curator rules unless pinned.'
+  }
+};
+
+function showState(state, el){
+  const d=STATE_DATA[state];
+  if(!d) return;
+  document.getElementById('state-detail').innerHTML=`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+      <span style="font-size:24px;">${d.icon}</span>
+      <div style="font-size:15px;font-weight:800;color:${d.color};">${d.title}</div>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px;"><strong style="color:var(--text);">Trigger:</strong> ${d.trigger}</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.6;">${d.desc}</div>
+    <div style="font-size:12px;color:var(--muted);"><strong style="color:var(--text);">Transitions:</strong> ${d.transitions}</div>
+  `;
+}
+
+// ── Init ──────────────────────────────────────────────────────
+function doInit(){
+  showMem('tier1', document.querySelector('.btn-tab'));
+  showState('active', null);
+}
+
+if(localStorage.getItem(STORE_KEY)==='1'){
+  document.getElementById('gate').style.display='none';
+  doInit();
+}
+</script>
+</body>
+</html>
