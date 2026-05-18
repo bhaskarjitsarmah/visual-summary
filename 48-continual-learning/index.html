@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Continual Learning — Teaching Models to Remember Without Forgetting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#000000;--surface:#0d0d0d;--border:#222222;
+  --text:#f0f0f0;--muted:#909090;
+  --cyan:#06b6d4;--cyan2:#22d3ee;--cyan3:#a5f3fc;
+  --teal:#10b981;--teal2:#34d399;--teal3:#a7f3d0;
+  --blue:#3b82f6;--blue2:#60a5fa;
+  --purple:#8b5cf6;--purple2:#a78bfa;
+  --amber:#f59e0b;--amber2:#fbbf24;
+  --red:#ef4444;--red2:#f87171;
+  --green:#22c55e;--green2:#4ade80;
+  --orange:#f97316;--orange2:#fb923c;
+  --acc1:#06b6d4;--acc2:#10b981;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+code,pre{font-family:'JetBrains Mono',monospace;}
+
+/* GATE */
+#gate{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.gate-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 44px;text-align:center;max-width:380px;width:90%;}
+.gate-icon{font-size:36px;margin-bottom:12px;}
+.gate-title{font-size:20px;font-weight:800;color:var(--cyan2);margin-bottom:4px;}
+.gate-sub{font-size:12px;color:var(--muted);margin-bottom:24px;}
+.gate-input{width:100%;background:#050505;border:1px solid var(--border);border-radius:8px;padding:11px 14px;font-size:14px;color:var(--text);outline:none;margin-bottom:12px;}
+.gate-input:focus{border-color:var(--cyan);}
+.gate-btn{width:100%;background:var(--cyan);color:#000;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s;}
+.gate-btn:hover{opacity:.85;}
+.gate-err{font-size:11px;color:var(--red);margin-top:6px;display:none;}
+
+/* LAYOUT */
+.sidebar{width:240px;min-width:240px;height:100vh;position:sticky;top:0;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:0 0 40px;flex-shrink:0;}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.sidebar-logo-title{font-size:13px;font-weight:700;color:var(--cyan2);}
+.sidebar-logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.nav-group-title{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;padding:10px 16px 4px;}
+.nav-link{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;}
+.nav-link:hover,.nav-link.active{color:var(--text);background:rgba(6,182,212,.08);}
+.nav-link.active{color:var(--cyan2);}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.main{flex:1;overflow-y:auto;height:100vh;scroll-behavior:smooth;}
+
+/* TOP BAR */
+.top-bar{position:sticky;top:0;z-index:50;background:rgba(0,0,0,.97);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+.bar-step{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);padding:2px 6px;border-radius:4px;cursor:pointer;transition:color .15s;}
+.bar-step:hover{color:var(--text);}
+.bar-dot{width:6px;height:6px;border-radius:50%;}
+.bar-arrow{color:var(--border);font-size:14px;font-weight:700;}
+
+/* SECTIONS */
+.section{padding:40px 48px;border-bottom:1px solid var(--border);}
+.hero-section{padding:48px 48px 40px;border-bottom:1px solid var(--border);}
+.tag-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+.tag{font-size:10px;font-weight:700;padding:3px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:.8px;}
+.tag-cyan{background:rgba(6,182,212,.15);color:var(--cyan2);border:1px solid rgba(6,182,212,.25);}
+.tag-gray{background:rgba(255,255,255,.05);color:var(--muted);border:1px solid var(--border);}
+.hero-title{font-size:28px;font-weight:800;line-height:1.2;margin-bottom:12px;}
+.hero-desc{font-size:14px;color:var(--muted);line-height:1.7;max-width:640px;}
+.sec-title{font-size:18px;font-weight:800;margin-bottom:6px;}
+.sec-sub{font-size:13px;color:var(--muted);margin-bottom:24px;line-height:1.6;}
+
+/* PROSE */
+.prose{font-size:13.5px;color:#d0d0d0;line-height:1.75;max-width:720px;}
+.prose p{margin-bottom:14px;}
+.prose strong{color:var(--text);}
+.hl{color:var(--cyan2);font-weight:700;}
+.hl-teal{color:var(--teal2);font-weight:700;}
+.hl-amber{color:var(--amber2);font-weight:700;}
+.hl-red{color:var(--red2);font-weight:700;}
+.hl-purple{color:var(--purple2);font-weight:700;}
+
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-bottom:16px;}
+.card-title{font-size:13px;font-weight:700;margin-bottom:8px;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:16px;}
+
+/* CALLOUT */
+.callout{border-radius:10px;padding:14px 18px;margin:16px 0;font-size:12.5px;line-height:1.65;}
+.callout-cyan{background:rgba(6,182,212,.08);border:1px solid rgba(6,182,212,.2);color:#a5f3fc;}
+.callout-amber{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);color:#fde68a;}
+.callout-red{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:#fca5a5;}
+.callout-green{background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);color:#86efac;}
+.callout-teal{background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);color:#a7f3d0;}
+
+/* INTERACTIVE BOX */
+.ibox{background:#050505;border:1px solid #0d2a2a;border-radius:14px;padding:24px;margin-top:20px;}
+.ibox-title{font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;}
+.btn{padding:8px 16px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;border:none;transition:all .15s;}
+.btn-cyan{background:var(--cyan);color:#000;}
+.btn-cyan:hover{background:var(--cyan2);}
+.btn-teal{background:var(--teal);color:#000;}
+.btn-teal:hover{background:var(--teal2);}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover{color:var(--text);border-color:#555;}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;}
+
+/* TABS */
+.tab-bar{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px;}
+.tab{padding:7px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);color:var(--muted);transition:all .15s;}
+.tab.active{background:rgba(6,182,212,.15);border-color:var(--cyan);color:var(--cyan2);}
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+
+/* SCENARIO CARDS */
+.scenario-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px;}
+.scenario-card{background:#070707;border:2px solid var(--border);border-radius:10px;padding:16px;cursor:pointer;transition:all .2s;}
+.scenario-card.active{border-color:var(--cyan);}
+.scenario-title{font-size:13px;font-weight:700;margin-bottom:6px;}
+.scenario-badge{font-size:10px;padding:2px 7px;border-radius:4px;font-weight:700;display:inline-block;margin-bottom:8px;}
+.scenario-detail{background:#0a0a0a;border:1px solid #1a1a1a;border-radius:8px;padding:14px 16px;margin-top:16px;font-size:12px;color:var(--muted);line-height:1.65;min-height:80px;}
+
+/* METHOD CARDS */
+.method-list{display:grid;gap:10px;margin-top:16px;}
+.method-card{background:#070707;border:1px solid var(--border);border-radius:10px;padding:14px 18px;cursor:pointer;transition:all .15s;display:flex;gap:12px;align-items:flex-start;}
+.method-card:hover{border-color:#444;}
+.method-card.active{border-color:var(--cyan);background:rgba(6,182,212,.04);}
+.method-num{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;background:rgba(6,182,212,.15);color:var(--cyan2);}
+.method-body{flex:1;}
+.method-title{font-size:13px;font-weight:700;margin-bottom:3px;}
+.method-short{font-size:11px;color:var(--muted);}
+.method-detail{background:#0a0a0a;border:1px solid #1a1a1a;border-radius:8px;padding:14px 16px;margin-top:16px;font-size:12px;color:var(--muted);line-height:1.65;display:none;}
+.method-detail.visible{display:block;}
+.badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;}
+.badge-green{background:rgba(34,197,94,.15);color:var(--green2);}
+.badge-amber{background:rgba(245,158,11,.15);color:var(--amber2);}
+.badge-red{background:rgba(239,68,68,.15);color:var(--red2);}
+.badge-blue{background:rgba(59,130,246,.15);color:var(--blue2);}
+.badge-cyan{background:rgba(6,182,212,.15);color:var(--cyan2);}
+
+/* CANVAS */
+canvas{display:block;border-radius:8px;}
+
+/* MEMORY LEVEL */
+.mem-levels{display:flex;flex-direction:column;gap:10px;margin-top:16px;}
+.mem-level{border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:all .2s;border:1px solid transparent;}
+.mem-level:hover{border-color:#333;}
+.mem-icon{font-size:22px;flex-shrink:0;}
+.mem-body{flex:1;}
+.mem-title{font-size:13px;font-weight:700;margin-bottom:3px;}
+.mem-freq{font-size:11px;margin-bottom:4px;}
+.mem-bar-wrap{height:6px;background:#161616;border-radius:3px;overflow:hidden;}
+.mem-bar{height:100%;border-radius:3px;}
+
+/* MEMORY SLOT VISUAL */
+.slot-grid{display:flex;flex-wrap:wrap;gap:4px;margin:12px 0;}
+.slot{width:18px;height:18px;border-radius:3px;transition:all .3s;}
+
+/* FORGETTING CHART */
+.chart-wrap{background:#070707;border:1px solid #1a1a1a;border-radius:10px;padding:16px;margin-top:16px;}
+.chart-legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);}
+.legend-dot{width:10px;height:10px;border-radius:50%;}
+
+/* COMPARISON TABLE */
+.tbl{width:100%;border-collapse:collapse;font-size:12px;margin-top:16px;}
+.tbl th{background:#111;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.8px;padding:10px 14px;border-bottom:1px solid var(--border);text-align:left;}
+.tbl td{padding:10px 14px;border-bottom:1px solid #161616;vertical-align:middle;}
+.tbl tr:last-child td{border-bottom:none;}
+.perf-bar-wrap{height:8px;background:#161616;border-radius:4px;overflow:hidden;width:100px;display:inline-block;}
+.perf-bar{height:100%;border-radius:4px;}
+
+/* PLASTICITY STABILITY */
+.ps-viz{margin-top:16px;}
+.ps-slider-row{display:flex;align-items:center;gap:14px;margin-bottom:16px;}
+.ps-label{font-size:12px;color:var(--muted);width:80px;text-align:right;flex-shrink:0;}
+input[type=range]{flex:1;accent-color:var(--cyan);}
+.ps-label-r{font-size:12px;color:var(--muted);width:80px;flex-shrink:0;}
+.ps-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px;}
+.ps-card{background:#070707;border-radius:8px;padding:14px 16px;border:1px solid var(--border);}
+.ps-card-title{font-size:11px;font-weight:700;margin-bottom:6px;text-transform:uppercase;letter-spacing:.6px;}
+.ps-val{font-size:24px;font-weight:800;font-family:'JetBrains Mono',monospace;}
+
+/* XREF */
+.xref-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:16px;}
+.xref-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;transition:border-color .15s;}
+.xref-card:hover{border-color:#444;}
+.xref-num{font-size:10px;color:var(--muted);margin-bottom:4px;}
+.xref-title{font-size:12px;font-weight:700;margin-bottom:4px;}
+.xref-desc{font-size:11px;color:var(--muted);line-height:1.5;}
+
+/* CONTINUE STRIP */
+.continue-strip{background:var(--surface);border-top:1px solid var(--border);padding:32px 48px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;}
+.cs-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.cs-title{font-size:15px;font-weight:700;color:var(--text);}
+.cs-title:hover{color:var(--cyan2);}
+
+/* HOPE ARCH */
+.hope-levels{display:flex;flex-direction:column;gap:8px;margin-top:16px;}
+.hope-level{border-radius:8px;padding:12px 16px;border-left:3px solid transparent;display:flex;align-items:center;gap:12px;}
+.hope-level-num{font-size:11px;font-weight:800;width:60px;flex-shrink:0;}
+.hope-level-body{flex:1;}
+.hope-level-title{font-size:12px;font-weight:700;margin-bottom:2px;}
+.hope-level-desc{font-size:11px;color:var(--muted);}
+.hope-level-freq{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;flex-shrink:0;}
+
+@media(max-width:700px){
+  .sidebar{display:none;}
+  .section,.hero-section{padding:28px 20px;}
+  .two-col,.three-col,.scenario-grid{grid-template-columns:1fr;}
+  .continue-strip{padding:24px 20px;}
+}
+</style>
+</head>
+<body>
+
+<!-- GATE -->
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-icon">&#x1F9E0;</div>
+    <div class="gate-title">Continual Learning</div>
+    <div class="gate-sub">Teaching Models to Remember Without Forgetting &middot; Visual Summary</div>
+    <input id="gate-pw" class="gate-input" type="password" placeholder="Enter password" onkeydown="if(event.key==='Enter')checkGate()">
+    <button class="gate-btn" onclick="checkGate()">Unlock</button>
+    <div id="gate-err" class="gate-err">Incorrect password. Try again.</div>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-title">Post 48 &middot; Training &amp; Alignment</div>
+    <div class="sidebar-logo-sub">Continual Learning</div>
+  </div>
+  <div class="nav-group-title">Sections</div>
+  <div class="nav-link active" onclick="scrollTo('s-intro')"><span class="dot" style="background:var(--cyan)"></span>Introduction</div>
+  <div class="nav-link" onclick="scrollTo('s-forgetting')"><span class="dot" style="background:var(--cyan)"></span>Catastrophic Forgetting</div>
+  <div class="nav-link" onclick="scrollTo('s-tradeoff')"><span class="dot" style="background:var(--cyan)"></span>Plasticity vs Stability</div>
+  <div class="nav-link" onclick="scrollTo('s-scenarios')"><span class="dot" style="background:var(--teal)"></span>3 CL Scenarios</div>
+  <div class="nav-link" onclick="scrollTo('s-methods')"><span class="dot" style="background:var(--teal)"></span>6 General Methods</div>
+  <div class="nav-link" onclick="scrollTo('s-nested')"><span class="dot" style="background:var(--blue)"></span>Nested Learning (Google)</div>
+  <div class="nav-link" onclick="scrollTo('s-hope')"><span class="dot" style="background:var(--blue)"></span>HOPE Architecture</div>
+  <div class="nav-link" onclick="scrollTo('s-sparse')"><span class="dot" style="background:var(--purple)"></span>Sparse Memory FT (Meta)</div>
+  <div class="nav-link" onclick="scrollTo('s-compare')"><span class="dot" style="background:var(--amber)"></span>Method Comparison</div>
+  <div class="nav-link" onclick="scrollTo('s-refs')"><span class="dot" style="background:var(--muted)"></span>Related Posts</div>
+  <div class="nav-group-title">Cross-References</div>
+  <div class="nav-link" onclick="window.open('../44-llm-training-pipeline/')"><span class="dot" style="background:var(--purple)"></span>Post 44 &mdash; LLM Training Pipeline</div>
+</div>
+
+<!-- MAIN -->
+<div class="main" id="main">
+<div class="top-bar">
+  <span class="bar-step" onclick="scrollTo('s-intro')"><span class="bar-dot" style="background:var(--cyan)"></span>Intro</span>
+  <span class="bar-arrow">›</span>
+  <span class="bar-step" onclick="scrollTo('s-forgetting')"><span class="bar-dot" style="background:var(--cyan)"></span>Forgetting</span>
+  <span class="bar-arrow">›</span>
+  <span class="bar-step" onclick="scrollTo('s-scenarios')"><span class="bar-dot" style="background:var(--teal)"></span>Scenarios</span>
+  <span class="bar-arrow">›</span>
+  <span class="bar-step" onclick="scrollTo('s-methods')"><span class="bar-dot" style="background:var(--teal)"></span>Methods</span>
+  <span class="bar-arrow">›</span>
+  <span class="bar-step" onclick="scrollTo('s-nested')"><span class="bar-dot" style="background:var(--blue)"></span>Nested</span>
+  <span class="bar-arrow">›</span>
+  <span class="bar-step" onclick="scrollTo('s-sparse')"><span class="bar-dot" style="background:var(--purple)"></span>Sparse FT</span>
+  <span class="bar-arrow">›</span>
+  <span class="bar-step" onclick="scrollTo('s-compare')"><span class="bar-dot" style="background:var(--amber)"></span>Compare</span>
+</div>
+
+<!-- HERO -->
+<div class="hero-section" id="s-intro">
+  <div class="tag-row">
+    <span class="tag tag-cyan">Post 48</span>
+    <span class="tag tag-cyan">Training &amp; Alignment</span>
+    <span class="tag tag-gray">Turing Post &middot; Nov 2025</span>
+    <span class="tag tag-gray">Google &amp; Meta FAIR</span>
+  </div>
+  <div class="hero-title">Continual Learning<br><span style="color:var(--cyan2)">Teaching Models to Remember Without Forgetting</span></div>
+  <div class="hero-desc">Humans learn their whole lives without forgetting how to walk when they learn to swim. Neural networks can't. When trained on new data, they catastrophically overwrite what they already knew. Continual learning is the discipline of fixing this — and two recent breakthroughs from Google (Nested Learning + HOPE) and Meta FAIR (Sparse Memory Finetuning) are bringing us closer than ever.</div>
+
+  <div class="two-col" style="margin-top:28px;">
+    <div class="card" style="border-color:#0d2a2a;">
+      <div class="card-title" style="color:var(--cyan2)">The Core Problem</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.6;">A model trained sequentially on Task 2 after Task 1 <strong style="color:var(--red2)">overwrites</strong> the weights that encoded Task 1 knowledge — its performance on Task 1 collapses to near zero. This is <strong>catastrophic forgetting</strong>.</div>
+    </div>
+    <div class="card" style="border-color:#0d2a2a;">
+      <div class="card-title" style="color:var(--teal2)">Why It Matters Now</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.6;">LLMs have a hard boundary: knowledge frozen at pretraining cutoff. They can't update their weights at inference time. Continual learning would let deployed models <strong>absorb new facts</strong> without full retraining.</div>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 1: CATASTROPHIC FORGETTING -->
+<div class="section" id="s-forgetting">
+  <div class="sec-title">Catastrophic Forgetting</div>
+  <div class="sec-sub">Why neural networks can't learn sequentially — and the interactive proof</div>
+
+  <div class="prose">
+    <p>Identified as early as <span class="hl">1989–1990</span> by McCloskey, Cohen, and Ratcliff, catastrophic forgetting is not a bug — it's a structural consequence of how gradient descent works. When a model trains on Task 2, the weight updates are computed to minimize Task 2 loss only. These updates <strong>push weights away from the optimum for Task 1</strong>, destroying previously encoded knowledge.</p>
+    <p>The cruel irony: if you train on Task 1 and Task 2 <span class="hl-teal">interleaved</span> (mixed together), forgetting doesn't happen. The problem is purely the <strong>sequential training procedure</strong>, not the model's capacity.</p>
+  </div>
+
+  <div class="ibox">
+    <div class="ibox-title">&#9654; Catastrophic Forgetting Simulator</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Watch Task 1 performance collapse as the model trains on Task 2 sequentially vs. interleaved.</div>
+
+    <div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;">Mode:</div>
+        <button class="btn btn-ghost" id="mode-seq" onclick="setMode('sequential')" style="font-size:11px;padding:5px 12px;border-color:var(--cyan);color:var(--cyan2);">Sequential</button>
+        <button class="btn btn-ghost" id="mode-int" onclick="setMode('interleaved')" style="font-size:11px;padding:5px 12px;">Interleaved</button>
+      </div>
+    </div>
+
+    <canvas id="forget-canvas" width="600" height="180" style="width:100%;max-width:600px;background:#070707;border-radius:8px;border:1px solid #1a1a1a;"></canvas>
+
+    <div class="chart-legend" style="margin-top:10px;">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--cyan)"></div>Task 1 performance</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--teal)"></div>Task 2 performance</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#444;border:1px dashed #666;"></div>Task boundary</div>
+    </div>
+    <div id="forget-status" style="font-size:12px;color:var(--muted);margin-top:10px;min-height:18px;"></div>
+    <div class="btn-row">
+      <button class="btn btn-cyan" onclick="runForgetting()">&#9654; Run Simulation</button>
+      <button class="btn btn-ghost" onclick="resetForgetting()">&#8635; Reset</button>
+    </div>
+  </div>
+
+  <div class="callout callout-cyan" style="margin-top:20px;">
+    <strong>Key insight:</strong> The problem is not capacity — a model with enough parameters <em>could</em> hold both tasks. The problem is the optimizer doesn't know it needs to preserve Task 1 knowledge while learning Task 2. Standard SGD treats all weights as fair game.
+  </div>
+
+  <div class="prose" style="margin-top:20px;">
+    <p>Effective continual learning requires more than just preventing forgetting. A complete system also needs: <span class="hl">fast adaptation</span> to new tasks, ability to leverage <span class="hl-teal">task similarities</span> (forward and backward knowledge transfer), <span class="hl-amber">task-agnostic behavior</span> where possible, and efficiency in memory and compute.</p>
+  </div>
+
+  <div class="two-col" style="margin-top:8px;">
+    <div class="card">
+      <div class="card-title" style="color:var(--cyan2)">&#8594; Forward Transfer</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.6;">Task 1 helps Task 2 — learning to recognize cats makes it easier to recognize dogs. A good CL system should preserve and exploit these relationships.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--teal2)">&#8592; Backward Transfer</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.6;">Task 2 actually <em>improves</em> Task 1 performance. Rare and harder to achieve in neural networks — but the gold standard for true continual learning.</div>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 2: PLASTICITY VS STABILITY -->
+<div class="section" id="s-tradeoff">
+  <div class="sec-title">The Plasticity–Stability Tradeoff</div>
+  <div class="sec-sub">Every continual learning system must find the right balance</div>
+
+  <div class="prose">
+    <p>At the heart of continual learning is a fundamental tension: a model that learns too easily (<span class="hl">high plasticity</span>) will overwrite old knowledge. A model that preserves old knowledge too strongly (<span class="hl-teal">high stability</span>) won't be able to absorb new information. The goal is to find the sweet spot.</p>
+  </div>
+
+  <div class="ibox">
+    <div class="ibox-title">&#9654; Plasticity–Stability Explorer</div>
+    <div class="ps-viz">
+      <div class="ps-slider-row">
+        <span class="ps-label">Stable &#x1F512;</span>
+        <input type="range" id="ps-slider" min="0" max="100" value="50" oninput="updatePS()">
+        <span class="ps-label-r">&#x1F4A1; Plastic</span>
+      </div>
+      <div class="ps-cards">
+        <div class="ps-card">
+          <div class="ps-card-title" style="color:var(--cyan2)">Old Task Retention</div>
+          <div class="ps-val" id="ps-retention" style="color:var(--cyan2)">50%</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;">How well the model remembers previously learned knowledge</div>
+        </div>
+        <div class="ps-card">
+          <div class="ps-card-title" style="color:var(--teal2)">New Task Learning</div>
+          <div class="ps-val" id="ps-learning" style="color:var(--teal2)">50%</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;">How quickly the model adapts to new tasks and data</div>
+        </div>
+      </div>
+      <div id="ps-desc" style="background:#070707;border-radius:8px;padding:12px 14px;margin-top:12px;font-size:12px;color:var(--muted);line-height:1.6;border:1px solid #1a1a1a;"></div>
+    </div>
+  </div>
+
+  <div class="callout callout-teal" style="margin-top:16px;">
+    <strong>The human solution:</strong> The brain maintains this balance through synaptic consolidation — important connections are strengthened and made resistant to change, while new connections form freely. Memory layers and parameter regularization are machine learning's attempt to replicate this.
+  </div>
+</div>
+
+<!-- SECTION 3: SCENARIOS -->
+<div class="section" id="s-scenarios">
+  <div class="sec-title">3 Continual Learning Scenarios</div>
+  <div class="sec-sub">How difficult is the problem? It depends on what the model knows at test time.</div>
+
+  <div class="prose">
+    <p>Researchers characterize CL problems by three scenarios, defined by what <strong>task information</strong> is available at test time. They range from easy (full task info given) to hard (no task info, all classes ever seen).</p>
+  </div>
+
+  <div class="scenario-grid">
+    <div class="scenario-card active" id="sc-task" onclick="showScenario('task')">
+      <div class="scenario-badge" style="background:rgba(34,197,94,.15);color:var(--green2);">Easiest</div>
+      <div class="scenario-title" style="color:var(--green2)">Task-IL</div>
+      <div style="font-size:11px;color:var(--muted);">Task identity given at test time</div>
+    </div>
+    <div class="scenario-card" id="sc-domain" onclick="showScenario('domain')">
+      <div class="scenario-badge" style="background:rgba(245,158,11,.15);color:var(--amber2);">Medium</div>
+      <div class="scenario-title" style="color:var(--amber2)">Domain-IL</div>
+      <div style="font-size:11px;color:var(--muted);">Same task, distribution shifts</div>
+    </div>
+    <div class="scenario-card" id="sc-class" onclick="showScenario('class')">
+      <div class="scenario-badge" style="background:rgba(239,68,68,.15);color:var(--red2);">Hardest</div>
+      <div class="scenario-title" style="color:var(--red2)">Class-IL</div>
+      <div style="font-size:11px;color:var(--muted);">All classes, no task identity</div>
+    </div>
+  </div>
+
+  <div class="scenario-detail" id="scenario-detail"></div>
+
+  <div class="callout callout-amber" style="margin-top:20px;">
+    <strong>Important:</strong> These three scenarios are independent of whether the learning setup is <em>task-based</em> (explicit task boundaries) or <em>task-free</em> (smooth distribution shifts). Each scenario can occur in either setup.
+  </div>
+</div>
+
+<!-- SECTION 4: 6 METHODS -->
+<div class="section" id="s-methods">
+  <div class="sec-title">6 General Methods</div>
+  <div class="sec-sub">The toolkit for fighting catastrophic forgetting — click each to explore</div>
+
+  <div class="method-list" id="method-list"></div>
+  <div class="method-detail" id="method-detail"></div>
+</div>
+
+<!-- SECTION 5: NESTED LEARNING -->
+<div class="section" id="s-nested">
+  <div class="sec-title">Nested Learning — Google Research</div>
+  <div class="sec-sub">What if every part of a neural network is already a memory system? Let different parts update at different speeds.</div>
+
+  <div class="prose">
+    <p>The brain continuously learns because different regions update at different speeds: the hippocampus encodes new episodic memories quickly, while the cortex consolidates knowledge slowly over time. Google Research asked: <span class="hl">does this already exist inside Transformers?</span></p>
+    <p>The answer is yes. Every component of a neural network can be reframed as an <strong>associative memory</strong> — a system that maps keys to values and updates itself to improve this mapping:</p>
+  </div>
+
+  <div class="three-col" style="margin-top:8px;">
+    <div class="card" style="border-color:#0d2a2a;">
+      <div class="card-title" style="color:var(--cyan2)">Attention Layer</div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.6;">Maps query tokens (keys) to contextual representations (values). Updates <strong style="color:var(--cyan2)">every forward pass</strong> — instantaneous, infinite speed.</div>
+    </div>
+    <div class="card" style="border-color:#0d2a2a;">
+      <div class="card-title" style="color:var(--teal2)">Optimizer State</div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.6;">Momentum, Adam's first/second moment — stores recent gradient history. Updates <strong style="color:var(--teal2)">every batch</strong>. Medium speed.</div>
+    </div>
+    <div class="card" style="border-color:#0d2a2a;">
+      <div class="card-title" style="color:var(--blue2)">Model Weights (MLP)</div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.6;">Long-term parametric memory. Updates <strong style="color:var(--blue2)">slowly over training</strong>. Frozen after pretraining in standard Transformers.</div>
+    </div>
+  </div>
+
+  <div class="ibox">
+    <div class="ibox-title">&#9654; Neural Learning Module — Memory Hierarchy</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">A Transformer is already a nested learning system. NL makes this explicit and adds more levels.</div>
+
+    <div class="hope-levels">
+      <div class="hope-level" style="background:rgba(6,182,212,.06);border-left-color:var(--cyan);">
+        <div class="hope-level-num" style="color:var(--cyan2)">Level 1</div>
+        <div class="hope-level-body">
+          <div class="hope-level-title">Attention Memory</div>
+          <div class="hope-level-desc">Recomputes token-to-token relationships every forward pass. No persistent update — fully dynamic. Captures the immediate context window.</div>
+        </div>
+        <div class="hope-level-freq" style="background:rgba(6,182,212,.15);color:var(--cyan2);">Every token</div>
+      </div>
+      <div class="hope-level" style="background:rgba(16,185,129,.06);border-left-color:var(--teal);">
+        <div class="hope-level-num" style="color:var(--teal2)">Level 2</div>
+        <div class="hope-level-body">
+          <div class="hope-level-title">Optimizer State (Momentum / Adam)</div>
+          <div class="hope-level-desc">Stores running statistics of recent gradients. Acts as short-term memory for the learning process itself — which direction weights have been moving.</div>
+        </div>
+        <div class="hope-level-freq" style="background:rgba(16,185,129,.15);color:var(--teal2);">Every batch</div>
+      </div>
+      <div class="hope-level" style="background:rgba(59,130,246,.06);border-left-color:var(--blue);">
+        <div class="hope-level-num" style="color:var(--blue2)">Level 3</div>
+        <div class="hope-level-body">
+          <div class="hope-level-title">Model Weights (MLP / FFN)</div>
+          <div class="hope-level-desc">Long-term parametric memory. Encodes world knowledge accumulated over pretraining on trillions of tokens. Updates slowly — once per gradient step.</div>
+        </div>
+        <div class="hope-level-freq" style="background:rgba(59,130,246,.15);color:var(--blue2);">Every few steps</div>
+      </div>
+    </div>
+
+    <div class="callout callout-cyan" style="margin-top:16px;">
+      <strong>The Transformer gap:</strong> Standard Transformers only have Levels 1 and 3 — attention (fast) and MLP (slow, frozen after pretraining). There is <em>no mechanism to update long-term weights continuously</em> after deployment. This is the gap Nested Learning addresses.
+    </div>
+  </div>
+
+  <div class="prose" style="margin-top:24px;">
+    <p>Nested Learning generalizes this into a structured hierarchy called the <span class="hl">Continuum Memory System (CMS)</span>, where instead of one MLP (a single slow memory), there are <strong>multiple MLPs, each updating at a different frequency</strong>:</p>
+  </div>
+
+  <div class="ibox">
+    <div class="ibox-title">&#9654; Continuum Memory System (CMS)</div>
+    <div class="mem-levels" id="cms-levels">
+      <!-- Populated by JS -->
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:12px;">Each memory block watches its own recent chunk of data. Faster levels capture short-term details; slower levels compress longer trends into stable, abstract knowledge.</div>
+  </div>
+</div>
+
+<!-- SECTION 6: HOPE -->
+<div class="section" id="s-hope">
+  <div class="sec-title">HOPE — Google's Continual Learning Architecture</div>
+  <div class="sec-sub">Hierarchical, Optimizing, Persistent, Evolving — where all Nested Learning ideas converge</div>
+
+  <div class="prose">
+    <p>HOPE is the architecture that instantiates Nested Learning in practice. It combines three components into a unified self-referential learning system:</p>
+  </div>
+
+  <div style="display:grid;gap:12px;margin-top:16px;">
+    <div class="card" style="border-color:#0a1a2a;display:flex;gap:14px;align-items:flex-start;">
+      <div style="font-size:22px;flex-shrink:0;">&#129504;</div>
+      <div>
+        <div class="card-title" style="color:var(--cyan2)">1. Titans-Style Self-Modifying Sequence Models</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;">Combines short-term attention with a <strong>neural long-term memory module</strong> that can learn and store information even at test time (not just during training). This closes the gap left open by standard Transformers.</div>
+      </div>
+    </div>
+    <div class="card" style="border-color:#0a1a2a;display:flex;gap:14px;align-items:flex-start;">
+      <div style="font-size:22px;flex-shrink:0;">&#128295;</div>
+      <div>
+        <div class="card-title" style="color:var(--teal2)">2. Nested Learning View of Optimization</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;">The optimizer is treated as an explicit memory module. HOPE generalizes momentum/Adam into a structured hierarchy where each level has its own update rule and operates at its own speed.</div>
+      </div>
+    </div>
+    <div class="card" style="border-color:#0a1a2a;display:flex;gap:14px;align-items:flex-start;">
+      <div style="font-size:22px;flex-shrink:0;">&#127757;</div>
+      <div>
+        <div class="card-title" style="color:var(--blue2)">3. Continuum Memory System (CMS)</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;">Multiple MLPs updating at different frequencies — creating a continuum from fast ephemeral memory to slow stable knowledge. Replaces the single static FFN of a standard Transformer.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ibox" style="margin-top:20px;">
+    <div class="ibox-title">&#9654; HOPE vs Transformer — Memory System Comparison</div>
+    <table class="tbl">
+      <thead><tr><th>Component</th><th>Transformer</th><th>HOPE</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Fast memory</td>
+          <td><span class="badge badge-cyan">Attention</span> — per-token, dynamic</td>
+          <td><span class="badge badge-cyan">Attention</span> — same, plus Titans self-modifying memory</td>
+        </tr>
+        <tr>
+          <td>Medium memory</td>
+          <td><span class="badge" style="background:#1a1a1a;color:#555;">None</span></td>
+          <td><span class="badge badge-green">CMS mid-freq MLPs</span> — update every 10–100 tokens</td>
+        </tr>
+        <tr>
+          <td>Slow memory</td>
+          <td><span class="badge badge-blue">MLP / FFN</span> — static after pretraining</td>
+          <td><span class="badge badge-blue">CMS slow MLP</span> — updates continuously, never freezes</td>
+        </tr>
+        <tr>
+          <td>Update rules</td>
+          <td>Single global optimizer</td>
+          <td>Each level has its own update rule — nested optimization</td>
+        </tr>
+        <tr>
+          <td>Catastrophic forgetting</td>
+          <td><span class="badge badge-red">Severe</span> (sequential tasks)</td>
+          <td><span class="badge badge-green">Greatly reduced</span> (sparse, multi-scale updates)</td>
+        </tr>
+        <tr>
+          <td>Perplexity (1.3B / 100B tokens)</td>
+          <td>18.53</td>
+          <td><strong style="color:var(--cyan2)">15.11</strong> (lower = better)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- SECTION 7: SPARSE MEMORY FINETUNING -->
+<div class="section" id="s-sparse">
+  <div class="sec-title">Sparse Memory Finetuning — Meta FAIR</div>
+  <div class="sec-sub">A plug-in solution for current Transformers: update only the memory slots that matter</div>
+
+  <div class="prose">
+    <p>While HOPE requires building a new architecture, Meta FAIR's approach works <span class="hl">with existing models</span>. The key idea: replace one of the Transformer's FFN layers with a <strong>memory layer</strong> — a sparse attention lookup into millions of learned key-value slots.</p>
+    <p>During finetuning on new knowledge, only a <span class="hl-teal">tiny fraction of those slots</span> are updated — the ones specifically relevant to the new information. Everything else stays frozen. This prevents forgetting almost entirely.</p>
+  </div>
+
+  <div class="ibox">
+    <div class="ibox-title">&#9654; Memory Layer — How It Works</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">A memory layer replaces an FFN with a sparse lookup into a giant table of key-value memory slots. Only the top-32 matching slots are used on any forward pass.</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;">Standard FFN</div>
+        <div style="background:#0a0a0a;border:1px solid #1a1a1a;border-radius:8px;padding:14px;">
+          <div style="font-size:12px;color:var(--muted);line-height:1.8;">
+            Input → Dense weight matrix<br>
+            → All parameters activated<br>
+            → Single output<br>
+            <span style="color:var(--red2);font-size:11px;margin-top:6px;display:block;">&#x26A0; Training updates affect all weights — high forgetting risk</span>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;">Memory Layer</div>
+        <div style="background:#0a0a0a;border:1px solid #0d2a2a;border-radius:8px;padding:14px;">
+          <div style="font-size:12px;color:var(--muted);line-height:1.8;">
+            Input → Query vector<br>
+            → Find top-32 matching slots<br>
+            → Combine + gate output<br>
+            <span style="color:var(--cyan2);font-size:11px;margin-top:6px;display:block;">&#x2714; Only 0.03%–0.0002% of parameters touched per pass</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:20px;">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;">Memory Slot Access Pattern (1M slots)</div>
+      <div class="slot-grid" id="slot-grid"></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;"><span style="color:var(--cyan2);">&#9632;</span> Active (top-32) &nbsp; <span style="color:#1a3a3a;">&#9632;</span> Inactive &nbsp; <span style="color:var(--amber2);">&#9632;</span> TF-IDF selected for finetuning</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-cyan" onclick="animateSlots()">&#9654; Simulate Forward Pass</button>
+      <button class="btn btn-ghost" onclick="showTFIDF()">Show TF-IDF Selection</button>
+    </div>
+    <div id="slot-status" style="font-size:12px;color:var(--muted);margin-top:10px;min-height:18px;"></div>
+  </div>
+
+  <div class="prose" style="margin-top:24px;">
+    <p>The brilliant part of Sparse Memory Finetuning is how it identifies <em>which</em> slots to update. It borrows <span class="hl">TF-IDF</span> from classical information retrieval:</p>
+  </div>
+
+  <div class="ibox">
+    <div class="ibox-title">&#9654; TF-IDF Slot Selection</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div class="card" style="border-color:#0d1a2a;">
+        <div class="card-title" style="color:var(--blue2)">Term Frequency (TF)</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;">How often is this memory slot accessed during the <strong>new training batch</strong>? Slots accessed frequently for the new data are likely relevant to it.</div>
+      </div>
+      <div class="card" style="border-color:#0d1a2a;">
+        <div class="card-title" style="color:var(--purple2)">Inverse Document Freq (IDF)</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;">How rarely was this slot accessed during <strong>pretraining</strong>? Rare slots are more specific — likely storing unique rather than common knowledge.</div>
+      </div>
+    </div>
+    <div class="callout callout-teal" style="margin-top:12px;">
+      <strong>High TF-IDF slot</strong> = frequently used for the new fact AND rarely used in general → highly specific to the new knowledge → safe to finetune without harming existing knowledge.
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-top:12px;line-height:1.6;">Only the small set of high-TF-IDF slots is updated. <strong style="color:var(--cyan2);">Everything else (99.97%+ of parameters) stays frozen.</strong></div>
+  </div>
+</div>
+
+<!-- SECTION 8: COMPARISON -->
+<div class="section" id="s-compare">
+  <div class="sec-title">Learning vs. Forgetting Frontier</div>
+  <div class="sec-sub">How do full fine-tuning, LoRA, and memory layers compare? Teaching models new TriviaQA facts.</div>
+
+  <div class="prose">
+    <p>Meta FAIR tested three approaches on the task of injecting new facts (TriviaQA) while preserving existing knowledge (NaturalQuestions). The results reveal a stark tradeoff between learning and forgetting:</p>
+  </div>
+
+  <div class="ibox">
+    <div class="ibox-title">&#9654; Forgetting Comparison — NaturalQuestions Performance Drop</div>
+    <div style="margin-top:8px;">
+      <div id="comp-bars"></div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:12px;">* Drop in NaturalQuestions performance after finetuning on TriviaQA. Lower forgetting is better.</div>
+  </div>
+
+  <table class="tbl" style="margin-top:20px;">
+    <thead>
+      <tr><th>Method</th><th>NQ Drop (%)</th><th>TriviaQA Gain</th><th>Verdict</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Full Fine-Tuning</strong></td>
+        <td style="color:var(--red2);">−89%</td>
+        <td style="color:var(--green2);">High ↑</td>
+        <td><span class="badge badge-red">Learns fast, forgets everything</span></td>
+      </tr>
+      <tr>
+        <td><strong>LoRA</strong></td>
+        <td style="color:var(--orange2);">−71%</td>
+        <td style="color:var(--amber2);">Medium ↑</td>
+        <td><span class="badge badge-amber">Better control, still degrades</span></td>
+      </tr>
+      <tr>
+        <td><strong>Sparse Memory FT</strong></td>
+        <td style="color:var(--green2);">−11%</td>
+        <td style="color:var(--green2);">Good ↑</td>
+        <td><span class="badge badge-green">Best balance — targeted updates</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout callout-green" style="margin-top:20px;">
+    <strong>The core advantage:</strong> Because memory layers are sparse, finetuning touches only ~0.03% of parameters. These targeted updates don't interfere with the dense knowledge encoded in the rest of the model — it's surgical rather than broad-spectrum.
+  </div>
+
+  <div class="prose" style="margin-top:20px;">
+    <p>Here's how the two approaches compare at a high level:</p>
+  </div>
+
+  <table class="tbl" style="margin-top:8px;">
+    <thead><tr><th>Dimension</th><th style="color:var(--cyan2);">Google HOPE / Nested Learning</th><th style="color:var(--purple2);">Meta Sparse Memory FT</th></tr></thead>
+    <tbody>
+      <tr><td>Approach</td><td>New architecture with multi-speed memory hierarchy</td><td>Plug-in memory layer for existing Transformers</td></tr>
+      <tr><td>Deployment</td><td>Requires training from scratch</td><td>Add memory layer to existing pretrained model</td></tr>
+      <tr><td>Update mechanism</td><td>Multiple MLPs at different frequencies</td><td>Sparse attention into millions of key-value slots</td></tr>
+      <tr><td>Slot selection</td><td>Frequency-based (update schedule)</td><td>TF-IDF relative to pretraining</td></tr>
+      <tr><td>Best for</td><td>New models; continual deployment from day one</td><td>Updating existing deployed models with new facts</td></tr>
+      <tr><td>Scalability</td><td>Unclear at 100B–1T params (early results)</td><td>Requires memory layer during pretraining</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- SECTION 9: CROSS-REFERENCES -->
+<div class="section" id="s-refs">
+  <div class="sec-title">Related Posts</div>
+  <div class="sec-sub">Build a complete picture of how models learn and adapt</div>
+
+  <div class="xref-grid">
+    <a class="xref-card" href="../44-llm-training-pipeline/">
+      <div class="xref-num">Post 44 &middot; Training &amp; Alignment</div>
+      <div class="xref-title">LLM Training Pipeline — Pretraining → RLHF</div>
+      <div class="xref-desc">Continual learning picks up exactly where pretraining ends — this post covers what freezes at that cutoff and why.</div>
+    </a>
+  </div>
+
+  <!-- Summary -->
+  <div class="card" style="margin-top:24px;border-color:#0d2a2a;">
+    <div class="card-title" style="color:var(--cyan2);margin-bottom:12px;">Key Takeaways</div>
+    <div style="display:grid;gap:8px;">
+      <div style="display:flex;gap:10px;font-size:12px;"><span style="color:var(--cyan2);font-weight:700;flex-shrink:0;">01</span><span style="color:var(--muted);line-height:1.5;">Catastrophic forgetting is caused by the sequential training procedure — not capacity. Interleaved training eliminates it but is impractical at scale.</span></div>
+      <div style="display:flex;gap:10px;font-size:12px;"><span style="color:var(--cyan2);font-weight:700;flex-shrink:0;">02</span><span style="color:var(--muted);line-height:1.5;">The plasticity-stability tradeoff is fundamental: a model that learns fast forgets fast. Every CL method is a different way of managing this tradeoff.</span></div>
+      <div style="display:flex;gap:10px;font-size:12px;"><span style="color:var(--cyan2);font-weight:700;flex-shrink:0;">03</span><span style="color:var(--muted);line-height:1.5;">Google's Nested Learning reframes neural networks as hierarchies of associative memories, each operating at its own speed. HOPE instantiates this with multi-frequency MLPs.</span></div>
+      <div style="display:flex;gap:10px;font-size:12px;"><span style="color:var(--cyan2);font-weight:700;flex-shrink:0;">04</span><span style="color:var(--muted);line-height:1.5;">Meta's Sparse Memory Finetuning is immediately practical: TF-IDF selects the tiny subset of memory slots relevant to new knowledge, leaving everything else frozen. Only 11% performance drop vs 89% for full finetuning.</span></div>
+      <div style="display:flex;gap:10px;font-size:12px;"><span style="color:var(--cyan2);font-weight:700;flex-shrink:0;">05</span><span style="color:var(--muted);line-height:1.5;">Continual learning is the missing ingredient in deployed LLMs — the bridge between static pretraining knowledge and an ever-changing world.</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- CONTINUE STRIP -->
+<div class="continue-strip">
+  <div>
+    <div class="cs-label">&#8592; Previous Post</div>
+    <a href="../47-gcg-attack/" class="cs-title">Post 47 — GCG Attack</a>
+  </div>
+  <div style="text-align:right;">
+    <div class="cs-label">All Posts &#8594;</div>
+    <a href="../" class="cs-title" style="color:var(--cyan2);">Visual Summary</a>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<script>
+// ---- GATE ----
+const STORE_KEY = 'pg_unlocked_48';
+const PW = 'visual2025';
+(function(){
+  if(localStorage.getItem(STORE_KEY)==='1') document.getElementById('gate').style.display='none';
+})();
+function checkGate(){
+  if(document.getElementById('gate-pw').value===PW){
+    localStorage.setItem(STORE_KEY,'1');
+    document.getElementById('gate').style.display='none';
+  } else {
+    document.getElementById('gate-err').style.display='block';
+  }
+}
+
+// ---- NAV ----
+function scrollTo(id){const el=document.getElementById(id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});}
+document.getElementById('main').addEventListener('scroll',function(){
+  const ids=['s-intro','s-forgetting','s-tradeoff','s-scenarios','s-methods','s-nested','s-hope','s-sparse','s-compare','s-refs'];
+  const links=document.querySelectorAll('.nav-link');
+  let cur=0;
+  ids.forEach((id,i)=>{const el=document.getElementById(id);if(el&&el.getBoundingClientRect().top<200)cur=i;});
+  links.forEach((l,i)=>{if(i<ids.length)l.classList.toggle('active',i===cur);});
+});
+
+// ---- FORGETTING SIMULATOR ----
+let forgettingMode='sequential';
+function setMode(m){
+  forgettingMode=m;
+  document.getElementById('mode-seq').style.borderColor = m==='sequential'?'var(--cyan)':'var(--border)';
+  document.getElementById('mode-seq').style.color = m==='sequential'?'var(--cyan2)':'var(--muted)';
+  document.getElementById('mode-int').style.borderColor = m==='interleaved'?'var(--teal)':'var(--border)';
+  document.getElementById('mode-int').style.color = m==='interleaved'?'var(--teal2)':'var(--muted)';
+}
+setMode('sequential');
+
+let forgTimer=null, forgStep=0;
+const forgCanvas=document.getElementById('forget-canvas');
+const forgCtx=forgCanvas.getContext('2d');
+let task1Data=[], task2Data=[];
+
+function drawForgetting(){
+  const W=forgCanvas.width, H=forgCanvas.height;
+  forgCtx.clearRect(0,0,W,H);
+  forgCtx.fillStyle='#070707';forgCtx.fillRect(0,0,W,H);
+  // Grid
+  forgCtx.strokeStyle='#1a1a1a';forgCtx.lineWidth=1;
+  [0.25,0.5,0.75].forEach(y=>{forgCtx.beginPath();forgCtx.moveTo(40,H*y);forgCtx.lineTo(W-10,H*y);forgCtx.stroke();});
+  forgCtx.fillStyle='#333';forgCtx.font='10px JetBrains Mono';
+  ['100%','75%','50%','25%','0%'].forEach((l,i)=>{forgCtx.fillText(l,2,12+i*(H/4));});
+  // Task boundary
+  const boundX=W/2;
+  forgCtx.strokeStyle='#333';forgCtx.setLineDash([4,4]);forgCtx.lineWidth=1;
+  forgCtx.beginPath();forgCtx.moveTo(boundX,10);forgCtx.lineTo(boundX,H-10);forgCtx.stroke();
+  forgCtx.setLineDash([]);
+  forgCtx.fillStyle='#333';forgCtx.font='10px Inter';
+  forgCtx.fillText('Task 1',60,H-8);forgCtx.fillText('Task 2',boundX+20,H-8);
+  // Draw lines
+  function drawLine(data,color){
+    if(data.length<2) return;
+    forgCtx.strokeStyle=color;forgCtx.lineWidth=2.5;forgCtx.beginPath();
+    data.forEach((p,i)=>{
+      const x=40+(p.x/(forgStep||1))*(W-50);
+      const y=H-10-p.y*(H-20);
+      i===0?forgCtx.moveTo(x,y):forgCtx.lineTo(x,y);
+    });
+    forgCtx.stroke();
+  }
+  drawLine(task1Data,'#06b6d4');drawLine(task2Data,'#10b981');
+}
+
+function runForgetting(){
+  clearInterval(forgTimer);forgStep=0;task1Data=[];task2Data=[];
+  const TOTAL=100;
+  const isSq=forgettingMode==='sequential';
+  document.getElementById('forget-status').textContent='Training...';
+  forgTimer=setInterval(()=>{
+    forgStep++;
+    const t=forgStep/TOTAL;
+    if(isSq){
+      // Task 1 phase (t<0.5): t1 improves, t2 flat
+      // Task 2 phase (t>=0.5): t1 collapses, t2 improves
+      if(t<0.5){
+        task1Data.push({x:t,y:0.1+(t/0.5)*0.85+(Math.random()-0.5)*0.03});
+        task2Data.push({x:t,y:0.05+(Math.random()-0.5)*0.02});
+      } else {
+        const t2=(t-0.5)/0.5;
+        // t1 was ~0.95 at t=0.5, now collapses
+        const t1Last=task1Data.length?task1Data[task1Data.length-1].y:0.95;
+        task1Data.push({x:t,y:Math.max(0.05,t1Last-t2*0.9+(Math.random()-0.5)*0.04)});
+        task2Data.push({x:t,y:0.05+t2*0.88+(Math.random()-0.5)*0.03});
+      }
+    } else {
+      // Interleaved: both tasks improve together
+      task1Data.push({x:t,y:0.1+t*0.82+(Math.random()-0.5)*0.03});
+      task2Data.push({x:t,y:0.05+t*0.80+(Math.random()-0.5)*0.03});
+    }
+    drawForgetting();
+    if(forgStep>=TOTAL){
+      clearInterval(forgTimer);
+      if(isSq){
+        document.getElementById('forget-status').textContent='Sequential: Task 1 performance collapsed from ~95% to ~5% when Task 2 training began.';
+        document.getElementById('forget-status').style.color='var(--red2)';
+      } else {
+        document.getElementById('forget-status').textContent='Interleaved: both tasks learned simultaneously — no forgetting.';
+        document.getElementById('forget-status').style.color='var(--green2)';
+      }
+    }
+  },25);
+}
+function resetForgetting(){clearInterval(forgTimer);forgStep=0;task1Data=[];task2Data=[];forgCtx.clearRect(0,0,forgCanvas.width,forgCanvas.height);document.getElementById('forget-status').textContent='';}
+drawForgetting();
+
+// ---- PLASTICITY-STABILITY ----
+const PS_DESCS=[
+  'Extreme stability: the model barely updates — it will never forget old knowledge, but cannot learn anything new.',
+  'High stability: strong resistance to change. Old knowledge preserved well, but slow to adapt to new tasks.',
+  'Slightly stable: good retention of existing knowledge with modest adaptability to new information.',
+  'Balanced: the ideal continual learning regime — stable enough to retain, plastic enough to adapt.',
+  'Slightly plastic: adapts quickly to new tasks, some forgetting of older knowledge.',
+  'High plasticity: learns new tasks rapidly, but previous knowledge degrades noticeably.',
+  'Extreme plasticity: full fine-tuning mode — instantly learns new tasks but catastrophically forgets old ones.'
+];
+function updatePS(){
+  const v=parseInt(document.getElementById('ps-slider').value);
+  const stability=Math.round(100-v*0.85-Math.abs(v-50)*0.1);
+  const plasticity=Math.round(v*0.85+Math.abs(v-50)*0.1);
+  document.getElementById('ps-retention').textContent=Math.max(5,stability)+'%';
+  document.getElementById('ps-learning').textContent=Math.max(5,plasticity)+'%';
+  document.getElementById('ps-retention').style.color=stability>60?'var(--cyan2)':stability>30?'var(--amber2)':'var(--red2)';
+  document.getElementById('ps-learning').style.color=plasticity>60?'var(--teal2)':plasticity>30?'var(--amber2)':'var(--red2)';
+  const idx=Math.floor(v/100*6);
+  document.getElementById('ps-desc').textContent=PS_DESCS[Math.min(idx,6)];
+}
+updatePS();
+
+// ---- SCENARIOS ----
+const SCENARIO_DATA={
+  task:{
+    title:'Task-Incremental Learning (Task-IL)',
+    difficulty:'Easiest',color:'var(--green2)',
+    content:`<strong style="color:var(--green2)">What the model knows:</strong> The task identity is given at test time (e.g., via an explicit label or context cue).<br><br>
+<strong style="color:var(--text)">How it works:</strong> The model can use task-specific modules, separate output heads per task, or even a different network per task. If you use completely separate components per task, forgetting doesn't happen — but this is wasteful in memory and compute.<br><br>
+<strong style="color:var(--text)">Example:</strong> Digit classification — model is told "this is from Task 1 (digits 0/1)" vs "Task 2 (digits 2/3)" at inference. Mapping: f: X × T → Y<br><br>
+<strong style="color:var(--amber2)">Limitation:</strong> Task identity isn't available in most real-world deployments.`
+  },
+  domain:{
+    title:'Domain-Incremental Learning (Domain-IL)',
+    difficulty:'Medium',color:'var(--amber2)',
+    content:`<strong style="color:var(--amber2)">What the model knows:</strong> No task identity — but the underlying function stays the same. Only the input distribution shifts.<br><br>
+<strong style="color:var(--text)">How it works:</strong> The model must perform the same mapping regardless of which domain the input comes from. Forgetting is more subtle here — the model may forget how to handle old distributions rather than old classes.<br><br>
+<strong style="color:var(--text)">Example:</strong> Classifying even/odd digits — same task across different handwriting styles, lighting conditions, or languages. Mapping: f: X → Y (same Y, different X distribution)<br><br>
+<strong style="color:var(--cyan2)">Key challenge:</strong> The model must generalize without being told what distribution it's in.`
+  },
+  class:{
+    title:'Class-Incremental Learning (Class-IL)',
+    difficulty:'Hardest',color:'var(--red2)',
+    content:`<strong style="color:var(--red2)">What the model knows:</strong> Nothing — no task identity, must classify across ALL classes ever seen.<br><br>
+<strong style="color:var(--text)">How it works:</strong> The model learns new classes over time and must distinguish between classes that were never seen together. First learn cats vs dogs, then birds vs fish — then correctly identify all four without being told which "phase" a new image belongs to.<br><br>
+<strong style="color:var(--text)">Example:</strong> After learning Tasks 1–5 of MNIST (2 digits each), classify any of the 10 digits. Mapping: f: X → T × Y (must recover task AND class)<br><br>
+<strong style="color:var(--red2)">Why hardest:</strong> The model cannot rely on separate heads — it must maintain a single coherent decision boundary across all classes seen across all time.`
+  }
+};
+
+function showScenario(s){
+  document.querySelectorAll('.scenario-card').forEach(c=>c.classList.remove('active'));
+  document.getElementById('sc-'+s).classList.add('active');
+  const d=SCENARIO_DATA[s];
+  document.getElementById('scenario-detail').innerHTML=`<strong style="color:${d.color}">${d.title}</strong><br><br>${d.content}`;
+}
+showScenario('task');
+
+// ---- 6 METHODS ----
+const METHODS=[
+  {title:'Replay',short:'Re-show old examples during new task training',
+   detail:`<strong>How it works:</strong> Mix past examples with new data during training — simulating interleaved training without storing all past data. Can use actual past samples (memory buffer / experience replay) or synthetic samples from a generative model.<br><br>
+<strong>Variants:</strong> Experience Replay (ER), Generative Replay (GR), Dark Experience Replay (DER)<br><br>
+<span class="badge badge-green">Works for all 3 scenarios</span> <span class="badge badge-amber">Memory buffer required</span> <span class="badge badge-red">Doesn't scale to many tasks</span>`},
+  {title:'Parameter Regularization',short:'Protect important weights from large updates',
+   detail:`<strong>How it works:</strong> Add a penalty term to the loss that discourages large changes to weights that were important for previous tasks. The model keeps old knowledge by being reluctant to move those weights far from their optimal values.<br><br>
+<strong>Key methods:</strong> EWC (Elastic Weight Consolidation), SI (Synaptic Intelligence), MAS<br><br>
+<strong>Formula:</strong> L_total = L_new + λ Σᵢ Fᵢ(θᵢ - θ*ᵢ)²  where Fᵢ = importance of weight i<br><br>
+<span class="badge badge-green">No extra data storage</span> <span class="badge badge-amber">Works well for Task-IL/Domain-IL</span> <span class="badge badge-red">Struggles with Class-IL</span>`},
+  {title:'Functional Regularization',short:'Protect the input→output mapping, not the weights',
+   detail:`<strong>How it works:</strong> Instead of protecting specific weights, protect the <em>function</em> the network computes. Choose anchor points (inputs) and penalize any change in the model's predictions on those anchors during new task training.<br><br>
+<strong>Key methods:</strong> LwF (Learning without Forgetting), KFAC-EWC, PackNet<br><br>
+<strong>Analogy:</strong> Like replaying the same inputs but with model-generated targets rather than stored labels.<br><br>
+<span class="badge badge-green">No raw data storage needed</span> <span class="badge badge-amber">Anchor point selection matters</span>`},
+  {title:'Optimization-Based',short:'Change how the optimizer works to preserve old knowledge',
+   detail:`<strong>How it works:</strong> Modify the optimization procedure itself rather than adding a loss term. Strategies include: seeking flatter minima (more robust to task switching), adapting per-parameter learning rates (protect important weights), projecting gradients to not increase past task loss (GEM), and fast/slow weight dynamics.<br><br>
+<strong>Key methods:</strong> GEM (Gradient Episodic Memory), A-GEM, OGD, MAML variants<br><br>
+<span class="badge badge-blue">Addresses the core optimizer failure</span> <span class="badge badge-amber">Expensive — requires storing past gradients</span>`},
+  {title:'Context-Dependent Processing',short:'Use different parts of the network for different tasks',
+   detail:`<strong>How it works:</strong> The network doesn't use all its parameters for every task. Options: task-specific output heads (separate final layer per task), additive masks (binary mask selecting which neurons activate), modular networks (separate modules per task), or dynamic architecture expansion.<br><br>
+<strong>Key methods:</strong> PackNet, HAT (Hard Attention to Task), PNN (Progressive Neural Networks)<br><br>
+<span class="badge badge-green">No forgetting by design</span> <span class="badge badge-green">Best for Task-IL</span> <span class="badge badge-red">Memory scales with tasks; task identity required at test time</span>`},
+  {title:'Template-Based Classification',short:'Store class representations; classify by nearest template',
+   detail:`<strong>How it works:</strong> Instead of a learned decision boundary (which gets overwritten), store a <em>template</em> (prototype / mean embedding) for each class. At test time, classify a sample by finding which stored template it's closest to in feature space.<br><br>
+<strong>Key methods:</strong> iCaRL, REMIND, Mnemonics<br><br>
+<span class="badge badge-green">Widely used for Class-IL</span> <span class="badge badge-cyan">Naturally grows with new classes</span> <span class="badge badge-amber">Requires stable feature extractor</span>`}
+];
+
+const ml=document.getElementById('method-list');
+const md=document.getElementById('method-detail');
+METHODS.forEach((m,i)=>{
+  const card=document.createElement('div');
+  card.className='method-card';
+  card.id='mc-'+i;
+  card.innerHTML=`<div class="method-num">${i+1}</div><div class="method-body"><div class="method-title">${m.title}</div><div class="method-short">${m.short}</div></div>`;
+  card.onclick=()=>{
+    document.querySelectorAll('.method-card').forEach(c=>c.classList.remove('active'));
+    card.classList.add('active');
+    md.innerHTML=`<strong style="color:var(--cyan2);font-size:13px;">${m.title}</strong><br><br>${m.detail}`;
+    md.classList.add('visible');
+  };
+  ml.appendChild(card);
+});
+
+// ---- CMS LEVELS ----
+const CMS_DATA=[
+  {label:'L1 Memory',freq:'Every 1 token',color:'var(--cyan)',desc:'Fast ephemeral capture — tracks immediate token-level patterns. Equivalent to a very high-learning-rate inner loop.',bar:95},
+  {label:'L2 Memory',freq:'Every 10 tokens',color:'var(--teal)',desc:'Short-term consolidation — compresses groups of tokens into local patterns. Bridges fast attention and slower weights.',bar:60},
+  {label:'L3 Memory',freq:'Every 100 tokens',color:'var(--blue)',desc:'Medium-term integration — tracks multi-sentence context and emerging topics. Stores intermediate abstractions.',bar:30},
+  {label:'L4 Memory',freq:'Every 1000 tokens',color:'var(--purple)',desc:'Long-term stable knowledge — abstract concepts, world knowledge, slow-changing facts. Frozen-weight equivalent of a standard Transformer MLP.',bar:10},
+];
+const cmsEl=document.getElementById('cms-levels');
+CMS_DATA.forEach(d=>{
+  const div=document.createElement('div');
+  div.className='mem-level';
+  div.style.background=`rgba(6,182,212,0.04)`;
+  div.innerHTML=`
+    <div class="mem-icon">&#x1F4BE;</div>
+    <div class="mem-body">
+      <div class="mem-title">${d.label} <span style="font-size:10px;color:var(--muted);font-weight:400;">— ${d.freq}</span></div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">${d.desc}</div>
+      <div class="mem-bar-wrap"><div class="mem-bar" style="width:${d.bar}%;background:${d.color};"></div></div>
+    </div>
+    <div style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(6,182,212,.1);color:${d.color};flex-shrink:0;">Update freq: ${d.freq}</div>
+  `;
+  cmsEl.appendChild(div);
+});
+
+// ---- MEMORY SLOTS ----
+const TOTAL_SLOTS=200;
+const slotGrid=document.getElementById('slot-grid');
+for(let i=0;i<TOTAL_SLOTS;i++){
+  const s=document.createElement('div');
+  s.className='slot';
+  s.style.background='#1a3a3a';
+  s.id='slot-'+i;
+  slotGrid.appendChild(s);
+}
+function animateSlots(){
+  // Reset
+  for(let i=0;i<TOTAL_SLOTS;i++) document.getElementById('slot-'+i).style.background='#1a3a3a';
+  // Activate top-32
+  const active=[];
+  while(active.length<8){const r=Math.floor(Math.random()*TOTAL_SLOTS);if(!active.includes(r))active.push(r);}
+  active.forEach(i=>{document.getElementById('slot-'+i).style.background='var(--cyan)';});
+  document.getElementById('slot-status').textContent=`Forward pass complete — 8 of ${TOTAL_SLOTS} slots activated (${(8/TOTAL_SLOTS*100).toFixed(1)}%). The model used only these slots for this token.`;
+  document.getElementById('slot-status').style.color='var(--cyan2)';
+}
+function showTFIDF(){
+  for(let i=0;i<TOTAL_SLOTS;i++) document.getElementById('slot-'+i).style.background='#1a3a3a';
+  const tfidf=[];
+  while(tfidf.length<5){const r=Math.floor(Math.random()*TOTAL_SLOTS);if(!tfidf.includes(r))tfidf.push(r);}
+  tfidf.forEach(i=>{document.getElementById('slot-'+i).style.background='var(--amber)';});
+  document.getElementById('slot-status').textContent=`TF-IDF selection: 5 high-specificity slots identified for finetuning. Only these slots will be updated — 99.97% of parameters remain frozen.`;
+  document.getElementById('slot-status').style.color='var(--amber2)';
+}
+
+// ---- COMPARISON BARS ----
+const compData=[
+  {method:'Full Fine-Tuning',drop:89,color:'var(--red)'},
+  {method:'LoRA',drop:71,color:'var(--orange)'},
+  {method:'Sparse Memory FT',drop:11,color:'var(--teal)'},
+];
+const compEl=document.getElementById('comp-bars');
+compData.forEach(d=>{
+  const row=document.createElement('div');
+  row.style.cssText='display:flex;align-items:center;gap:12px;margin-bottom:12px;';
+  row.innerHTML=`
+    <div style="width:160px;font-size:12px;font-weight:600;flex-shrink:0;">${d.method}</div>
+    <div style="flex:1;height:12px;background:#161616;border-radius:6px;overflow:hidden;">
+      <div style="height:100%;width:0%;border-radius:6px;background:${d.color};transition:width 1s;" data-w="${d.drop}"></div>
+    </div>
+    <div style="font-size:13px;font-weight:800;color:${d.color};width:50px;text-align:right;">−${d.drop}%</div>
+  `;
+  compEl.appendChild(row);
+});
+setTimeout(()=>{
+  document.querySelectorAll('#comp-bars [data-w]').forEach(b=>{b.style.width=b.dataset.w+'%';});
+},400);
+</script>
+</body>
+</html>
