@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Post 52 · LLM Agent Orchestration — Visual Summary</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --blue:#2563eb;--blue2:#60a5fa;--indigo:#818cf8;--sky:#38bdf8;
+  --bg:#080b14;--surface:#0e1220;--surface2:#141926;--border:#1e2840;
+  --text:#e8ecf5;--muted:#6b7fa8;--accent:var(--blue);
+}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.6;}
+a{color:var(--blue2);text-decoration:none;}
+a:hover{text-decoration:underline;}
+
+/* GATE */
+#gate{position:fixed;inset:0;background:#050810;z-index:9999;display:flex;align-items:center;justify-content:center;}
+.gate-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:48px 40px;max-width:420px;width:90%;text-align:center;}
+.gate-logo{font-size:13px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:24px;}
+.gate-title{font-size:22px;font-weight:800;color:var(--text);margin-bottom:8px;}
+.gate-sub{font-size:13px;color:var(--muted);margin-bottom:28px;}
+.gate-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;color:var(--text);font-size:14px;outline:none;margin-bottom:12px;}
+.gate-input:focus{border-color:var(--blue2);}
+.gate-btn{width:100%;background:var(--blue);color:#fff;font-weight:700;font-size:14px;padding:12px;border:none;border-radius:8px;cursor:pointer;}
+.gate-btn:hover{background:var(--blue2);color:#000;}
+.gate-err{color:#f87171;font-size:12px;margin-top:8px;min-height:16px;}
+
+/* LAYOUT */
+#app{display:none;min-height:100vh;}
+.shell{display:grid;grid-template-columns:220px 1fr;min-height:100vh;}
+
+/* SIDEBAR */
+.sidebar{background:var(--surface);border-right:1px solid var(--border);padding:28px 0;position:sticky;top:0;height:100vh;overflow-y:auto;}
+.sidebar-brand{padding:0 20px 20px;border-bottom:1px solid var(--border);margin-bottom:16px;}
+.sidebar-brand-label{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
+.sidebar-brand-title{font-size:13px;font-weight:700;color:var(--blue2);line-height:1.3;}
+.sidebar-nav{list-style:none;}
+.sidebar-nav li a{display:block;padding:8px 20px;font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;transition:all .15s;}
+.sidebar-nav li a:hover,.sidebar-nav li a.active{color:var(--blue2);background:var(--surface2);text-decoration:none;}
+.sidebar-nav li a .nav-num{display:inline-block;width:18px;font-size:10px;opacity:.5;}
+
+/* MAIN */
+.main{min-width:0;}
+.hero-section{background:linear-gradient(135deg,#080b14 0%,#0c1228 60%,#0f1530 100%);padding:64px 56px 48px;border-bottom:1px solid var(--border);}
+.hero-eyebrow{font-size:11px;font-weight:700;letter-spacing:2px;color:var(--blue2);text-transform:uppercase;margin-bottom:12px;}
+.hero-title{font-size:36px;font-weight:900;line-height:1.15;color:var(--text);margin-bottom:16px;}
+.hero-title span{color:var(--blue2);}
+.hero-desc{font-size:15px;color:var(--muted);max-width:640px;line-height:1.7;margin-bottom:28px;}
+.hero-meta{display:flex;gap:24px;flex-wrap:wrap;}
+.meta-pill{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:11px;font-weight:600;color:var(--muted);}
+.meta-pill span{color:var(--blue2);}
+
+/* SECTIONS */
+.section{padding:48px 56px;border-bottom:1px solid var(--border);}
+.section-label{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--blue2);text-transform:uppercase;margin-bottom:8px;}
+.section-title{font-size:24px;font-weight:800;color:var(--text);margin-bottom:8px;}
+.section-subtitle{font-size:14px;color:var(--muted);margin-bottom:32px;max-width:640px;}
+p{color:var(--muted);font-size:14px;line-height:1.8;margin-bottom:16px;}
+p:last-child{margin-bottom:0;}
+strong{color:var(--text);}
+
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:22px;}
+.card-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;}
+.card-body{font-size:13px;color:var(--muted);line-height:1.7;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:24px;}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:24px;}
+.four-col{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:24px;}
+
+/* CALLOUT */
+.callout{background:var(--surface2);border-left:3px solid var(--blue);border-radius:0 8px 8px 0;padding:16px 20px;margin:20px 0;}
+.callout-title{font-size:12px;font-weight:700;color:var(--blue2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+.callout-body{font-size:13px;color:var(--muted);line-height:1.7;}
+
+/* MATH BLOCK */
+.math-block{background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--blue2);border-radius:8px;padding:16px 20px;font-family:'Courier New',monospace;font-size:13px;color:var(--blue2);margin:16px 0;overflow-x:auto;}
+
+/* TAG */
+.tag{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 8px;font-size:11px;color:var(--muted);margin:2px;}
+
+/* STAT ROW */
+.stat-row{display:flex;gap:16px;flex-wrap:wrap;margin:24px 0;}
+.stat-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 22px;flex:1;min-width:120px;}
+.stat-val{font-size:26px;font-weight:900;color:var(--blue2);margin-bottom:4px;}
+.stat-lbl{font-size:11px;color:var(--muted);line-height:1.4;}
+
+/* ========================
+   INTERACTIVE 1: Orchestration Pattern Cards
+   ======================== */
+.pattern-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:24px;}
+.pat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;cursor:pointer;transition:all .2s;}
+.pat-card:hover,.pat-card.active{border-color:var(--blue2);background:var(--surface2);}
+.pat-icon{font-size:26px;margin-bottom:10px;}
+.pat-name{font-size:14px;font-weight:800;color:var(--text);margin-bottom:4px;}
+.pat-tagline{font-size:11px;color:var(--muted);}
+.pat-detail{background:var(--surface);border:1px solid var(--blue);border-radius:12px;padding:28px;margin-top:16px;display:none;}
+.pat-detail.active{display:block;}
+.pat-detail-name{font-size:18px;font-weight:800;color:var(--blue2);margin-bottom:16px;}
+.pat-topology{background:var(--surface2);border-radius:8px;padding:20px;margin-bottom:16px;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;min-height:80px;}
+.pat-node{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:11px;font-weight:700;color:var(--muted);text-align:center;}
+.pat-node.orchestrator{border-color:var(--blue2);color:var(--blue2);background:#2563eb14;}
+.pat-node.worker{border-color:var(--border);color:var(--muted);}
+.pat-node.router{border-color:var(--indigo);color:var(--indigo);background:#818cf814;}
+.pat-arrow{color:var(--muted);font-size:14px;}
+.pat-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.pat-detail-item{background:var(--surface2);border-radius:8px;padding:12px;}
+.pat-detail-label{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--blue2);text-transform:uppercase;margin-bottom:4px;}
+.pat-detail-val{font-size:12px;color:var(--text);line-height:1.5;}
+
+/* ========================
+   INTERACTIVE 2: Framework Comparison
+   ======================== */
+.fw-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-top:24px;}
+.fw-tab{flex:1;padding:12px 8px;text-align:center;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;background:none;border-top:none;border-left:none;border-right:none;}
+.fw-tab:hover{color:var(--text);}
+.fw-tab.active{color:var(--blue2);border-bottom-color:var(--blue2);}
+.fw-panel{display:none;padding:28px;background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 12px 12px;}
+.fw-panel.active{display:block;}
+.fw-badge{display:inline-block;background:linear-gradient(90deg,var(--blue),var(--indigo));color:#fff;font-size:10px;font-weight:800;padding:3px 10px;border-radius:12px;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;}
+.fw-title{font-size:18px;font-weight:800;color:var(--text);margin-bottom:6px;}
+.fw-sub{font-size:13px;color:var(--muted);margin-bottom:16px;}
+.fw-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
+.fw-item{background:var(--surface2);border-radius:8px;padding:12px;}
+.fw-item-label{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--blue2);text-transform:uppercase;margin-bottom:4px;}
+.fw-item-val{font-size:12px;color:var(--text);line-height:1.5;}
+.code-block{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:12px 14px;font-family:'Courier New',monospace;font-size:12px;color:#a5f3fc;margin-top:12px;overflow-x:auto;}
+
+/* ========================
+   INTERACTIVE 3: Task Decomposition Stepper
+   ======================== */
+.decomp-stepper{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:24px;}
+.decomp-steps{display:flex;border-bottom:1px solid var(--border);}
+.dec-step{flex:1;padding:12px 6px;text-align:center;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;background:none;border-top:none;border-left:none;border-right:none;}
+.dec-step:hover{background:var(--surface2);}
+.dec-step.active{border-bottom-color:var(--blue2);background:var(--surface2);}
+.dec-step .ds-num{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--blue2);text-transform:uppercase;}
+.dec-step .ds-name{font-size:11px;font-weight:700;color:var(--text);margin-top:2px;}
+.decomp-content{padding:28px;}
+.dec-panel{display:none;}
+.dec-panel.active{display:block;}
+.dec-viz{background:var(--surface2);border-radius:8px;padding:20px;margin:16px 0;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;}
+.dec-node{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:11px;font-weight:700;color:var(--muted);text-align:center;}
+.dec-node.hl{border-color:var(--blue2);color:var(--blue2);background:#2563eb14;}
+.dec-node.sub{border-color:var(--indigo);color:var(--indigo);font-size:10px;padding:6px 10px;}
+.dec-arrow{color:var(--muted);font-size:14px;}
+.dec-body{font-size:13px;color:var(--muted);line-height:1.8;}
+.dec-body ul{padding-left:20px;margin-top:8px;}
+.dec-body li{margin-bottom:6px;}
+.dec-body strong{color:var(--text);}
+
+/* ========================
+   INTERACTIVE 4: Communication Protocol Layers
+   ======================== */
+.proto-layers{margin-top:24px;}
+.proto-layer{background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:8px;overflow:hidden;cursor:pointer;transition:all .2s;}
+.proto-layer:hover,.proto-layer.open{border-color:var(--blue2);}
+.proto-header{padding:16px 20px;display:flex;align-items:center;gap:16px;}
+.proto-phase{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--blue2);text-transform:uppercase;min-width:60px;}
+.proto-name{font-size:14px;font-weight:800;color:var(--text);flex:1;}
+.proto-tag{font-size:11px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:3px 10px;}
+.proto-chevron{color:var(--muted);transition:transform .2s;font-size:12px;}
+.proto-layer.open .proto-chevron{transform:rotate(180deg);}
+.proto-body{padding:0 20px 20px;display:none;font-size:13px;color:var(--muted);line-height:1.7;}
+.proto-layer.open .proto-body{display:block;}
+.proto-body strong{color:var(--text);}
+.proto-body-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;}
+.proto-body-item{background:var(--surface2);border-radius:8px;padding:10px 12px;}
+.proto-body-label{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--blue2);text-transform:uppercase;margin-bottom:3px;}
+.proto-body-val{font-size:12px;color:var(--text);}
+
+/* ========================
+   INTERACTIVE 5: MAST Failure Explorer
+   ======================== */
+.mast-container{margin-top:24px;}
+.mast-cat{margin-bottom:20px;}
+.mast-cat-header{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+.mast-cat-name{font-size:15px;font-weight:800;color:var(--text);}
+.mast-cat-pct{font-size:12px;font-weight:700;color:var(--blue2);background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:3px 10px;}
+.mast-bar{height:6px;background:var(--border);border-radius:3px;margin-bottom:16px;overflow:hidden;}
+.mast-bar-fill{height:100%;background:linear-gradient(90deg,var(--blue),var(--indigo));border-radius:3px;transition:width 1s;}
+.mast-failures{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.mast-item{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;cursor:pointer;transition:all .2s;}
+.mast-item:hover,.mast-item.open{border-color:var(--blue2);background:var(--surface2);}
+.mast-item-header{display:flex;align-items:flex-start;gap:10px;}
+.mast-item-id{font-size:10px;font-weight:700;color:var(--blue2);letter-spacing:1px;text-transform:uppercase;min-width:48px;}
+.mast-item-name{font-size:12px;font-weight:700;color:var(--text);flex:1;line-height:1.4;}
+.mast-item-body{font-size:12px;color:var(--muted);line-height:1.6;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:none;}
+.mast-item.open .mast-item-body{display:block;}
+
+/* ========================
+   INTERACTIVE 6: MoA Visualizer
+   ======================== */
+.moa-container{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px;margin-top:24px;}
+.moa-toggle{display:flex;gap:8px;margin-bottom:24px;}
+.moa-toggle-btn{flex:1;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--muted);transition:all .2s;}
+.moa-toggle-btn.active{background:var(--blue);color:#fff;border-color:var(--blue);}
+.moa-panel{display:none;}
+.moa-panel.active{display:block;}
+.moa-diagram{background:var(--surface2);border-radius:8px;padding:24px;margin-bottom:16px;}
+.moa-layer-row{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.moa-layer-label{font-size:10px;font-weight:700;color:var(--blue2);letter-spacing:1px;text-transform:uppercase;min-width:60px;text-align:right;}
+.moa-agents{display:flex;gap:6px;flex:1;}
+.moa-agent{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:11px;font-weight:700;color:var(--muted);text-align:center;flex:1;}
+.moa-agent.hl{border-color:var(--blue2);color:var(--blue2);background:#2563eb14;}
+.moa-agent.agg{border-color:var(--indigo);color:var(--indigo);background:#818cf814;}
+.moa-result{background:#2563eb14;border:1px solid var(--blue);border-radius:8px;padding:14px;font-size:13px;color:var(--blue2);text-align:center;}
+.moa-desc{font-size:13px;color:var(--muted);line-height:1.7;}
+
+/* XREF */
+.xref-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:24px;}
+.xref-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;transition:all .2s;}
+.xref-card:hover{border-color:var(--blue2);text-decoration:none;}
+.xref-num{font-size:10px;font-weight:700;color:var(--blue2);letter-spacing:1px;margin-bottom:6px;}
+.xref-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px;line-height:1.4;}
+.xref-desc{font-size:11px;color:var(--muted);line-height:1.5;}
+
+/* CONTINUE STRIP */
+.continue-strip{background:var(--surface);border-top:1px solid var(--border);padding:32px 48px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;}
+.cs-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.cs-title{font-size:15px;font-weight:700;color:var(--text);}
+.cs-title:hover{color:var(--blue2);}
+
+@media(max-width:860px){
+  .shell{grid-template-columns:1fr;}
+  .sidebar{display:none;}
+  .section,.hero-section{padding:28px 20px;}
+  .two-col,.three-col,.four-col,.pattern-grid,.fw-grid,.pat-detail-grid,.mast-failures,.xref-grid,.proto-body-grid{grid-template-columns:1fr;}
+  .decomp-steps{flex-wrap:wrap;}
+  .moa-agents{flex-wrap:wrap;}
+  .continue-strip{padding:24px 20px;}
+}
+</style>
+</head>
+<body>
+
+<!-- GATE -->
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-logo">Visual Summary</div>
+    <div class="gate-title">Post 52 — LLM Agent Orchestration</div>
+    <div class="gate-sub">Enter the access code to continue</div>
+    <input id="gate-pw" class="gate-input" type="password" placeholder="Access code" autocomplete="off">
+    <button class="gate-btn" onclick="checkGate()">Unlock</button>
+    <div class="gate-err" id="gate-err"></div>
+  </div>
+</div>
+
+<div id="app">
+<div class="shell">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="sidebar-brand-label">Visual Summary</div>
+    <div class="sidebar-brand-title">Post 52 · LLM Agent Orchestration</div>
+  </div>
+  <ul class="sidebar-nav">
+    <li><a href="#intro"><span class="nav-num">01</span> Introduction</a></li>
+    <li><a href="#patterns"><span class="nav-num">02</span> Patterns</a></li>
+    <li><a href="#frameworks"><span class="nav-num">03</span> Frameworks</a></li>
+    <li><a href="#planning"><span class="nav-num">04</span> Planning</a></li>
+    <li><a href="#protocols"><span class="nav-num">05</span> Protocols</a></li>
+    <li><a href="#moa"><span class="nav-num">06</span> Mixture of Agents</a></li>
+    <li><a href="#failures"><span class="nav-num">07</span> Failure Modes</a></li>
+    <li><a href="#reliability"><span class="nav-num">08</span> Reliability</a></li>
+    <li><a href="#related"><span class="nav-num">09</span> Related Posts</a></li>
+  </ul>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+
+<!-- HERO -->
+<section class="hero-section" id="intro">
+  <div class="hero-eyebrow">Post 52 · Agents &amp; Systems</div>
+  <h1 class="hero-title">LLM Agent Orchestration<br><span>Coordinating Multiple AI Agents at Scale</span></h1>
+  <p class="hero-desc">How do you get multiple LLM agents to work together reliably? This post covers the four canonical orchestration patterns, major frameworks (LangGraph, CrewAI, AutoGen, MetaGPT), task decomposition, communication protocols (MCP, A2A, ACP, ANP), Mixture-of-Agents architectures, the MAST taxonomy of 14 failure modes, and transactional reliability via SagaLLM.</p>
+  <div class="hero-meta">
+    <div class="meta-pill">Based on: <span>20+ papers (2023–2026) · MAST NeurIPS 2025 · VLDB 2025</span></div>
+    <div class="meta-pill">Category: <span>Agents &amp; Systems</span></div>
+    <div class="meta-pill">Level: <span>Advanced</span></div>
+    <div class="meta-pill">Post: <span>52 of 52</span></div>
+  </div>
+</section>
+
+<!-- SECTION 1: INTRO -->
+<section class="section">
+  <div class="section-label">Why Orchestration</div>
+  <h2 class="section-title">Beyond the Single Agent</h2>
+  <p class="section-subtitle">Single agents hit a ceiling. Orchestration is how you break through it.</p>
+
+  <p>A single LLM agent is powerful but fundamentally limited: it processes one context window at a time, cannot truly parallelize work, and accumulates errors as task complexity grows. <strong>Agent orchestration</strong> — coordinating multiple specialized agents to collaborate on a shared goal — is the architecture that unlocks a new tier of capability.</p>
+
+  <p>But orchestration introduces its own hard problems. How should tasks be divided and assigned? How do agents communicate without losing context? What happens when an agent fails mid-task? How do you prevent infinite loops and cascading errors? The field has matured rapidly: from informal multi-agent experiments in 2023 to formal taxonomies, production-proven frameworks, standardized communication protocols, and NeurIPS-published failure taxonomies by 2025.</p>
+
+  <div class="callout">
+    <div class="callout-title">The Scale of the Shift</div>
+    <div class="callout-body">Gartner reported a <strong>1,445% surge</strong> in multi-agent system inquiries between Q1 2024 and Q2 2025. Real production deployments show transformative results — but also painful failures. GetOnStack incurred <strong>$47,000/week</strong> in costs from undetected recursive agent loops. 40% of multi-agent pilots fail within 6 months of production deployment.</div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-box"><div class="stat-val">1,445%</div><div class="stat-lbl">Surge in multi-agent system inquiries 2024→2025 (Gartner)</div></div>
+    <div class="stat-box"><div class="stat-val">58.6%</div><div class="stat-lbl">Kimi K2.6 on SWE-Bench Pro via 300 swarm agents + 4,000 coordinated steps</div></div>
+    <div class="stat-box"><div class="stat-val">20×</div><div class="stat-lbl">Faster mortgage approvals with multi-agent orchestration (80% cost reduction)</div></div>
+    <div class="stat-box"><div class="stat-val">41.8%</div><div class="stat-lbl">Of MAST failures traced to Specification &amp; System Design errors</div></div>
+  </div>
+</section>
+
+<!-- SECTION 2: PATTERNS -->
+<section class="section" id="patterns">
+  <div class="section-label">Architecture Patterns</div>
+  <h2 class="section-title">The Four Orchestration Patterns</h2>
+  <p class="section-subtitle">Each pattern embodies a different tradeoff between control, latency, fault tolerance, and debuggability. Click a pattern to explore.</p>
+
+  <div class="pattern-grid" id="pattern-grid">
+    <div class="pat-card" id="pat-0" onclick="setPat(0)">
+      <div class="pat-icon">🎯</div>
+      <div class="pat-name">Supervisor</div>
+      <div class="pat-tagline">Centralized control + delegation</div>
+    </div>
+    <div class="pat-card" id="pat-1" onclick="setPat(1)">
+      <div class="pat-icon">🔗</div>
+      <div class="pat-name">Pipeline</div>
+      <div class="pat-tagline">Sequential stage-by-stage</div>
+    </div>
+    <div class="pat-card" id="pat-2" onclick="setPat(2)">
+      <div class="pat-icon">🔀</div>
+      <div class="pat-name">Router</div>
+      <div class="pat-tagline">Classify &amp; dispatch</div>
+    </div>
+    <div class="pat-card" id="pat-3" onclick="setPat(3)">
+      <div class="pat-icon">🌊</div>
+      <div class="pat-name">Swarm</div>
+      <div class="pat-tagline">Decentralized peer-to-peer</div>
+    </div>
+  </div>
+
+  <div class="pat-detail" id="pat-detail"></div>
+</section>
+
+<!-- SECTION 3: FRAMEWORKS -->
+<section class="section" id="frameworks">
+  <div class="section-label">Major Frameworks</div>
+  <h2 class="section-title">LangGraph · CrewAI · AutoGen · MetaGPT</h2>
+  <p class="section-subtitle">Four production-grade frameworks, each with a distinct design philosophy. Click a tab to compare.</p>
+
+  <div class="fw-tabs">
+    <button class="fw-tab active" onclick="setFw(0)">LangGraph</button>
+    <button class="fw-tab" onclick="setFw(1)">CrewAI</button>
+    <button class="fw-tab" onclick="setFw(2)">AutoGen / AG2</button>
+    <button class="fw-tab" onclick="setFw(3)">MetaGPT</button>
+    <button class="fw-tab" onclick="setFw(4)">OpenAI Swarm</button>
+  </div>
+
+  <!-- LangGraph -->
+  <div class="fw-panel active" id="fw-0">
+    <div class="fw-badge">LangChain</div>
+    <div class="fw-title">LangGraph</div>
+    <div class="fw-sub">Graph-based stateful orchestration. The most flexible and production-mature framework for complex conditional workflows.</div>
+    <div class="fw-grid">
+      <div class="fw-item"><div class="fw-item-label">Core Abstraction</div><div class="fw-item-val">StateGraph — directed graph with nodes (agents/functions) and conditional edges. Every node transformation updates a shared state object.</div></div>
+      <div class="fw-item"><div class="fw-item-label">Orchestration Pattern</div><div class="fw-item-val">Supervisor via <code>create_supervisor()</code>: central node routes tasks to workers based on LLM reasoning. Also supports hierarchical, flat, and parallel configurations.</div></div>
+      <div class="fw-item"><div class="fw-item-label">State Management</div><div class="fw-item-val">Built-in checkpointing with time-travel debugging. Long-horizon stateful workflows supported natively. LangGraph Studio for visual pipeline debugging.</div></div>
+      <div class="fw-item"><div class="fw-item-label">Best For</div><div class="fw-item-val">Complex branching pipelines, compliance workflows, financial analysis, any workflow requiring conditional routing and auditability.</div></div>
+      <div class="fw-item"><div class="fw-item-label">Weakness</div><div class="fw-item-val">Steep learning curve. Requires upfront graph design investment. Over-engineering risk for simple use cases.</div></div>
+      <div class="fw-item"><div class="fw-item-label">Production Case</div><div class="fw-item-val">11x rebuilt "Alice" AI SDR using LangGraph hierarchical design; achieved human-level 2% reply rates.</div></div>
+    </div>
+    <div class="code-block">
+# LangGraph supervisor pattern sketch
+from langgraph.graph import StateGraph
+from langgraph.prebuilt import create_supervisor
+
+supervisor = create_supervisor(
+    agents=[research_agent, writer_agent, reviewer_agent],
+    model=llm,
+    prompt="You are a supervisor. Delegate tasks appropriately."
+)
+app = supervisor.compile(checkpointer=memory)</div>
+  </div>
+
+  <!-- CrewAI -->
+  <div class="fw-panel" id="fw-1">
+    <div class="fw-badge">CrewAI</div>
+    <div class="fw-title">CrewAI</div>
+    <div class="fw-sub">Role-based agent crews. The lowest-friction framework — agents behave like employees with roles, goals, and backstories.</div>
+    <div class="fw-grid">
+      <div class="fw-item"><div class="fw-item-label">Core Abstraction</div><div class="fw-item-val">Agents with roles + goals + backstories forming a Crew. Three process types: Sequential, Hierarchical (manager_llm coordinates), Consensual (in dev).</div></div>
+      <div class="fw-item"><div class="fw-item-label">Orchestration Pattern</div><div class="fw-item-val">Sequential: task N output feeds task N+1. Hierarchical: manager agent delegates, validates results before proceeding. Explicit <code>manager_llm</code> param required.</div></div>
+      <div class="fw-item"><div class="fw-item-label">State Management</div><div class="fw-item-val">Role-specific memory tiers: short-term (within task), long-term (across tasks), entity-based, contextual. Output of each task available as context.</div></div>
+      <div class="fw-item"><div class="fw-item-label">Best For</div><div class="fw-item-val">Role-delegation workflows, content production pipelines, business process automation. Fastest time-to-prototype.</div></div>
+      <div class="fw-item"><div class="fw-item-label">Weakness</div><div class="fw-item-val">Less flexible for highly conditional or non-hierarchical workflows. Limited support for dynamic agent spawning mid-task.</div></div>
+      <div class="fw-item"><div class="fw-item-label">Learning Curve</div><div class="fw-item-val">Lowest of all frameworks — 20 lines to a working multi-agent system. Strong CLI tooling and templates.</div></div>
+    </div>
+    <div class="code-block">
+# CrewAI hierarchical crew sketch
+from crewai import Agent, Task, Crew, Process
+
+researcher = Agent(role="Researcher", goal="Find key facts", backstory="...")
+writer = Agent(role="Writer", goal="Draft the report", backstory="...")
+crew = Crew(
+    agents=[researcher, writer],
+    tasks=[research_task, write_task],
+    process=Process.hierarchical,
+    manager_llm=gpt4
+)</div>
+  </div>
+
+  <!-- AutoGen / AG2 -->
+  <div class="fw-panel" id="fw-2">
+    <div class="fw-badge">Microsoft · AutoGen / AG2</div>
+    <div class="fw-title">AutoGen / AG2</div>
+    <div class="fw-sub">Conversational multi-agent framework. Agents communicate through structured dialogue; each agent can be an LLM, a tool, or a human-in-the-loop.</div>
+    <div class="fw-grid">
+      <div class="fw-item"><div class="fw-item-label">Core Abstraction</div><div class="fw-item-val">ConversableAgent — any combination of LLM, tools, human input. GroupChat orchestrates multiple agents in turn-based or conditional conversation patterns.</div></div>
+      <div class="fw-item"><div class="fw-item-label">Orchestration Pattern</div><div class="fw-item-val">RoundRobinGroupChat (structured turns), SelectorGroupChat (LLM picks next speaker), GraphFlow (DAG of tool calls). Each response broadcast to all participants.</div></div>
+      <div class="fw-item"><div class="fw-item-label">State Management</div><div class="fw-item-val">Conversation history in-memory by default. Context = running message history. AG2 v0.4+ adds more flexible patterns and Azure integration.</div></div>
+      <div class="fw-item"><div class="fw-item-label">Best For</div><div class="fw-item-val">Iterative critique-and-revise tasks, brainstorming with human-in-the-loop, tasks requiring agents to debate and converge on answers.</div></div>
+      <div class="fw-item"><div class="fw-item-label">Weakness</div><div class="fw-item-val">Context sharding challenges at scale. Less structured for formal business process workflows. Can generate verbose conversation history.</div></div>
+      <div class="fw-item"><div class="fw-item-label">Paper</div><div class="fw-item-val">Wu et al. (2023) arXiv:2308.08155. Rebranded from AutoGen → AG2 in v0.4. Strong Azure/Microsoft 365 integration.</div></div>
+    </div>
+    <div class="code-block">
+# AutoGen GroupChat sketch
+from autogen import AssistantAgent, UserProxyAgent, GroupChat
+
+assistant = AssistantAgent("assistant", llm_config={"model": "gpt-4"})
+critic = AssistantAgent("critic", llm_config={"model": "gpt-4"})
+user_proxy = UserProxyAgent("user", human_input_mode="NEVER")
+groupchat = GroupChat(agents=[user_proxy, assistant, critic], messages=[], max_round=10)</div>
+  </div>
+
+  <!-- MetaGPT -->
+  <div class="fw-panel" id="fw-3">
+    <div class="fw-badge">ICLR 2024</div>
+    <div class="fw-title">MetaGPT</div>
+    <div class="fw-sub">Assembly-line paradigm with standardized operating procedures. Agents produce and consume structured artifacts, not just dialogue.</div>
+    <div class="fw-grid">
+      <div class="fw-item"><div class="fw-item-label">Core Abstraction</div><div class="fw-item-val">5 specialized roles: Product Manager → Architect → Project Manager → Engineer → QA Engineer. Each produces structured artifacts (PRDs, system designs, code, tests).</div></div>
+      <div class="fw-item"><div class="fw-item-label">Key Innovation</div><div class="fw-item-val">SOPs encoded into prompt sequences. Agents communicate via structured documents rather than natural language — prevents cascading hallucinations from ambiguous dialogue.</div></div>
+      <div class="fw-item"><div class="fw-item-label">Benchmark Results</div><div class="fw-item-val">HumanEval 85.9% Pass@1. MBPP 87.7% Pass@1. SoftwareDev executability 3.75/4.0 (vs. ChatDev 2.25). Human revisions needed: 0.83 (vs. 2.5).</div></div>
+      <div class="fw-item"><div class="fw-item-label">Best For</div><div class="fw-item-val">Software development, document generation, structured workflows where artifacts (not just chat) are the primary output.</div></div>
+      <div class="fw-item"><div class="fw-item-label">Weakness</div><div class="fw-item-val">Rigid role structure. Not easily adapted to workflows outside the software development metaphor. Higher prompt engineering investment.</div></div>
+      <div class="fw-item"><div class="fw-item-label">Paper</div><div class="fw-item-val">Hong et al. (2023) arXiv:2308.00352. ICLR 2024. With Schmidhuber as co-author.</div></div>
+    </div>
+  </div>
+
+  <!-- OpenAI Swarm -->
+  <div class="fw-panel" id="fw-4">
+    <div class="fw-badge">OpenAI (Educational)</div>
+    <div class="fw-title">OpenAI Swarm → Agents SDK</div>
+    <div class="fw-sub">Minimalist two-abstraction framework built on transparency. Experimental/educational, superseded by OpenAI Agents SDK (March 2025) for production.</div>
+    <div class="fw-grid">
+      <div class="fw-item"><div class="fw-item-label">Two Abstractions</div><div class="fw-item-val"><strong>Agents:</strong> Python class with system prompt + tools + optional routine. <strong>Handoffs:</strong> a tool function returns the next agent as its value, transferring control based on context.</div></div>
+      <div class="fw-item"><div class="fw-item-label">Design Philosophy</div><div class="fw-item-val">Strip away all abstraction. Maximum transparency — every routing decision is a visible Python function call. Stateless, client-side, built on Chat Completions API.</div></div>
+      <div class="fw-item"><div class="fw-item-label">Handoff Mechanism</div><div class="fw-item-val">An agent's tool can return another Agent object. The orchestrator switches to the returned agent for the next turn. No hidden routing logic.</div></div>
+      <div class="fw-item"><div class="fw-item-label">Production Evolution</div><div class="fw-item-val">OpenAI Agents SDK (March 2025) adds tracing, guardrails, streaming, and production observability on top of Swarm's conceptual model.</div></div>
+      <div class="fw-item"><div class="fw-item-label">Best For</div><div class="fw-item-val">Learning multi-agent concepts. Low-complexity handoff workflows. Teams prioritizing full control and auditability over framework features.</div></div>
+      <div class="fw-item"><div class="fw-item-label">Weakness</div><div class="fw-item-val">No built-in state management. No checkpointing. Not designed for long-horizon or parallel workflows.</div></div>
+    </div>
+    <div class="code-block">
+# OpenAI Swarm handoff sketch
+def transfer_to_billing():
+    return billing_agent   # return the next agent object
+
+triage_agent = Agent(
+    name="Triage Agent",
+    instructions="Route customer queries to the right department.",
+    functions=[transfer_to_billing, transfer_to_technical]
+)</div>
+  </div>
+</section>
+
+<!-- SECTION 4: PLANNING -->
+<section class="section" id="planning">
+  <div class="section-label">Task Decomposition &amp; Planning</div>
+  <h2 class="section-title">Breaking Down Hard Tasks</h2>
+  <p class="section-subtitle">Orchestration starts with planning. How you decompose a query into sub-tasks — and assign them to agents — determines the whole pipeline's quality.</p>
+
+  <p>A key challenge in multi-agent orchestration is <strong>task decomposition</strong>: taking a complex user query and splitting it into sub-tasks that individual agents can solve. Three principles guide good decomposition: <strong>Solvability</strong> (each sub-task is independently resolvable by an available agent), <strong>Completeness</strong> (all aspects of the original query are covered), and <strong>Non-Redundancy</strong> (minimal effective set of sub-tasks).</p>
+
+  <!-- Interactive 3: Decomposition Stepper -->
+  <div class="decomp-stepper">
+    <div class="decomp-steps">
+      <button class="dec-step active" onclick="setDec(0)"><div class="ds-num">Step 1</div><div class="ds-name">User Query</div></button>
+      <button class="dec-step" onclick="setDec(1)"><div class="ds-num">Step 2</div><div class="ds-name">Meta-Agent Decomposes</div></button>
+      <button class="dec-step" onclick="setDec(2)"><div class="ds-num">Step 3</div><div class="ds-name">Solvability Check</div></button>
+      <button class="dec-step" onclick="setDec(3)"><div class="ds-num">Step 4</div><div class="ds-name">Agent Assignment</div></button>
+      <button class="dec-step" onclick="setDec(4)"><div class="ds-num">Step 5</div><div class="ds-name">Aggregation</div></button>
+    </div>
+    <div class="decomp-content">
+
+      <div class="dec-panel active" id="dec-0">
+        <div class="dec-viz">
+          <div class="dec-node hl">"Compare the energy consumption and CO₂ footprint of training GPT-4 vs Llama 3 70B, and suggest which is more sustainable for a startup."</div>
+        </div>
+        <div class="dec-body">
+          <p>The user submits a complex multi-faceted query requiring: (1) retrieval of specific technical data, (2) comparative analysis, and (3) domain-specific recommendation. No single agent can reliably handle all three without accumulating errors.</p>
+          <p>This is where the <strong>meta-agent</strong> (orchestrator) takes over — its job is not to answer the question but to design the plan for answering it.</p>
+        </div>
+      </div>
+
+      <div class="dec-panel" id="dec-1">
+        <div class="dec-viz">
+          <div class="dec-node hl">Meta-Agent (Orchestrator)</div>
+          <div class="dec-arrow">↓ decomposes</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+            <div class="dec-node sub">Sub-task A:<br>GPT-4 training energy &amp; CO₂</div>
+            <div class="dec-node sub">Sub-task B:<br>Llama 3 70B training energy &amp; CO₂</div>
+            <div class="dec-node sub">Sub-task C:<br>Inference cost comparison</div>
+            <div class="dec-node sub">Sub-task D:<br>Sustainability recommendation</div>
+          </div>
+        </div>
+        <div class="dec-body">
+          <p>The meta-agent applies the three AOP (Agent-Oriented Planning) principles (ICLR 2025, Li et al.):</p>
+          <ul>
+            <li><strong>Solvability:</strong> Is each sub-task independently solvable by an available agent? (A reward model predicts this without executing agents.)</li>
+            <li><strong>Completeness:</strong> Do the sub-tasks together cover the full original query?</li>
+            <li><strong>Non-Redundancy:</strong> Can any sub-task be merged without losing coverage?</li>
+          </ul>
+          <p>AOP achieved 43.7% on Husky-QA vs. single-agent baselines of 33–36%, and outperformed the HUSKY system (39.6%).</p>
+        </div>
+      </div>
+
+      <div class="dec-panel" id="dec-2">
+        <div class="dec-viz">
+          <div class="dec-node sub">Sub-task A</div>
+          <div class="dec-arrow">→</div>
+          <div class="dec-node hl">Reward Model<br>(768-dim MLP)</div>
+          <div class="dec-arrow">→</div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <div class="dec-node" style="border-color:#22c55e;color:#22c55e;font-size:10px;">✓ Accept (solvability &gt; 0.7)</div>
+            <div class="dec-node" style="border-color:#f59e0b;color:#f59e0b;font-size:10px;">↩ Replan (no agent can solve)</div>
+            <div class="dec-node" style="border-color:#818cf8;color:#818cf8;font-size:10px;">↗ Plan-in-detail (similarity match)</div>
+          </div>
+        </div>
+        <div class="dec-body">
+          <p>Before assigning any sub-task, AOP uses a <strong>reward model</strong> (768-dimensional MLP embedder) to predict whether an available agent can actually solve it — <em>without executing the agent</em>. Three outcomes:</p>
+          <ul>
+            <li><strong>Accept:</strong> High predicted solvability → assign to best-matching agent</li>
+            <li><strong>Replan:</strong> No agent in the pool can solve this sub-task → decompose further or reformulate</li>
+            <li><strong>Plan-in-detail:</strong> Similarity match against representative works suggests this sub-task needs further specification</li>
+          </ul>
+          <p>The <strong>DAAO</strong> framework (2025) extends this with a variational autoencoder that encodes query difficulty (0–1). Hard queries spawn more layers: L = ⌈d·ℓ⌉. Result: +11.21% over MaAS at only 64% of its inference cost.</p>
+        </div>
+      </div>
+
+      <div class="dec-panel" id="dec-3">
+        <div class="dec-viz">
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <div class="dec-node sub">Sub-task A → GPT-4 CO₂</div>
+            <div class="dec-node sub">Sub-task B → Llama CO₂</div>
+          </div>
+          <div class="dec-arrow">→</div>
+          <div class="dec-node hl">Research Agent<br>(web + RAG)</div>
+          <div class="dec-arrow" style="margin-left:8px;margin-right:8px;"></div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-left:8px;">
+            <div class="dec-node sub">Sub-task C → Inference cost</div>
+          </div>
+          <div class="dec-arrow">→</div>
+          <div class="dec-node hl">Calculator Agent<br>(code exec)</div>
+          <div class="dec-arrow" style="margin-left:8px;margin-right:8px;"></div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-left:8px;">
+            <div class="dec-node sub">Sub-task D → Recommend</div>
+          </div>
+          <div class="dec-arrow">→</div>
+          <div class="dec-node hl">Advisor Agent<br>(reasoning)</div>
+        </div>
+        <div class="dec-body">
+          <p><strong>DyLAN</strong> (Dynamic LLM-Powered Agent Network, COLM 2024) improves agent assignment by computing an <strong>Agent Importance Score</strong> — an unsupervised metric that dynamically selects the optimal agents from a candidate pool for each task, rather than using a fixed team.</p>
+          <p>Result: MMLU accuracy improved by up to 25% in specific subjects over fixed-team baselines. Agents not contributing to a task are dropped, reducing token waste and hallucination propagation.</p>
+        </div>
+      </div>
+
+      <div class="dec-panel" id="dec-4">
+        <div class="dec-viz">
+          <div class="dec-node hl">Research Agent<br>result</div>
+          <div class="dec-arrow">+</div>
+          <div class="dec-node hl">Calculator Agent<br>result</div>
+          <div class="dec-arrow">+</div>
+          <div class="dec-node hl">Advisor Agent<br>result</div>
+          <div class="dec-arrow">→</div>
+          <div class="dec-node" style="border-color:var(--indigo);color:var(--indigo);background:#818cf814;">Meta-Agent<br>Synthesizes →<br>Final Answer</div>
+        </div>
+        <div class="dec-body">
+          <p>The meta-agent aggregates sub-task results into a coherent final answer. This is the most error-prone step — the aggregator must reconcile results that may be contradictory, use different units, or address slightly different formulations of the question.</p>
+          <p>The RL framework (Zhang 2026) formalizes aggregation as decision O4: how to combine partial outputs. Rewards include aggregation quality (semantic consistency + coverage), split correctness, and parallelism speedup. Notably, <strong>the stopping decision (O5) has no established RL training method yet</strong> — a key open research gap.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 5: PROTOCOLS -->
+<section class="section" id="protocols">
+  <div class="section-label">Interoperability</div>
+  <h2 class="section-title">Agent Communication Protocols</h2>
+  <p class="section-subtitle">As multi-agent systems move toward open ecosystems, standardized protocols replace ad-hoc message passing. Four protocols define the emerging stack.</p>
+
+  <p>A 2025 survey (Ehtesham et al., arXiv:2505.02279) identified four protocols forming an adoption ladder: from tool access (MCP) to full decentralized agent marketplaces (ANP). A companion paper (Yuan et al., arXiv:2604.02369) analyzing 18 protocols found a critical gap: most excel at communication and syntax but fail at <strong>semantic alignment</strong> — meaning verification, intent clarification, and context consistency across sessions.</p>
+
+  <!-- Interactive 4: Protocol Layers -->
+  <div class="proto-layers">
+    <div class="proto-layer open" id="proto-0" onclick="toggleProto(0)">
+      <div class="proto-header">
+        <div class="proto-phase">Phase 1</div>
+        <div class="proto-name">MCP — Model Context Protocol</div>
+        <div class="proto-tag">Anthropic · Nov 2024</div>
+        <div class="proto-chevron">▼</div>
+      </div>
+      <div class="proto-body">
+        <p><strong>Architecture:</strong> JSON-RPC client-server. The agent (client) makes typed function calls to tools (servers). Servers expose capabilities via a standardized schema.</p>
+        <p><strong>Primary function:</strong> Secure tool invocation and typed data exchange. Standardizes how an agent accesses external tools (databases, APIs, file systems) without custom integration for each.</p>
+        <div class="proto-body-grid">
+          <div class="proto-body-item"><div class="proto-body-label">Governance</div><div class="proto-body-val">Donated to Agentic AI Foundation (AAIF, Linux Foundation) in December 2025. Co-founded by Anthropic, Block, OpenAI.</div></div>
+          <div class="proto-body-item"><div class="proto-body-label">Scale</div><div class="proto-body-val">Sentry MCP server: 60M requests/month. Loblaws "Alfred" agent wraps 50+ internal APIs via MCP.</div></div>
+          <div class="proto-body-item"><div class="proto-body-label">Limitation</div><div class="proto-body-val">Designed for tool access, not agent-to-agent delegation. No session state management across calls.</div></div>
+          <div class="proto-body-item"><div class="proto-body-label">Use When</div><div class="proto-body-val">An agent needs reliable access to tools, databases, or file systems in a standardized way.</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="proto-layer" id="proto-1" onclick="toggleProto(1)">
+      <div class="proto-header">
+        <div class="proto-phase">Phase 2</div>
+        <div class="proto-name">ACP — Agent Communication Protocol</div>
+        <div class="proto-tag">AgentUnion / IBM</div>
+        <div class="proto-chevron">▼</div>
+      </div>
+      <div class="proto-body">
+        <p><strong>Architecture:</strong> RESTful HTTP with MIME-typed multipart messages. Supports rich, multimodal payloads. DIDs (Decentralized Identifiers) for agent identity.</p>
+        <p><strong>Primary function:</strong> Scalable agent invocation and session management. Designed for agents that need to exchange complex, multi-part content (text + images + structured data) over HTTP.</p>
+        <div class="proto-body-grid">
+          <div class="proto-body-item"><div class="proto-body-label">Key Features</div><div class="proto-body-val">Session persistence across multiple request-response cycles. Streaming support. Native multimodal content types.</div></div>
+          <div class="proto-body-item"><div class="proto-body-label">Compared to MCP</div><div class="proto-body-val">More complex infrastructure but handles multi-step interactions and multimodal content that MCP's JSON-RPC wasn't designed for.</div></div>
+          <div class="proto-body-item"><div class="proto-body-label">Use When</div><div class="proto-body-val">Agents need multi-turn stateful interactions, or need to exchange non-text content (images, audio, documents).</div></div>
+          <div class="proto-body-item"><div class="proto-body-label">Limitation</div><div class="proto-body-val">Higher infrastructure overhead. Less widely adopted than MCP as of 2025.</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="proto-layer" id="proto-2" onclick="toggleProto(2)">
+      <div class="proto-header">
+        <div class="proto-phase">Phase 3</div>
+        <div class="proto-name">A2A — Agent-to-Agent Protocol</div>
+        <div class="proto-tag">Google · April 2025</div>
+        <div class="proto-chevron">▼</div>
+      </div>
+      <div class="proto-body">
+        <p><strong>Architecture:</strong> Peer-to-peer via capability <strong>Agent Cards</strong>. Each agent publishes a JSON card describing its capabilities, inputs, outputs, and constraints. Other agents discover and invoke via the card schema.</p>
+        <p><strong>Primary function:</strong> Secure task delegation across enterprise workflows and organizational boundaries. Agents from different vendors or teams can interoperate without custom integration.</p>
+        <div class="proto-body-grid">
+          <div class="proto-body-item"><div class="proto-body-label">Launch</div><div class="proto-body-val">Launched with 50+ technology partners: Atlassian, Box, Cohere, Intuit, LangChain, MongoDB, PayPal, Salesforce.</div></div>
+          <div class="proto-body-item"><div class="proto-body-label">Key Innovation</div><div class="proto-body-val">Agent Cards enable dynamic capability discovery — an orchestrator can find the right specialist agent at runtime without pre-configuration.</div></div>
+          <div class="proto-body-item"><div class="proto-body-label">Use When</div><div class="proto-body-val">Cross-organization agent collaboration, enterprise agent marketplaces, workflows spanning multiple vendor systems.</div></div>
+          <div class="proto-body-item"><div class="proto-body-label">Limitation</div><div class="proto-body-val">Requires agents to publish and maintain accurate Agent Cards. Discovery at scale introduces latency.</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="proto-layer" id="proto-3" onclick="toggleProto(3)">
+      <div class="proto-header">
+        <div class="proto-phase">Phase 4</div>
+        <div class="proto-name">ANP — Agent Network Protocol</div>
+        <div class="proto-tag">W3C · Decentralized</div>
+        <div class="proto-chevron">▼</div>
+      </div>
+      <div class="proto-body">
+        <p><strong>Architecture:</strong> W3C Decentralized Identifiers (DIDs) + JSON-LD semantic graphs. Fully decentralized — no central registry or directory. Agents discover each other via DHT-style network.</p>
+        <p><strong>Primary function:</strong> Open network discovery and decentralized collaboration. Enables fully autonomous agent marketplaces where agents find, contract with, and pay each other without human intermediation.</p>
+        <div class="proto-body-grid">
+          <div class="proto-body-item"><div class="proto-body-label">Key Concept</div><div class="proto-body-val">DIDs give agents persistent, verifiable identities independent of any platform. JSON-LD graphs enable semantic capability description beyond simple text tags.</div></div>
+          <div class="proto-body-item"><div class="proto-body-label">Use Case</div><div class="proto-body-val">Open agent ecosystems, autonomous agent economies, cross-border multi-agent workflows without central authority.</div></div>
+          <div class="proto-body-item"><div class="proto-body-label">Maturity</div><div class="proto-body-val">Earliest stage of the four protocols. Mostly research and proof-of-concept as of 2025. Most deployments are still on MCP + A2A.</div></div>
+          <div class="proto-body-item"><div class="proto-body-label">Semantic Gap</div><div class="proto-body-val">Yuan et al. (2025): even with ANP's semantic graphs, most protocols push meaning alignment into application-level prompts — the core interoperability challenge remains unsolved at the protocol layer.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 6: MoA -->
+<section class="section" id="moa">
+  <div class="section-label">Ensemble Architectures</div>
+  <h2 class="section-title">Mixture of Agents</h2>
+  <p class="section-subtitle">Can multiple weaker models collectively outperform a single stronger model? MoA says yes — but the devil is in the architecture.</p>
+
+  <p>Mixture-of-Agents (Wang et al., arXiv:2406.04692, Together AI) exploits a surprising property: <strong>LLMs are "collaborative"</strong> — they consistently generate better outputs when shown other models' responses as auxiliary context, even if those models are weaker. This enables layered ensemble architectures that outperform any single model.</p>
+
+  <!-- Interactive 6: MoA Visualizer -->
+  <div class="moa-container">
+    <div class="moa-toggle">
+      <button class="moa-toggle-btn active" id="moa-btn-0" onclick="setMoa('moa')">Mixture-of-Agents (MoA)</button>
+      <button class="moa-toggle-btn" id="moa-btn-1" onclick="setMoa('self')">Self-MoA</button>
+    </div>
+
+    <div class="moa-panel active" id="moa-panel-moa">
+      <div class="moa-diagram">
+        <div class="moa-layer-row">
+          <div class="moa-layer-label">Input</div>
+          <div class="moa-agents"><div class="moa-agent hl" style="flex:3;">User Query</div></div>
+        </div>
+        <div class="moa-layer-row">
+          <div class="moa-layer-label">Layer 1</div>
+          <div class="moa-agents">
+            <div class="moa-agent hl">GPT-4o</div>
+            <div class="moa-agent hl">Claude 3.5</div>
+            <div class="moa-agent hl">Llama 3 70B</div>
+            <div class="moa-agent hl">Mixtral 8x7B</div>
+          </div>
+        </div>
+        <div style="text-align:center;font-size:11px;color:var(--muted);margin:4px 0;">↓ all Layer 1 outputs passed to Layer 2 as auxiliary context</div>
+        <div class="moa-layer-row">
+          <div class="moa-layer-label">Layer 2</div>
+          <div class="moa-agents">
+            <div class="moa-agent hl">GPT-4o</div>
+            <div class="moa-agent hl">Claude 3.5</div>
+            <div class="moa-agent hl">Llama 3 70B</div>
+          </div>
+        </div>
+        <div style="text-align:center;font-size:11px;color:var(--muted);margin:4px 0;">↓ aggregated by Aggregator</div>
+        <div class="moa-layer-row">
+          <div class="moa-layer-label">Output</div>
+          <div class="moa-agents"><div class="moa-agent agg" style="flex:3;">Aggregator (GPT-4o) → Final Answer</div></div>
+        </div>
+      </div>
+      <div class="moa-result">AlpacaEval 2.0: <strong>65.1%</strong> — beats GPT-4o standalone (57.5%) using only open-source models in lower layers</div>
+      <div class="moa-desc" style="margin-top:16px;">
+        <p>Each layer passes all its outputs to the next layer as auxiliary context. The key insight: every LLM generates better responses when it can see what other models said first — even weaker models. The aggregator synthesizes all layer outputs into a final answer.</p>
+        <p><strong>Cost warning:</strong> MoA multiplies token consumption by (number of models) × (number of layers). A 3-model × 2-layer MoA costs ~6× more than a single call. Latency also increases significantly unless layers run in parallel.</p>
+      </div>
+    </div>
+
+    <div class="moa-panel" id="moa-panel-self">
+      <div class="moa-diagram">
+        <div class="moa-layer-row">
+          <div class="moa-layer-label">Input</div>
+          <div class="moa-agents"><div class="moa-agent hl" style="flex:3;">User Query</div></div>
+        </div>
+        <div class="moa-layer-row">
+          <div class="moa-layer-label">Layer 1</div>
+          <div class="moa-agents">
+            <div class="moa-agent hl">GPT-4o</div>
+            <div class="moa-agent hl">GPT-4o</div>
+            <div class="moa-agent hl">GPT-4o</div>
+            <div class="moa-agent hl">GPT-4o</div>
+          </div>
+        </div>
+        <div style="text-align:center;font-size:11px;color:var(--muted);margin:4px 0;">↓ 4 independent GPT-4o samples passed to aggregation</div>
+        <div class="moa-layer-row">
+          <div class="moa-layer-label">Output</div>
+          <div class="moa-agents"><div class="moa-agent agg" style="flex:3;">GPT-4o Aggregator → Final Answer</div></div>
+        </div>
+      </div>
+      <div class="moa-result">AlpacaEval 2.0: <strong>65.1% + 6.6% = ~71.7%</strong> — Self-MoA beats original MoA across all benchmarks</div>
+      <div class="moa-desc" style="margin-top:16px;">
+        <p><strong>Li et al. (arXiv:2502.00674, 2025)</strong> challenged the assumption that heterogeneous models are better. Their finding: mixing different LLMs frequently <em>lowers</em> average output quality because weaker models drag down the ensemble.</p>
+        <p><strong>Self-MoA</strong> uses the same top model multiple times with different random seeds. The variance between samples from a high-quality model is more beneficial than variance from mixing strong and weak models. Beats original MoA by <strong>6.6% on AlpacaEval 2.0</strong> and 3.8% average across MMLU, CRUX, MATH.</p>
+        <p><strong>Takeaway:</strong> Don't mix for diversity's sake. Use the best available model and exploit within-model variance. MoE (Mixture of Experts, parameter-level) is architecturally distinct — it's internal routing within one model, not external delegation between separate models.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 7: FAILURES -->
+<section class="section" id="failures">
+  <div class="section-label">MAST · NeurIPS 2025</div>
+  <h2 class="section-title">Why Multi-Agent Systems Fail</h2>
+  <p class="section-subtitle">Cemri et al. analyzed 1,600+ annotated execution traces across 7 frameworks and identified 14 failure modes in 3 categories. Inter-annotator agreement: κ = 0.88.</p>
+
+  <p>The MAST paper (arXiv:2503.13657, NeurIPS 2025) is the most systematic empirical study of multi-agent LLM failures to date. The core finding: <strong>architecture and coordination failures dominate, not model capability failures</strong>. Tactical fixes like clearer prompts only yielded +14% improvement — "identified failures require more complex solutions."</p>
+
+  <div class="mast-container" id="mast-container">
+
+    <div class="mast-cat">
+      <div class="mast-cat-header">
+        <div class="mast-cat-name">FC1 — Specification &amp; System Design Failures</div>
+        <div class="mast-cat-pct">41.77%</div>
+      </div>
+      <div class="mast-bar"><div class="mast-bar-fill" style="width:41.77%"></div></div>
+      <div class="mast-failures">
+        <div class="mast-item" onclick="toggleMast(this)">
+          <div class="mast-item-header"><div class="mast-item-id">FM-1.1</div><div class="mast-item-name">Agents ignore task constraints</div></div>
+          <div class="mast-item-body">The agent accepts input in a wrong format or violates stated constraints (e.g., a chess agent accepting an invalid move notation instead of rejecting it). Root cause: prompts don't enforce constraints at the code level — the LLM must police itself and fails.</div>
+        </div>
+        <div class="mast-item" onclick="toggleMast(this)">
+          <div class="mast-item-header"><div class="mast-item-id">FM-1.2</div><div class="mast-item-name">Agents exceed role boundaries</div></div>
+          <div class="mast-item-body">A CEO agent makes unilateral technical decisions it was not assigned. An engineer agent begins managing stakeholder communications. Role boundaries are defined in prompts but not enforced — agents "helpfully" exceed their scope, causing downstream inconsistency.</div>
+        </div>
+        <div class="mast-item" onclick="toggleMast(this)">
+          <div class="mast-item-header"><div class="mast-item-id">FM-1.3</div><div class="mast-item-name">Redundant repetition without progress</div></div>
+          <div class="mast-item-body">The agent loop repeats completed steps in circles without advancing toward the goal. Classic "groundhog day" pattern — often triggered by ambiguous success criteria. The agent cannot determine that it has completed a step, so it re-executes it.</div>
+        </div>
+        <div class="mast-item" onclick="toggleMast(this)">
+          <div class="mast-item-header"><div class="mast-item-id">FM-1.4</div><div class="mast-item-name">Unexpected context loss</div></div>
+          <div class="mast-item-body">Critical information established earlier in the conversation disappears from the agent's effective context. Causes: context window overflow with truncation from the left, poor context management in the framework, or position-biased attention that de-weights middle-of-context information.</div>
+        </div>
+        <div class="mast-item" onclick="toggleMast(this)">
+          <div class="mast-item-header"><div class="mast-item-id">FM-1.5</div><div class="mast-item-name">Agents don't know when to stop</div></div>
+          <div class="mast-item-body">Agents continue executing after the task is complete, over-generating, second-guessing results, or starting new iterations of a completed workflow. Closely related to the RL stopping decision (O5) identified by Zhang (2026) as having no established training method — agents must be told explicitly when done.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mast-cat">
+      <div class="mast-cat-header">
+        <div class="mast-cat-name">FC2 — Inter-Agent Misalignment</div>
+        <div class="mast-cat-pct">36.94%</div>
+      </div>
+      <div class="mast-bar"><div class="mast-bar-fill" style="width:36.94%"></div></div>
+      <div class="mast-failures">
+        <div class="mast-item" onclick="toggleMast(this)">
+          <div class="mast-item-header"><div class="mast-item-id">FM-2.1</div><div class="mast-item-name">Dialogue unexpectedly restarts</div></div>
+          <div class="mast-item-body">A new agent brought into the conversation reintroduces itself, re-asks questions already answered, and restarts from scratch — losing all prior context. Occurs because agents receive only a subset of the full conversation history when the framework doesn't properly pass state at handoff.</div>
+        </div>
+        <div class="mast-item" onclick="toggleMast(this)">
+          <div class="mast-item-header"><div class="mast-item-id">FM-2.2</div><div class="mast-item-name">Fails to request clarification</div></div>
+          <div class="mast-item-body">Agent proceeds on an ambiguous instruction with a plausible but incorrect interpretation, rather than asking for clarification. The LLM's tendency to be "helpful" and avoid asking questions leads it to confidently execute the wrong task, propagating errors downstream.</div>
+        </div>
+        <div class="mast-item" onclick="toggleMast(this)">
+          <div class="mast-item-header"><div class="mast-item-id">FM-2.3</div><div class="mast-item-name">Task focus drifts</div></div>
+          <div class="mast-item-body">The original objective gets replaced by a related but different objective as agents exchange messages. Each agent subtly reframes the goal, and over multiple turns the system ends up solving a different problem from what the user requested.</div>
+        </div>
+        <div class="mast-item" onclick="toggleMast(this)">
+          <div class="mast-item-header"><div class="mast-item-id">FM-2.4</div><div class="mast-item-name">Agents withhold critical information</div></div>
+          <div class="mast-item-body">An agent omits information from its output that another agent needs to make a correct decision. Causes: summarization that drops edge cases, implicit assumptions not stated explicitly, or the agent assuming another agent already has the context.</div>
+        </div>
+        <div class="mast-item" onclick="toggleMast(this)">
+          <div class="mast-item-header"><div class="mast-item-id">FM-2.5</div><div class="mast-item-name">Agents disregard peer recommendations</div></div>
+          <div class="mast-item-body">A reviewer agent suggests a fix; the author agent acknowledges but doesn't implement it. Or a critic raises a valid concern that the producing agent dismisses without justification. Each agent's prior in its own output is stronger than its receptiveness to peer correction.</div>
+        </div>
+        <div class="mast-item" onclick="toggleMast(this)">
+          <div class="mast-item-header"><div class="mast-item-id">FM-2.6</div><div class="mast-item-name">Reasoning contradicts executed actions</div></div>
+          <div class="mast-item-body">The agent's stated reasoning ("I will do X because...") doesn't match the action it actually takes (does Y instead). The CoT reasoning is disconnected from the tool call or output — the model's reasoning trace is post-hoc rationalization, not the actual decision driver.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mast-cat">
+      <div class="mast-cat-header">
+        <div class="mast-cat-name">FC3 — Task Verification &amp; Termination</div>
+        <div class="mast-cat-pct">21.30%</div>
+      </div>
+      <div class="mast-bar"><div class="mast-bar-fill" style="width:21.30%"></div></div>
+      <div class="mast-failures">
+        <div class="mast-item" onclick="toggleMast(this)">
+          <div class="mast-item-header"><div class="mast-item-id">FM-3.1</div><div class="mast-item-name">Tasks terminate before completion</div></div>
+          <div class="mast-item-body">The system declares success and terminates before the task is actually complete. Often triggered by a plausible-looking intermediate output that the orchestrator misidentifies as the final answer. Particularly common when the success criterion is vague ("done") rather than verifiable ("all 5 test cases pass").</div>
+        </div>
+        <div class="mast-item" onclick="toggleMast(this)">
+          <div class="mast-item-header"><div class="mast-item-id">FM-3.2</div><div class="mast-item-name">Verification skipped or incomplete</div></div>
+          <div class="mast-item-body">The verification step is not executed at all, or executes on the wrong output, or applies the wrong success criteria. The agent may "verify" by re-reading its own output — not by executing code, running tests, or comparing against ground truth. Self-verification is systematically overconfident.</div>
+        </div>
+        <div class="mast-item" onclick="toggleMast(this)">
+          <div class="mast-item-header"><div class="mast-item-id">FM-3.3</div><div class="mast-item-name">Verification reaches wrong conclusions</div></div>
+          <div class="mast-item-body">Verification runs but produces an incorrect verdict — approving a broken output or rejecting a correct one. Root causes: the verifier uses different assumptions than the producer, the test cases are insufficient, or the verifier LLM is the same model that produced the error (same blind spots).</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 8: RELIABILITY -->
+<section class="section" id="reliability">
+  <div class="section-label">Engineering for Production</div>
+  <h2 class="section-title">Reliability: SagaLLM &amp; Transactional Guarantees</h2>
+  <p class="section-subtitle">Multi-agent workflows need the same recovery guarantees as distributed databases. SagaLLM adapts the Saga pattern from distributed systems to LLM orchestration.</p>
+
+  <p>Traditional software transactions follow ACID guarantees — if any step fails, the whole transaction rolls back. Multi-agent LLM workflows are fundamentally different: steps are long-running, expensive, and non-reversible. <strong>SagaLLM</strong> (Chang &amp; Geng, VLDB 2025) adapts the <em>Saga pattern</em> from distributed databases — where each step has a <strong>compensating transaction</strong> (a way to undo its effects) — to LLM planning workflows.</p>
+
+  <div class="two-col">
+    <div class="card" style="border-color:#2563eb44;">
+      <div class="card-title" style="color:var(--blue2);">Four Problems SagaLLM Solves</div>
+      <div class="card-body">
+        <strong>1. Unreliable self-validation</strong> — LLMs overestimate their own output correctness. Independent validator agents provide objective verification.<br><br>
+        <strong>2. Context loss across interactions</strong> — Modular checkpointing at each saga step preserves state. If an agent fails mid-workflow, recovery resumes from the last checkpoint, not the start.<br><br>
+        <strong>3. No transactional safeguards</strong> — Compensating transactions allow rollback. If step 4 fails, steps 1–3 execute their compensating logic to undo side effects.<br><br>
+        <strong>4. Weak inter-agent coordination</strong> — Saga-style dependencies make coordination explicit and verifiable, not implicit in prompts.
+      </div>
+    </div>
+    <div class="card" style="border-color:#2563eb44;">
+      <div class="card-title" style="color:var(--blue2);">Production Engineering Principles</div>
+      <div class="card-body">
+        <strong>Circuit breakers</strong> — detect runaway agent loops early; stop execution before costs spiral. GetOnStack learned this the hard way ($47K/week from unchecked loops).<br><br>
+        <strong>Hard budget limits</strong> — maximum token budget per workflow. ZenML found "context rot" begins at 50k–150k tokens regardless of theoretical context windows.<br><br>
+        <strong>Tool count discipline</strong> — "analysis paralysis" when &gt;15 tools exposed simultaneously. Restrict available tools to the task-relevant subset at each stage.<br><br>
+        <strong>Explicit termination criteria</strong> — machine-verifiable success conditions (code runs, tests pass, schema validates), not "the agent decides it's done."
+      </div>
+    </div>
+  </div>
+
+  <div class="callout" style="margin-top:24px;">
+    <div class="callout-title">The RL Frontier (Zhang 2026)</div>
+    <div class="callout-body">RL for multi-agent orchestration (arXiv:2605.02801) formalizes the orchestrator's job as 5 decisions: O1 (when to spawn), O2 (whom to delegate), O3 (how to communicate), O4 (how to aggregate), O5 (when to stop). Eight reward families cover outcome quality, parallelism speedup, aggregation accuracy, and team coordination. The stopping decision (O5) has <strong>no established RL training method yet</strong> — the most critical open research gap in production multi-agent engineering.</div>
+  </div>
+</section>
+
+<!-- SECTION 9: RELATED POSTS -->
+<section class="section" id="related">
+  <div class="section-label">Go Deeper</div>
+  <h2 class="section-title">Related Posts</h2>
+  <div class="xref-grid">
+    <a class="xref-card" href="../50-memory-agents/">
+      <div class="xref-num">Post 50 · Agents &amp; Systems</div>
+      <div class="xref-title">Memory in LLM Agents — The W-P-R Framework</div>
+      <div class="xref-desc">Orchestration builds on memory. Each agent in a multi-agent system must manage its own W-P-R (Write-Manage-Read) memory cycle, and the orchestrator must track shared state across all agents — the inter-agent memory problem is a prerequisite to solving orchestration.</div>
+    </a>
+    <a class="xref-card" href="../51-institutional-memory/">
+      <div class="xref-num">Post 51 · Agents &amp; Systems</div>
+      <div class="xref-title">Institutional Memory — Getting Expert Knowledge Into LLM Agents</div>
+      <div class="xref-desc">In a multi-agent orchestration system, different agents can be seeded with different domain expert knowledge — routing customer queries to the agent loaded with the right institutional context. The AKU (Atomic Knowledge Unit) concept maps directly onto per-agent knowledge bases.</div>
+    </a>
+    <a class="xref-card" href="../46-hermes-agent/">
+      <div class="xref-num">Post 46 · Agents &amp; Systems</div>
+      <div class="xref-title">Hermes Agent — The Self-Improving Architecture</div>
+      <div class="xref-desc">Hermes implements the supervisor pattern with GEPA for skill evolution — a concrete single-agent architecture that forms the building block for multi-agent orchestration. The SOUL.md identity layer and The Curator demonstrate production-grade agent lifecycle management.</div>
+    </a>
+    <a class="xref-card" href="../47-gcg-attack/">
+      <div class="xref-num">Post 47 · Safety &amp; Governance</div>
+      <div class="xref-title">GCG Attack — Adversarial Suffixes</div>
+      <div class="xref-desc">Multi-agent systems multiply the attack surface. An adversarial suffix injected into one agent's input can propagate to downstream agents via the orchestrator's message passing — a cascade attack that single-agent safety evaluations completely miss.</div>
+    </a>
+    <a class="xref-card" href="../41-agent-traps/">
+      <div class="xref-num">Post 41 · Safety &amp; Governance</div>
+      <div class="xref-title">AI Agent Traps — Prompt Injection</div>
+      <div class="xref-desc">Orchestrated agents that can invoke tools and delegate to sub-agents are prime targets for prompt injection. FM-2.4 (agents withholding information) from MAST directly maps to an adversarial scenario where a compromised agent silently passes poisoned context to the orchestrator.</div>
+    </a>
+    <a class="xref-card" href="../48-continual-learning/">
+      <div class="xref-num">Post 48 · Training &amp; Alignment</div>
+      <div class="xref-title">Continual Learning — Teaching Models to Remember Without Forgetting</div>
+      <div class="xref-desc">Persistent multi-agent systems that learn from their orchestration traces (as in Zhang 2026's RL framework) face catastrophic forgetting when new task types are added. Continual learning methods are the right tool for keeping orchestration policies current without degrading prior capabilities.</div>
+    </a>
+  </div>
+</section>
+
+<!-- CONTINUE STRIP -->
+<div class="continue-strip">
+  <div>
+    <div class="cs-label">&#8592; Previous Post</div>
+    <a href="../51-institutional-memory/" class="cs-title">Post 51 — Institutional Memory</a>
+  </div>
+  <div style="text-align:right;">
+    <div class="cs-label">All Posts &#8594;</div>
+    <a href="../" class="cs-title" style="color:var(--blue2);">Visual Summary</a>
+  </div>
+</div>
+
+</main>
+</div>
+</div>
+
+<script>
+var STORE_KEY='pg_unlocked_52', PW='visual2025';
+function checkGate(){
+  if(document.getElementById('gate-pw').value.trim()===PW){
+    localStorage.setItem(STORE_KEY,'1');
+    document.getElementById('gate').style.display='none';
+    document.getElementById('app').style.display='block';
+    initAll();
+  } else { document.getElementById('gate-err').textContent='Incorrect code.'; }
+}
+document.getElementById('gate-pw').addEventListener('keydown',function(e){if(e.key==='Enter')checkGate();});
+if(localStorage.getItem(STORE_KEY)==='1'){document.getElementById('gate').style.display='none';document.getElementById('app').style.display='block';}
+
+function initAll(){ initSidebar(); animateBars(); }
+
+function initSidebar(){
+  var links=document.querySelectorAll('.sidebar-nav a');
+  function hl(){var s=window.scrollY+120,active=null;links.forEach(function(l){var id=l.getAttribute('href').replace('#','');var el=document.getElementById(id);if(el&&el.offsetTop<=s)active=l;});links.forEach(function(l){l.classList.remove('active');});if(active)active.classList.add('active');}
+  window.addEventListener('scroll',hl);hl();
+}
+
+function animateBars(){
+  setTimeout(function(){
+    document.querySelectorAll('.mast-bar-fill').forEach(function(b){b.style.width=b.style.width;});
+  },300);
+}
+
+/* ======================== PATTERN CARDS ======================== */
+var PAT_DATA = [
+  {
+    name:'Supervisor / Hierarchical Pattern',
+    topology:`<div class="pat-node orchestrator">Orchestrator</div><div class="pat-arrow">↙↓↘</div><div style="display:flex;gap:6px;"><div class="pat-node worker">Agent A</div><div class="pat-node worker">Agent B</div><div class="pat-node worker">Agent C</div></div><div class="pat-arrow">↖↑↗</div><div class="pat-node orchestrator">Synthesize → Result</div>`,
+    items:[
+      {label:'Control',val:'Centralized. Orchestrator makes all routing and sequencing decisions.'},
+      {label:'Latency',val:'Medium-High. Sequential orchestrator decisions add overhead.'},
+      {label:'Fault Tolerance',val:'Medium. Orchestrator failure brings down the whole workflow.'},
+      {label:'Debuggability',val:'Good. Centralized decision log makes traces readable.'},
+      {label:'When to Use',val:'Structured workflows, compliance environments, document generation, financial analysis.'},
+      {label:'Real Example',val:'LangGraph supervisor. MetaGPT PM→Architect→Engineer chain. Alan healthcare agent (30-35% automation).'}
+    ]
+  },
+  {
+    name:'Pipeline Pattern',
+    topology:`<div class="pat-node worker">Stage 1<br>Research</div><div class="pat-arrow">→</div><div class="pat-node worker">Stage 2<br>Draft</div><div class="pat-arrow">→</div><div class="pat-node worker">Stage 3<br>Edit</div><div class="pat-arrow">→</div><div class="pat-node worker">Stage 4<br>Publish</div>`,
+    items:[
+      {label:'Control',val:'High. Fixed sequence; each stage has exactly one input and one output.'},
+      {label:'Latency',val:'Sum of all stages. No parallelization unless stages are independent.'},
+      {label:'Fault Tolerance',val:'Low. One failed stage stalls the entire pipeline.'},
+      {label:'Debuggability',val:'Excellent. Linear trace makes debugging trivial.'},
+      {label:'When to Use',val:'Content pipelines (research→draft→edit→publish), CI/CD automation, ETL workflows.'},
+      {label:'Real Example',val:'CrewAI Sequential process. ChatDev Chat Chain (CEO→CTO→Dev→QA).'}
+    ]
+  },
+  {
+    name:'Router Pattern',
+    topology:`<div class="pat-node router">Router<br>(Classifier)</div><div class="pat-arrow">→</div><div style="display:flex;flex-direction:column;gap:6px;"><div class="pat-node worker">Billing Agent</div><div class="pat-node worker">Tech Support Agent</div><div class="pat-node worker">Sales Agent</div></div>`,
+    items:[
+      {label:'Control',val:'Medium. Router classifies and routes; specialists execute autonomously.'},
+      {label:'Latency',val:'Low. One classification call, then direct specialist execution.'},
+      {label:'Fault Tolerance',val:'High. Specialist failure doesn\'t affect other specialists.'},
+      {label:'Debuggability',val:'Good. Classification decision is auditable.'},
+      {label:'When to Use',val:'Customer support, mixed-workload APIs, low-latency scenarios with wide request variety.'},
+      {label:'Real Example',val:'OpenAI Swarm handoffs. DyLAN Agent Importance Score routing. DAAO difficulty-based model routing.'}
+    ]
+  },
+  {
+    name:'Swarm / Peer-to-Peer Pattern',
+    topology:`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;"><div class="pat-node worker">Agent 1</div><div class="pat-node worker">Agent 2</div><div class="pat-node worker">Agent 3</div><div class="pat-node worker">Agent 4</div><div class="pat-node orchestrator">Shared Queue</div><div class="pat-node worker">Agent 5</div><div class="pat-node worker">Agent 6</div><div class="pat-node worker">Agent 7</div><div class="pat-node worker">Agent 8</div></div>`,
+    items:[
+      {label:'Control',val:'Low. Decentralized; agents claim tasks from shared queue and communicate peer-to-peer.'},
+      {label:'Latency',val:'Low (parallel). Agents work simultaneously, no central bottleneck.'},
+      {label:'Fault Tolerance',val:'High. Individual agent failure doesn\'t stop the swarm.'},
+      {label:'Debuggability',val:'Poor. Requires distributed tracing. Emergent behaviors are hard to predict.'},
+      {label:'When to Use',val:'Large-scale coding tasks, vulnerability scanning, massive parallelism. High-throughput, low-predictability workloads.'},
+      {label:'Real Example',val:'Kimi K2.6 (300 agents, 4,000 steps, 58.6% SWE-Bench Pro). AgentsNet (Google DeepMind, topology experiments).'}
+    ]
+  }
+];
+
+function setPat(i){
+  document.querySelectorAll('.pat-card').forEach(function(c,idx){c.classList.toggle('active',idx===i);});
+  var det=document.getElementById('pat-detail');
+  var d=PAT_DATA[i];
+  var itemsHtml=d.items.map(function(it){return '<div class="pat-detail-item"><div class="pat-detail-label">'+it.label+'</div><div class="pat-detail-val">'+it.val+'</div></div>';}).join('');
+  det.innerHTML='<div class="pat-detail-name">'+d.name+'</div><div class="pat-topology">'+d.topology+'</div><div class="pat-detail-grid">'+itemsHtml+'</div>';
+  det.classList.add('active');det.style.display='block';
+}
+
+/* ======================== FRAMEWORKS ======================== */
+function setFw(i){
+  document.querySelectorAll('.fw-tab').forEach(function(t,idx){t.classList.toggle('active',idx===i);});
+  document.querySelectorAll('.fw-panel').forEach(function(p,idx){p.classList.toggle('active',idx===i);});
+}
+
+/* ======================== DECOMP STEPPER ======================== */
+function setDec(i){
+  document.querySelectorAll('.dec-step').forEach(function(s,idx){s.classList.toggle('active',idx===i);});
+  document.querySelectorAll('.dec-panel').forEach(function(p,idx){p.classList.toggle('active',idx===i);});
+}
+
+/* ======================== PROTOCOLS ======================== */
+function toggleProto(i){
+  var layer=document.querySelectorAll('.proto-layer')[i];
+  layer.classList.toggle('open');
+}
+
+/* ======================== MAST ======================== */
+function toggleMast(item){
+  var body=item.querySelector('.mast-item-body');
+  var isOpen=item.classList.contains('open');
+  item.classList.toggle('open',!isOpen);
+  body.style.display=isOpen?'none':'block';
+}
+
+/* ======================== MoA ======================== */
+function setMoa(type){
+  document.getElementById('moa-btn-0').classList.toggle('active',type==='moa');
+  document.getElementById('moa-btn-1').classList.toggle('active',type==='self');
+  document.getElementById('moa-panel-moa').classList.toggle('active',type==='moa');
+  document.getElementById('moa-panel-self').classList.toggle('active',type==='self');
+}
+</script>
+</body>
+</html>
