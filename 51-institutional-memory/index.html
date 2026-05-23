@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Post 51 · Institutional Memory &amp; LLM Agents — Visual Summary</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --em:#10b981;--em2:#34d399;--green:#059669;--teal:#14b8a6;
+  --bg:#080d0b;--surface:#0f1a15;--surface2:#162420;--border:#1f3028;
+  --text:#edf7f3;--muted:#6b9e87;--accent:var(--em);
+}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.6;}
+a{color:var(--em);text-decoration:none;}
+a:hover{text-decoration:underline;}
+
+/* GATE */
+#gate{position:fixed;inset:0;background:#060c09;z-index:9999;display:flex;align-items:center;justify-content:center;}
+.gate-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:48px 40px;max-width:420px;width:90%;text-align:center;}
+.gate-logo{font-size:13px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:24px;}
+.gate-title{font-size:22px;font-weight:800;color:var(--text);margin-bottom:8px;}
+.gate-sub{font-size:13px;color:var(--muted);margin-bottom:28px;}
+.gate-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;color:var(--text);font-size:14px;outline:none;margin-bottom:12px;}
+.gate-input:focus{border-color:var(--em);}
+.gate-btn{width:100%;background:var(--em);color:#fff;font-weight:700;font-size:14px;padding:12px;border:none;border-radius:8px;cursor:pointer;letter-spacing:.5px;}
+.gate-btn:hover{background:var(--em2);color:#000;}
+.gate-err{color:#f87171;font-size:12px;margin-top:8px;min-height:16px;}
+
+/* LAYOUT */
+#app{display:none;min-height:100vh;}
+.shell{display:grid;grid-template-columns:220px 1fr;min-height:100vh;}
+
+/* SIDEBAR */
+.sidebar{background:var(--surface);border-right:1px solid var(--border);padding:28px 0;position:sticky;top:0;height:100vh;overflow-y:auto;}
+.sidebar-brand{padding:0 20px 20px;border-bottom:1px solid var(--border);margin-bottom:16px;}
+.sidebar-brand-label{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
+.sidebar-brand-title{font-size:13px;font-weight:700;color:var(--em);line-height:1.3;}
+.sidebar-nav{list-style:none;}
+.sidebar-nav li a{display:block;padding:8px 20px;font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;transition:all .15s;}
+.sidebar-nav li a:hover,.sidebar-nav li a.active{color:var(--em);background:var(--surface2);text-decoration:none;}
+.sidebar-nav li a .nav-num{display:inline-block;width:18px;font-size:10px;opacity:.5;}
+
+/* MAIN */
+.main{min-width:0;}
+.hero-section{background:linear-gradient(135deg,#080d0b 0%,#0c1f16 60%,#0f2018 100%);padding:64px 56px 48px;border-bottom:1px solid var(--border);}
+.hero-eyebrow{font-size:11px;font-weight:700;letter-spacing:2px;color:var(--em);text-transform:uppercase;margin-bottom:12px;}
+.hero-title{font-size:36px;font-weight:900;line-height:1.15;color:var(--text);margin-bottom:16px;}
+.hero-title span{color:var(--em);}
+.hero-desc{font-size:15px;color:var(--muted);max-width:640px;line-height:1.7;margin-bottom:28px;}
+.hero-meta{display:flex;gap:24px;flex-wrap:wrap;}
+.meta-pill{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:11px;font-weight:600;color:var(--muted);}
+.meta-pill span{color:var(--em);}
+
+/* SECTIONS */
+.section{padding:48px 56px;border-bottom:1px solid var(--border);}
+.section-label{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--em);text-transform:uppercase;margin-bottom:8px;}
+.section-title{font-size:24px;font-weight:800;color:var(--text);margin-bottom:8px;}
+.section-subtitle{font-size:14px;color:var(--muted);margin-bottom:32px;max-width:640px;}
+p{color:var(--muted);font-size:14px;line-height:1.8;margin-bottom:16px;}
+p:last-child{margin-bottom:0;}
+strong{color:var(--text);}
+
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;}
+.card-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;}
+.card-body{font-size:13px;color:var(--muted);line-height:1.7;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:24px;}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:24px;}
+
+/* CALLOUT */
+.callout{background:var(--surface2);border-left:3px solid var(--em);border-radius:0 8px 8px 0;padding:16px 20px;margin:20px 0;}
+.callout-title{font-size:12px;font-weight:700;color:var(--em);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+.callout-body{font-size:13px;color:var(--muted);line-height:1.7;}
+
+/* MATH BLOCK */
+.math-block{background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--em);border-radius:8px;padding:18px 20px;font-family:'Courier New',monospace;font-size:13px;color:var(--em2);margin:20px 0;overflow-x:auto;}
+.math-label{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
+
+/* TAGS */
+.tag{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 8px;font-size:11px;color:var(--muted);margin:2px;}
+
+/* ========================
+   INTERACTIVE 1: Tacit–Explicit Spectrum
+   ======================== */
+.spectrum-container{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px;margin-top:24px;}
+.spectrum-bar-wrap{position:relative;margin:24px 0 32px;}
+.spectrum-bar{height:12px;border-radius:6px;background:linear-gradient(90deg,#065f46,#10b981,#34d399,#6ee7b7,#d1fae5);margin-bottom:6px;}
+.spectrum-labels{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);}
+.spectrum-slider{width:100%;-webkit-appearance:none;appearance:none;height:12px;border-radius:6px;background:transparent;outline:none;cursor:pointer;position:absolute;top:0;left:0;}
+.spectrum-slider::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--em);border:2px solid #fff;cursor:pointer;margin-top:-5px;}
+.spectrum-result{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:20px;min-height:120px;}
+.spectrum-result-label{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--em);text-transform:uppercase;margin-bottom:6px;}
+.spectrum-result-title{font-size:16px;font-weight:800;color:var(--text);margin-bottom:8px;}
+.spectrum-result-body{font-size:13px;color:var(--muted);line-height:1.7;}
+.spectrum-examples{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+
+/* ========================
+   INTERACTIVE 2: SECI Model
+   ======================== */
+.seci-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px;margin-top:24px;background:var(--border);border-radius:12px;overflow:hidden;}
+.seci-cell{background:var(--surface);padding:24px;cursor:pointer;transition:all .2s;border:2px solid transparent;}
+.seci-cell:hover,.seci-cell.active{background:var(--surface2);border-color:var(--em);}
+.seci-corner{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--em);margin-bottom:6px;}
+.seci-name{font-size:16px;font-weight:800;color:var(--text);margin-bottom:6px;}
+.seci-from-to{font-size:12px;color:var(--muted);margin-bottom:10px;}
+.seci-example{font-size:12px;color:var(--muted);line-height:1.5;}
+.seci-detail{background:var(--surface);border:1px solid var(--em);border-radius:12px;padding:24px;margin-top:12px;display:none;}
+.seci-detail.active{display:block;}
+.seci-detail-title{font-size:16px;font-weight:800;color:var(--em);margin-bottom:12px;}
+.seci-axes{display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:16px;}
+
+/* ========================
+   INTERACTIVE 3: Capture Method Explorer
+   ======================== */
+.capture-tabs{display:flex;border-bottom:1px solid var(--border);margin-top:24px;}
+.cap-tab{flex:1;padding:12px 8px;text-align:center;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;background:none;border-top:none;border-left:none;border-right:none;}
+.cap-tab:hover{color:var(--text);}
+.cap-tab.active{color:var(--em);border-bottom-color:var(--em);}
+.capture-panel{display:none;padding:28px;background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 12px 12px;}
+.capture-panel.active{display:block;}
+.cap-badge{display:inline-block;background:linear-gradient(90deg,var(--green),var(--teal));color:#fff;font-size:10px;font-weight:800;padding:3px 10px;border-radius:12px;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;}
+.cap-title{font-size:18px;font-weight:800;color:var(--text);margin-bottom:8px;}
+.cap-desc{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:16px;}
+.cap-steps{counter-reset:step;}
+.cap-step{display:flex;gap:14px;margin-bottom:14px;align-items:flex-start;}
+.cap-step-num{background:var(--em);color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;margin-top:2px;}
+.cap-step-body{font-size:13px;color:var(--muted);line-height:1.6;}
+.cap-step-body strong{color:var(--text);}
+.cap-papers{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-top:16px;}
+.cap-papers-label{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--em);text-transform:uppercase;margin-bottom:8px;}
+.paper-cite{font-size:12px;color:var(--muted);line-height:1.8;}
+
+/* ========================
+   INTERACTIVE 4: Knowledge Pipeline
+   ======================== */
+.pipeline-wrap{margin-top:24px;}
+.pipeline-nodes{display:flex;align-items:stretch;gap:0;overflow-x:auto;}
+.pipe-node-wrap{display:flex;flex-direction:column;align-items:center;flex:1;min-width:120px;}
+.pipe-node-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 10px;text-align:center;cursor:pointer;transition:all .2s;width:100%;}
+.pipe-node-box:hover,.pipe-node-box.active{border-color:var(--em);background:var(--surface2);}
+.pipe-node-icon{font-size:22px;margin-bottom:6px;}
+.pipe-node-name{font-size:11px;font-weight:700;color:var(--text);line-height:1.3;}
+.pipe-node-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.pipe-connector{display:flex;align-items:center;padding:0 4px;color:var(--muted);font-size:20px;flex-shrink:0;}
+.pipeline-detail{background:var(--surface);border:1px solid var(--em);border-radius:12px;padding:24px;margin-top:16px;display:none;}
+.pipeline-detail.active{display:block;}
+.pipeline-detail-title{font-size:16px;font-weight:800;color:var(--em);margin-bottom:12px;}
+.pipeline-detail-body{font-size:13px;color:var(--muted);line-height:1.8;}
+.pipeline-detail-body ul{padding-left:20px;margin-top:8px;}
+.pipeline-detail-body li{margin-bottom:6px;}
+.pipeline-detail-body strong{color:var(--text);}
+
+/* ========================
+   INTERACTIVE 5: RAG Evolution Timeline
+   ======================== */
+.rag-timeline{margin-top:24px;}
+.rag-stage{display:flex;gap:0;margin-bottom:4px;}
+.rag-stage-btn{flex:1;padding:16px 12px;background:var(--surface);border:1px solid var(--border);cursor:pointer;text-align:left;transition:all .2s;border-bottom:3px solid transparent;}
+.rag-stage-btn:first-child{border-radius:10px 0 0 0;}
+.rag-stage-btn:last-child{border-radius:0 10px 0 0;}
+.rag-stage-btn:hover,.rag-stage-btn.active{background:var(--surface2);border-bottom-color:var(--em);}
+.rag-stage-era{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--em);text-transform:uppercase;}
+.rag-stage-name{font-size:14px;font-weight:800;color:var(--text);margin-top:2px;}
+.rag-detail{background:var(--surface);border:1px solid var(--border);border-radius:0 0 10px 10px;padding:28px;display:none;}
+.rag-detail.active{display:block;}
+.rag-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;}
+.rag-detail-item{background:var(--surface2);border-radius:8px;padding:14px;}
+.rag-detail-label{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--em);text-transform:uppercase;margin-bottom:4px;}
+.rag-detail-val{font-size:12px;color:var(--text);line-height:1.5;}
+
+/* ========================
+   INTERACTIVE 6: Challenges
+   ======================== */
+.challenge-list{display:flex;flex-direction:column;gap:10px;margin-top:16px;}
+.challenge-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 20px;cursor:pointer;transition:all .2s;}
+.challenge-item:hover,.challenge-item.open{border-color:var(--em);background:var(--surface2);}
+.challenge-header{display:flex;align-items:center;gap:14px;}
+.challenge-icon{font-size:20px;flex-shrink:0;}
+.challenge-title{font-size:14px;font-weight:700;color:var(--text);flex:1;}
+.challenge-severity{display:flex;gap:3px;}
+.severity-dot{width:8px;height:8px;border-radius:50%;background:var(--border);}
+.severity-dot.on{background:var(--em);}
+.challenge-body{font-size:13px;color:var(--muted);line-height:1.7;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);display:none;}
+.challenge-body.open{display:block;}
+
+/* XREF */
+.xref-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:24px;}
+.xref-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;transition:all .2s;}
+.xref-card:hover{border-color:var(--em);text-decoration:none;}
+.xref-num{font-size:10px;font-weight:700;color:var(--em);letter-spacing:1px;margin-bottom:6px;}
+.xref-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px;line-height:1.4;}
+.xref-desc{font-size:11px;color:var(--muted);line-height:1.5;}
+
+/* STAT ROW */
+.stat-row{display:flex;gap:24px;flex-wrap:wrap;margin:24px 0;}
+.stat-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 24px;flex:1;min-width:140px;}
+.stat-val{font-size:28px;font-weight:900;color:var(--em);margin-bottom:4px;}
+.stat-lbl{font-size:12px;color:var(--muted);line-height:1.4;}
+
+/* CONTINUE STRIP */
+.continue-strip{background:var(--surface);border-top:1px solid var(--border);padding:32px 48px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;}
+.cs-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.cs-title{font-size:15px;font-weight:700;color:var(--text);}
+.cs-title:hover{color:var(--em2);}
+
+/* RESPONSIVE */
+@media(max-width:860px){
+  .shell{grid-template-columns:1fr;}
+  .sidebar{display:none;}
+  .section,.hero-section{padding:28px 20px;}
+  .two-col,.three-col,.xref-grid{grid-template-columns:1fr;}
+  .seci-grid,.rag-detail-grid{grid-template-columns:1fr;}
+  .pipeline-nodes{flex-wrap:wrap;}
+  .rag-stage{flex-wrap:wrap;}
+  .continue-strip{padding:24px 20px;}
+}
+</style>
+</head>
+<body>
+
+<!-- GATE -->
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-logo">Visual Summary</div>
+    <div class="gate-title">Post 51 — Institutional Memory &amp; LLM Agents</div>
+    <div class="gate-sub">Enter the access code to continue</div>
+    <input id="gate-pw" class="gate-input" type="password" placeholder="Access code" autocomplete="off">
+    <button class="gate-btn" onclick="checkGate()">Unlock</button>
+    <div class="gate-err" id="gate-err"></div>
+  </div>
+</div>
+
+<div id="app">
+<div class="shell">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="sidebar-brand-label">Visual Summary</div>
+    <div class="sidebar-brand-title">Post 51 · Institutional Memory &amp; LLM Agents</div>
+  </div>
+  <ul class="sidebar-nav">
+    <li><a href="#intro"><span class="nav-num">01</span> The Problem</a></li>
+    <li><a href="#tacit"><span class="nav-num">02</span> Tacit vs. Explicit</a></li>
+    <li><a href="#seci"><span class="nav-num">03</span> SECI Model</a></li>
+    <li><a href="#pipeline"><span class="nav-num">04</span> Capture Pipeline</a></li>
+    <li><a href="#methods"><span class="nav-num">05</span> Capture Methods</a></li>
+    <li><a href="#rag"><span class="nav-num">06</span> Enterprise RAG</a></li>
+    <li><a href="#challenges"><span class="nav-num">07</span> Challenges</a></li>
+    <li><a href="#related"><span class="nav-num">08</span> Related Posts</a></li>
+  </ul>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+
+<!-- HERO -->
+<section class="hero-section" id="intro">
+  <div class="hero-eyebrow">Post 51 · Agents &amp; Systems</div>
+  <h1 class="hero-title">Institutional Memory<br><span>Getting Expert Knowledge Into LLM Agents</span></h1>
+  <p class="hero-desc">LLMs are trained on public internet data — but the knowledge that makes organizations run lives in human heads. This post covers how to extract tacit expert knowledge, structure it, and feed it to LLM agents — from classical elicitation theory to cutting-edge LLM interviewer systems.</p>
+  <div class="hero-meta">
+    <div class="meta-pill">Based on: <span>30+ papers &amp; reports (2023–2026)</span></div>
+    <div class="meta-pill">Category: <span>Agents &amp; Systems</span></div>
+    <div class="meta-pill">Level: <span>Intermediate</span></div>
+    <div class="meta-pill">Post: <span>51 of 51</span></div>
+  </div>
+</section>
+
+<!-- SECTION 1: THE PROBLEM -->
+<section class="section">
+  <div class="section-label">The Core Problem</div>
+  <h2 class="section-title">The Knowledge That LLMs Will Never See</h2>
+  <p class="section-subtitle">Training data covers what humans published. It doesn't cover what they never wrote down.</p>
+
+  <p>An LLM trained on the internet knows an enormous amount about <em>public</em> knowledge — papers, books, documentation, StackOverflow. But consider what it cannot know: the specific heuristics your best sales rep uses to read a prospect's hesitation, the undocumented design decisions your senior engineer has learned to avoid after a decade of production incidents, or the institutional norms your most tenured manager knows are non-negotiable even though no policy doc says so.</p>
+
+  <p>This gap has a name: <strong>Polanyi's Paradox</strong>. Philosopher Michael Polanyi (1966) observed: <em>"We know more than we can tell."</em> The knowledge embedded in expertise is largely <strong>tacit</strong> — procedural, contextual, hard to articulate, and never written down. And that's exactly the knowledge organizations most desperately need their AI agents to have.</p>
+
+  <div class="callout">
+    <div class="callout-title">Why This Is Getting Urgent Now</div>
+    <div class="callout-body">The retirement crisis is converging with the AI adoption wave. <strong>~10,000 Baby Boomers retire daily</strong> (APQC). Fortune 500 companies lose an estimated <strong>$31.5 billion annually</strong> from knowledge loss due to employee turnover. Manufacturers will need 3.8 million new workers by 2033 with 1.9 million positions potentially unfilled. That tacit knowledge — oral traditions, undocumented meeting decisions, informal rules-of-thumb — walks out the door with each retiree.</div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="stat-val">10,000</div>
+      <div class="stat-lbl">Baby Boomers retire daily (US)</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-val">$31.5B</div>
+      <div class="stat-lbl">Annual Fortune 500 knowledge loss from turnover</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-val">95%</div>
+      <div class="stat-lbl">Enterprise AI pilots that fail to scale due to LLM statelessness</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-val">94.9%</div>
+      <div class="stat-lbl">Full-knowledge recall by LLM interviewer agent (Zuin et al. 2025)</div>
+    </div>
+  </div>
+
+  <p>The map of what an LLM agent can and cannot know has a clear gap at the top:</p>
+
+  <div class="two-col" style="margin-top:16px;">
+    <div class="card" style="border-color:#10b98133;">
+      <div class="card-title" style="color:var(--em);">What LLMs Already Know</div>
+      <div class="card-body">
+        Public internet: Wikipedia, ArXiv, StackOverflow, GitHub, news, books, documentation.<br><br>
+        <strong>Encoded in weights at training time.</strong> No retrieval needed.
+      </div>
+    </div>
+    <div class="card" style="border-color:#ef444433;">
+      <div class="card-title" style="color:#f87171;">What LLMs Cannot Know</div>
+      <div class="card-body">
+        Private org knowledge: internal wikis, Slack, meeting notes, undocumented processes, and most critically — the tacit knowledge that was <strong>never written down</strong>.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 2: TACIT VS EXPLICIT -->
+<section class="section" id="tacit">
+  <div class="section-label">Foundation</div>
+  <h2 class="section-title">Tacit vs. Explicit Knowledge</h2>
+  <p class="section-subtitle">Not all undocumented knowledge is equally hard to capture. The spectrum from fully tacit to fully explicit determines which approach you need.</p>
+
+  <p>Knowledge management theory distinguishes two poles. <strong>Explicit knowledge</strong> is codified — it can be written, stored, and transferred as documents. <strong>Tacit knowledge</strong> is embodied — it lives in practice, intuition, and experience, and resists verbalization. Most real expert knowledge sits somewhere in between.</p>
+
+  <p>The philosopher Gilbert Ryle (1949) distinguished <em>"knowing that"</em> (explicit facts) from <em>"knowing how"</em> (skilled practice). An expert surgeon "knows that" the radial artery is at the wrist, but also "knows how" to feel when a suture is correct — the latter is tacit and cannot easily be transferred via text.</p>
+
+  <!-- Interactive 1: Spectrum -->
+  <div class="spectrum-container">
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:16px;">Drag the slider to explore the knowledge spectrum:</div>
+    <div class="spectrum-bar-wrap">
+      <div class="spectrum-bar"></div>
+      <input type="range" class="spectrum-slider" id="spec-slider" min="0" max="4" value="2" oninput="setSpectrum(this.value)">
+      <div class="spectrum-labels">
+        <span>Fully Tacit</span>
+        <span>Semi-Tacit</span>
+        <span>Mixed</span>
+        <span>Semi-Explicit</span>
+        <span>Fully Explicit</span>
+      </div>
+    </div>
+    <div class="spectrum-result" id="spec-result">
+      <div class="spectrum-result-label" id="spec-label">Loading...</div>
+      <div class="spectrum-result-title" id="spec-title">Loading...</div>
+      <div class="spectrum-result-body" id="spec-body">Loading...</div>
+      <div class="spectrum-examples" id="spec-examples"></div>
+    </div>
+  </div>
+
+  <div class="callout" style="margin-top:28px;">
+    <div class="callout-title">Polanyi's Paradox — The AI Angle</div>
+    <div class="callout-body">LLMs may actually be uniquely positioned to crack Polanyi's Paradox. Where traditional interviews force experts to articulate knowledge in one shot, an LLM interviewer can ask follow-up questions, probe inconsistencies, generate hypotheticals ("what would you do if X?"), and over many interactions reconstruct the underlying model the expert is using — even when the expert couldn't state it directly. A 2025 IJCNN paper (Zuin et al.) showed an LLM agent achieved 94.9% full-knowledge recall across a synthetic company without ever contacting the original specialist directly — by interviewing downstream employees who had absorbed fragments of the expert's knowledge.</div>
+  </div>
+</section>
+
+<!-- SECTION 3: SECI MODEL -->
+<section class="section" id="seci">
+  <div class="section-label">Knowledge Management Theory</div>
+  <h2 class="section-title">The SECI Model — Updated for LLMs</h2>
+  <p class="section-subtitle">Nonaka &amp; Takeuchi's 1995 SECI model describes how tacit knowledge becomes explicit. Three research groups have now extended it specifically for generative AI.</p>
+
+  <p>The SECI model (Socialization → Externalization → Combination → Internalization) describes the cycle by which organizations create and transfer knowledge. Originally it described human-to-human knowledge transfer. In 2024–2026, three independent research groups proposed extensions specifically for LLM-augmented knowledge management.</p>
+
+  <!-- Interactive 2: SECI Grid -->
+  <div class="seci-axes">
+    <span>↑ Tacit → Explicit (vertical)</span>
+    <span>Individual → Collective (horizontal) →</span>
+  </div>
+  <div class="seci-grid" id="seci-grid">
+    <div class="seci-cell" id="seci-0" onclick="setSeci(0)">
+      <div class="seci-corner">S — Top Left</div>
+      <div class="seci-name">Socialization</div>
+      <div class="seci-from-to">Tacit → Tacit · Individual</div>
+      <div class="seci-example">Expert apprenticeship, observation, shadowing. Knowledge shared through shared experience, not words.</div>
+    </div>
+    <div class="seci-cell" id="seci-1" onclick="setSeci(1)">
+      <div class="seci-corner">E — Top Right</div>
+      <div class="seci-name">Externalization</div>
+      <div class="seci-from-to">Tacit → Explicit · Collective</div>
+      <div class="seci-example">Writing down processes, creating SOPs, documenting decisions. The hardest and most valuable step.</div>
+    </div>
+    <div class="seci-cell" id="seci-2" onclick="setSeci(2)">
+      <div class="seci-corner">I — Bottom Left</div>
+      <div class="seci-name">Internalization</div>
+      <div class="seci-from-to">Explicit → Tacit · Individual</div>
+      <div class="seci-example">Learning by doing with documented knowledge. Reading SOPs and developing intuition through practice.</div>
+    </div>
+    <div class="seci-cell" id="seci-3" onclick="setSeci(3)">
+      <div class="seci-corner">C — Bottom Right</div>
+      <div class="seci-name">Combination</div>
+      <div class="seci-from-to">Explicit → Explicit · Collective</div>
+      <div class="seci-example">Combining documents, reports, databases. Merging and recombining explicit knowledge stores.</div>
+    </div>
+  </div>
+  <div class="seci-detail" id="seci-detail"></div>
+
+  <div class="callout" style="margin-top:28px;">
+    <div class="callout-title">Three LLM Extensions to SECI</div>
+    <div class="callout-body">
+      <strong>HAC-SECI (2024, Tokyo University of Science)</strong> — Dual-loop: Inner Loop = humans give knowledge to AI (agent growth); Outer Loop = AI's accumulated knowledge helps humans recognize and develop their own thinking.<br><br>
+      <strong>GRAI Framework (2025, VINE Journal)</strong> — Splits each SECI quadrant into 8 fields distinguishing human perspective vs. machine perspective. "Receptive" AI that learns from interaction, not just generation.<br><br>
+      <strong>GenAI SECI (2026, AHFE)</strong> — Introduces "Digital Fragmented Knowledge" — new concept integrating explicit and tacit knowledge within cyberspace. Full architectural spec for LLM-augmented SECI implementation.
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 4: CAPTURE PIPELINE -->
+<section class="section" id="pipeline">
+  <div class="section-label">The Architecture</div>
+  <h2 class="section-title">The Expert-to-Agent Knowledge Pipeline</h2>
+  <p class="section-subtitle">Five stages connect what's in an expert's head to what an LLM agent can use. Each stage has distinct tools and failure modes.</p>
+
+  <p>There is no single magic step. Getting tacit expert knowledge into an agent memory system requires a pipeline of five distinct phases, each with its own tooling, verification challenges, and failure modes. Click each stage to understand what's required.</p>
+
+  <div class="pipeline-wrap">
+    <div class="pipeline-nodes">
+      <div class="pipe-node-wrap">
+        <div class="pipe-node-box active" id="pipe-0" onclick="setPipe(0)">
+          <div class="pipe-node-icon">🧠</div>
+          <div class="pipe-node-name">Expert Knowledge</div>
+          <div class="pipe-node-sub">In the brain</div>
+        </div>
+      </div>
+      <div class="pipe-connector">→</div>
+      <div class="pipe-node-wrap">
+        <div class="pipe-node-box" id="pipe-1" onclick="setPipe(1)">
+          <div class="pipe-node-icon">🎙️</div>
+          <div class="pipe-node-name">Elicitation</div>
+          <div class="pipe-node-sub">Interviews / think-aloud</div>
+        </div>
+      </div>
+      <div class="pipe-connector">→</div>
+      <div class="pipe-node-wrap">
+        <div class="pipe-node-box" id="pipe-2" onclick="setPipe(2)">
+          <div class="pipe-node-icon">🔧</div>
+          <div class="pipe-node-name">Structuring</div>
+          <div class="pipe-node-sub">KGs / BPMN / AKUs</div>
+        </div>
+      </div>
+      <div class="pipe-connector">→</div>
+      <div class="pipe-node-wrap">
+        <div class="pipe-node-box" id="pipe-3" onclick="setPipe(3)">
+          <div class="pipe-node-icon">✅</div>
+          <div class="pipe-node-name">Verification</div>
+          <div class="pipe-node-sub">Expert sign-off</div>
+        </div>
+      </div>
+      <div class="pipe-connector">→</div>
+      <div class="pipe-node-wrap">
+        <div class="pipe-node-box" id="pipe-4" onclick="setPipe(4)">
+          <div class="pipe-node-icon">💾</div>
+          <div class="pipe-node-name">Agent Memory</div>
+          <div class="pipe-node-sub">RAG / fine-tune / KG</div>
+        </div>
+      </div>
+    </div>
+    <div class="pipeline-detail active" id="pipe-detail-0">
+      <div class="pipeline-detail-title">Stage 0 · Expert Knowledge (In the Brain)</div>
+      <div class="pipeline-detail-body">
+        <p>This is where the knowledge lives — and why this problem is hard. The expert's knowledge is <strong>implicit, contextual, and procedural</strong>. They "know how" to do things without being able to articulate the underlying rules. It includes:</p>
+        <ul>
+          <li><strong>Decision heuristics</strong> — "I never trust a customer who asks about refund policy before asking about features"</li>
+          <li><strong>Pattern recognition</strong> — sensing when a patient's chart "looks wrong" even without pinpointing why</li>
+          <li><strong>Workarounds</strong> — knowing that the official process breaks down in edge case X and what to do instead</li>
+          <li><strong>Undocumented constraints</strong> — institutional rules-of-thumb never written into any policy</li>
+          <li><strong>Failure modes to avoid</strong> — hard-won lessons from past mistakes that never made it into post-mortems</li>
+        </ul>
+        <p style="margin-top:12px;">The core challenge: <strong>the expert often doesn't know what they know</strong>. Asking "what do you do?" rarely surfaces the most valuable knowledge — you need structured elicitation techniques to draw it out.</p>
+      </div>
+    </div>
+    <div class="pipeline-detail" id="pipe-detail-1">
+      <div class="pipeline-detail-title">Stage 1 · Elicitation (Drawing It Out)</div>
+      <div class="pipeline-detail-body">
+        <p>Elicitation is the act of externalization — making tacit knowledge articulable. Three major approaches, covered in detail in the Capture Methods section:</p>
+        <ul>
+          <li><strong>Conversational Interview Agents</strong> — LLM conducts a structured interview with the expert, asking probing follow-up questions. Zuin et al. (2025) showed 94.9% recall via a self-critical MDP-style agent loop.</li>
+          <li><strong>Think-Aloud Protocol</strong> — expert verbalizes their reasoning while performing a task. Classic technique from cognitive psychology, now adapted as a prompting framework (THiNK, 2025).</li>
+          <li><strong>Critical Decision Method (CDM)</strong> — retrospective interview technique: "Tell me about a time when you faced a difficult decision." Probes for the cues, options, and rules the expert used. High yield for tacit decision knowledge.</li>
+          <li><strong>Cognitive Task Analysis</strong> — structured decomposition of a complex task into sub-goals, cues, and decision points. Labor-intensive but produces highly actionable knowledge structures.</li>
+        </ul>
+        <p style="margin-top:12px;"><strong>Failure mode:</strong> Experts articulate rationalized post-hoc stories about their decisions, not actual decision processes. Multiple sessions, case probing, and hypothetical scenarios help overcome this.</p>
+      </div>
+    </div>
+    <div class="pipeline-detail" id="pipe-detail-2">
+      <div class="pipeline-detail-title">Stage 2 · Structuring (Making It Usable)</div>
+      <div class="pipeline-detail-body">
+        <p>Raw interview transcripts are not directly useful to an agent. They need to be transformed into a form the agent can retrieve and reason over. Three main structuring paradigms:</p>
+        <ul>
+          <li><strong>Knowledge Graphs (KGs)</strong> — entities and relationships extracted from interview transcripts. LLM-empowered KG construction (Bian, 2025) automates this. Microsoft GraphRAG builds hierarchical clusters from private corpora, enabling "whole-dataset" queries vector search cannot answer.</li>
+          <li><strong>BPMN Process Diagrams</strong> — Radhakrishnan (2025) showed Gemini 2.5 Pro can convert an interview conversation into a BPMN 2.0 process diagram in ~12 minutes. Useful for procedural tacit knowledge.</li>
+          <li><strong>Atomic Knowledge Units (AKUs)</strong> — Bakal (2026) proposes structured, governance-aware units encoding: what to do, which tools to use, constraints to respect, and where to go next. AKUs form a composable knowledge graph agents traverse at runtime.</li>
+          <li><strong>Fine-tuning datasets</strong> — elicited knowledge converted into (instruction, response) pairs for domain fine-tuning. High cost, high benefit for deeply specialized agents.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="pipeline-detail" id="pipe-detail-3">
+      <div class="pipeline-detail-title">Stage 3 · Verification (The Bottleneck)</div>
+      <div class="pipeline-detail-body">
+        <p>This is the most critical and most neglected stage. Multiple papers (Kuks et al. 2025, Shaposhnyk et al. 2025) report that LLM interviewers can hallucinate or fail to catch false information inserted by the expert. Verification is non-negotiable before feeding captured knowledge into an agent.</p>
+        <ul>
+          <li><strong>Expert sign-off</strong> — the original expert reads the structured output and confirms accuracy. Simple, effective, but creates a bottleneck and scheduling burden.</li>
+          <li><strong>Dual-LLM validation</strong> — Shaposhnyk et al. use GPT-4o and Claude as mutual validators: each proposes causal relationships; the other verifies. 10 of 12 proposed relationships confirmed by both models, but hallucination risk remains.</li>
+          <li><strong>Adversarial insertion testing</strong> — Kuks et al. intentionally inserted false statements to test detection. Finding: the LLM interviewer did NOT reliably filter them. Human expert review before deployment is mandatory.</li>
+          <li><strong>Scope constraints</strong> — informed consent, IP rights, and data erasure rights must be established before capturing expert knowledge. Expert Mind (Cervera 2026) builds this into its core design constraints.</li>
+        </ul>
+        <p style="margin-top:12px;"><strong>Key insight:</strong> The output should be treated like a draft, not ground truth. Build a human-in-the-loop review step into every pipeline before the knowledge enters the agent's memory.</p>
+      </div>
+    </div>
+    <div class="pipeline-detail" id="pipe-detail-4">
+      <div class="pipeline-detail-title">Stage 4 · Agent Memory (The Destination)</div>
+      <div class="pipeline-detail-body">
+        <p>Once verified, the structured knowledge is loaded into the agent's memory system. The memory form determines how it's accessed:</p>
+        <ul>
+          <li><strong>Textual RAG</strong> — knowledge stored as text chunks, retrieved by cosine similarity at query time. Cheapest to implement; works well for loosely structured knowledge.</li>
+          <li><strong>GraphRAG</strong> — knowledge stored as a knowledge graph with LLM-generated summaries. Enables multi-hop reasoning and whole-dataset queries. Microsoft GraphRAG (2024) is open-source.</li>
+          <li><strong>Fine-tuning</strong> — knowledge baked into model weights. Best for stable, high-frequency knowledge (domain terminology, core procedures). Risk: catastrophic forgetting.</li>
+          <li><strong>Knowledge Editing</strong> — targeted weight updates for specific facts. Best for corrections and small-scope updates without full retraining.</li>
+          <li><strong>Hybrid</strong> — the Nurture-First Agent (Zhang 2026) uses a Three-Layer Cognitive Architecture that separates knowledge by volatility and personalization level, combining retrieval and parametric approaches.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 5: CAPTURE METHODS -->
+<section class="section" id="methods">
+  <div class="section-label">Elicitation Deep Dive</div>
+  <h2 class="section-title">Three Capture Methods</h2>
+  <p class="section-subtitle">How you extract tacit knowledge depends on its type, the expert's availability, and how structured the output needs to be.</p>
+
+  <div class="capture-tabs">
+    <button class="cap-tab active" onclick="setCapture(0)">Conversational Interview</button>
+    <button class="cap-tab" onclick="setCapture(1)">Think-Aloud Protocol</button>
+    <button class="cap-tab" onclick="setCapture(2)">Structured Elicitation</button>
+  </div>
+
+  <!-- Panel 0: Conversational Interview -->
+  <div class="capture-panel active" id="cap-0">
+    <div class="cap-badge">Method 1</div>
+    <div class="cap-title">Conversational Interview Agents</div>
+    <div class="cap-desc">An LLM agent conducts a structured interview with the domain expert. The agent formulates targeted questions, updates its knowledge state after each answer, identifies gaps, and asks follow-up questions. The conversation continues until a completeness threshold is reached.</div>
+    <div class="cap-steps">
+      <div class="cap-step">
+        <div class="cap-step-num">1</div>
+        <div class="cap-step-body"><strong>Greeting &amp; scope-setting</strong> — agent introduces itself, explains the goal, and establishes what domain/task the interview will cover.</div>
+      </div>
+      <div class="cap-step">
+        <div class="cap-step-num">2</div>
+        <div class="cap-step-body"><strong>Gap-targeting questions</strong> — agent asks broad questions first ("How do you approach X?"), then drills down on gaps in its current knowledge model ("You mentioned Y — can you give an example of when that rule breaks down?").</div>
+      </div>
+      <div class="cap-step">
+        <div class="cap-step-num">3</div>
+        <div class="cap-step-body"><strong>Response integration</strong> — after each answer, agent updates its internal knowledge state (a running document or structured representation).</div>
+      </div>
+      <div class="cap-step">
+        <div class="cap-step-num">4</div>
+        <div class="cap-step-body"><strong>Self-critical evaluation</strong> — agent scores its own knowledge completeness (0–10), identifies remaining gaps, and decides whether to ask more or terminate. Zuin et al. model this as a Susceptible-Infectious (SI) epidemiological process with waning infectivity β(t) = β₀e<sup>−γt</sup>.</div>
+      </div>
+      <div class="cap-step">
+        <div class="cap-step-num">5</div>
+        <div class="cap-step-body"><strong>Knowledge synthesis</strong> — at termination, agent generates a structured summary of everything learned, tagged by topic, for storage in the knowledge base.</div>
+      </div>
+    </div>
+    <div class="cap-papers">
+      <div class="cap-papers-label">Key Papers</div>
+      <div class="paper-cite">
+        • Zuin et al. (2025) — IJCNN — LLM agent interviews employees across org hierarchy; 94.9% knowledge recall without contacting original specialist. <a href="https://arxiv.org/abs/2507.03811">arXiv:2507.03811</a><br>
+        • Kuks, Finkel, Wurster (2025) — Industry 4.0 Science — Semi-structured interviews on 9 topics via ChatGPT-5 Voice Mode; completeness 2.89/4.0; hallucination risk identified.<br>
+        • Rank et al. (2025) — Industry 5.0 literature review — Reviews LLM conversational agents for tacit KE in manufacturing. Highlights operator acceptance as a critical challenge.<br>
+        • PU-ADKA (Wu et al., 2025) — EMNLP — Selectively queries the most appropriate expert from a team based on availability and knowledge boundaries; validated on drug development datasets. <a href="https://arxiv.org/abs/2508.17202">arXiv:2508.17202</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel 1: Think-Aloud -->
+  <div class="capture-panel" id="cap-1">
+    <div class="cap-badge">Method 2</div>
+    <div class="cap-title">Think-Aloud &amp; Reflective Prompting</div>
+    <div class="cap-desc">The expert verbalizes their reasoning while performing a task. Instead of asking "what do you know?", this method captures knowledge <em>in action</em> — when the tacit knowledge is actually being used. An LLM can then analyze the verbalized stream to extract decision rules and heuristics.</div>
+    <div class="cap-steps">
+      <div class="cap-step">
+        <div class="cap-step-num">1</div>
+        <div class="cap-step-body"><strong>Setup</strong> — expert is given a realistic task to perform (reviewing a case, making a diagnosis, debugging code). They narrate their thought process out loud in real time.</div>
+      </div>
+      <div class="cap-step">
+        <div class="cap-step-num">2</div>
+        <div class="cap-step-body"><strong>Verbalization capture</strong> — audio transcribed and cleaned. Each verbalized thought tagged with the action it accompanied ("noticed the patient's potassium was low → immediately flagged cardiac risk").</div>
+      </div>
+      <div class="cap-step">
+        <div class="cap-step-num">3</div>
+        <div class="cap-step-body"><strong>LLM rule extraction</strong> — LLM processes the tagged transcript to extract: cues (what the expert noticed), decisions (what they did), and rules (the general principle behind the decision).</div>
+      </div>
+      <div class="cap-step">
+        <div class="cap-step-num">4</div>
+        <div class="cap-step-body"><strong>Reflective prompting loop</strong> — LLM surfaces extracted rules back to the expert ("It looks like you always check X before doing Y — is that correct?"). Expert confirms, corrects, or adds nuance.</div>
+      </div>
+      <div class="cap-step">
+        <div class="cap-step-num">5</div>
+        <div class="cap-step-body"><strong>Visualization feedback</strong> — Freire et al. (CHI 2023) found that showing experts visualizations of their own data <em>while they narrate</em> significantly improves the depth of knowledge surfaced — the visual prompts recall of otherwise-unspoken knowledge.</div>
+      </div>
+    </div>
+    <div class="cap-papers">
+      <div class="cap-papers-label">Key Papers</div>
+      <div class="paper-cite">
+        • Freire, Wang et al. (CHI 2023) — Intelligent assistant elicits tacit knowledge from manufacturing workers via voice + data visualization; first HCI work combining LLMs with reflective prompting for tacit KE. <a href="https://dl.acm.org/doi/10.1145/3544549.3585755">ACM DL</a><br>
+        • THiNK (2025) — arXiv:2505.20184 — Applies think-aloud protocol as an LLM prompting framework, having the model articulate thought processes in real time, bridging cognitive science and LLM prompting.<br>
+        • Freire, Wellsandt et al. (PMC 2024) — RAG system over factory documentation + worker knowledge; GPT-4 achieved 97.5% factuality; workers preferred asking colleagues over AI, raising adoption design challenges.<br>
+        • Data Therapist (Shin et al. 2025) — arXiv:2505.00455 — Mixed-initiative Q&amp;A + interactive annotation at multiple granularity levels; elicits tacit knowledge about data provenance from accounting, political science, and CS security experts.
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel 2: Structured Elicitation -->
+  <div class="capture-panel" id="cap-2">
+    <div class="cap-badge">Method 3</div>
+    <div class="cap-title">Structured Elicitation into Formal Artifacts</div>
+    <div class="cap-desc">Rather than free-form interviews, this approach elicits knowledge directly into structured outputs — process diagrams, knowledge graphs, Bayesian priors, or codified rule systems. The structure is defined in advance; the LLM fills it in through targeted questioning.</div>
+    <div class="cap-steps">
+      <div class="cap-step">
+        <div class="cap-step-num">1</div>
+        <div class="cap-step-body"><strong>Choose an artifact type</strong> — BPMN (business process), ontology (taxonomy of concepts), Bayesian network (causal relationships), or Atomic Knowledge Units (decision rules + tool bindings).</div>
+      </div>
+      <div class="cap-step">
+        <div class="cap-step-num">2</div>
+        <div class="cap-step-body"><strong>Seed the structure</strong> — LLM proposes an initial skeleton based on the domain ("Here's a draft process diagram for handling a customer complaint — does this match how you do it?").</div>
+      </div>
+      <div class="cap-step">
+        <div class="cap-step-num">3</div>
+        <div class="cap-step-body"><strong>Iterative gap-filling</strong> — expert reviews each node/edge/rule and either confirms or corrects. LLM asks targeted questions for each gap ("What happens if the customer escalates at step 3?").</div>
+      </div>
+      <div class="cap-step">
+        <div class="cap-step-num">4</div>
+        <div class="cap-step-body"><strong>Dual-model validation</strong> — a second LLM independently reviews the final artifact, flags inconsistencies, and proposes clarifications. Shaposhnyk et al. (2025) showed GPT-4o and Claude acting as mutual validators reduced logical inconsistencies vs. expert-only elicitation.</div>
+      </div>
+      <div class="cap-step">
+        <div class="cap-step-num">5</div>
+        <div class="cap-step-body"><strong>Artifact storage</strong> — the final formal artifact (BPMN XML, RDF knowledge graph, JSON AKUs) becomes a machine-readable knowledge base the agent can query precisely.</div>
+      </div>
+    </div>
+    <div class="cap-papers">
+      <div class="cap-papers-label">Key Papers</div>
+      <div class="paper-cite">
+        • Radhakrishnan (2025) — arXiv:2512.05122 — Gemini 2.5 Pro converts interview dialogue into BPMN 2.0 process diagrams in ~12 minutes. Validated on SME manufacturing processes.<br>
+        • AutoElicit (Capstick et al. 2024) — arXiv:2411.17284 — LLMs elicit Bayesian prior distributions from domain experts; 6 months of labeling effort saved on UTI prediction from sensor data.<br>
+        • Shaposhnyk et al. (2025) — arXiv:2504.10397 — Dual GPT-4o + Claude mutual validation for causal network elicitation; 10/12 relationships confirmed by both models.<br>
+        • Knowledge Activation / AKUs (Bakal 2026) — arXiv:2603.14805 — Atomic Knowledge Units as composable institutional knowledge primitives for agentic software development.<br>
+        • LLM-empowered KG Construction Survey (Bian 2025) — arXiv:2510.20345 — Schema-based vs. schema-free approaches; reviews Ontogenia, CQbyCQ, EDC, AutoSchemaKG.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 6: ENTERPRISE RAG EVOLUTION -->
+<section class="section" id="rag">
+  <div class="section-label">Storage &amp; Retrieval</div>
+  <h2 class="section-title">Enterprise RAG Evolution</h2>
+  <p class="section-subtitle">Even before capturing tacit knowledge, organizations have large amounts of explicit but private knowledge. How RAG handles this has evolved significantly.</p>
+
+  <p>Organizations have vast stores of <em>already-documented</em> private knowledge — wikis, Confluence pages, email threads, meeting notes, code comments, Slack conversations. The challenge here is not elicitation but retrieval: how do you build a system that lets an agent query across all of this coherently? The state of the art has evolved through four generations.</p>
+
+  <!-- Interactive 5: RAG Evolution -->
+  <div class="rag-timeline">
+    <div class="rag-stage">
+      <button class="rag-stage-btn active" id="rag-0" onclick="setRag(0)">
+        <div class="rag-stage-era">Gen 1 · 2022</div>
+        <div class="rag-stage-name">Naive RAG</div>
+      </button>
+      <button class="rag-stage-btn" id="rag-1" onclick="setRag(1)">
+        <div class="rag-stage-era">Gen 2 · 2023</div>
+        <div class="rag-stage-name">Advanced RAG</div>
+      </button>
+      <button class="rag-stage-btn" id="rag-2" onclick="setRag(2)">
+        <div class="rag-stage-era">Gen 3 · 2024</div>
+        <div class="rag-stage-name">GraphRAG</div>
+      </button>
+      <button class="rag-stage-btn" id="rag-3" onclick="setRag(3)">
+        <div class="rag-stage-era">Gen 4 · 2025+</div>
+        <div class="rag-stage-name">Agentic KG-RAG</div>
+      </button>
+    </div>
+    <div class="rag-detail active" id="rag-detail-0">
+      <p><strong>Naive RAG</strong> — chunk documents → embed chunks → store in FAISS vector store → retrieve top-K by cosine similarity → inject into prompt. The baseline used by 80.5% of enterprise RAG implementations (MDPI Systematic Review, 2024).</p>
+      <div class="rag-detail-grid">
+        <div class="rag-detail-item">
+          <div class="rag-detail-label">Strength</div>
+          <div class="rag-detail-val">Simple to implement. Works well for factual lookups from structured docs.</div>
+        </div>
+        <div class="rag-detail-item">
+          <div class="rag-detail-label">Weakness</div>
+          <div class="rag-detail-val">Can't answer "whole-dataset" queries. No understanding of relationships between documents. Misses context scattered across many chunks.</div>
+        </div>
+        <div class="rag-detail-item">
+          <div class="rag-detail-label">Tacit Knowledge Gap</div>
+          <div class="rag-detail-val">Completely fails for undocumented knowledge — there's nothing to chunk and embed if it was never written down.</div>
+        </div>
+        <div class="rag-detail-item">
+          <div class="rag-detail-label">Stack</div>
+          <div class="rag-detail-val">LangChain + FAISS or Elasticsearch. GPT-based models used in 63.6% of enterprise implementations.</div>
+        </div>
+      </div>
+    </div>
+    <div class="rag-detail" id="rag-detail-1">
+      <p><strong>Advanced RAG</strong> — adds query rewriting, hybrid search (BM25 + dense), re-ranking, and hierarchical chunk structures. Addresses the most common failure modes of naive RAG.</p>
+      <div class="rag-detail-grid">
+        <div class="rag-detail-item">
+          <div class="rag-detail-label">Key Additions</div>
+          <div class="rag-detail-val">Query expansion, parent-child chunking, re-ranking (cross-encoder), MMR diversity, hypothetical document embeddings (HyDE).</div>
+        </div>
+        <div class="rag-detail-item">
+          <div class="rag-detail-label">Weakness</div>
+          <div class="rag-detail-val">Still fundamentally text-matching. Multi-hop reasoning across documents (A refers to B which modifies C) is unreliable.</div>
+        </div>
+        <div class="rag-detail-item">
+          <div class="rag-detail-label">Tacit Knowledge Gap</div>
+          <div class="rag-detail-val">Still only works on documented knowledge. Better at finding the right chunk but cannot synthesize undocumented expertise.</div>
+        </div>
+        <div class="rag-detail-item">
+          <div class="rag-detail-label">Best For</div>
+          <div class="rag-detail-val">Large, heterogeneous document collections (support KB, legal docs, technical manuals).</div>
+        </div>
+      </div>
+    </div>
+    <div class="rag-detail" id="rag-detail-2">
+      <p><strong>GraphRAG</strong> — Microsoft Research (2024). LLM builds a knowledge graph from private documents. Bottom-up hierarchical clustering creates semantic communities and pre-computed summaries. Enables "whole-dataset" queries vector search cannot answer.</p>
+      <div class="rag-detail-grid">
+        <div class="rag-detail-item">
+          <div class="rag-detail-label">Key Innovation</div>
+          <div class="rag-detail-val">Graph structure captures entity relationships across documents. Pre-summaries at each cluster level allow macro-level queries ("What are the 5 main themes in our incident database?").</div>
+        </div>
+        <div class="rag-detail-item">
+          <div class="rag-detail-label">Strengths</div>
+          <div class="rag-detail-val">Source provenance for every assertion. Outperforms baseline RAG on comprehensiveness, diversity, and empowerment. Open-source on GitHub.</div>
+        </div>
+        <div class="rag-detail-item">
+          <div class="rag-detail-label">Tacit Knowledge Bridge</div>
+          <div class="rag-detail-val">If captured interview transcripts are fed in, GraphRAG can extract entity relationships automatically — partially automating the Structuring stage of the pipeline.</div>
+        </div>
+        <div class="rag-detail-item">
+          <div class="rag-detail-label">Cost</div>
+          <div class="rag-detail-val">High upfront indexing cost. LLM API calls for every entity and relationship extraction. Best for large, stable knowledge bases.</div>
+        </div>
+      </div>
+    </div>
+    <div class="rag-detail" id="rag-detail-3">
+      <p><strong>Agentic KG-RAG</strong> — 2025+ frontier. Agents actively manage and expand the knowledge graph, sense knowledge gaps, proactively query experts, and maintain a living knowledge base. The convergence of the capture pipeline and the retrieval system.</p>
+      <div class="rag-detail-grid">
+        <div class="rag-detail-item">
+          <div class="rag-detail-label">New Capabilities</div>
+          <div class="rag-detail-val">Proactive gap detection ("We don't have documentation for the escalation process"). Automatic scheduling of expert interviews. Continuous ingestion from Slack, email, meeting transcripts.</div>
+        </div>
+        <div class="rag-detail-item">
+          <div class="rag-detail-label">AKU Architecture (Bakal 2026)</div>
+          <div class="rag-detail-val">Atomic Knowledge Units form a composable graph agents traverse at runtime. Eliminates manual context reconstruction. Compresses onboarding time and reduces cross-team friction.</div>
+        </div>
+        <div class="rag-detail-item">
+          <div class="rag-detail-label">Nurture-First Agents (Zhang 2026)</div>
+          <div class="rag-detail-val">Three-Layer Cognitive Architecture separates knowledge by volatility + personalization. Knowledge Crystallization Cycle consolidates dialogue into structured reusable assets.</div>
+        </div>
+        <div class="rag-detail-item">
+          <div class="rag-detail-label">Expert Mind (Cervera 2026)</div>
+          <div class="rag-detail-val">Structured interviews + think-aloud sessions → vector store → conversational query interface. Targets knowledge loss when SMEs retire. Includes consent and IP rights framework.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 7: CHALLENGES -->
+<section class="section" id="challenges">
+  <div class="section-label">Open Problems</div>
+  <h2 class="section-title">Challenges &amp; Failure Modes</h2>
+  <p class="section-subtitle">Building institutional memory pipelines is harder than it looks. Click each challenge to understand the failure mode and mitigation.</p>
+
+  <div class="challenge-list" id="challenge-list">
+    <div class="challenge-item" onclick="toggleChallenge(0)">
+      <div class="challenge-header">
+        <div class="challenge-icon">🎭</div>
+        <div class="challenge-title">The Rationalization Problem — Experts Describe Ideal Behavior, Not Actual Behavior</div>
+        <div class="challenge-severity">
+          <div class="severity-dot on"></div><div class="severity-dot on"></div><div class="severity-dot on"></div><div class="severity-dot on"></div><div class="severity-dot on"></div>
+        </div>
+      </div>
+      <div class="challenge-body" id="chal-0">
+        When asked "how do you do X?", experts generate a plausible, logically coherent narrative — which may not match what they actually do. This is Nisbett &amp; Wilson's (1977) "verbal overshadowing" problem. An expert radiologist may say "I check for density differences" but actually pattern-match subconsciously in ways they cannot articulate. <br><br>
+        <strong>Mitigations:</strong> Use think-aloud during actual task performance (not retrospective interview). Ask about exceptions ("When does your usual approach fail?"). Present hypothetical cases. Cross-validate with behavioral data (call recordings, decision logs) to spot inconsistencies with the stated rules.
+      </div>
+    </div>
+    <div class="challenge-item" onclick="toggleChallenge(1)">
+      <div class="challenge-header">
+        <div class="challenge-icon">🌀</div>
+        <div class="challenge-title">Hallucination During Capture — LLM Fills Gaps with Plausible Fictions</div>
+        <div class="challenge-severity">
+          <div class="severity-dot on"></div><div class="severity-dot on"></div><div class="severity-dot on"></div><div class="severity-dot on"></div><div class="severity-dot on"></div>
+        </div>
+      </div>
+      <div class="challenge-body" id="chal-1">
+        An LLM interviewer will confabulate when the expert's answer is ambiguous or incomplete. More dangerously, it may fail to flag false information the expert deliberately inserts. Kuks et al. (2025) tested this explicitly: the LLM-interviewer did NOT reliably detect intentionally false statements. The structured output looks confident regardless of accuracy.<br><br>
+        <strong>Mitigations:</strong> Mandatory human expert sign-off on all structured outputs before loading into agent memory. Dual-LLM validation (GPT-4o + Claude cross-checking each other's extractions). Never treat the LLM's structured output as ground truth — treat it as a draft for expert review.
+      </div>
+    </div>
+    <div class="challenge-item" onclick="toggleChallenge(2)">
+      <div class="challenge-header">
+        <div class="challenge-icon">🔒</div>
+        <div class="challenge-title">IP Rights, Consent, and Data Governance</div>
+        <div class="challenge-severity">
+          <div class="severity-dot on"></div><div class="severity-dot on"></div><div class="severity-dot on"></div><div class="severity-dot on"></div><div class="severity-dot"></div>
+        </div>
+      </div>
+      <div class="challenge-body" id="chal-2">
+        Who owns captured expert knowledge? The expert? The organization? If an expert leaves and requests erasure of their knowledge contributions, what does the organization do? This is an unsolved legal and governance question. Expert Mind (Cervera 2026) identifies informed consent, IP rights, and data erasure rights as core design constraints that most systems ignore.<br><br>
+        <strong>Mitigations:</strong> Establish knowledge contribution agreements before any elicitation begins. Build erasure support into the storage architecture (versioned knowledge bases). Store knowledge attributions so you know which entries came from which expert. Involve legal counsel early.
+      </div>
+    </div>
+    <div class="challenge-item" onclick="toggleChallenge(3)">
+      <div class="challenge-header">
+        <div class="challenge-icon">📉</div>
+        <div class="challenge-title">Knowledge Decay — Captured Knowledge Goes Stale</div>
+        <div class="challenge-severity">
+          <div class="severity-dot on"></div><div class="severity-dot on"></div><div class="severity-dot on"></div><div class="severity-dot"></div><div class="severity-dot"></div>
+        </div>
+      </div>
+      <div class="challenge-body" id="chal-3">
+        Expert knowledge captured today may be wrong next year. Regulations change, best practices evolve, and the expert themselves updates their views. A static knowledge base becomes increasingly stale and potentially dangerous if agents rely on it for high-stakes decisions. Zuin et al. model this as an epidemiological SI process with waning infectivity β(t) = β₀e<sup>−γt</sup> — knowledge "infectiousness" decays over time without reinforcement.<br><br>
+        <strong>Mitigations:</strong> Attach expiry dates or review triggers to knowledge entries. Build a continuous refresh loop — periodic re-interviews or automated monitoring of domain signals (regulatory changes, new research). Distinguish stable architectural knowledge from volatile operational knowledge and version them separately.
+      </div>
+    </div>
+    <div class="challenge-item" onclick="toggleChallenge(4)">
+      <div class="challenge-header">
+        <div class="challenge-icon">🤝</div>
+        <div class="challenge-title">Expert Adoption Resistance</div>
+        <div class="challenge-severity">
+          <div class="severity-dot on"></div><div class="severity-dot on"></div><div class="severity-dot on"></div><div class="severity-dot"></div><div class="severity-dot"></div>
+        </div>
+      </div>
+      <div class="challenge-body" id="chal-4">
+        Experts may resist knowledge capture for multiple reasons: fear that capturing their knowledge makes them replaceable, distrust of AI systems, discomfort with having their decision-making scrutinized, or simply the time burden. Rank et al. (Industry 5.0, 2025) identify operator acceptance as a critical challenge for LLM-based KE in manufacturing. Freire et al. (PMC 2024) found that factory workers preferred asking human colleagues over AI even when both were available.<br><br>
+        <strong>Mitigations:</strong> Frame knowledge capture as legacy preservation, not replacement. Give experts visibility and control over what's stored and how it's used. Make the interface low-friction — voice-based, integrated into existing workflows. Show concrete value back to the expert (e.g., the agent can now handle repetitive questions, freeing them for high-value work).
+      </div>
+    </div>
+    <div class="challenge-item" onclick="toggleChallenge(5)">
+      <div class="challenge-header">
+        <div class="challenge-icon">🌊</div>
+        <div class="challenge-title">Distributed, Contradictory Knowledge Across Multiple Experts</div>
+        <div class="challenge-severity">
+          <div class="severity-dot on"></div><div class="severity-dot on"></div><div class="severity-dot on"></div><div class="severity-dot"></div><div class="severity-dot"></div>
+        </div>
+      </div>
+      <div class="challenge-body" id="chal-5">
+        In a real organization, different experts hold different (and sometimes contradictory) views on the same question. Expert A says "always escalate after 3 calls"; Expert B says "only escalate if the issue is technical." Both are drawing on genuine experience. Whose view should the agent follow? The PU-ADKA paper (Wu et al. 2025) addresses expert selection — choosing the right expert for a specific query — but the contradiction resolution problem remains open.<br><br>
+        <strong>Mitigations:</strong> Tag knowledge entries with source expert, context, and recency. Build contradiction detection into the structuring stage (LLM flags when a new entry conflicts with an existing one). For high-stakes contradictions, escalate to a committee review rather than automatically resolving. Present the agent with the disagreement explicitly: "Expert A says X, Expert B says Y — apply both rules and flag for human review."
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 8: RELATED POSTS -->
+<section class="section" id="related">
+  <div class="section-label">Go Deeper</div>
+  <h2 class="section-title">Related Posts</h2>
+  <p class="section-subtitle">Institutional memory sits at the intersection of agent design, knowledge representation, continual learning, and safety.</p>
+
+  <div class="xref-grid">
+    <a class="xref-card" href="../50-memory-agents/">
+      <div class="xref-num">Post 50 · Agents &amp; Systems</div>
+      <div class="xref-title">Memory in LLM Agents — The W-P-R Framework</div>
+      <div class="xref-desc">The formal taxonomy of where agent memory comes from (sources), how it's stored (forms), and how it's accessed (operations). This post is the downstream consumer — institutional memory capture feeds into that framework's External Knowledge and Parametric Memory categories.</div>
+    </a>
+    <a class="xref-card" href="../48-continual-learning/">
+      <div class="xref-num">Post 48 · Training &amp; Alignment</div>
+      <div class="xref-title">Continual Learning — Teaching Models to Remember Without Forgetting</div>
+      <div class="xref-desc">Fine-tuning on captured expert knowledge risks catastrophic forgetting. Continual learning methods (sparse memory finetuning, HOPE architecture) are the right tool for adding institutional knowledge to parametric memory without degrading existing capabilities.</div>
+    </a>
+    <a class="xref-card" href="../49-nla-interpretability/">
+      <div class="xref-num">Post 49 · Safety &amp; Governance</div>
+      <div class="xref-title">Natural Language Autoencoders — Reading the Mind of an LLM</div>
+      <div class="xref-desc">NLAs offer a complementary angle: instead of injecting expert knowledge into the agent, they extract what the model "already thinks" about a domain from its activations — potentially revealing whether prior fine-tuning successfully encoded the expert knowledge you intended.</div>
+    </a>
+    <a class="xref-card" href="../46-hermes-agent/">
+      <div class="xref-num">Post 46 · Agents &amp; Systems</div>
+      <div class="xref-title">Hermes Agent — The Self-Improving Architecture</div>
+      <div class="xref-desc">Hermes's 3-tier memory system (Markdown + SQLite FTS5 + external providers) and SOUL.md identity layer are a concrete implementation of where captured institutional knowledge would live — the Markdown memory tier is designed exactly for human-written expert context.</div>
+    </a>
+    <a class="xref-card" href="../41-agent-traps/">
+      <div class="xref-num">Post 41 · Safety &amp; Governance</div>
+      <div class="xref-title">AI Agent Traps — Prompt Injection &amp; Memory Poisoning</div>
+      <div class="xref-desc">Institutional knowledge bases are high-value targets for memory poisoning attacks. A corrupted "expert knowledge" entry that the agent trusts implicitly is more dangerous than a generic prompt injection — it carries the authority of verified domain expertise.</div>
+    </a>
+    <a class="xref-card" href="../21-rag/">
+      <div class="xref-num">Post 21 · LLM Foundations</div>
+      <div class="xref-title">RAG — Retrieval-Augmented Generation</div>
+      <div class="xref-desc">The foundational retrieval pattern that institutional memory pipelines build on. Understanding naive RAG's strengths and limitations (context window, chunking, similarity search) is essential before moving to GraphRAG or agentic KG-RAG for enterprise deployment.</div>
+    </a>
+  </div>
+</section>
+
+<!-- CONTINUE STRIP -->
+<div class="continue-strip">
+  <div>
+    <div class="cs-label">&#8592; Previous Post</div>
+    <a href="../50-memory-agents/" class="cs-title">Post 50 — Memory in LLM Agents</a>
+  </div>
+  <div style="text-align:right;">
+    <div class="cs-label">All Posts &#8594;</div>
+    <a href="../" class="cs-title" style="color:var(--em2);">Visual Summary</a>
+  </div>
+</div>
+
+</main>
+</div>
+</div>
+
+<script>
+var STORE_KEY = 'pg_unlocked_51';
+var PW = 'visual2025';
+
+function checkGate(){
+  var v = document.getElementById('gate-pw').value.trim();
+  if(v === PW){
+    localStorage.setItem(STORE_KEY,'1');
+    document.getElementById('gate').style.display='none';
+    document.getElementById('app').style.display='block';
+    initAll();
+  } else {
+    document.getElementById('gate-err').textContent='Incorrect code. Try again.';
+  }
+}
+document.getElementById('gate-pw').addEventListener('keydown',function(e){if(e.key==='Enter')checkGate();});
+if(localStorage.getItem(STORE_KEY)==='1'){
+  document.getElementById('gate').style.display='none';
+  document.getElementById('app').style.display='block';
+}
+
+function initAll(){ initSidebar(); initSpectrum(); }
+
+/* SIDEBAR */
+function initSidebar(){
+  var links = document.querySelectorAll('.sidebar-nav a');
+  function hl(){
+    var s = window.scrollY + 120, active = null;
+    links.forEach(function(l){
+      var id = l.getAttribute('href').replace('#','');
+      var el = document.getElementById(id);
+      if(el && el.offsetTop <= s) active = l;
+    });
+    links.forEach(function(l){l.classList.remove('active');});
+    if(active) active.classList.add('active');
+  }
+  window.addEventListener('scroll',hl); hl();
+}
+
+/* ========================
+   INTERACTIVE 1: Spectrum
+   ======================== */
+var SPECTRUM_DATA = [
+  {
+    label:'Zone 0 — Fully Tacit',
+    title:'Deep Intuition & Pattern Recognition',
+    body:'Completely unverbalizable. The expert "just knows" — from years of experience — but cannot explain the rule. Examples: a seasoned negotiator sensing when a deal is about to fall through; a veteran ER nurse recognizing a patient is deteriorating before vitals change; a master craftsperson feeling when a joint is right. Cognitive science calls this "recognition-primed decision making" (Klein 1998).',
+    examples:['Expert intuition','Perceptual pattern matching','Tacit motor skill','Gut-feel judgment']
+  },
+  {
+    label:'Zone 1 — Semi-Tacit',
+    title:'Rules of Thumb & Heuristics',
+    body:'The expert can articulate some rules after reflection, but they\'re partial, context-dependent, and full of implicit exceptions. "I usually escalate after 3 calls — unless it\'s a VIP, unless it\'s a known bug, unless..." The rules exist but aren\'t complete without the context that activates them. This is the highest-value zone for LLM interview agents.',
+    examples:['Decision heuristics','Informal guidelines','Undocumented workarounds','Exception patterns']
+  },
+  {
+    label:'Zone 2 — Mixed',
+    title:'Documented Frameworks with Tacit Application',
+    body:'A process exists on paper, but applying it correctly requires experience the document doesn\'t convey. Doctors follow clinical guidelines, but knowing when a patient is an exception requires tacit judgment. Engineers follow architecture patterns, but knowing when not to apply one is tacit. The document is retrievable by RAG; the application wisdom is not.',
+    examples:['Clinical guidelines + exceptions','Architecture patterns + anti-patterns','Legal frameworks + case judgment','Process manuals + informal fixes']
+  },
+  {
+    label:'Zone 3 — Semi-Explicit',
+    title:'Best Practices & Documented Lessons',
+    body:'Knowledge that has been deliberately articulated and recorded, but in an informal or scattered form. Post-mortems, team wikis, Slack threads, Confluence pages. Readable by RAG but often poorly organized, inconsistent, and spread across multiple systems. The challenge here is retrieval quality and freshness, not elicitation.',
+    examples:['Team wikis','Post-mortem documents','Slack knowledge threads','Internal blog posts']
+  },
+  {
+    label:'Zone 4 — Fully Explicit',
+    title:'Codified Formal Knowledge',
+    body:'Fully structured, versioned, and systematically organized knowledge. Formal specifications, regulatory documents, standardized procedures, ontologies. Directly usable by vector RAG or structured query. The easiest zone — but also the smallest fraction of what organizations actually know.',
+    examples:['SOPs & runbooks','Regulatory documents','Formal ontologies','API specifications']
+  }
+];
+
+function initSpectrum(){ setSpectrum(2); }
+function setSpectrum(val){
+  var d = SPECTRUM_DATA[parseInt(val)];
+  document.getElementById('spec-label').textContent = d.label;
+  document.getElementById('spec-title').textContent = d.title;
+  document.getElementById('spec-body').textContent = d.body;
+  var ex = document.getElementById('spec-examples');
+  ex.innerHTML = d.examples.map(function(e){return '<span class="tag">'+e+'</span>';}).join('');
+}
+
+/* ========================
+   INTERACTIVE 2: SECI
+   ======================== */
+var SECI_DATA = [
+  {
+    name:'Socialization',
+    body:`<p><strong>Original SECI (Nonaka 1995):</strong> Tacit knowledge shared through direct experience — apprenticeship, job-shadowing, side-by-side practice. No verbalization needed. The master blacksmith teaches by showing, not explaining.</p>
+    <p><strong>LLM augmentation (HAC-SECI):</strong> An AI agent can be present during expert-novice interactions, observing the dialogue and behavior. It cannot participate in embodied learning, but it can: record the conversation, extract implicit rules from the expert's corrections, and build a knowledge model from observed interactions over time.</p>
+    <p><strong>GRAI extension:</strong> Field 1 (Machine explains to human, S M→H) — the AI socializes with humans by demonstrating behaviors, not just generating text. Simulated scenarios, interactive coaching.</p>`,
+  },
+  {
+    name:'Externalization',
+    body:`<p><strong>Original SECI (Nonaka 1995):</strong> Converting tacit knowledge to explicit form through dialogue, metaphors, models. The most creative and challenging quadrant. Examples: writing up an expert's mental model as a decision tree; creating a diagram of an undocumented process.</p>
+    <p><strong>LLM augmentation (HAC-SECI / GRAI):</strong> This is the core value proposition of LLM-based knowledge elicitation. Conversational interview agents, think-aloud analysis, and structured elicitation into BPMN/KGs are all Externalization tools powered by LLMs. The LLM dramatically lowers the cost and friction of this quadrant.</p>
+    <p><strong>GRAI extension:</strong> Field 3 (Human adds contextual materials/memory, E H→M) + Field 4 (Machine generates structured output from unstructured data, E M→H). The human provides context; the machine structures it.</p>`,
+  },
+  {
+    name:'Internalization',
+    body:`<p><strong>Original SECI (Nonaka 1995):</strong> Converting explicit knowledge back into tacit knowledge through practice. A new employee reads the SOP and, after many repetitions, the procedure becomes intuitive — they no longer need to consult the document. "Learning by doing."</p>
+    <p><strong>LLM augmentation:</strong> Fine-tuning on captured expert knowledge is the machine equivalent of internalization — explicit knowledge (the training corpus) becomes implicit (encoded in weights). The agent no longer needs to retrieve; it "just knows." This is parametric memory formation.</p>
+    <p><strong>GRAI extension:</strong> Field 7 (Machine supports human understanding, I M→H) — the AI acts as a Socratic tutor, asking questions that help humans internalize explicit knowledge into practiced intuition.</p>`,
+  },
+  {
+    name:'Combination',
+    body:`<p><strong>Original SECI (Nonaka 1995):</strong> Combining multiple sources of explicit knowledge to create new explicit knowledge. Merging databases, synthesizing reports, creating comprehensive manuals from multiple sources. The domain of knowledge management systems.</p>
+    <p><strong>LLM augmentation:</strong> This is where RAG and GraphRAG excel. Vector search, knowledge graph construction, and LLM synthesis combine explicit knowledge sources into coherent answers. The LLM's ability to synthesize across many documents at once far exceeds human combinatorial capacity.</p>
+    <p><strong>GRAI extension:</strong> Field 5 (Machine creates summaries/protocols, C M→H) + Field 6 (Human uses AI to combine disparate subjects, C H→M). The AI becomes a combinatorial engine; the human provides the intent and validates the synthesis.</p>`,
+  }
+];
+
+function setSeci(i){
+  document.querySelectorAll('.seci-cell').forEach(function(c,idx){ c.classList.toggle('active', idx===i); });
+  var det = document.getElementById('seci-detail');
+  det.innerHTML = '<div class="seci-detail-title">'+SECI_DATA[i].name+' — LLM Augmentation</div>'+SECI_DATA[i].body;
+  det.classList.add('active');
+  det.style.display = 'block';
+}
+
+/* ========================
+   INTERACTIVE 3: Capture Methods
+   ======================== */
+function setCapture(i){
+  document.querySelectorAll('.cap-tab').forEach(function(t,idx){ t.classList.toggle('active', idx===i); });
+  document.querySelectorAll('.capture-panel').forEach(function(p,idx){ p.classList.toggle('active', idx===i); });
+}
+
+/* ========================
+   INTERACTIVE 4: Pipeline
+   ======================== */
+function setPipe(i){
+  document.querySelectorAll('.pipe-node-box').forEach(function(n,idx){ n.classList.toggle('active', idx===i); });
+  document.querySelectorAll('.pipeline-detail').forEach(function(d){ d.classList.remove('active'); d.style.display='none'; });
+  var det = document.getElementById('pipe-detail-'+i);
+  if(det){ det.classList.add('active'); det.style.display='block'; }
+}
+
+/* ========================
+   INTERACTIVE 5: RAG Evolution
+   ======================== */
+function setRag(i){
+  document.querySelectorAll('.rag-stage-btn').forEach(function(b,idx){ b.classList.toggle('active', idx===i); });
+  document.querySelectorAll('.rag-detail').forEach(function(d,idx){ d.classList.toggle('active', idx===i); });
+}
+
+/* ========================
+   INTERACTIVE 6: Challenges
+   ======================== */
+function toggleChallenge(i){
+  var item = document.querySelectorAll('.challenge-item')[i];
+  var body = document.getElementById('chal-'+i);
+  var isOpen = body.classList.contains('open');
+  item.classList.toggle('open', !isOpen);
+  body.classList.toggle('open', !isOpen);
+}
+</script>
+</body>
+</html>
