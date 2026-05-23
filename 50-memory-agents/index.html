@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Post 50 · Memory in LLM Agents — Visual Summary</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --amber:#f59e0b;--amber2:#fbbf24;--gold:#d97706;--gold2:#b45309;
+  --bg:#0c0b08;--surface:#161510;--surface2:#1f1e18;--border:#2a2920;
+  --text:#f5f0e8;--muted:#8c8578;--accent:var(--amber);
+}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.6;}
+a{color:var(--amber);text-decoration:none;}
+a:hover{text-decoration:underline;}
+
+/* GATE */
+#gate{position:fixed;inset:0;background:#0a0905;z-index:9999;display:flex;align-items:center;justify-content:center;}
+.gate-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:48px 40px;max-width:420px;width:90%;text-align:center;}
+.gate-logo{font-size:13px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:24px;}
+.gate-title{font-size:22px;font-weight:800;color:var(--text);margin-bottom:8px;}
+.gate-sub{font-size:13px;color:var(--muted);margin-bottom:28px;}
+.gate-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;color:var(--text);font-size:14px;outline:none;margin-bottom:12px;}
+.gate-input:focus{border-color:var(--amber);}
+.gate-btn{width:100%;background:var(--amber);color:#000;font-weight:700;font-size:14px;padding:12px;border:none;border-radius:8px;cursor:pointer;letter-spacing:.5px;}
+.gate-btn:hover{background:var(--amber2);}
+.gate-err{color:#f87171;font-size:12px;margin-top:8px;min-height:16px;}
+
+/* LAYOUT */
+#app{display:none;min-height:100vh;}
+.shell{display:grid;grid-template-columns:220px 1fr;min-height:100vh;}
+
+/* SIDEBAR */
+.sidebar{background:var(--surface);border-right:1px solid var(--border);padding:28px 0;position:sticky;top:0;height:100vh;overflow-y:auto;}
+.sidebar-brand{padding:0 20px 20px;border-bottom:1px solid var(--border);margin-bottom:16px;}
+.sidebar-brand-label{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
+.sidebar-brand-title{font-size:13px;font-weight:700;color:var(--amber);line-height:1.3;}
+.sidebar-nav{list-style:none;}
+.sidebar-nav li a{display:block;padding:8px 20px;font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;transition:all .15s;}
+.sidebar-nav li a:hover,.sidebar-nav li a.active{color:var(--amber);background:var(--surface2);text-decoration:none;}
+.sidebar-nav li a .nav-num{display:inline-block;width:18px;font-size:10px;opacity:.5;}
+
+/* MAIN */
+.main{min-width:0;}
+.hero-section{background:linear-gradient(135deg,#0c0b08 0%,#1a1608 60%,#1f1a08 100%);padding:64px 56px 48px;border-bottom:1px solid var(--border);}
+.hero-eyebrow{font-size:11px;font-weight:700;letter-spacing:2px;color:var(--amber);text-transform:uppercase;margin-bottom:12px;}
+.hero-title{font-size:36px;font-weight:900;line-height:1.15;color:var(--text);margin-bottom:16px;}
+.hero-title span{color:var(--amber);}
+.hero-desc{font-size:15px;color:var(--muted);max-width:620px;line-height:1.7;margin-bottom:28px;}
+.hero-meta{display:flex;gap:24px;flex-wrap:wrap;}
+.meta-pill{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:11px;font-weight:600;color:var(--muted);}
+.meta-pill span{color:var(--amber);}
+
+/* SECTIONS */
+.section{padding:48px 56px;border-bottom:1px solid var(--border);}
+.section-label{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--amber);text-transform:uppercase;margin-bottom:8px;}
+.section-title{font-size:24px;font-weight:800;color:var(--text);margin-bottom:8px;}
+.section-subtitle{font-size:14px;color:var(--muted);margin-bottom:32px;max-width:640px;}
+p{color:var(--muted);font-size:14px;line-height:1.8;margin-bottom:16px;}
+p:last-child{margin-bottom:0;}
+strong{color:var(--text);}
+
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;}
+.card-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;}
+.card-body{font-size:13px;color:var(--muted);line-height:1.7;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:24px;}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:24px;}
+
+/* MATH BLOCK */
+.math-block{background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--amber);border-radius:8px;padding:18px 20px;font-family:'Courier New',monospace;font-size:13px;color:var(--amber2);margin:20px 0;overflow-x:auto;}
+.math-label{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
+
+/* TAGS */
+.tag{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 8px;font-size:11px;color:var(--muted);margin:2px;}
+
+/* ========================
+   INTERACTIVE 1: Memory Source Explorer
+   ======================== */
+.source-explorer{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:24px;}
+.source-tabs{display:flex;border-bottom:1px solid var(--border);}
+.src-tab{flex:1;padding:12px 8px;text-align:center;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;transition:all .2s;border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none;}
+.src-tab:hover{color:var(--text);background:var(--surface2);}
+.src-tab.active{color:var(--amber);border-bottom-color:var(--amber);background:var(--surface2);}
+.source-panel{display:none;padding:28px;}
+.source-panel.active{display:block;}
+.src-badge{display:inline-block;background:linear-gradient(90deg,var(--amber),var(--gold));color:#000;font-size:10px;font-weight:800;padding:3px 10px;border-radius:12px;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;}
+.src-title{font-size:17px;font-weight:800;color:var(--text);margin-bottom:8px;}
+.src-desc{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:20px;}
+.example-box{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;}
+.example-label{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--amber);text-transform:uppercase;margin-bottom:8px;}
+.example-text{font-size:13px;color:var(--text);line-height:1.6;}
+.systems-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;}
+
+/* ========================
+   INTERACTIVE 2: Memory Forms Toggle
+   ======================== */
+.forms-container{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:24px;}
+.forms-toggle{display:flex;padding:16px;gap:8px;border-bottom:1px solid var(--border);}
+.form-toggle-btn{flex:1;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--muted);transition:all .2s;}
+.form-toggle-btn.active{background:var(--amber);color:#000;border-color:var(--amber);}
+.forms-body{padding:24px;}
+.form-grid{display:grid;grid-template-columns:160px 1fr;gap:0;}
+.form-row{display:contents;}
+.form-row .form-attr{padding:10px 16px;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);display:flex;align-items:center;}
+.form-row .form-val{padding:10px 16px;font-size:13px;color:var(--text);border-bottom:1px solid var(--border);display:flex;align-items:center;line-height:1.5;}
+.form-header{display:contents;}
+.form-header .form-attr{font-size:11px;font-weight:800;color:var(--amber);letter-spacing:1px;border-bottom:2px solid var(--amber);}
+.form-header .form-val{font-size:11px;font-weight:800;color:var(--amber);letter-spacing:1px;border-bottom:2px solid var(--amber);}
+.subtype-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);}
+.subtype-chip{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;transition:all .15s;}
+.subtype-chip:hover,.subtype-chip.active{background:var(--amber);color:#000;border-color:var(--amber);}
+.subtype-detail{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:16px;margin-top:12px;font-size:13px;color:var(--muted);line-height:1.7;display:none;}
+.subtype-detail.active{display:block;}
+
+/* ========================
+   INTERACTIVE 3: W-P-R Pipeline Stepper
+   ======================== */
+.pipeline-stepper{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:24px;}
+.pipeline-steps{display:flex;border-bottom:1px solid var(--border);}
+.pipe-step{flex:1;padding:14px 8px;text-align:center;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;background:none;border-top:none;border-left:none;border-right:none;}
+.pipe-step:hover{background:var(--surface2);}
+.pipe-step.active{border-bottom-color:var(--amber);background:var(--surface2);}
+.pipe-step .step-num{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--amber);text-transform:uppercase;}
+.pipe-step .step-name{font-size:12px;font-weight:700;color:var(--text);margin-top:2px;}
+.pipe-step .step-sym{font-size:18px;color:var(--amber);margin-top:4px;font-family:'Courier New',monospace;}
+.pipeline-content{padding:28px;}
+.pipe-panel{display:none;}
+.pipe-panel.active{display:block;}
+.pipe-viz{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;margin:20px 0;padding:20px;background:var(--surface2);border-radius:8px;}
+.pipe-node{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-size:12px;font-weight:700;color:var(--muted);text-align:center;min-width:80px;}
+.pipe-node.highlight{border-color:var(--amber);color:var(--amber);background:#f59e0b14;}
+.pipe-arrow{color:var(--muted);font-size:16px;}
+.pipe-formula{background:var(--surface2);border:1px solid var(--amber);border-radius:8px;padding:14px 18px;font-family:'Courier New',monospace;font-size:14px;color:var(--amber2);text-align:center;margin:16px 0;}
+.pipe-detail{font-size:13px;color:var(--muted);line-height:1.8;}
+.pipe-detail ul{padding-left:20px;margin-top:8px;}
+.pipe-detail li{margin-bottom:6px;}
+.pipe-detail strong{color:var(--text);}
+
+/* ========================
+   INTERACTIVE 4: System Gallery
+   ======================== */
+.system-gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:24px;}
+.sys-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;cursor:pointer;transition:all .2s;}
+.sys-card:hover,.sys-card.active{border-color:var(--amber);background:var(--surface2);}
+.sys-icon{font-size:24px;margin-bottom:10px;}
+.sys-name{font-size:14px;font-weight:800;color:var(--text);margin-bottom:4px;}
+.sys-tagline{font-size:11px;color:var(--muted);}
+.sys-detail{background:var(--surface);border:1px solid var(--amber);border-radius:12px;padding:24px;margin-top:16px;display:none;}
+.sys-detail.active{display:block;}
+.sys-detail-name{font-size:18px;font-weight:800;color:var(--amber);margin-bottom:12px;}
+.sys-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;}
+.sys-detail-item{background:var(--surface2);border-radius:8px;padding:12px;}
+.sys-detail-label{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--amber);text-transform:uppercase;margin-bottom:4px;}
+.sys-detail-val{font-size:12px;color:var(--text);line-height:1.5;}
+
+/* ========================
+   INTERACTIVE 5: Retrieval Strategy Visualizer
+   ======================== */
+.retrieval-viz{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:24px;}
+.retrieval-tabs{display:flex;border-bottom:1px solid var(--border);}
+.ret-tab{flex:1;padding:12px 8px;text-align:center;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;background:none;border-top:none;border-left:none;border-right:none;}
+.ret-tab:hover{color:var(--text);}
+.ret-tab.active{color:var(--amber);border-bottom-color:var(--amber);}
+.retrieval-panel{display:none;padding:28px;}
+.retrieval-panel.active{display:block;}
+.query-box{background:var(--surface2);border:1px solid var(--amber);border-radius:8px;padding:12px 16px;margin-bottom:16px;}
+.query-label{font-size:10px;font-weight:700;color:var(--amber);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;}
+.query-text{font-size:13px;color:var(--text);}
+.memory-items{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
+.mem-item{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:12px;transition:all .3s;}
+.mem-item.selected{border-color:var(--amber);background:#f59e0b0d;}
+.mem-score{font-size:11px;font-weight:700;color:var(--amber);min-width:40px;text-align:right;}
+.mem-text{font-size:12px;color:var(--muted);flex:1;}
+.mem-bar{width:60px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;}
+.mem-bar-fill{height:100%;background:var(--amber);border-radius:3px;}
+.retrieved-label{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--gold);text-transform:uppercase;margin-bottom:8px;}
+.retrieved-box{background:#f59e0b14;border:1px solid var(--amber);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--amber2);}
+
+/* ========================
+   INTERACTIVE 6: Evaluation Metrics Explorer
+   ======================== */
+.eval-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:24px;}
+.eval-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;cursor:pointer;transition:all .2s;}
+.eval-card:hover,.eval-card.active{border-color:var(--amber);background:var(--surface2);}
+.eval-icon{font-size:20px;margin-bottom:8px;}
+.eval-name{font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;}
+.eval-type{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--amber);text-transform:uppercase;}
+.eval-detail{background:var(--surface);border:1px solid var(--amber);border-radius:12px;padding:24px;margin-top:16px;display:none;}
+.eval-detail.active{display:block;}
+
+/* CALLOUT */
+.callout{background:var(--surface2);border-left:3px solid var(--amber);border-radius:0 8px 8px 0;padding:16px 20px;margin:20px 0;}
+.callout-title{font-size:12px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+.callout-body{font-size:13px;color:var(--muted);line-height:1.7;}
+
+/* LIMITATIONS LIST */
+.limitation-list{display:flex;flex-direction:column;gap:10px;margin-top:16px;}
+.limitation-item{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 18px;display:flex;gap:14px;align-items:flex-start;}
+.lim-icon{font-size:18px;flex-shrink:0;margin-top:2px;}
+.lim-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;}
+.lim-body{font-size:12px;color:var(--muted);line-height:1.6;}
+
+/* CROSS-REFS */
+.xref-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:24px;}
+.xref-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;transition:all .2s;}
+.xref-card:hover{border-color:var(--amber);text-decoration:none;}
+.xref-num{font-size:10px;font-weight:700;color:var(--amber);letter-spacing:1px;margin-bottom:6px;}
+.xref-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px;line-height:1.4;}
+.xref-desc{font-size:11px;color:var(--muted);line-height:1.5;}
+
+/* CONTINUE STRIP */
+.continue-strip{background:var(--surface);border-top:1px solid var(--border);padding:32px 48px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;}
+.cs-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.cs-title{font-size:15px;font-weight:700;color:var(--text);}
+.cs-title:hover{color:var(--amber2);}
+
+/* RESPONSIVE */
+@media(max-width:860px){
+  .shell{grid-template-columns:1fr;}
+  .sidebar{display:none;}
+  .section,.hero-section{padding:28px 20px;}
+  .two-col,.three-col,.system-gallery,.eval-grid,.xref-grid{grid-template-columns:1fr;}
+  .sys-detail-grid{grid-template-columns:1fr;}
+  .form-grid{grid-template-columns:120px 1fr;}
+  .continue-strip{padding:24px 20px;}
+}
+</style>
+</head>
+<body>
+
+<!-- GATE -->
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-logo">Visual Summary</div>
+    <div class="gate-title">Post 50 — Memory in LLM Agents</div>
+    <div class="gate-sub">Enter the access code to continue</div>
+    <input id="gate-pw" class="gate-input" type="password" placeholder="Access code" autocomplete="off">
+    <button class="gate-btn" onclick="checkGate()">Unlock</button>
+    <div class="gate-err" id="gate-err"></div>
+  </div>
+</div>
+
+<div id="app">
+<div class="shell">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="sidebar-brand-label">Visual Summary</div>
+    <div class="sidebar-brand-title">Post 50 · Memory in LLM Agents</div>
+  </div>
+  <ul class="sidebar-nav">
+    <li><a href="#intro"><span class="nav-num">01</span> Introduction</a></li>
+    <li><a href="#sources"><span class="nav-num">02</span> Memory Sources</a></li>
+    <li><a href="#forms"><span class="nav-num">03</span> Memory Forms</a></li>
+    <li><a href="#operations"><span class="nav-num">04</span> Operations</a></li>
+    <li><a href="#systems"><span class="nav-num">05</span> Key Systems</a></li>
+    <li><a href="#retrieval"><span class="nav-num">06</span> Retrieval</a></li>
+    <li><a href="#evaluation"><span class="nav-num">07</span> Evaluation</a></li>
+    <li><a href="#challenges"><span class="nav-num">08</span> Challenges</a></li>
+    <li><a href="#related"><span class="nav-num">09</span> Related Posts</a></li>
+  </ul>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+
+<!-- HERO -->
+<section class="hero-section" id="intro">
+  <div class="hero-eyebrow">Post 50 · Agents &amp; Systems</div>
+  <h1 class="hero-title">Memory in LLM Agents<br><span>How Machines Remember, Manage &amp; Recall</span></h1>
+  <p class="hero-desc">A deep dive into the memory mechanisms that power LLM-based agents. Covers the three-dimensional taxonomy (sources × forms × operations), key architectures from Generative Agents to MemGPT, retrieval strategies, evaluation methods, and the open frontiers of multi-agent and lifelong memory.</p>
+  <div class="hero-meta">
+    <div class="meta-pill">Based on: <span>Zhang et al. 2024 · arXiv:2404.13501</span></div>
+    <div class="meta-pill">Category: <span>Agents &amp; Systems</span></div>
+    <div class="meta-pill">Level: <span>Intermediate</span></div>
+    <div class="meta-pill">Post: <span>50 of 50</span></div>
+  </div>
+</section>
+
+<!-- INTRO -->
+<section class="section">
+  <div class="section-label">Why It Matters</div>
+  <h2 class="section-title">The Memory Problem in AI Agents</h2>
+  <p class="section-subtitle">Without memory, every conversation starts from zero.</p>
+
+  <p>A standalone LLM is stateless — it processes a fixed context window, then forgets everything. But real-world agents need to <strong>accumulate experience</strong>, <strong>recall relevant facts</strong>, and <strong>improve over time</strong>. Memory is the bridge between a language model and an intelligent agent.</p>
+
+  <p>Consider a personal assistant that needs to remember your movie preferences across sessions, a Minecraft agent that stores successful crafting strategies for future runs, or a medical system that learns from thousands of patient interactions. Each demands a different memory architecture with different tradeoffs.</p>
+
+  <div class="callout">
+    <div class="callout-title">Paper Overview</div>
+    <div class="callout-body">Zhang et al. (2024) survey 50+ agent systems and propose a unified three-dimensional framework: <strong>Memory Sources</strong> (what goes in), <strong>Memory Forms</strong> (how it's stored), and <strong>Memory Operations</strong> (how it's accessed). This gives us a coherent vocabulary to compare architectures that would otherwise look very different.</div>
+  </div>
+
+  <div class="three-col">
+    <div class="card" style="border-color:var(--amber)44;">
+      <div class="card-title" style="color:var(--amber);">3 Memory Sources</div>
+      <div class="card-body">Inside-trial, Cross-trial, External Knowledge — where the agent's information comes from</div>
+    </div>
+    <div class="card" style="border-color:var(--amber)44;">
+      <div class="card-title" style="color:var(--amber);">2 Memory Forms</div>
+      <div class="card-body">Textual (context-injected) vs. Parametric (weight-encoded) — how information persists</div>
+    </div>
+    <div class="card" style="border-color:var(--amber)44;">
+      <div class="card-title" style="color:var(--amber);">3 Memory Operations</div>
+      <div class="card-body">Write → Manage → Read — the universal pipeline from observation to action</div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 2: MEMORY SOURCES -->
+<section class="section" id="sources">
+  <div class="section-label">Dimension 1</div>
+  <h2 class="section-title">Memory Sources</h2>
+  <p class="section-subtitle">Where does the agent's knowledge come from? Three orthogonal sources feed into any agent's memory system.</p>
+
+  <p>Every piece of information an agent stores originates from one of three sources. Most real systems blend multiple sources — a ReAct agent reads a Wikipedia page (external) during a multi-step task (inside-trial) and reuses the strategy from a previous failed run (cross-trial).</p>
+
+  <!-- Interactive 1 -->
+  <div class="source-explorer">
+    <div class="source-tabs">
+      <button class="src-tab active" onclick="setSource(0)">Inside-Trial</button>
+      <button class="src-tab" onclick="setSource(1)">Cross-Trial</button>
+      <button class="src-tab" onclick="setSource(2)">External Knowledge</button>
+    </div>
+
+    <!-- Panel 0: Inside-Trial -->
+    <div class="source-panel active" id="src-0">
+      <div class="src-badge">Source 1</div>
+      <div class="src-title">Inside-Trial Information</div>
+      <div class="src-desc">Historical steps within a <strong>single session or task</strong> — the most intuitive and universally adopted source. Every agent that maintains a conversation history is using inside-trial memory. It forms the "short-term" episodic buffer for the current task.</div>
+      <div class="example-box">
+        <div class="example-label">Example: Dialogue Agent</div>
+        <div class="example-text">User: "My name is Alice and I prefer action films."<br>Agent stores this in session history. Later in the same conversation, when asked for a recommendation, the agent recalls Alice's preferences from the same conversation turn sequence.</div>
+      </div>
+      <div class="example-box">
+        <div class="example-label">Example: Game Agent (Minecraft)</div>
+        <div class="example-text">The agent mines stone, fails to build a shelter, collects wood. This action-observation-failure sequence within one run constitutes inside-trial memory used to plan the next action.</div>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-top:12px;">Systems using this source:</div>
+      <div class="systems-row">
+        <span class="tag">MemGPT</span><span class="tag">Generative Agents</span><span class="tag">ReAct</span><span class="tag">MemoChat</span><span class="tag">SCM</span><span class="tag">Most agents</span>
+      </div>
+    </div>
+
+    <!-- Panel 1: Cross-Trial -->
+    <div class="source-panel" id="src-1">
+      <div class="src-badge">Source 2</div>
+      <div class="src-title">Cross-Trial Information</div>
+      <div class="src-desc">Accumulated knowledge <strong>across multiple attempts</strong> — past successes, failures, and extracted lessons that persist beyond individual sessions. This is what enables true learning from experience: an agent that failed a task yesterday should not repeat the same mistake today.</div>
+      <div class="example-box">
+        <div class="example-label">Example: Reflexion (Verbal RL)</div>
+        <div class="example-text">Trial 1: Agent attempts a HotpotQA question, answers incorrectly. The failure reason — "I searched for the wrong entity" — is stored as a verbal insight. Trial 2: The agent reads this insight before starting, changes strategy, answers correctly.</div>
+      </div>
+      <div class="example-box">
+        <div class="example-label">Example: Voyager (Minecraft)</div>
+        <div class="example-text">Successful code snippets from previous episodes are stored as skills. A new run can reuse the "mine_iron_ore" function developed in run 3 without relearning it from scratch.</div>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-top:12px;">Systems using this source:</div>
+      <div class="systems-row">
+        <span class="tag">Reflexion</span><span class="tag">ExpeL</span><span class="tag">Voyager</span><span class="tag">MemoryBank</span><span class="tag">GITM</span><span class="tag">Retroformer</span>
+      </div>
+    </div>
+
+    <!-- Panel 2: External Knowledge -->
+    <div class="source-panel" id="src-2">
+      <div class="src-badge">Source 3</div>
+      <div class="src-title">External Knowledge</div>
+      <div class="src-desc">Static information from <strong>outside the agent-environment loop</strong>, accessed via APIs, tool calls, or database lookups. This source provides factual grounding that goes beyond what the agent can learn from its own experience — encyclopedic facts, domain knowledge, real-time data.</div>
+      <div class="example-box">
+        <div class="example-label">Example: ReAct on HotpotQA</div>
+        <div class="example-text">The agent calls Wikipedia's search API mid-task to look up "Marie Curie's birthplace." This retrieved text is injected into context as external knowledge, enabling the agent to answer factual questions it couldn't otherwise ground.</div>
+      </div>
+      <div class="example-box">
+        <div class="example-label">Example: Medical Agents (Huatuo)</div>
+        <div class="example-text">A medical diagnosis agent queries PubMed for recent treatment guidelines. The result is processed into the context as external knowledge, providing up-to-date clinical information beyond what was encoded in model weights at training time.</div>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-top:12px;">Systems using this source:</div>
+      <div class="systems-row">
+        <span class="tag">ReAct</span><span class="tag">GITM</span><span class="tag">ChatDB</span><span class="tag">RET-LLM</span><span class="tag">Huatuo</span><span class="tag">InvestLM</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 3: MEMORY FORMS -->
+<section class="section" id="forms">
+  <div class="section-label">Dimension 2</div>
+  <h2 class="section-title">Memory Forms</h2>
+  <p class="section-subtitle">How information is stored determines what tradeoffs the agent makes between interpretability, cost, and adaptability.</p>
+
+  <p>The survey identifies two fundamentally different ways to store memory: injecting it into the LLM's context as text (textual memory), or encoding it permanently into the model's weights (parametric memory). Each comes with distinct engineering tradeoffs that affect everything from latency to catastrophic forgetting risk.</p>
+
+  <!-- Interactive 2 -->
+  <div class="forms-container">
+    <div class="forms-toggle">
+      <button class="form-toggle-btn active" id="form-txt-btn" onclick="setForm('textual')">Textual Memory</button>
+      <button class="form-toggle-btn" id="form-param-btn" onclick="setForm('parametric')">Parametric Memory</button>
+    </div>
+    <div class="forms-body">
+      <div id="form-textual">
+        <div class="form-grid">
+          <div class="form-header">
+            <div class="form-attr">Aspect</div>
+            <div class="form-val">Textual Memory</div>
+          </div>
+          <div class="form-row">
+            <div class="form-attr">Effectiveness</div>
+            <div class="form-val">Comprehensive, flexible — but constrained by context window length</div>
+          </div>
+          <div class="form-row">
+            <div class="form-attr">Write Speed</div>
+            <div class="form-val">Fast — just append, summarize, or embed</div>
+          </div>
+          <div class="form-row">
+            <div class="form-attr">Read Speed</div>
+            <div class="form-val">Requires retrieval + injection into prompt</div>
+          </div>
+          <div class="form-row">
+            <div class="form-attr">Interpretability</div>
+            <div class="form-val">High — stored as natural language, human-readable</div>
+          </div>
+          <div class="form-row">
+            <div class="form-attr">Forgetting Risk</div>
+            <div class="form-val">None — doesn't affect weights; old info stays in storage</div>
+          </div>
+          <div class="form-row">
+            <div class="form-attr">Best For</div>
+            <div class="form-val">Conversations, episodic memory, recency-sensitive tasks</div>
+          </div>
+        </div>
+        <div class="subtype-chips" id="textual-chips">
+          <button class="subtype-chip active" onclick="setSubtype('complete')">Complete Interactions</button>
+          <button class="subtype-chip" onclick="setSubtype('recent')">Recent Interactions</button>
+          <button class="subtype-chip" onclick="setSubtype('retrieved')">Retrieved Interactions</button>
+          <button class="subtype-chip" onclick="setSubtype('external-text')">External Knowledge Text</button>
+        </div>
+        <div class="subtype-detail active" id="sub-complete">
+          <strong style="color:var(--amber)">Complete Interactions</strong> — stores the entire agent-environment history verbatim. Maximally informative but quickly exhausts the context window. Suffers from <em>position bias</em> (LLMs attend unevenly to early vs. late tokens) and <em>truncation loss</em> when history exceeds the limit. Baseline strategy used by most simple chatbots.
+        </div>
+        <div class="subtype-detail" id="sub-recent">
+          <strong style="color:var(--amber)">Recent Interactions (Sliding Window)</strong> — maintains only the most recent K steps via a FIFO cache, inspired by the principle of temporal locality. Efficient and avoids token overflow, but <em>loses distant critical information</em>. SCM (Selective Contextual Memory) uses a memory controller to gate what gets kept, preserving the t-1 most important recent steps rather than a blind window.
+        </div>
+        <div class="subtype-detail" id="sub-retrieved">
+          <strong style="color:var(--amber)">Retrieved Interactions</strong> — selects memory by relevance, recency, or importance using embedding-based retrieval (cosine similarity, LSH, FAISS). Top-K most relevant entries are fetched per query. Ensures that even distant but critical memories remain accessible. Used by MemoryBank (dual-tower + FAISS) and Generative Agents (multi-criterion scoring).
+        </div>
+        <div class="subtype-detail" id="sub-external-text">
+          <strong style="color:var(--amber)">External Knowledge Text</strong> — API-acquired information (Wikipedia, medical databases, Minecraft Wiki) transformed into natural language and injected into the context window. Provides factual grounding beyond agent experience. Risk: the source data may be inaccurate, outdated, or privacy-violating.
+        </div>
+      </div>
+
+      <div id="form-parametric" style="display:none;">
+        <div class="form-grid">
+          <div class="form-header">
+            <div class="form-attr">Aspect</div>
+            <div class="form-val">Parametric Memory</div>
+          </div>
+          <div class="form-row">
+            <div class="form-attr">Effectiveness</div>
+            <div class="form-val">Dense, always-available — but may lose information during encoding</div>
+          </div>
+          <div class="form-row">
+            <div class="form-attr">Write Speed</div>
+            <div class="form-val">Slow — requires model retraining or parameter surgery</div>
+          </div>
+          <div class="form-row">
+            <div class="form-attr">Read Speed</div>
+            <div class="form-val">Instant — baked into weights, no retrieval step needed</div>
+          </div>
+          <div class="form-row">
+            <div class="form-attr">Interpretability</div>
+            <div class="form-val">Low — stored in high-dimensional latent space</div>
+          </div>
+          <div class="form-row">
+            <div class="form-attr">Forgetting Risk</div>
+            <div class="form-val">High — catastrophic forgetting; new training can overwrite old knowledge</div>
+          </div>
+          <div class="form-row">
+            <div class="form-attr">Best For</div>
+            <div class="form-val">Large-scale established domain knowledge (medical, financial)</div>
+          </div>
+        </div>
+        <div class="subtype-chips" id="parametric-chips">
+          <button class="subtype-chip active" onclick="setSubtype('finetune')">Fine-tuning</button>
+          <button class="subtype-chip" onclick="setSubtype('editing')">Knowledge Editing</button>
+        </div>
+        <div class="subtype-detail active" id="sub-finetune">
+          <strong style="color:var(--amber)">Fine-tuning</strong> — bakes domain knowledge into model weights via supervised fine-tuning on domain-specific corpora. Specializes agents for medical, financial, or legal domains (Huatuo, InvestLM, Radiology-GPT). Limitations: high GPU cost, risk of <em>catastrophic forgetting</em> (new fine-tuning overwrites old knowledge), offline-only updates, and potential overfitting to the fine-tuning distribution. Not suitable for real-time or personalized updates.
+        </div>
+        <div class="subtype-detail" id="sub-editing">
+          <strong style="color:var(--amber)">Knowledge Editing</strong> — targeted, fact-specific parameter adjustments using meta-learning methods (e.g. MEND, ROME). Modifies specific neurons or circuits responsible for a particular fact without disturbing unrelated knowledge. <em>Significantly lower compute cost</em> than full fine-tuning. Suitable for online, small-scale updates like correcting a factual error or adapting a personality trait. MAC demonstrates online knowledge editing for personality adaptation with measured time and GPU peak memory.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 4: MEMORY OPERATIONS -->
+<section class="section" id="operations">
+  <div class="section-label">Dimension 3</div>
+  <h2 class="section-title">Memory Operations: Write → Manage → Read</h2>
+  <p class="section-subtitle">A unified formal framework captures every agent's memory pipeline in three composable operators.</p>
+
+  <p>The paper's key contribution is a <strong>formal unified framework</strong> — three mathematical operators (W, P, R) that describe the complete pipeline from raw observation to informed action. This lets researchers compare wildly different systems (from Generative Agents to ChatDB) using the same language.</p>
+
+  <div class="math-block">
+    <div class="math-label">Unified Agent Action Formula</div>
+    a<sub>t+1</sub><sup>k</sup> = LLM{ R( P(M<sub>t-1</sub><sup>k</sup>, W({a<sub>t</sub><sup>k</sup>, o<sub>t</sub><sup>k</sup>})), c<sub>t+1</sub><sup>k</sup> ) }
+    <br><br>
+    where k = trial index, t = step index, a = action, o = observation, c = action context
+  </div>
+
+  <!-- Interactive 3 -->
+  <div class="pipeline-stepper">
+    <div class="pipeline-steps">
+      <button class="pipe-step active" onclick="setPipeStep(0)">
+        <div class="step-num">Step 0</div>
+        <div class="step-name">Observation</div>
+        <div class="step-sym">(a,o)</div>
+      </button>
+      <button class="pipe-step" onclick="setPipeStep(1)">
+        <div class="step-num">Step 1</div>
+        <div class="step-name">Write</div>
+        <div class="step-sym">W</div>
+      </button>
+      <button class="pipe-step" onclick="setPipeStep(2)">
+        <div class="step-num">Step 2</div>
+        <div class="step-name">Manage</div>
+        <div class="step-sym">P</div>
+      </button>
+      <button class="pipe-step" onclick="setPipeStep(3)">
+        <div class="step-num">Step 3</div>
+        <div class="step-name">Read</div>
+        <div class="step-sym">R</div>
+      </button>
+      <button class="pipe-step" onclick="setPipeStep(4)">
+        <div class="step-num">Step 4</div>
+        <div class="step-name">Act</div>
+        <div class="step-sym">LLM</div>
+      </button>
+    </div>
+
+    <div class="pipeline-content">
+      <!-- Step 0 -->
+      <div class="pipe-panel active" id="pipe-0">
+        <div class="pipe-viz">
+          <div class="pipe-node highlight">Environment</div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-node highlight">Observation o<sub>t</sub><sup>k</sup></div>
+          <div class="pipe-arrow">+</div>
+          <div class="pipe-node highlight">Action a<sub>t</sub><sup>k</sup></div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-node">Write W</div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-node">Manage P</div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-node">Read R</div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-node">LLM → a<sub>t+1</sub></div>
+        </div>
+        <div class="pipe-detail">
+          <p>The cycle begins when the agent takes an <strong>action</strong> in the environment and receives an <strong>observation</strong> in return. This raw (action, observation) pair — denoted {a<sub>t</sub><sup>k</sup>, o<sub>t</sub><sup>k</sup>} — is the raw material that flows into the memory pipeline.</p>
+          <p>In a game agent: action = "mine stone block", observation = "+1 stone added to inventory". In a dialogue agent: action = agent utterance, observation = user's reply.</p>
+        </div>
+      </div>
+
+      <!-- Step 1 -->
+      <div class="pipe-panel" id="pipe-1">
+        <div class="pipe-viz">
+          <div class="pipe-node">Environment</div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-node">(a<sub>t</sub>, o<sub>t</sub>)</div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-node highlight">Write W</div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-node highlight">m<sub>t</sub><sup>k</sup></div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-node">Manage P</div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-node">Read R</div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-node">LLM</div>
+        </div>
+        <div class="pipe-formula">m<sub>t</sub><sup>k</sup> = W({a<sub>t</sub><sup>k</sup>, o<sub>t</sub><sup>k</sup>})</div>
+        <div class="pipe-detail">
+          <p><strong>Memory Writing</strong> projects raw observations into a concise stored memory entry. W is a projecting function — it decides what to remember and how to represent it.</p>
+          <ul>
+            <li><strong>Raw storage</strong> — copy the (action, observation) verbatim into memory</li>
+            <li><strong>Summarization</strong> — compress a long interaction into a few key sentences (MemoChat)</li>
+            <li><strong>Structured entry</strong> — extract entity relations and store as a typed database record (TiM)</li>
+            <li><strong>Autonomous update</strong> — the LLM itself decides when and what to write (MemGPT)</li>
+            <li><strong>Topic indexing</strong> — tag the memory with a key for later lookup (MemoChat, TiM)</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="pipe-panel" id="pipe-2">
+        <div class="pipe-viz">
+          <div class="pipe-node">W → m<sub>t</sub></div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-node highlight">Manage P</div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-node highlight">M<sub>t</sub><sup>k</sup></div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-node">Read R</div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-node">LLM</div>
+        </div>
+        <div class="pipe-formula">M<sub>t</sub><sup>k</sup> = P(M<sub>t-1</sub><sup>k</sup>, m<sub>t</sub><sup>k</sup>)</div>
+        <div class="pipe-detail">
+          <p><strong>Memory Management</strong> processes and maintains the quality of stored memory. P iterates over the existing memory store M<sub>t-1</sub> and the new entry m<sub>t</sub> to produce an updated store M<sub>t</sub>. Three core management operations:</p>
+          <ul>
+            <li><strong>Reflection</strong> — generate high-level abstractions from raw events. Generative Agents trigger reflection when cumulative "importance scores" of events exceed a threshold, distilling daily events into personality insights.</li>
+            <li><strong>Merging</strong> — consolidate redundant entries and build common reference patterns across multiple plans (GITM merges key actions; Voyager refines executable skills via environment feedback).</li>
+            <li><strong>Forgetting</strong> — remove stale or irrelevant entries. Reduces negative interference from outdated memory. Can be implemented via knowledge editing or LLM-directed pruning.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="pipe-panel" id="pipe-3">
+        <div class="pipe-viz">
+          <div class="pipe-node">M<sub>t</sub></div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-node highlight">Read R</div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-node highlight">M̂<sub>t</sub><sup>k</sup></div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-node">+ c<sub>t+1</sub></div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-node">LLM</div>
+        </div>
+        <div class="pipe-formula">M̂<sub>t</sub><sup>k</sup> = R(M<sub>t</sub><sup>k</sup>, c<sub>t+1</sub><sup>k</sup>)</div>
+        <div class="pipe-detail">
+          <p><strong>Memory Reading</strong> retrieves the most relevant subset of memory M̂ from the full store M, conditioned on the action context c for the next step. R is typically a similarity-based function.</p>
+          <ul>
+            <li><strong>Cosine similarity</strong> — embed both the query context and each memory entry; return top-K by cosine score</li>
+            <li><strong>Multi-criterion scoring</strong> — weighted combination of relevance + recency + importance (Generative Agents)</li>
+            <li><strong>SQL retrieval</strong> — for structured databases, generate and execute SQL queries (ChatDB)</li>
+            <li><strong>FAISS lookup</strong> — approximate nearest-neighbor search over a large vector store (MemoryBank, ExpeL)</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="pipe-panel" id="pipe-4">
+        <div class="pipe-viz">
+          <div class="pipe-node">M̂<sub>t</sub></div>
+          <div class="pipe-arrow">+</div>
+          <div class="pipe-node">c<sub>t+1</sub></div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-node highlight">LLM</div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-node highlight">a<sub>t+1</sub><sup>k</sup></div>
+        </div>
+        <div class="pipe-formula">a<sub>t+1</sub><sup>k</sup> = LLM{ M̂<sub>t</sub><sup>k</sup> ∥ c<sub>t+1</sub><sup>k</sup> }</div>
+        <div class="pipe-detail">
+          <p>The retrieved memory M̂ is concatenated with the action context c<sub>t+1</sub> and passed to the LLM. The LLM then generates the <strong>next action</strong> a<sub>t+1</sub> — which feeds back into the environment to produce the next observation, completing the loop.</p>
+          <p>This is where memory makes a difference: the same LLM, given retrieved context about a prior failure or a retrieved fact from Wikipedia, will generate a better action than it would without that context. The quality of every upstream operation (Write, Manage, Read) directly determines the quality of this final generation.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 5: KEY SYSTEMS -->
+<section class="section" id="systems">
+  <div class="section-label">Architecture Tour</div>
+  <h2 class="section-title">Key Systems</h2>
+  <p class="section-subtitle">Six landmark agent architectures that illustrate different memory design philosophies.</p>
+
+  <!-- Interactive 4 -->
+  <div class="system-gallery" id="sys-gallery">
+    <div class="sys-card" id="sys-0" onclick="setSys(0)">
+      <div class="sys-icon">🏙️</div>
+      <div class="sys-name">Generative Agents</div>
+      <div class="sys-tagline">Park et al. (2023) · Stanford</div>
+    </div>
+    <div class="sys-card" id="sys-1" onclick="setSys(1)">
+      <div class="sys-icon">🔄</div>
+      <div class="sys-name">Reflexion</div>
+      <div class="sys-tagline">Shinn et al. (2023) · Verbal RL</div>
+    </div>
+    <div class="sys-card" id="sys-2" onclick="setSys(2)">
+      <div class="sys-icon">🧠</div>
+      <div class="sys-name">MemGPT</div>
+      <div class="sys-tagline">Packer et al. (2023) · OS-Inspired</div>
+    </div>
+    <div class="sys-card" id="sys-3" onclick="setSys(3)">
+      <div class="sys-icon">🏦</div>
+      <div class="sys-name">MemoryBank</div>
+      <div class="sys-tagline">Zhong et al. (2023) · Dense Retrieval</div>
+    </div>
+    <div class="sys-card" id="sys-4" onclick="setSys(4)">
+      <div class="sys-icon">🎓</div>
+      <div class="sys-name">ExpeL</div>
+      <div class="sys-tagline">Zhao et al. (2024) · Experience Learning</div>
+    </div>
+    <div class="sys-card" id="sys-5" onclick="setSys(5)">
+      <div class="sys-icon">🚀</div>
+      <div class="sys-name">Voyager</div>
+      <div class="sys-tagline">Wang et al. (2023) · Minecraft</div>
+    </div>
+  </div>
+
+  <div class="sys-detail" id="sys-detail-box">
+    <div class="sys-detail-name" id="sys-detail-name">Select a system above</div>
+    <div id="sys-detail-body"></div>
+  </div>
+</section>
+
+<!-- SECTION 6: RETRIEVAL -->
+<section class="section" id="retrieval">
+  <div class="section-label">Memory Reading Deep Dive</div>
+  <h2 class="section-title">Retrieval Strategies</h2>
+  <p class="section-subtitle">How an agent decides which memories are relevant shapes both performance and computational cost.</p>
+
+  <p>Not all stored memories are equally useful for any given query. The retrieval function R must identify which subset of M is worth loading into the prompt. The survey identifies three main retrieval paradigms, each with distinct tradeoffs.</p>
+
+  <!-- Interactive 5 -->
+  <div class="retrieval-viz">
+    <div class="retrieval-tabs">
+      <button class="ret-tab active" onclick="setRetrieval(0)">Similarity-Based</button>
+      <button class="ret-tab" onclick="setRetrieval(1)">Multi-Criterion</button>
+      <button class="ret-tab" onclick="setRetrieval(2)">SQL / Structured</button>
+    </div>
+
+    <!-- Retrieval Panel 0 -->
+    <div class="retrieval-panel active" id="ret-0">
+      <div class="query-box">
+        <div class="query-label">Query Context c<sub>t+1</sub></div>
+        <div class="query-text">"What do I need to craft a sword in Minecraft?"</div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Memory Store — Cosine Similarity Scores</div>
+      <div class="memory-items" id="ret-0-items">
+        <div class="mem-item selected">
+          <div class="mem-bar"><div class="mem-bar-fill" style="width:92%"></div></div>
+          <div class="mem-text">"Crafted wooden pickaxe using 3 planks + 2 sticks"</div>
+          <div class="mem-score">0.92</div>
+        </div>
+        <div class="mem-item selected">
+          <div class="mem-bar"><div class="mem-bar-fill" style="width:87%"></div></div>
+          <div class="mem-text">"Smelted iron ore into 2 iron ingots at furnace"</div>
+          <div class="mem-score">0.87</div>
+        </div>
+        <div class="mem-item">
+          <div class="mem-bar"><div class="mem-bar-fill" style="width:44%"></div></div>
+          <div class="mem-text">"Found a village to the east, traded wheat for emeralds"</div>
+          <div class="mem-score">0.44</div>
+        </div>
+        <div class="mem-item">
+          <div class="mem-bar"><div class="mem-bar-fill" style="width:21%"></div></div>
+          <div class="mem-text">"Built a shelter from oak logs near spawn point"</div>
+          <div class="mem-score">0.21</div>
+        </div>
+      </div>
+      <div class="retrieved-label">Top-2 Retrieved (threshold: 0.7)</div>
+      <div class="retrieved-box">Memories about crafting tools and iron ingots are retrieved. The agent now knows it has iron and basic crafting knowledge — enough to plan toward smelting 2 more ingots for a sword.</div>
+      <p style="margin-top:16px;font-size:13px;">Similarity-based retrieval embeds both query and memories using a shared encoder. Returns top-K by cosine score. Fast with FAISS approximate search. Used by: <strong>MemoryBank, RET-LLM, ExpeL</strong>.</p>
+    </div>
+
+    <!-- Retrieval Panel 1 -->
+    <div class="retrieval-panel" id="ret-1">
+      <div class="query-box">
+        <div class="query-label">Query Context c<sub>t+1</sub></div>
+        <div class="query-text">"What should I do at the party this evening?"</div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Memory Store — Multi-Criterion Scoring (Generative Agents)</div>
+      <div class="memory-items">
+        <div class="mem-item selected">
+          <div class="mem-bar"><div class="mem-bar-fill" style="width:91%"></div></div>
+          <div class="mem-text">"Alice invited me to a party tonight" (recent: 0.9, relevance: 0.95, importance: 0.8)</div>
+          <div class="mem-score">0.91</div>
+        </div>
+        <div class="mem-item selected">
+          <div class="mem-bar"><div class="mem-bar-fill" style="width:82%"></div></div>
+          <div class="mem-text">"I enjoy dancing and meeting new people at social events" (relevance: 0.75, importance: 0.9)</div>
+          <div class="mem-score">0.82</div>
+        </div>
+        <div class="mem-item">
+          <div class="mem-bar"><div class="mem-bar-fill" style="width:38%"></div></div>
+          <div class="mem-text">"I went to the grocery store 3 days ago" (recent: 0.2, relevance: 0.1)</div>
+          <div class="mem-score">0.38</div>
+        </div>
+      </div>
+      <div class="retrieved-label">Weighted Score: α·Relevance + β·Recency + γ·Importance</div>
+      <div class="retrieved-box">Multi-criterion scoring prevents purely old-but-important memories from dominating and purely recent-but-trivial memories from flooding the context. Generative Agents use all three signals with equal weights.</div>
+      <p style="margin-top:16px;font-size:13px;">Generative Agents combine three normalized scores (relevance, recency, importance) to select memories. Each dimension is normalized 0–1 across the memory store. Recency uses exponential decay on last-access time.</p>
+    </div>
+
+    <!-- Retrieval Panel 2 -->
+    <div class="retrieval-panel" id="ret-2">
+      <div class="query-box">
+        <div class="query-label">Query Context c<sub>t+1</sub></div>
+        <div class="query-text">"How many times did I buy coffee in the last week?"</div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">LLM-Generated SQL Query (ChatDB approach)</div>
+      <div class="math-block" style="margin:0 0 12px;">
+        SELECT COUNT(*) FROM memory<br>
+        WHERE category = 'purchase'<br>
+        AND item LIKE '%coffee%'<br>
+        AND date &gt;= date('now', '-7 days')
+      </div>
+      <div class="retrieved-label">Structured Query Result</div>
+      <div class="retrieved-box">Result: 4 coffee purchases found. The LLM receives this structured result as context, enabling precise quantitative answers that would be impossible with fuzzy similarity search.</div>
+      <p style="margin-top:16px;font-size:13px;">ChatDB stores memories as relational database records. The agent generates SQL queries to retrieve specific information. Enables <strong>precise quantitative lookups</strong>, joins, and aggregations — impossible with embedding-based search. Trades flexibility for precision.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 7: EVALUATION -->
+<section class="section" id="evaluation">
+  <div class="section-label">Measuring Memory</div>
+  <h2 class="section-title">Evaluation Landscape</h2>
+  <p class="section-subtitle">How do you know if memory is working? The survey identifies direct and indirect evaluation approaches across five key metrics.</p>
+
+  <!-- Interactive 6 -->
+  <div class="eval-grid" id="eval-grid">
+    <div class="eval-card" id="eval-0" onclick="setEval(0)">
+      <div class="eval-icon">💬</div>
+      <div class="eval-name">Coherence</div>
+      <div class="eval-type">Direct · Subjective</div>
+    </div>
+    <div class="eval-card" id="eval-1" onclick="setEval(1)">
+      <div class="eval-icon">🧠</div>
+      <div class="eval-name">Rationality</div>
+      <div class="eval-type">Direct · Subjective</div>
+    </div>
+    <div class="eval-card" id="eval-2" onclick="setEval(2)">
+      <div class="eval-icon">✅</div>
+      <div class="eval-name">Result Correctness</div>
+      <div class="eval-type">Direct · Objective</div>
+    </div>
+    <div class="eval-card" id="eval-3" onclick="setEval(3)">
+      <div class="eval-icon">📊</div>
+      <div class="eval-name">Reference F1</div>
+      <div class="eval-type">Direct · Objective</div>
+    </div>
+    <div class="eval-card" id="eval-4" onclick="setEval(4)">
+      <div class="eval-icon">⏱️</div>
+      <div class="eval-name">Time &amp; Hardware Cost</div>
+      <div class="eval-type">Direct · Objective</div>
+    </div>
+    <div class="eval-card" id="eval-5" onclick="setEval(5)">
+      <div class="eval-icon">🎯</div>
+      <div class="eval-name">Task Performance</div>
+      <div class="eval-type">Indirect</div>
+    </div>
+  </div>
+
+  <div class="eval-detail" id="eval-detail-box">
+    <div id="eval-detail-body" style="font-size:13px;color:var(--muted);line-height:1.8;"></div>
+  </div>
+
+  <div class="callout" style="margin-top:28px;">
+    <div class="callout-title">The Evaluation Gap</div>
+    <div class="callout-body">Most papers evaluate memory only indirectly — by measuring task success — without isolating the memory component's contribution. This makes it hard to compare memory architectures fairly. A system that performs well on HotpotQA might succeed because of a better prompt, not better memory. Direct memory evaluation (coherence, F1) is rarer but more informative.</div>
+  </div>
+</section>
+
+<!-- SECTION 8: CHALLENGES -->
+<section class="section" id="challenges">
+  <div class="section-label">Open Problems</div>
+  <h2 class="section-title">Challenges &amp; Future Directions</h2>
+  <p class="section-subtitle">Seven open problems define the frontier of agent memory research.</p>
+
+  <div class="limitation-list">
+    <div class="limitation-item">
+      <div class="lim-icon">📚</div>
+      <div>
+        <div class="lim-title">Underdeveloped Parametric Memory</div>
+        <div class="lim-body">Fine-tuning and knowledge editing methods receive far less attention than textual memory in the agent literature. Catastrophic forgetting, high training costs, and the difficulty of online updates remain unsolved. Future work should explore efficient knowledge editing and lightweight personalization methods.</div>
+      </div>
+    </div>
+    <div class="limitation-item">
+      <div class="lim-icon">♾️</div>
+      <div>
+        <div class="lim-title">No Lifelong Learning Framework</div>
+        <div class="lim-body">No current agent architecture cleanly handles <em>indefinite continuous operation</em> — accumulating memory over months of deployment without degrading or requiring periodic wipes. Lifelong memory with graceful forgetting of irrelevant content while retaining critical long-term facts is an open challenge.</div>
+      </div>
+    </div>
+    <div class="limitation-item">
+      <div class="lim-icon">🤝</div>
+      <div>
+        <div class="lim-title">Multi-Agent Memory Undefined</div>
+        <div class="lim-body">When multiple agents share an environment, how should they share, merge, or conflict-resolve their individual memories? No standard protocol exists for shared memory banks, distributed memory consistency, or consensus mechanisms for conflicting agent beliefs. MetaGPT and ChatDev touch this but don't fully solve it.</div>
+      </div>
+    </div>
+    <div class="limitation-item">
+      <div class="lim-icon">⚡</div>
+      <div>
+        <div class="lim-title">Memory Contradictions</div>
+        <div class="lim-body">A single agent can simultaneously have inside-trial, cross-trial, and external knowledge that contradict each other ("The user said they dislike coffee" vs. a retrieved database entry "User ordered coffee 4 times this week"). No robust strategy exists for detecting contradictions and deciding which source to trust.</div>
+      </div>
+    </div>
+    <div class="limitation-item">
+      <div class="lim-icon">📍</div>
+      <div>
+        <div class="lim-title">Position Bias &amp; Context Efficiency</div>
+        <div class="lim-body">LLMs attend unevenly to different positions in long contexts — information at the beginning and end is weighted more than the middle ("lost in the middle" phenomenon). This creates systematic retrieval failure even when the right memory is loaded. Long-context architectures need position-aware attention solutions.</div>
+      </div>
+    </div>
+    <div class="limitation-item">
+      <div class="lim-icon">🤖</div>
+      <div>
+        <div class="lim-title">Embodied &amp; Multimodal Memory</div>
+        <div class="lim-body">Physical-world agents (robotics, AR glasses) need to integrate sensor streams, images, and spatial coordinates into memory. Pure text memory is insufficient. Multimodal memory systems that handle vision + language + spatial context are in early stages, with no unified framework.</div>
+      </div>
+    </div>
+    <div class="limitation-item">
+      <div class="lim-icon">🔒</div>
+      <div>
+        <div class="lim-title">Knowledge Reliability &amp; Privacy</div>
+        <div class="lim-body">External knowledge sources can be inaccurate, biased, or contain private user data. Agents that blindly store and retrieve external content risk propagating misinformation. Privacy-preserving memory architectures and source credibility scoring are unexplored research directions.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 9: RELATED POSTS -->
+<section class="section" id="related">
+  <div class="section-label">Go Deeper</div>
+  <h2 class="section-title">Related Posts</h2>
+  <p class="section-subtitle">Memory doesn't live in isolation — it connects to training, retrieval, agent architectures, and interpretability.</p>
+
+  <div class="xref-grid">
+    <a class="xref-card" href="../46-hermes-agent/">
+      <div class="xref-num">Post 46 · Agents &amp; Systems</div>
+      <div class="xref-title">Hermes Agent — The Self-Improving Agent Architecture</div>
+      <div class="xref-desc">Hermes implements a 3-tier memory system (Markdown + SQLite FTS5 + 8 external providers) and background GC memory management — a concrete implementation of the Write-Manage-Read pipeline.</div>
+    </a>
+    <a class="xref-card" href="../48-continual-learning/">
+      <div class="xref-num">Post 48 · Training &amp; Alignment</div>
+      <div class="xref-title">Continual Learning — Teaching Models to Remember Without Forgetting</div>
+      <div class="xref-desc">Parametric memory faces catastrophic forgetting — exactly the problem continual learning aims to solve. Sparse Memory Finetuning and HOPE's memory hierarchy directly address the limitations of parametric memory described here.</div>
+    </a>
+    <a class="xref-card" href="../49-nla-interpretability/">
+      <div class="xref-num">Post 49 · Safety &amp; Governance</div>
+      <div class="xref-title">Natural Language Autoencoders — Reading the Mind of an LLM</div>
+      <div class="xref-desc">NLAs expose what's inside model activations at a specific layer — a form of reading parametric memory. The AV→AR pipeline and the FVE metric complement the memory operations framework discussed here.</div>
+    </a>
+    <a class="xref-card" href="../41-agent-traps/">
+      <div class="xref-num">Post 41 · Safety &amp; Governance</div>
+      <div class="xref-title">AI Agent Traps — Prompt Injection &amp; Memory Poisoning</div>
+      <div class="xref-desc">Adversarial attacks that corrupt an agent's memory store (injecting false memories, poisoning the retrieval index) exploit the exact Write and Manage operations described in this post's unified framework.</div>
+    </a>
+    <a class="xref-card" href="../21-rag/">
+      <div class="xref-num">Post 21 · LLM Foundations</div>
+      <div class="xref-title">RAG — Retrieval-Augmented Generation</div>
+      <div class="xref-desc">RAG is the foundational pattern for reading external knowledge into context — the simplest form of the R (read) operation. The similarity-based retrieval strategies described here extend RAG to episodic agent memory.</div>
+    </a>
+    <a class="xref-card" href="../47-gcg-attack/">
+      <div class="xref-num">Post 47 · Safety &amp; Governance</div>
+      <div class="xref-title">GCG Attack — Breaking AI Alignment with Adversarial Suffixes</div>
+      <div class="xref-desc">Cross-trial memory enables agents to remember adversarial experience across runs. A suffixed adversarial prompt stored in memory could bias future agent actions — a novel attack surface enabled by persistent memory.</div>
+    </a>
+  </div>
+</section>
+
+<!-- CONTINUE STRIP -->
+<div class="continue-strip">
+  <div>
+    <div class="cs-label">&#8592; Previous Post</div>
+    <a href="../49-nla-interpretability/" class="cs-title">Post 49 — Natural Language Autoencoders</a>
+  </div>
+  <div style="text-align:right;">
+    <div class="cs-label">All Posts &#8594;</div>
+    <a href="../" class="cs-title" style="color:var(--amber2);">Visual Summary</a>
+  </div>
+</div>
+
+</main>
+</div>
+</div><!-- /app -->
+
+<script>
+var STORE_KEY = 'pg_unlocked_50';
+var PW = 'visual2025';
+
+function checkGate(){
+  var v = document.getElementById('gate-pw').value.trim();
+  if(v === PW){
+    localStorage.setItem(STORE_KEY,'1');
+    document.getElementById('gate').style.display='none';
+    document.getElementById('app').style.display='block';
+    initAll();
+  } else {
+    document.getElementById('gate-err').textContent='Incorrect code. Try again.';
+  }
+}
+document.getElementById('gate-pw').addEventListener('keydown',function(e){if(e.key==='Enter')checkGate();});
+if(localStorage.getItem(STORE_KEY)==='1'){
+  document.getElementById('gate').style.display='none';
+  document.getElementById('app').style.display='block';
+}
+
+function initAll(){
+  initSidebar();
+}
+
+// ========================
+// SIDEBAR NAV HIGHLIGHT
+// ========================
+function initSidebar(){
+  var links = document.querySelectorAll('.sidebar-nav a');
+  function highlight(){
+    var scroll = window.scrollY + 120;
+    var active = null;
+    links.forEach(function(l){
+      var id = l.getAttribute('href').replace('#','');
+      var el = document.getElementById(id);
+      if(el && el.offsetTop <= scroll) active = l;
+    });
+    links.forEach(function(l){l.classList.remove('active');});
+    if(active) active.classList.add('active');
+  }
+  window.addEventListener('scroll',highlight);
+  highlight();
+}
+
+// ========================
+// INTERACTIVE 1: Memory Source Explorer
+// ========================
+function setSource(i){
+  document.querySelectorAll('.src-tab').forEach(function(t,idx){
+    t.classList.toggle('active', idx===i);
+  });
+  document.querySelectorAll('.source-panel').forEach(function(p,idx){
+    p.classList.toggle('active', idx===i);
+  });
+}
+
+// ========================
+// INTERACTIVE 2: Memory Forms Toggle
+// ========================
+function setForm(type){
+  var isTextual = (type === 'textual');
+  document.getElementById('form-txt-btn').classList.toggle('active', isTextual);
+  document.getElementById('form-param-btn').classList.toggle('active', !isTextual);
+  document.getElementById('form-textual').style.display = isTextual ? '' : 'none';
+  document.getElementById('form-parametric').style.display = isTextual ? 'none' : '';
+}
+
+function setSubtype(key){
+  var form = document.getElementById('form-textual').style.display==='none' ? 'parametric' : 'textual';
+  var allChips = form === 'textual'
+    ? document.querySelectorAll('#textual-chips .subtype-chip')
+    : document.querySelectorAll('#parametric-chips .subtype-chip');
+  var allDetails = document.querySelectorAll('.subtype-detail');
+  allChips.forEach(function(c){ c.classList.remove('active'); });
+  allDetails.forEach(function(d){ d.classList.remove('active'); d.style.display='none'; });
+  // find clicked chip
+  allChips.forEach(function(c){
+    if(c.textContent.toLowerCase().replace(/\s+/g,'').includes(key.replace('-',''))){
+      c.classList.add('active');
+    }
+  });
+  var det = document.getElementById('sub-'+key);
+  if(det){ det.classList.add('active'); det.style.display='block'; }
+}
+
+// On form switch, reset subtypes
+document.getElementById('form-txt-btn').addEventListener('click', function(){
+  document.querySelectorAll('#textual-chips .subtype-chip').forEach(function(c,i){ c.classList.toggle('active', i===0); });
+  document.querySelectorAll('.subtype-detail').forEach(function(d){ d.classList.remove('active'); d.style.display='none'; });
+  var first = document.getElementById('sub-complete');
+  if(first){ first.classList.add('active'); first.style.display='block'; }
+});
+document.getElementById('form-param-btn').addEventListener('click', function(){
+  document.querySelectorAll('#parametric-chips .subtype-chip').forEach(function(c,i){ c.classList.toggle('active', i===0); });
+  document.querySelectorAll('.subtype-detail').forEach(function(d){ d.classList.remove('active'); d.style.display='none'; });
+  var first = document.getElementById('sub-finetune');
+  if(first){ first.classList.add('active'); first.style.display='block'; }
+});
+
+// ========================
+// INTERACTIVE 3: W-P-R Pipeline Stepper
+// ========================
+function setPipeStep(i){
+  document.querySelectorAll('.pipe-step').forEach(function(s,idx){
+    s.classList.toggle('active', idx===i);
+  });
+  document.querySelectorAll('.pipe-panel').forEach(function(p,idx){
+    p.classList.toggle('active', idx===i);
+  });
+}
+
+// ========================
+// INTERACTIVE 4: System Gallery
+// ========================
+var SYSTEMS = [
+  {
+    name: 'Generative Agents',
+    icon: '🏙️',
+    paper: 'Park et al., Stanford / Google (2023)',
+    body: `
+      <p>25 AI agents simulate human daily life in a virtual town. Each agent maintains a <strong>memory stream</strong> — a comprehensive log of experiences, observations, and reflections indexed by time.</p>
+      <div class="sys-detail-grid">
+        <div class="sys-detail-item">
+          <div class="sys-detail-label">Memory Source</div>
+          <div class="sys-detail-val">Inside-trial (daily events) + Cross-trial (reflection summaries)</div>
+        </div>
+        <div class="sys-detail-item">
+          <div class="sys-detail-label">Memory Form</div>
+          <div class="sys-detail-val">Textual — retrieved interactions</div>
+        </div>
+        <div class="sys-detail-item">
+          <div class="sys-detail-label">Key Innovation</div>
+          <div class="sys-detail-val">Reflection: triggered when cumulative importance scores exceed threshold; distills raw events into abstract personality insights</div>
+        </div>
+        <div class="sys-detail-item">
+          <div class="sys-detail-label">Retrieval</div>
+          <div class="sys-detail-val">Multi-criterion: α·Relevance + β·Recency + γ·Importance (all equal weight)</div>
+        </div>
+      </div>
+    `
+  },
+  {
+    name: 'Reflexion',
+    icon: '🔄',
+    paper: 'Shinn et al., Northeastern (2023)',
+    body: `
+      <p>Verbal reinforcement learning: instead of gradient updates, the agent writes a <strong>natural language reflection</strong> after each failed trial, which is prepended to the next attempt.</p>
+      <div class="sys-detail-grid">
+        <div class="sys-detail-item">
+          <div class="sys-detail-label">Memory Source</div>
+          <div class="sys-detail-val">Cross-trial (failure reflections stored across runs)</div>
+        </div>
+        <div class="sys-detail-item">
+          <div class="sys-detail-label">Memory Form</div>
+          <div class="sys-detail-val">Textual — complete cross-trial interaction records</div>
+        </div>
+        <div class="sys-detail-item">
+          <div class="sys-detail-label">Key Innovation</div>
+          <div class="sys-detail-val">No gradient updates needed — verbal self-critique acts as the learning signal. Improves on HotpotQA, AlfWorld, HumanEval without any parameter changes.</div>
+        </div>
+        <div class="sys-detail-item">
+          <div class="sys-detail-label">Limitation</div>
+          <div class="sys-detail-val">Reflections may be wrong or biased; no mechanism to verify accuracy of stored verbal insights</div>
+        </div>
+      </div>
+    `
+  },
+  {
+    name: 'MemGPT',
+    icon: '🧠',
+    paper: 'Packer et al., UC Berkeley (2023)',
+    body: `
+      <p>Draws an analogy to OS memory management: the LLM acts as a CPU, with <strong>main context</strong> as RAM (fast, limited) and external storage as disk (slow, unlimited). The agent autonomously moves data between tiers.</p>
+      <div class="sys-detail-grid">
+        <div class="sys-detail-item">
+          <div class="sys-detail-label">Architecture</div>
+          <div class="sys-detail-val">Working context (short-term) + External database (long-term). Agent decides autonomously when to page in/out.</div>
+        </div>
+        <div class="sys-detail-item">
+          <div class="sys-detail-label">Memory Form</div>
+          <div class="sys-detail-val">Textual — virtual context management with autonomous writes</div>
+        </div>
+        <div class="sys-detail-item">
+          <div class="sys-detail-label">Key Innovation</div>
+          <div class="sys-detail-val">Agent controls its own memory operations — decides when to search, insert, or delete entries. Unbounded effective context via tiered memory.</div>
+        </div>
+        <div class="sys-detail-item">
+          <div class="sys-detail-label">Use Case</div>
+          <div class="sys-detail-val">Long-running document analysis, multi-session personal assistants, knowledge-intensive conversations</div>
+        </div>
+      </div>
+    `
+  },
+  {
+    name: 'MemoryBank',
+    icon: '🏦',
+    paper: 'Zhong et al., CUHK (2023)',
+    body: `
+      <p>Builds a persistent external memory bank with <strong>dual-tower dense retrieval</strong> and FAISS indexing. Implements all three management operations: reflection (daily summaries), merging, and forgetting via the Ebbinghaus forgetting curve.</p>
+      <div class="sys-detail-grid">
+        <div class="sys-detail-item">
+          <div class="sys-detail-label">Retrieval</div>
+          <div class="sys-detail-val">Dual-tower encoder (query + memory separately embedded) + FAISS approximate nearest-neighbor</div>
+        </div>
+        <div class="sys-detail-item">
+          <div class="sys-detail-label">Memory Management</div>
+          <div class="sys-detail-val">Daily summary reflections + Ebbinghaus-inspired forgetting: memory strength decays with time unless reinforced by access</div>
+        </div>
+        <div class="sys-detail-item">
+          <div class="sys-detail-label">Evaluation</div>
+          <div class="sys-detail-val">Coherence (GPT-4 judge), Rationality (crowd workers), Reference F1 (precision/recall over retrieved memory content)</div>
+        </div>
+        <div class="sys-detail-item">
+          <div class="sys-detail-label">Use Case</div>
+          <div class="sys-detail-val">Long-term companion / personal assistant with evolving user understanding</div>
+        </div>
+      </div>
+    `
+  },
+  {
+    name: 'ExpeL',
+    icon: '🎓',
+    paper: 'Zhao et al. (2024) — Experience Learning',
+    body: `
+      <p>Stores complete <strong>successful and failed trajectories</strong> in a FAISS vector store. Extracts transferable success patterns by comparing matched pairs of successes and failures on similar tasks.</p>
+      <div class="sys-detail-grid">
+        <div class="sys-detail-item">
+          <div class="sys-detail-label">Memory Source</div>
+          <div class="sys-detail-val">Cross-trial: completed trajectories (successes and failures) stored across episodes</div>
+        </div>
+        <div class="sys-detail-item">
+          <div class="sys-detail-label">Key Innovation</div>
+          <div class="sys-detail-val">Contrastive trajectory analysis: matches successful vs. failed cases on similar tasks, extracts the differentiating actions as generalizable rules</div>
+        </div>
+        <div class="sys-detail-item">
+          <div class="sys-detail-label">Retrieval</div>
+          <div class="sys-detail-val">Top-K trajectory similarity search. Retrieved examples act as few-shot demonstrations for the next episode.</div>
+        </div>
+        <div class="sys-detail-item">
+          <div class="sys-detail-label">Result</div>
+          <div class="sys-detail-val">Improves on ALFWorld and WebShop benchmarks; learns from experience without any parameter updates</div>
+        </div>
+      </div>
+    `
+  },
+  {
+    name: 'Voyager',
+    icon: '🚀',
+    paper: 'Wang et al., NVIDIA (2023)',
+    body: `
+      <p>Lifelong learning agent in Minecraft. Stores <strong>executable code sequences</strong> as a library of skills. Each skill is tested, refined on environment feedback, and reused in future episodes — no relearning needed.</p>
+      <div class="sys-detail-grid">
+        <div class="sys-detail-item">
+          <div class="sys-detail-label">Memory Form</div>
+          <div class="sys-detail-val">Executable code (JavaScript functions) stored in a skill library — a unique non-textual memory format</div>
+        </div>
+        <div class="sys-detail-item">
+          <div class="sys-detail-label">Memory Management</div>
+          <div class="sys-detail-val">Merging: skills are refined iteratively based on environment execution feedback until they pass a success test</div>
+        </div>
+        <div class="sys-detail-item">
+          <div class="sys-detail-label">Memory Reading</div>
+          <div class="sys-detail-val">Retrieves relevant skills by embedding the current task description; loads matching code into context as callable functions</div>
+        </div>
+        <div class="sys-detail-item">
+          <div class="sys-detail-label">Result</div>
+          <div class="sys-detail-val">3.3× more unique items discovered vs. ReAct; explores Minecraft systematically without forgetting prior skills</div>
+        </div>
+      </div>
+    `
+  }
+];
+
+function setSys(i){
+  document.querySelectorAll('.sys-card').forEach(function(c,idx){
+    c.classList.toggle('active', idx===i);
+  });
+  var box = document.getElementById('sys-detail-box');
+  var nameEl = document.getElementById('sys-detail-name');
+  var bodyEl = document.getElementById('sys-detail-body');
+  var sys = SYSTEMS[i];
+  nameEl.textContent = sys.name + ' — ' + sys.paper;
+  bodyEl.innerHTML = sys.body;
+  box.classList.add('active');
+  box.style.display = 'block';
+}
+
+// ========================
+// INTERACTIVE 5: Retrieval Strategy Visualizer
+// ========================
+function setRetrieval(i){
+  document.querySelectorAll('.ret-tab').forEach(function(t,idx){
+    t.classList.toggle('active', idx===i);
+  });
+  document.querySelectorAll('.retrieval-panel').forEach(function(p,idx){
+    p.classList.toggle('active', idx===i);
+  });
+}
+
+// ========================
+// INTERACTIVE 6: Evaluation Metrics Explorer
+// ========================
+var EVAL_DETAILS = [
+  {
+    name: 'Coherence',
+    type: 'Direct — Subjective',
+    body: `<p><strong>Is the recalled memory contextually appropriate and natural?</strong></p>
+    <p>Evaluators (human judges or GPT-4) read a conversation segment and the recalled memory, then score whether the memory fits the current context naturally — or feels out of place, contradictory, or awkward.</p>
+    <p><strong>Evaluation method:</strong> Human pairwise comparison ("which system's recalled memory is more coherent?") or Likert scale scoring (1–5). GPT-4 as judge is increasingly common.</p>
+    <p><strong>Used by:</strong> RET-LLM, TiM, MemoryBank, MemoChat</p>`
+  },
+  {
+    name: 'Rationality',
+    type: 'Direct — Subjective',
+    body: `<p><strong>Is the recalled memory factually plausible?</strong></p>
+    <p>Tests whether the agent recalls reasonable, factually grounded information — not hallucinated or contradictory memories. Example: recalling "The Summer Palace is in Beijing" is rational; recalling "The Summer Palace is on the Moon" is irrational.</p>
+    <p><strong>Evaluation method:</strong> Crowd-worker annotation. Workers receive recalled memories and mark each as rational/irrational based on world knowledge.</p>
+    <p><strong>Used by:</strong> MemoryBank, TiM, MPC</p>`
+  },
+  {
+    name: 'Result Correctness',
+    type: 'Direct — Objective',
+    body: `<p><strong>Does the recalled memory lead to the right answer?</strong></p>
+    <div class="math-block" style="margin:12px 0;">Correctness = (1/N) × Σ 𝟙[a<sub>i</sub> = â<sub>i</sub>]</div>
+    <p>Binary: did the agent's action (a<sub>i</sub>) match the ground truth (â<sub>i</sub>)? Averaged over N test cases. Direct, objective, and comparable across systems — but doesn't isolate <em>whether memory specifically caused success</em>.</p>
+    <p><strong>Used by:</strong> ChatDB (structured memory correctness), MemGPT (context window management tasks)</p>`
+  },
+  {
+    name: 'Reference F1',
+    type: 'Direct — Objective',
+    body: `<p><strong>Did the system retrieve the right memories (precision) and not miss important ones (recall)?</strong></p>
+    <div class="math-block" style="margin:12px 0;">F1 = 2 × (Precision × Recall) / (Precision + Recall)<br><br>Precision = TP / (TP + FP) &nbsp;&nbsp;&nbsp; Recall = TP / (TP + FN)</div>
+    <p>Ground-truth annotations mark which memories <em>should</em> have been retrieved for a given query. TP = correctly retrieved, FP = incorrectly retrieved, FN = should-have-retrieved-but-missed.</p>
+    <p><strong>Used by:</strong> MemoryBank, MemoChat</p>`
+  },
+  {
+    name: 'Time & Hardware Cost',
+    type: 'Direct — Objective',
+    body: `<p><strong>How fast and how resource-hungry is the memory system?</strong></p>
+    <div class="math-block" style="margin:12px 0;">Δtime = (1/M) × Σ (t<sub>i</sub><sup>end</sup> − t<sub>i</sub><sup>start</sup>)</div>
+    <p>Measures average latency across M memory operations (Write + Manage + Read combined). Also tracks <strong>peak GPU memory</strong> consumption — critical for deploying parametric memory methods (fine-tuning, knowledge editing) in resource-constrained settings.</p>
+    <p><strong>Used by:</strong> MAC (meta-learning based personality knowledge editing)</p>`
+  },
+  {
+    name: 'Task Performance (Indirect)',
+    type: 'Indirect — Via Downstream Tasks',
+    body: `<p><strong>Does the memory system improve the agent's actual task success?</strong></p>
+    <p>The most common evaluation — measure end-to-end task performance (QA accuracy, game completion rate, recommendation precision) with vs. without the memory component. If performance improves, memory is credited.</p>
+    <p><strong>Tasks used across the literature:</strong></p>
+    <ul style="padding-left:20px;margin-top:8px;">
+      <li>Multi-source QA (HotpotQA, WebQ) — tests integration of inside-trial + external knowledge</li>
+      <li>ALFWorld, WebShop — embodied task completion</li>
+      <li>Long-context benchmarks (ROUGE, passage retrieval) — tests long-range memory</li>
+      <li>Recommendation accuracy (RecAgent, InteRecAgent)</li>
+    </ul>
+    <p style="margin-top:12px;"><strong>Limitation:</strong> confounds memory quality with overall system quality — a better prompt, model, or planner can look like a memory improvement.</p>`
+  }
+];
+
+function setEval(i){
+  document.querySelectorAll('.eval-card').forEach(function(c,idx){
+    c.classList.toggle('active', idx===i);
+  });
+  var box = document.getElementById('eval-detail-box');
+  var bodyEl = document.getElementById('eval-detail-body');
+  var ev = EVAL_DETAILS[i];
+  bodyEl.innerHTML = '<strong style="color:var(--amber);font-size:15px;">' + ev.name + '</strong><div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin:4px 0 16px;">' + ev.type + '</div>' + ev.body;
+  box.classList.add('active');
+  box.style.display = 'block';
+}
+</script>
+</body>
+</html>
