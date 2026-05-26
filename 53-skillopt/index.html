@@ -753,7 +753,7 @@ function checkGate(){
 <!-- ═══════════════════════════════ LIVE PLAYGROUND ═══════════════════════════════ -->
 <div class="section" id="s-playground">
   <div class="sec-title">Live Playground</div>
-  <div class="sec-sub">Run a real SkillOpt loop — Rollout → Optimize → Re-run — using your OpenAI API key (gpt-4o-mini, ~$0.001 per full run)</div>
+  <div class="sec-sub">Run a real SkillOpt loop on Text-to-SQL tasks — Rollout → Optimize → Re-run — using your OpenAI API key (gpt-4o-mini, ~$0.001 per full run)</div>
 
   <!-- SETUP: API KEY -->
   <div class="pg-box">
@@ -770,7 +770,7 @@ function checkGate(){
   <!-- PHASE 1: ROLLOUT -->
   <div class="pg-box">
     <div class="pg-phase-pill"><span class="pg-phase-num">1</span>&nbsp; Rollout &mdash; Agent runs with initial skill</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">This is the starting skill document — intentionally vague. Click <strong style="color:var(--text);">Run Rollout</strong> to watch gpt-4o-mini answer 3 Python gotcha questions guided only by this skill.</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">This is the starting skill document — it contains three deliberately wrong rules about SQL. Click <strong style="color:var(--text);">Run Rollout</strong> to watch gpt-4o-mini answer 3 Text-to-SQL questions guided by this flawed skill.</div>
     <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;">Initial Skill Document</div>
     <div class="pg-skill-doc" id="pg-skill-init"></div>
     <button class="pg-btn" id="pg-btn-rollout" onclick="pgRollout()" disabled>&#9654;&nbsp; Run Rollout</button>
@@ -786,7 +786,7 @@ function checkGate(){
         <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;">Initial Score</div>
         <div class="pg-score-val" id="pg-sc-init">—</div>
       </div>
-      <div style="flex:1;font-size:12px;color:var(--muted);">The initial skill told the model to expect "intuitive" behavior — but Python gotchas are anything but. The optimizer will reflect on these failures and rewrite the skill with specific rules.</div>
+      <div style="flex:1;font-size:12px;color:var(--muted);">The initial skill has three wrong rules: use WHERE for aggregates, prefer INNER JOIN, check for zeros/NULLs on joins. The optimizer will reflect on these failures and rewrite the skill with correct SQL rules.</div>
     </div>
   </div>
 
@@ -914,26 +914,44 @@ var pg={
   apiKey:'',
   ir:[],fr:[],
   optSkill:'',
-  initSkill:'# Python Bug Detection Skill\n## Your role\nYou are a Python debugging assistant. When shown Python code with a question, select the correct answer (A, B, C, or D).\n## Guiding principle\nPython is designed for readability and predictability. When in doubt, choose the answer that represents the most intuitive, expected outcome — Python rarely surprises experienced programmers.',
+  initSkill:'# Text-to-SQL Skill\n## Your role\nYou are a SQL query assistant. When given a database schema and a natural language question, select the SQL query (A, B, C, or D) that correctly answers the question.\n## Rules to follow\n1. Use WHERE clause for all filter conditions, including filters on aggregated results.\n2. When joining tables, prefer INNER JOIN — it is the standard and most efficient join type.\n3. To find records with no related data, check for zero values or NULL in a joined column.',
   tasks:[
-    {id:1,title:'Task 1 — Closure Variable Capture',
-     code:'fns = [lambda: i for i in range(3)]\nprint(fns[0](), fns[1](), fns[2]())',
-     q:'What does this code print?',
-     opts:{A:'0 1 2',B:'2 2 2',C:'Error',D:'0 0 0'},
+    {id:1,
+     title:'Task 1 — Aggregate Filter',
+     code:'TABLE: employees(id, name, department, salary)\n\nFind all departments where the average salary is above $70,000.',
+     q:'Which SQL query is correct?',
+     opts:{
+       A:'SELECT department FROM employees\n  WHERE AVG(salary) > 70000\n  GROUP BY department',
+       B:'SELECT department FROM employees\n  GROUP BY department\n  HAVING AVG(salary) > 70000',
+       C:'SELECT department FROM employees\n  WHERE salary > 70000\n  GROUP BY department',
+       D:'SELECT department FROM employees\n  GROUP BY department\n  WHERE AVG(salary) > 70000'
+     },
      correct:'B',
-     explain:'Closures capture variables by reference, not by value. All lambdas share the same variable i, which equals 2 after the loop completes.'},
-    {id:2,title:'Task 2 — Mutable Default Argument',
-     code:'def add_item(val, lst=[]):\n    lst.append(val)\n    return lst\n\nprint(add_item(1))\nprint(add_item(2))',
-     q:'What does the second print output?',
-     opts:{A:'[2]',B:'[1, 2]',C:'Error',D:'[]'},
-     correct:'B',
-     explain:'Default arguments are evaluated once at function definition time. The same list object is reused across all calls, accumulating values.'},
-    {id:3,title:'Task 3 — String Immutability',
-     code:'s = "hello"\ns[0] = s[0].upper()\nprint(s)',
-     q:'What happens when this runs?',
-     opts:{A:'Prints "Hello"',B:'Prints "hello"',C:'Raises TypeError',D:'Raises AttributeError'},
+     explain:'Aggregate functions like AVG() cannot appear in a WHERE clause — WHERE filters individual rows before grouping occurs. HAVING filters after GROUP BY and is the correct clause for aggregate conditions.'},
+    {id:2,
+     title:'Task 2 — Missing Records (Anti-Join)',
+     code:'TABLES: customers(id, name)\n        orders(id, customer_id, total)\n\nFind all customers who have never placed an order.',
+     q:'Which SQL query is correct?',
+     opts:{
+       A:'SELECT * FROM customers\n  WHERE order_count = 0',
+       B:'SELECT * FROM customers\n  WHERE id NOT IN\n    (SELECT customer_id FROM orders)',
+       C:'SELECT c.* FROM customers c\n  LEFT JOIN orders o ON c.id = o.customer_id\n  WHERE o.total IS NULL',
+       D:'SELECT c.* FROM customers c\n  INNER JOIN orders o ON c.id = o.customer_id\n  WHERE o.total = 0'
+     },
      correct:'C',
-     explain:'Python strings are immutable — item assignment is not allowed. Attempting s[0] = ... raises a TypeError.'}
+     explain:'Option A fails — there is no order_count column. Option D (INNER JOIN) only returns customers who do have orders. Option B (NOT IN) fails if any order has a NULL customer_id. Option C (LEFT JOIN ... WHERE IS NULL) is the safest anti-join pattern: it keeps all customers and filters to those where no matching order row was found.'},
+    {id:3,
+     title:'Task 3 — Join Type Selection',
+     code:'TABLES: products(id, name, category_id)\n        categories(id, category_name)\n\nList ALL products with their category name.\nInclude products that have no category assigned.',
+     q:'Which SQL query is correct?',
+     opts:{
+       A:'SELECT p.name, c.category_name\n  FROM products p\n  INNER JOIN categories c\n    ON p.category_id = c.id',
+       B:'SELECT p.name, c.category_name\n  FROM products p\n  LEFT JOIN categories c\n    ON p.category_id = c.id',
+       C:'SELECT p.name, c.category_name\n  FROM products p\n  RIGHT JOIN categories c\n    ON p.category_id = c.id',
+       D:'SELECT p.name, c.category_name\n  FROM products p, categories c\n  WHERE p.category_id = c.id'
+     },
+     correct:'B',
+     explain:'INNER JOIN (A) and implicit join (D) both exclude products with no matching category row. RIGHT JOIN (C) keeps all categories but may drop products. LEFT JOIN (B) keeps every product and returns NULL for category_name when no category is assigned — exactly what the question requires.'}
   ]
 };
 
@@ -979,10 +997,10 @@ async function pgCall(msgs,max){
 }
 
 function pgMsgs(task,skill){
-  var opts=Object.entries(task.opts).map(function(e){return e[0]+') '+e[1];}).join('\n');
+  var opts=Object.entries(task.opts).map(function(e){return 'Option '+e[0]+':\n'+e[1];}).join('\n\n');
   return [
     {role:'system',content:skill+'\n\nIMPORTANT: Respond with ONLY a single letter: A, B, C, or D. No explanation.'},
-    {role:'user',content:task.title+'\n\nCode:\n```python\n'+task.code+'\n```\n\n'+task.q+'\n\n'+opts}
+    {role:'user',content:task.title+'\n\n'+task.code+'\n\n'+task.q+'\n\n'+opts}
   ];
 }
 
@@ -1007,20 +1025,32 @@ async function pgRollout(){
 function escH(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
 function pgCard(r){
-  var opts=Object.entries(r.t.opts).map(function(e){
-    var l=e[0],v=e[1],s='';
-    if(l===r.t.correct)s='color:#34d399;font-weight:700;';
-    else if(l===r.got&&!r.pass)s='color:#f87171;';
-    return '<span style="'+s+'">'+l+') '+v+'</span>';
-  }).join('<span style="color:var(--border);margin:0 4px;">|</span>');
+  var optHtml=Object.entries(r.t.opts).map(function(e){
+    var l=e[0],v=e[1];
+    var isCorrect=l===r.t.correct;
+    var isModelWrong=l===r.got&&!r.pass;
+    var bg=isCorrect?'rgba(16,185,129,.07)':(isModelWrong?'rgba(239,68,68,.07)':'transparent');
+    var border=isCorrect?'1px solid rgba(16,185,129,.3)':(isModelWrong?'1px solid rgba(239,68,68,.3)':'1px solid var(--border)');
+    var labelColor=isCorrect?'#34d399':(isModelWrong?'#f87171':'var(--muted)');
+    var tag=isCorrect?' <span style="font-size:9px;background:rgba(16,185,129,.15);color:#34d399;padding:1px 5px;border-radius:3px;">&#10003; correct</span>'
+              :(isModelWrong?' <span style="font-size:9px;background:rgba(239,68,68,.15);color:#f87171;padding:1px 5px;border-radius:3px;">&#8592; model picked</span>':'');
+    return '<div style="margin-bottom:8px;background:'+bg+';border:'+border+';border-radius:6px;padding:8px 10px;">'+
+      '<div style="font-size:11px;font-weight:700;color:'+labelColor+';margin-bottom:4px;">'+l+')'+tag+'</div>'+
+      '<pre style="margin:0;font-family:\'JetBrains Mono\',monospace;font-size:10.5px;color:var(--orange3);white-space:pre;overflow-x:auto;line-height:1.6;">'+escH(v)+'</pre>'+
+      '</div>';
+  }).join('');
   return '<div class="pg-task-card">'+
     '<div class="pg-task-hd"><div class="pg-task-title">'+r.t.title+'</div>'+
     '<span class="pg-badge '+(r.pass?'pg-pass':'pg-fail')+'">'+(r.pass?'&#10003; Correct':'&#10007; Wrong')+'</span></div>'+
     '<div class="pg-code">'+escH(r.t.code)+'</div>'+
-    '<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">'+r.t.q+'</div>'+
-    '<div style="font-size:11px;margin-bottom:8px;line-height:2;">'+opts+'</div>'+
-    '<div style="font-size:11px;"><span style="color:var(--muted);">Model answered: </span><span style="font-weight:700;color:'+(r.pass?'#34d399':'#f87171')+';">'+r.got+'</span>'+
-    '<span style="color:var(--muted);margin-left:14px;">Correct: </span><span style="font-weight:700;color:#34d399;">'+r.t.correct+'</span></div>'+
+    '<div style="font-size:12px;font-weight:600;color:var(--text);margin:10px 0 10px;">'+r.t.q+'</div>'+
+    optHtml+
+    '<div style="font-size:11px;margin-top:6px;">'+
+      '<span style="color:var(--muted);">Model answered: </span>'+
+      '<span style="font-weight:700;color:'+(r.pass?'#34d399':'#f87171')+';">'+r.got+'</span>'+
+      '<span style="color:var(--muted);margin-left:14px;">Correct: </span>'+
+      '<span style="font-weight:700;color:#34d399;">'+r.t.correct+'</span>'+
+    '</div>'+
     (!r.pass?'<div style="font-size:11px;color:var(--muted);margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">'+r.t.explain+'</div>':'')+
     '</div>';
 }
