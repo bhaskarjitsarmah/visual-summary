@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en" class="vs-post">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>SkillLens — The Full Lifecycle Study of Agent Skills</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#050c0f;--surface:#091519;--surface2:#0d1f24;--border:#123040;
+  --text:#e8f4f7;--muted:#4a7a8a;
+  --teal:#06b6d4;--teal2:#22d3ee;--teal3:#67e8f9;
+  --cyan:#0891b2;--cyan2:#0e7490;
+  --emerald:#10b981;--emerald2:#34d399;
+  --amber:#f59e0b;--amber2:#fbbf24;
+  --rose:#f43f5e;
+  --acc1:#06b6d4;--acc2:#10b981;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+code,pre{font-family:'JetBrains Mono',monospace;}
+
+/* GATE */
+#gate{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.gate-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 44px;text-align:center;max-width:380px;width:90%;}
+.gate-icon{font-size:36px;margin-bottom:12px;}
+.gate-title{font-size:20px;font-weight:800;color:var(--teal2);margin-bottom:4px;}
+.gate-sub{font-size:12px;color:var(--muted);margin-bottom:24px;}
+.gate-input{width:100%;background:#020809;border:1px solid var(--border);border-radius:8px;padding:11px 14px;font-size:14px;color:var(--text);outline:none;margin-bottom:12px;}
+.gate-input:focus{border-color:var(--teal);}
+.gate-btn{width:100%;background:var(--teal);color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s;}
+.gate-btn:hover{opacity:.85;}
+.gate-err{font-size:11px;color:#f87171;margin-top:6px;display:none;}
+
+/* LAYOUT */
+.sidebar{width:240px;min-width:240px;height:100vh;position:sticky;top:0;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:0 0 40px;flex-shrink:0;}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.sidebar-logo-title{font-size:13px;font-weight:700;color:var(--teal2);}
+.sidebar-logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.nav-group-title{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;padding:10px 16px 4px;}
+.nav-link{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;}
+.nav-link:hover,.nav-link.active{color:var(--text);background:rgba(6,182,212,.08);}
+.nav-link.active{color:var(--teal2);}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.main{flex:1;overflow-y:auto;height:100vh;scroll-behavior:smooth;}
+
+/* TOP BAR */
+.top-bar{position:sticky;top:0;z-index:50;background:rgba(5,12,15,.97);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+.bar-step{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);padding:2px 6px;border-radius:4px;cursor:pointer;transition:color .15s;}
+.bar-step:hover{color:var(--text);}
+.bar-dot{width:6px;height:6px;border-radius:50%;}
+.bar-arrow{color:var(--border);font-size:14px;font-weight:700;}
+
+/* SECTIONS */
+.section{padding:40px 48px;border-bottom:1px solid var(--border);}
+.hero-section{padding:48px 48px 40px;border-bottom:1px solid var(--border);}
+.tag-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+.tag{font-size:10px;font-weight:700;padding:3px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:.8px;}
+.tag-teal{background:rgba(6,182,212,.15);color:var(--teal2);border:1px solid rgba(6,182,212,.25);}
+.tag-gray{background:rgba(255,255,255,.05);color:var(--muted);border:1px solid var(--border);}
+.hero-title{font-size:clamp(24px,4vw,40px);font-weight:800;line-height:1.1;margin-bottom:16px;letter-spacing:-1px;}
+.hero-desc{font-size:14px;color:var(--muted);max-width:680px;line-height:1.8;}
+.sec-title{font-size:22px;font-weight:800;margin-bottom:6px;letter-spacing:-.5px;}
+.sec-sub{font-size:13px;color:var(--muted);margin-bottom:28px;line-height:1.7;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+.four-col{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;}
+
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;}
+.card-title{font-size:13px;font-weight:700;margin-bottom:6px;color:var(--teal2);}
+.card-body{font-size:12px;color:var(--muted);line-height:1.7;}
+
+/* STAT PILLS */
+.stat-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px;}
+.stat-pill{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 18px;}
+.stat-num{font-size:24px;font-weight:800;color:var(--teal2);line-height:1;}
+.stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-top:3px;}
+
+/* PIPELINE STEPPER */
+.stage-tabs{display:flex;gap:0;border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:20px;}
+.stage-tab{flex:1;padding:10px 14px;font-size:12px;font-weight:700;text-align:center;cursor:pointer;transition:all .2s;color:var(--muted);background:var(--surface);}
+.stage-tab:hover{color:var(--text);}
+.stage-tab.active{background:rgba(6,182,212,.12);color:var(--teal2);border-bottom:2px solid var(--teal);}
+.stage-panel{display:none;}
+.stage-panel.active{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;}
+.stage-arrow{display:flex;align-items:center;justify-content:center;font-size:28px;color:var(--teal);opacity:.5;margin:0 4px;}
+
+/* GENERATION METHOD TABS */
+.method-tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
+.method-tab{padding:7px 16px;font-size:11px;font-weight:700;border-radius:6px;cursor:pointer;border:1px solid var(--border);color:var(--muted);background:var(--surface);transition:all .15s;}
+.method-tab.active{background:rgba(6,182,212,.12);color:var(--teal2);border-color:rgba(6,182,212,.3);}
+.method-panel{display:none;}
+.method-panel.active{display:block;}
+
+/* HEATMAP */
+.heatmap-wrap{overflow-x:auto;}
+.heatmap{border-collapse:collapse;min-width:420px;}
+.heatmap th{padding:8px 12px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;text-align:center;}
+.heatmap th.row-label{text-align:right;padding-right:14px;}
+.heatmap td{width:72px;height:54px;text-align:center;border:2px solid var(--bg);border-radius:6px;cursor:default;transition:transform .15s;font-size:13px;font-weight:700;vertical-align:middle;}
+.heatmap td:hover{transform:scale(1.08);z-index:2;position:relative;}
+.hm-label{font-size:9px;display:block;font-weight:400;margin-top:2px;opacity:.7;}
+
+/* BAR CHART */
+.bar-chart{display:flex;flex-direction:column;gap:10px;max-width:540px;}
+.bar-row{display:flex;align-items:center;gap:10px;}
+.bar-label{font-size:11px;color:var(--muted);width:90px;text-align:right;flex-shrink:0;}
+.bar-track{flex:1;background:var(--surface2);border-radius:4px;height:26px;position:relative;overflow:hidden;}
+.bar-fill{height:100%;border-radius:4px;display:flex;align-items:center;padding-left:10px;font-size:11px;font-weight:700;color:#fff;transition:width .6s cubic-bezier(.4,0,.2,1);}
+.bar-val{font-size:11px;color:var(--teal2);font-weight:700;width:36px;flex-shrink:0;}
+.bar-highlight{outline:2px solid var(--teal2);outline-offset:2px;border-radius:4px;}
+
+/* THRESHOLD CHART */
+.thresh-chart{position:relative;height:160px;margin:16px 0;}
+.thresh-svg{width:100%;height:100%;}
+
+/* FINDING CARDS */
+.finding-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;border-left:3px solid var(--teal);}
+.finding-num{font-size:10px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+.finding-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px;}
+.finding-body{font-size:12px;color:var(--muted);line-height:1.7;}
+
+/* COMPARISON TABLE */
+.cmp-table{width:100%;border-collapse:collapse;font-size:12px;max-width:680px;}
+.cmp-table th{padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border);}
+.cmp-table td{padding:10px 12px;border-bottom:1px solid rgba(18,48,64,.6);}
+.cmp-table tr:last-child td{border-bottom:none;}
+.badge-good{background:rgba(16,185,129,.12);color:#34d399;border:1px solid rgba(16,185,129,.2);padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;}
+.badge-warn{background:rgba(245,158,11,.12);color:#fbbf24;border:1px solid rgba(245,158,11,.2);padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;}
+
+/* TOOLTIP */
+.ht-tooltip{position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--text);pointer-events:none;z-index:100;display:none;box-shadow:0 8px 24px rgba(0,0,0,.4);}
+
+/* CONTINUE STRIP */
+.continue-strip{background:var(--surface);border-top:1px solid var(--border);padding:28px 48px;display:flex;justify-content:space-between;align-items:center;gap:24px;}
+.cs-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.cs-title{font-size:15px;font-weight:700;color:var(--text);}
+
+@media(max-width:768px){
+  .sidebar{display:none;}
+  .section,.hero-section{padding:24px 20px;}
+  .two-col,.three-col,.four-col{grid-template-columns:1fr;}
+  .stage-panel.active{grid-template-columns:1fr;}
+  .continue-strip{padding:24px 20px;flex-direction:column;gap:16px;}
+}
+</style>
+</head>
+<body>
+
+<!-- GATE -->
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-icon">&#128300;</div>
+    <div class="gate-title">Visual Summary</div>
+    <div class="gate-sub">Post 54 &middot; Agents &amp; Systems &middot; Advanced</div>
+    <input class="gate-input" id="gate-pw" type="password" placeholder="Enter password" onkeydown="if(event.key==='Enter')checkGate()">
+    <button class="gate-btn" onclick="checkGate()">Unlock</button>
+    <div class="gate-err" id="gate-err">Incorrect password &mdash; try again</div>
+  </div>
+</div>
+<script>
+var STORE_KEY='pg_unlocked_54',PW='visual2025';
+if(localStorage.getItem(STORE_KEY)==='1'){document.getElementById('gate').style.display='none';}
+function checkGate(){
+  var v=document.getElementById('gate-pw').value.trim();
+  if(v===PW){localStorage.setItem(STORE_KEY,'1');document.getElementById('gate').style.display='none';}
+  else{var e=document.getElementById('gate-err');e.style.display='block';setTimeout(function(){e.style.display='none';},2000);}
+}
+</script>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-title">Visual Summary</div>
+    <div class="sidebar-logo-sub">Post 54 &mdash; SkillLens</div>
+  </div>
+  <div class="nav-group-title">Sections</div>
+  <a class="nav-link active" onclick="goTo('s-intro')"><span class="dot" style="background:var(--teal)"></span>Overview</a>
+  <a class="nav-link" onclick="goTo('s-problem')"><span class="dot" style="background:var(--teal2)"></span>The Problem</a>
+  <a class="nav-link" onclick="goTo('s-framework')"><span class="dot" style="background:var(--emerald)"></span>SkillLens Framework</a>
+  <a class="nav-link" onclick="goTo('s-generation')"><span class="dot" style="background:var(--teal)"></span>Generation Methods</a>
+  <a class="nav-link" onclick="goTo('s-consumption')"><span class="dot" style="background:var(--teal2)"></span>Skill Consumption</a>
+  <a class="nav-link" onclick="goTo('s-transfer')"><span class="dot" style="background:var(--emerald)"></span>Cross-Domain Transfer</a>
+  <a class="nav-link" onclick="goTo('s-findings')"><span class="dot" style="background:var(--amber)"></span>Key Findings</a>
+  <a class="nav-link" onclick="goTo('s-refs')"><span class="dot" style="background:var(--muted)"></span>Related Posts</a>
+  <div class="nav-group-title" style="margin-top:16px;">Series</div>
+  <a class="nav-link" href="../">&#8592; All Posts</a>
+  <a class="nav-link" href="../53-skillopt/">Post 53 &mdash; SkillOpt</a>
+  <a class="nav-link" href="../52-agent-orchestration/">Post 52 &mdash; Orchestration</a>
+  <a class="nav-link" href="../50-memory-agents/">Post 50 &mdash; Memory Agents</a>
+</div>
+
+<!-- MAIN -->
+<div class="main" id="main">
+
+<!-- TOP BAR -->
+<div class="top-bar">
+  <div class="bar-step" onclick="goTo('s-intro')"><span class="bar-dot" style="background:var(--teal)"></span>Overview</div>
+  <span class="bar-arrow">›</span>
+  <div class="bar-step" onclick="goTo('s-problem')">Problem</div>
+  <span class="bar-arrow">›</span>
+  <div class="bar-step" onclick="goTo('s-framework')">Framework</div>
+  <span class="bar-arrow">›</span>
+  <div class="bar-step" onclick="goTo('s-generation')">Generation</div>
+  <span class="bar-arrow">›</span>
+  <div class="bar-step" onclick="goTo('s-consumption')">Consumption</div>
+  <span class="bar-arrow">›</span>
+  <div class="bar-step" onclick="goTo('s-transfer')">Transfer</div>
+  <span class="bar-arrow">›</span>
+  <div class="bar-step" onclick="goTo('s-findings')">Findings</div>
+</div>
+
+<!-- ═══════════════════════════════ HERO ═══════════════════════════════ -->
+<div class="hero-section" id="s-intro">
+  <div class="tag-row">
+    <span class="tag tag-teal">Post 54</span>
+    <span class="tag tag-teal">Agents &amp; Systems</span>
+    <span class="tag tag-gray">Microsoft Research &middot; May 2026</span>
+    <span class="tag tag-gray">Skill Lifecycle</span>
+  </div>
+  <div class="hero-title">SkillLens<br><span style="color:var(--teal2)">The Full Lifecycle Study of Agent Skills</span></div>
+  <div class="hero-desc">Agents repeat the same mistakes because they never retain what they learned. Skills are supposed to fix that — but nobody had studied the <em>entire pipeline</em>: how skills are extracted from raw experience, what makes them reusable, how to consume them effectively, and when they actually hurt. SkillLens is the first systematic answer, spanning 5 domains, 3 extraction families, and 3 consumption strategies across state-of-the-art models.</div>
+
+  <div class="stat-row">
+    <div class="stat-pill"><div class="stat-num" style="color:var(--teal2);">5</div><div class="stat-label">Task Domains</div></div>
+    <div class="stat-pill"><div class="stat-num" style="color:var(--emerald2);">3</div><div class="stat-label">Extraction Methods</div></div>
+    <div class="stat-pill"><div class="stat-num" style="color:var(--teal2);">3</div><div class="stat-label">Consumption Strategies</div></div>
+    <div class="stat-pill"><div class="stat-num" style="color:var(--amber2);">70%</div><div class="stat-label">Optimal Quality Threshold</div></div>
+    <div class="stat-pill"><div class="stat-num" style="color:var(--emerald2);">3–10</div><div class="stat-label">Optimal Skill Count</div></div>
+  </div>
+
+  <div class="two-col" style="max-width:680px;margin-top:28px;">
+    <div class="card">
+      <div class="card-title">What SkillLens Studied</div>
+      <div class="card-body">The complete agent skill lifecycle — from raw task trajectories through skill extraction to downstream agent consumption — treated as a unified, measurable system for the first time.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">The Surprising Finding</div>
+      <div class="card-body">Model scale does <em>not</em> predict skill quality. Larger models do not reliably produce better skills or consume them more effectively — generation method matters more than model size.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ PROBLEM ═══════════════════════════════ -->
+<div class="section" id="s-problem">
+  <div class="sec-title">The Problem</div>
+  <div class="sec-sub">Why agent skills remain poorly understood despite years of research</div>
+
+  <div class="three-col" style="max-width:760px;">
+    <div class="card" style="border-color:rgba(6,182,212,.2);">
+      <div class="card-title">No Persistent Learning</div>
+      <div class="card-body">Standard LLM agents reset at the start of each task. Even after solving a complex problem, the agent retains nothing — the next similar task starts from scratch.</div>
+    </div>
+    <div class="card" style="border-color:rgba(16,185,129,.2);">
+      <div class="card-title">Fragmented Prior Work</div>
+      <div class="card-body">Existing research studied only slices of the pipeline: skill <em>extraction</em> in isolation, or skill <em>consumption</em> in isolation. Nobody measured the full lifecycle end-to-end.</div>
+    </div>
+    <div class="card" style="border-color:rgba(245,158,11,.2);">
+      <div class="card-title">Negative Transfer is Real</div>
+      <div class="card-body">Low-quality or mismatched skills don't just fail to help — they actively degrade agent performance by 5–10%. Without systematic study, there was no way to predict when skills would hurt.</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:20px;max-width:680px;border-color:rgba(6,182,212,.15);">
+    <div class="card-title">The Dual-Perspective Gap</div>
+    <div class="card-body" style="line-height:1.9;">
+      Prior evaluations conflated two different questions:<br>
+      &bull; <span style="color:var(--teal2);">Supply side:</span> Is this skill internally well-formed? (extraction quality)<br>
+      &bull; <span style="color:var(--emerald2);">Demand side:</span> Does this skill actually help an agent complete tasks? (practical utility)<br><br>
+      A skill can score high on supply-side metrics yet provide zero — or negative — demand-side value. SkillLens is the first framework to measure both simultaneously, revealing that they are only loosely correlated (R² ≈ 0.78).
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ FRAMEWORK ═══════════════════════════════ -->
+<div class="section" id="s-framework">
+  <div class="sec-title">The SkillLens Framework</div>
+  <div class="sec-sub">Three stages, measured end-to-end for the first time — click each stage to explore</div>
+
+  <div class="stage-tabs">
+    <div class="stage-tab active" onclick="setStage(0)">Stage 1 &mdash; Experience Generation</div>
+    <div class="stage-tab" onclick="setStage(1)">Stage 2 &mdash; Skill Extraction</div>
+    <div class="stage-tab" onclick="setStage(2)">Stage 3 &mdash; Skill Consumption</div>
+  </div>
+
+  <!-- Stage 0: Experience Generation -->
+  <div class="stage-panel active" id="stage-0">
+    <div>
+      <div style="font-size:16px;font-weight:800;color:var(--teal2);margin-bottom:10px;">Raw Experience Generation</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.8;margin-bottom:16px;">Agents execute tasks and produce <strong style="color:var(--text);">trajectories</strong> — step-by-step records of observations, reasoning, actions, and outcomes. These are the raw material for skill learning.</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div class="card" style="padding:12px 16px;">
+          <div class="card-title" style="font-size:11px;">What goes in</div>
+          <div class="card-body">Task instructions + environment observations</div>
+        </div>
+        <div class="card" style="padding:12px 16px;">
+          <div class="card-title" style="font-size:11px;">What comes out</div>
+          <div class="card-body">Execution traces: action sequences, tool calls, intermediate results, final outcomes (success/failure)</div>
+        </div>
+        <div class="card" style="padding:12px 16px;">
+          <div class="card-title" style="font-size:11px;">Quality signal</div>
+          <div class="card-body">Trajectory quality directly caps skill quality — garbage in, garbage out. Only 55–70% of generated trajectories produce reusable skills.</div>
+        </div>
+      </div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px;">Example Trajectory Fragment</div>
+      <pre style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--teal3);line-height:1.8;white-space:pre-wrap;">Task: Search for quarterly revenue data
+       and create a summary chart
+
+Step 1: navigate_to("finance-dashboard")
+  → Observation: loaded, 4 datasets visible
+
+Step 2: query("Q3 revenue by region")
+  → Observation: returned 847 rows, CSV
+
+Step 3: filter(region="APAC", year=2025)
+  → Observation: 212 rows remaining
+
+Step 4: create_chart(type="bar", x="month",
+         y="revenue")
+  → Observation: chart rendered ✓
+
+Outcome: SUCCESS (task completed in 4 steps)</pre>
+    </div>
+  </div>
+
+  <!-- Stage 1: Skill Extraction -->
+  <div class="stage-panel" id="stage-1">
+    <div>
+      <div style="font-size:16px;font-weight:800;color:var(--teal2);margin-bottom:10px;">Skill Extraction</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.8;margin-bottom:16px;">Raw trajectories are distilled into <strong style="color:var(--text);">structured skill units</strong> — reusable, domain-applicable knowledge artifacts that future agents can retrieve and apply.</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div class="card" style="padding:12px 16px;">
+          <div class="card-title" style="font-size:11px;">Skill Representation Components</div>
+          <div class="card-body">Natural language description + Code or action template + Reasoning chain + Success/failure examples (demonstrations)</div>
+        </div>
+        <div class="card" style="padding:12px 16px;">
+          <div class="card-title" style="font-size:11px;">Most Critical Components (ablation)</div>
+          <div class="card-body"><span style="color:var(--teal2);">Descriptions (40–50% drop if removed)</span> and <span style="color:var(--emerald2);">Demonstrations (50–60% retention)</span> dominate. Reasoning chains matter most for novel tasks.</div>
+        </div>
+        <div class="card" style="padding:12px 16px;">
+          <div class="card-title" style="font-size:11px;">Three Extraction Families</div>
+          <div class="card-body">Refinement-based · Evolution-based · Trace-to-Skill &mdash; each with different speed/quality/generalizability tradeoffs (see Generation section)</div>
+        </div>
+      </div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px;">Example Extracted Skill</div>
+      <pre style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--teal3);line-height:1.8;white-space:pre-wrap;"># Skill: Dashboard Data Query & Chart
+
+## Description
+Query a finance dashboard for structured
+data and create a summary visualization.
+
+## Steps
+1. Navigate to the target dashboard
+2. Issue structured query with filters
+   (region, date range, metric)
+3. Validate row count before proceeding
+4. Create chart with appropriate axis mapping
+
+## When to apply
+Tasks requiring data extraction + visual
+summary from tabular dashboards.
+
+## Example (success)
+Input: "Q3 APAC revenue summary chart"
+Result: 4-step completion, bar chart ✓</pre>
+    </div>
+  </div>
+
+  <!-- Stage 2: Skill Consumption -->
+  <div class="stage-panel" id="stage-2">
+    <div>
+      <div style="font-size:16px;font-weight:800;color:var(--teal2);margin-bottom:10px;">Skill Consumption</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.8;margin-bottom:16px;">Extracted skills are fed to a <strong style="color:var(--text);">downstream agent</strong> for a new task. Three consumption strategies are studied, each with distinct performance profiles.</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div class="card" style="padding:12px 16px;border-color:rgba(6,182,212,.2);">
+          <div class="card-title" style="font-size:11px;color:var(--teal2);">In-Context Learning (+60–72%)</div>
+          <div class="card-body">Skills are appended to the agent's context window as reference examples. Simple and broadly effective.</div>
+        </div>
+        <div class="card" style="padding:12px 16px;border-color:rgba(16,185,129,.2);">
+          <div class="card-title" style="font-size:11px;color:var(--emerald2);">Skill-Aware Planning (+65–75%)</div>
+          <div class="card-body">Skills inform the planning step before execution begins — highest gains on complex, multi-step tasks.</div>
+        </div>
+        <div class="card" style="padding:12px 16px;border-color:rgba(245,158,11,.2);">
+          <div class="card-title" style="font-size:11px;color:var(--amber2);">Direct Execution (+55–70%)</div>
+          <div class="card-body">Skill code or action templates are executed directly. Fast but brittle — requires high-precision skill extraction.</div>
+        </div>
+      </div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px;">Prepare → Select → Execute</div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;align-items:flex-start;gap:12px;">
+          <div style="background:var(--teal);color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0;margin-top:1px;">1</div>
+          <div><div style="font-size:12px;font-weight:700;color:var(--text);">Prepare</div><div style="font-size:11px;color:var(--muted);">Index extracted skills; embed for retrieval; apply quality threshold filter</div></div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:12px;">
+          <div style="background:var(--teal);color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0;margin-top:1px;">2</div>
+          <div><div style="font-size:12px;font-weight:700;color:var(--text);">Select</div><div style="font-size:11px;color:var(--muted);">Retrieve top-k relevant skills for the current task (optimal k = 3–10)</div></div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:12px;">
+          <div style="background:var(--teal);color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0;margin-top:1px;">3</div>
+          <div><div style="font-size:12px;font-weight:700;color:var(--text);">Execute</div><div style="font-size:11px;color:var(--muted);">Apply chosen consumption strategy; monitor for negative transfer signals</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ GENERATION METHODS ═══════════════════════════════ -->
+<div class="section" id="s-generation">
+  <div class="sec-title">Skill Generation Methods</div>
+  <div class="sec-sub">Three families of extraction, each with distinct speed, quality, and generalizability tradeoffs</div>
+
+  <div class="method-tabs">
+    <div class="method-tab active" onclick="setMethod(0)">Refinement-Based</div>
+    <div class="method-tab" onclick="setMethod(1)">Evolution-Based</div>
+    <div class="method-tab" onclick="setMethod(2)">Trace-to-Skill</div>
+  </div>
+
+  <div class="method-panel active" id="method-0">
+    <div class="two-col" style="max-width:680px;">
+      <div>
+        <div style="font-size:15px;font-weight:800;color:var(--teal2);margin-bottom:10px;">Refinement-Based</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.8;margin-bottom:14px;">Iteratively clean and polish extracted skills through critique-and-refine loops. Each round, an LLM critiques the current skill document and produces an improved version.</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div class="card" style="padding:12px 16px;">
+            <div class="card-title" style="font-size:11px;">Examples</div>
+            <div class="card-body">AutoRefine, Praxis</div>
+          </div>
+          <div class="card" style="padding:12px 16px;">
+            <div class="card-title" style="font-size:11px;">Best for</div>
+            <div class="card-body">Production pipelines where speed matters and the task domain is narrow and well-defined</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;">Performance Profile</div>
+        <div class="bar-chart">
+          <div class="bar-row"><div class="bar-label">Speed</div><div class="bar-track"><div class="bar-fill" style="width:90%;background:var(--teal);">Very Fast</div></div></div>
+          <div class="bar-row"><div class="bar-label">Quality</div><div class="bar-track"><div class="bar-fill" style="width:75%;background:var(--emerald);">75%</div></div></div>
+          <div class="bar-row"><div class="bar-label">Generalize</div><div class="bar-track"><div class="bar-fill" style="width:52%;background:var(--amber);">Moderate</div></div></div>
+          <div class="bar-row"><div class="bar-label">Complexity</div><div class="bar-track"><div class="bar-fill" style="width:35%;background:rgba(6,182,212,.6);">Low</div></div></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:12px;">70–80% task success rate on same-domain tasks. Generalization drops sharply outside training domain.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="method-panel" id="method-1">
+    <div class="two-col" style="max-width:680px;">
+      <div>
+        <div style="font-size:15px;font-weight:800;color:var(--teal2);margin-bottom:10px;">Evolution-Based</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.8;margin-bottom:14px;">Uses evolutionary search — mutation, crossover, and selection — to discover skill variants that generalize beyond the training distribution. Slower but finds skills that work across task families.</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div class="card" style="padding:12px 16px;">
+            <div class="card-title" style="font-size:11px;">Examples</div>
+            <div class="card-body">CoEvoSkills, EvoSkill</div>
+          </div>
+          <div class="card" style="padding:12px 16px;">
+            <div class="card-title" style="font-size:11px;">Best for</div>
+            <div class="card-body">Skills intended to transfer across related domains; longer-horizon planning tasks; research settings where compute is not the bottleneck</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;">Performance Profile</div>
+        <div class="bar-chart">
+          <div class="bar-row"><div class="bar-label">Speed</div><div class="bar-track"><div class="bar-fill" style="width:35%;background:var(--teal);">Slow</div></div></div>
+          <div class="bar-row"><div class="bar-label">Quality</div><div class="bar-track"><div class="bar-fill" style="width:82%;background:var(--emerald);">82%</div></div></div>
+          <div class="bar-row"><div class="bar-label">Generalize</div><div class="bar-track"><div class="bar-fill" style="width:85%;background:var(--amber);">Best</div></div></div>
+          <div class="bar-row"><div class="bar-label">Complexity</div><div class="bar-track"><div class="bar-fill" style="width:80%;background:rgba(6,182,212,.6);">High</div></div></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:12px;">75–85% success rate. Best cross-domain transfer of all three families. 2–3× more compute than refinement-based.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="method-panel" id="method-2">
+    <div class="two-col" style="max-width:680px;">
+      <div>
+        <div style="font-size:15px;font-weight:800;color:var(--teal2);margin-bottom:10px;">Trace-to-Skill</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.8;margin-bottom:14px;">Directly parse execution traces into structured skill representations using an LLM as a parser. No iterative refinement — one forward pass converts a trajectory into a skill document.</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div class="card" style="padding:12px 16px;">
+            <div class="card-title" style="font-size:11px;">Examples</div>
+            <div class="card-body">Trace2Skill (2026)</div>
+          </div>
+          <div class="card" style="padding:12px 16px;">
+            <div class="card-title" style="font-size:11px;">Best for</div>
+            <div class="card-body">High-volume pipelines; cases where trajectory data is abundant and fast extraction is needed over high generalizability</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;">Performance Profile</div>
+        <div class="bar-chart">
+          <div class="bar-row"><div class="bar-label">Speed</div><div class="bar-track"><div class="bar-fill" style="width:95%;background:var(--teal);">Fastest</div></div></div>
+          <div class="bar-row"><div class="bar-label">Quality</div><div class="bar-track"><div class="bar-fill" style="width:68%;background:var(--emerald);">68%</div></div></div>
+          <div class="bar-row"><div class="bar-label">Generalize</div><div class="bar-track"><div class="bar-fill" style="width:45%;background:var(--amber);">Limited</div></div></div>
+          <div class="bar-row"><div class="bar-label">Complexity</div><div class="bar-track"><div class="bar-fill" style="width:20%;background:rgba(6,182,212,.6);">Lowest</div></div></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:12px;">68–78% accuracy. Lowest complexity, easiest to deploy. Weakest generalization — skills are highly trajectory-specific.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Method summary -->
+  <div style="margin-top:24px;max-width:680px;">
+    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;">Side-by-Side Summary</div>
+    <table class="cmp-table">
+      <thead><tr><th>Method</th><th>Speed</th><th>Quality</th><th>Generalization</th><th>Best Use</th></tr></thead>
+      <tbody>
+        <tr>
+          <td style="font-weight:700;color:var(--teal2);">Refinement</td>
+          <td><span class="badge-good">Fast</span></td>
+          <td>70–80%</td>
+          <td><span class="badge-warn">Moderate</span></td>
+          <td style="color:var(--muted);">Same-domain production</td>
+        </tr>
+        <tr>
+          <td style="font-weight:700;color:var(--teal2);">Evolution</td>
+          <td><span class="badge-warn">Slow</span></td>
+          <td>75–85%</td>
+          <td><span class="badge-good">Best</span></td>
+          <td style="color:var(--muted);">Cross-domain research</td>
+        </tr>
+        <tr>
+          <td style="font-weight:700;color:var(--teal2);">Trace-to-Skill</td>
+          <td><span class="badge-good">Fastest</span></td>
+          <td>68–78%</td>
+          <td><span class="badge-warn">Limited</span></td>
+          <td style="color:var(--muted);">High-volume pipelines</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ CONSUMPTION ═══════════════════════════════ -->
+<div class="section" id="s-consumption">
+  <div class="sec-title">Skill Consumption &amp; Tuning</div>
+  <div class="sec-sub">How many skills to retrieve, what quality threshold to apply, and which strategy to use</div>
+
+  <div class="two-col" style="max-width:760px;gap:32px;">
+
+    <!-- Skill count chart -->
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">Optimal Skill Count</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:16px;">Too few: insufficient coverage. Too many: context overhead and noise. Sweet spot is <span style="color:var(--teal2);">3–10 skills</span>.</div>
+      <div class="bar-chart">
+        <div class="bar-row">
+          <div class="bar-label">1 skill</div>
+          <div class="bar-track"><div class="bar-fill" style="width:35%;background:rgba(6,182,212,.5);">+12%</div></div>
+          <div class="bar-val">+12%</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">3–5 skills</div>
+          <div class="bar-track bar-highlight"><div class="bar-fill" style="width:88%;background:var(--teal);">+30%</div></div>
+          <div class="bar-val" style="color:var(--teal2);">+30%</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">7–10 skills</div>
+          <div class="bar-track bar-highlight"><div class="bar-fill" style="width:100%;background:var(--teal);">+34%</div></div>
+          <div class="bar-val" style="color:var(--teal2);">+34%</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">15+ skills</div>
+          <div class="bar-track"><div class="bar-fill" style="width:91%;background:rgba(6,182,212,.5);">+31%</div></div>
+          <div class="bar-val">+31%</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:10px;">Highlighted bars = recommended range. Beyond 10 skills, context window overhead begins to erode gains.</div>
+    </div>
+
+    <!-- Quality threshold chart -->
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">Quality Threshold Ablation</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:16px;">Filter skills below a quality score. Too strict removes useful skills; too loose admits noise. Optimal: <span style="color:var(--teal2);">~70%</span>.</div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <svg viewBox="0 0 300 140" style="width:100%;display:block;" id="thresh-svg">
+          <!-- Grid -->
+          <line x1="40" y1="10" x2="40" y2="115" stroke="#123040" stroke-width="1"/>
+          <line x1="40" y1="115" x2="290" y2="115" stroke="#123040" stroke-width="1"/>
+          <!-- Y labels -->
+          <text x="35" y="115" fill="#4a7a8a" font-size="8" text-anchor="end">0%</text>
+          <text x="35" y="85" fill="#4a7a8a" font-size="8" text-anchor="end">+10%</text>
+          <text x="35" y="55" fill="#4a7a8a" font-size="8" text-anchor="end">+20%</text>
+          <text x="35" y="25" fill="#4a7a8a" font-size="8" text-anchor="end">+30%</text>
+          <!-- X labels -->
+          <text x="60" y="127" fill="#4a7a8a" font-size="8" text-anchor="middle">50%</text>
+          <text x="110" y="127" fill="#4a7a8a" font-size="8" text-anchor="middle">60%</text>
+          <text x="160" y="127" fill="#4a7a8a" font-size="8" text-anchor="middle">70%</text>
+          <text x="210" y="127" fill="#4a7a8a" font-size="8" text-anchor="middle">80%</text>
+          <text x="260" y="127" fill="#4a7a8a" font-size="8" text-anchor="middle">90%</text>
+          <text x="165" y="139" fill="#4a7a8a" font-size="7" text-anchor="middle">Quality Threshold →</text>
+          <!-- Data points: (50%→+18%), (60%→+22%), (70%→+28%), (80%→+23%), (90%→+17%) -->
+          <!-- Map: x=60+((thresh-50)/40)*200, y=115-((gain/30)*90) -->
+          <!-- 50%: x=60, y=115-54=61 -->
+          <!-- 60%: x=110, y=115-66=49 -->
+          <!-- 70%: x=160, y=115-84=31 -->
+          <!-- 80%: x=210, y=115-69=46 -->
+          <!-- 90%: x=260, y=115-51=64 -->
+          <polyline points="60,61 110,49 160,31 210,46 260,64" fill="none" stroke="#06b6d4" stroke-width="2" stroke-linejoin="round"/>
+          <!-- Fill area -->
+          <polygon points="60,115 60,61 110,49 160,31 210,46 260,64 260,115" fill="rgba(6,182,212,.08)"/>
+          <!-- Optimal point -->
+          <circle cx="160" cy="31" r="5" fill="#06b6d4"/>
+          <text x="160" y="22" fill="#22d3ee" font-size="9" text-anchor="middle" font-weight="700">+28% ★</text>
+          <!-- Other points -->
+          <circle cx="60" cy="61" r="3" fill="#0891b2"/>
+          <circle cx="110" cy="49" r="3" fill="#0891b2"/>
+          <circle cx="210" cy="46" r="3" fill="#0891b2"/>
+          <circle cx="260" cy="64" r="3" fill="#0891b2"/>
+          <!-- Optimal line -->
+          <line x1="160" y1="31" x2="160" y2="115" stroke="#22d3ee" stroke-width="1" stroke-dasharray="3,3"/>
+        </svg>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px;">Performance vs quality threshold across all 5 domains. The inverted-U shape is consistent across all tested extraction methods.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ CROSS-DOMAIN TRANSFER ═══════════════════════════════ -->
+<div class="section" id="s-transfer">
+  <div class="sec-title">Cross-Domain Transfer</div>
+  <div class="sec-sub">Skills learned in one domain rarely transfer to dissimilar domains — hover any cell to see the transfer rate and why</div>
+
+  <div class="heatmap-wrap">
+    <table class="heatmap" id="heatmap">
+      <thead>
+        <tr>
+          <th class="row-label" style="font-size:9px;color:var(--muted);">Source ↓ / Target →</th>
+          <th>Web</th><th>Code</th><th>Math</th><th>Sheets</th><th>Structured</th>
+        </tr>
+      </thead>
+      <tbody id="heatmap-body"></tbody>
+    </table>
+  </div>
+
+  <div style="display:flex;gap:8px;align-items:center;margin-top:14px;flex-wrap:wrap;">
+    <div style="font-size:11px;color:var(--muted);">Transfer rate:</div>
+    <div style="display:flex;align-items:center;gap:4px;"><div style="width:14px;height:14px;border-radius:3px;background:#0e7490;"></div><span style="font-size:10px;color:var(--muted);">Low (&lt;40%)</span></div>
+    <div style="display:flex;align-items:center;gap:4px;"><div style="width:14px;height:14px;border-radius:3px;background:#0891b2;"></div><span style="font-size:10px;color:var(--muted);">Medium (40–65%)</span></div>
+    <div style="display:flex;align-items:center;gap:4px;"><div style="width:14px;height:14px;border-radius:3px;background:#06b6d4;"></div><span style="font-size:10px;color:var(--muted);">High (65–80%)</span></div>
+    <div style="display:flex;align-items:center;gap:4px;"><div style="width:14px;height:14px;border-radius:3px;background:#22d3ee;"></div><span style="font-size:10px;color:var(--muted);">Same-domain (&gt;80%)</span></div>
+  </div>
+
+  <div class="two-col" style="max-width:680px;margin-top:24px;">
+    <div class="card" style="border-color:rgba(6,182,212,.2);">
+      <div class="card-title">Same-Domain Transfer</div>
+      <div class="card-body">75–90% effectiveness when source and target domains match. Skills encode domain-specific procedural knowledge that remains valid within-domain.</div>
+    </div>
+    <div class="card" style="border-color:rgba(244,63,94,.2);">
+      <div class="card-title" style="color:var(--rose);">Cross-Domain Transfer</div>
+      <div class="card-body">Only 20–35% effectiveness for dissimilar domains (e.g., Math → Web). Domain specificity is the single largest bottleneck in the skill ecosystem.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ KEY FINDINGS ═══════════════════════════════ -->
+<div class="section" id="s-findings">
+  <div class="sec-title">Key Findings</div>
+  <div class="sec-sub">Five results that change how you should think about building agent skill systems</div>
+
+  <div style="display:flex;flex-direction:column;gap:14px;max-width:680px;">
+
+    <div class="finding-card">
+      <div class="finding-num">Finding 01</div>
+      <div class="finding-title">Skills help on average — but negative transfer is real and unpredictable</div>
+      <div class="finding-body">Across all 5 domains, skill-augmented agents outperform skill-free baselines by +15–35%. However, low-quality or mismatched skills cause <span style="color:var(--rose);">−5–10% degradation</span>. Without quality gating, skill libraries are actively dangerous.</div>
+    </div>
+
+    <div class="finding-card" style="border-left-color:var(--emerald);">
+      <div class="finding-num" style="color:var(--emerald);">Finding 02</div>
+      <div class="finding-title">Model scale does not predict skill quality</div>
+      <div class="finding-body">Larger models do not reliably produce better skills or consume them more effectively. Performance varies unpredictably across model sizes. <span style="color:var(--teal2);">Generation method matters more than model size.</span> This directly challenges the intuition that scaling alone solves skill learning.</div>
+    </div>
+
+    <div class="finding-card" style="border-left-color:var(--amber);">
+      <div class="finding-num" style="color:var(--amber);">Finding 03</div>
+      <div class="finding-title">Domain specificity is the biggest bottleneck</div>
+      <div class="finding-body">Same-domain skill transfer: 75–90%. Cross-domain (dissimilar): only 20–35%. Skills encode domain-specific procedural knowledge so tightly that they rarely generalize across task families. Evolution-based methods partially close this gap, but the problem remains unsolved.</div>
+    </div>
+
+    <div class="finding-card" style="border-left-color:var(--teal2);">
+      <div class="finding-num" style="color:var(--teal2);">Finding 04</div>
+      <div class="finding-title">Generated skills reach ~80% of human-crafted quality</div>
+      <div class="finding-body">The best extraction methods produce skills at 75–85% the quality of hand-crafted expert skills. The remaining gap comes from trajectory noise, missing domain context, and the absence of human judgement about edge cases. This gap narrows as trajectory quality improves.</div>
+    </div>
+
+    <div class="finding-card" style="border-left-color:var(--teal);">
+      <div class="finding-num">Finding 05</div>
+      <div class="finding-title">Supply quality ≠ demand utility (R² ≈ 0.78)</div>
+      <div class="finding-body">A skill that scores well on internal quality metrics (clarity, completeness, correctness) is not guaranteed to improve agent task performance. The correlation is real (R² ≈ 0.78) but imperfect — <span style="color:var(--teal2);">~22% of the variance in utility is unexplained by quality scores alone</span>. Task-match and consumption strategy account for much of the gap.</div>
+    </div>
+
+  </div>
+
+  <!-- Comparison to prior work -->
+  <div style="margin-top:32px;">
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;">SkillLens vs Prior Work</div>
+    <table class="cmp-table">
+      <thead><tr><th>Prior Method</th><th>Coverage</th><th>SkillLens Advantage</th></tr></thead>
+      <tbody>
+        <tr>
+          <td style="font-weight:700;color:var(--teal2);">SkillsBench</td>
+          <td style="color:var(--muted);">Partial evaluation</td>
+          <td>+30–40% more evaluation dimensions; full lifecycle coverage</td>
+        </tr>
+        <tr>
+          <td style="font-weight:700;color:var(--teal2);">AutoRefine</td>
+          <td style="color:var(--muted);">Extraction only</td>
+          <td>Similar quality, 2–3× faster generation; better generalization measures</td>
+        </tr>
+        <tr>
+          <td style="font-weight:700;color:var(--teal2);">Trace2Skill</td>
+          <td style="color:var(--muted);">Extraction only</td>
+          <td>+10–15% accuracy on complex trajectories; dual-perspective evaluation</td>
+        </tr>
+        <tr>
+          <td style="font-weight:700;color:var(--teal2);">Agent-SkillOS</td>
+          <td style="color:var(--muted);">Consumption only</td>
+          <td>+25–35% agent performance with SkillLens-generated skills</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ RELATED POSTS ═══════════════════════════════ -->
+<div class="section" id="s-refs">
+  <div class="sec-title">Related Posts</div>
+  <div class="sec-sub">Build your understanding of agent skill systems and persistent agent learning</div>
+  <div class="three-col" style="max-width:720px;">
+    <a class="card" href="../53-skillopt/" style="border-color:rgba(244,63,94,.3);display:block;">
+      <div class="card-title" style="color:#fb7185;">Post 53 &mdash; SkillOpt</div>
+      <div class="card-body">The optimization engine for skill documents — treats skills like model weights and applies gradient-descent analogues. Directly complements SkillLens: SkillLens studies <em>what makes skills good</em>; SkillOpt <em>automatically makes them better</em>.</div>
+    </a>
+    <a class="card" href="../52-agent-orchestration/" style="border-color:rgba(37,99,235,.3);display:block;">
+      <div class="card-title" style="color:#60a5fa;">Post 52 &mdash; LLM Agent Orchestration</div>
+      <div class="card-body">Coordination patterns for multi-agent systems. Skills (studied by SkillLens) are the knowledge layer that agents carry into orchestrated pipelines — understanding both is essential for production agent architectures.</div>
+    </a>
+    <a class="card" href="../50-memory-agents/" style="border-color:rgba(245,158,11,.3);display:block;">
+      <div class="card-title" style="color:#fbbf24;">Post 50 &mdash; Memory in LLM Agents</div>
+      <div class="card-body">Survey of agent memory types: inside-trial, cross-trial, external. SkillLens's skill libraries are cross-trial external memory — the paper provides the most thorough empirical analysis of this memory type to date.</div>
+    </a>
+  </div>
+</div>
+
+<!-- CONTINUE STRIP -->
+<div class="continue-strip">
+  <div>
+    <div class="cs-label">&#8592; Previous Post</div>
+    <a href="../53-skillopt/" class="cs-title">Post 53 &mdash; SkillOpt</a>
+  </div>
+  <div style="text-align:right;">
+    <div class="cs-label">All Posts &#8594;</div>
+    <a href="../" class="cs-title" style="color:var(--teal2);">Visual Summary</a>
+  </div>
+</div>
+
+</div><!-- end .main -->
+
+<!-- TOOLTIP -->
+<div class="ht-tooltip" id="ht-tooltip"></div>
+
+<script>
+function goTo(id){var el=document.getElementById(id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});}
+
+function setStage(i){
+  document.querySelectorAll('.stage-tab').forEach(function(t,idx){t.classList.toggle('active',idx===i);});
+  document.querySelectorAll('.stage-panel').forEach(function(p,idx){p.classList.toggle('active',idx===i);});
+}
+
+function setMethod(i){
+  document.querySelectorAll('.method-tab').forEach(function(t,idx){t.classList.toggle('active',idx===i);});
+  document.querySelectorAll('.method-panel').forEach(function(p,idx){p.classList.toggle('active',idx===i);});
+}
+
+// ── HEATMAP ──────────────────────────────────────────────────────────────────
+var domains=['Web','Code','Math','Sheets','Structured'];
+var transfer=[
+  [90,35,20,25,32],
+  [30,88,45,35,42],
+  [20,42,85,28,25],
+  [25,32,28,82,48],
+  [34,44,30,42,87]
+];
+var notes=[
+  ['Same-domain: web nav skills reuse directly','Sequential action patterns transfer partially to code','Fundamentally different task structure — low overlap','Dashboard skills have web component — minor transfer','Web automation shares some structured reasoning'],
+  ['Code logic rarely maps to web navigation','Same-domain: code structure and APIs reuse well','Math reasoning partially overlaps with algorithmic code','Spreadsheet formulas share code-like patterns','Structured data manipulation transfers to code tasks'],
+  ['Math reasoning rarely applies to web tasks','Algorithm design overlaps with code generation','Same-domain: mathematical reasoning fully reusable','Numerical computation applies to spreadsheet formulas','Formal reasoning applies to some structured tasks'],
+  ['Spreadsheet UI differs from general web tasks','Formula syntax partially maps to code patterns','Numerical operations overlap with math','Same-domain: spreadsheet skills directly reusable','Tabular data manipulation transfers well'],
+  ['Structured queries partially apply to web forms','Data transformation overlaps with code generation','Formal structure partially supports math reasoning','Table operations map well to spreadsheet tasks','Same-domain: structured task skills fully reusable']
+];
+
+function hmColor(v){
+  if(v>=80)return{bg:'rgba(34,211,238,.25)',text:'#22d3ee'};
+  if(v>=60)return{bg:'rgba(6,182,212,.18)',text:'#06b6d4'};
+  if(v>=40)return{bg:'rgba(8,145,178,.14)',text:'#67e8f9'};
+  return{bg:'rgba(14,116,144,.1)',text:'#4a7a8a'};
+}
+
+function buildHeatmap(){
+  var tbody=document.getElementById('heatmap-body');
+  transfer.forEach(function(row,ri){
+    var tr=document.createElement('tr');
+    var th=document.createElement('th');
+    th.className='row-label';th.textContent=domains[ri];
+    tr.appendChild(th);
+    row.forEach(function(v,ci){
+      var td=document.createElement('td');
+      var c=hmColor(v);
+      td.style.background=c.bg;td.style.color=c.text;
+      td.innerHTML=v+'%<span class="hm-label">'+(ri===ci?'same':'cross')+'</span>';
+      td.addEventListener('mousemove',function(e){
+        var tip=document.getElementById('ht-tooltip');
+        tip.innerHTML='<strong>'+domains[ri]+' → '+domains[ci]+'</strong><br>Transfer: <span style="color:'+c.text+';">'+v+'%</span><br><span style="color:#4a7a8a;font-size:10px;">'+notes[ri][ci]+'</span>';
+        tip.style.display='block';
+        tip.style.left=(e.clientX+14)+'px';
+        tip.style.top=(e.clientY-10)+'px';
+      });
+      td.addEventListener('mouseleave',function(){document.getElementById('ht-tooltip').style.display='none';});
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+}
+buildHeatmap();
+
+// ── SCROLL SPY ────────────────────────────────────────────────────────────────
+var main=document.getElementById('main');
+var secs=['s-intro','s-problem','s-framework','s-generation','s-consumption','s-transfer','s-findings','s-refs'];
+main.addEventListener('scroll',function(){
+  var links=document.querySelectorAll('.sidebar .nav-link');
+  secs.forEach(function(id,i){
+    var el=document.getElementById(id);
+    if(!el)return;
+    var top=el.getBoundingClientRect().top;
+    if(top<=120&&top>-400){
+      links.forEach(function(l){l.classList.remove('active');});
+      if(links[i])links[i].classList.add('active');
+    }
+  });
+});
+</script>
+</body>
+</html>
