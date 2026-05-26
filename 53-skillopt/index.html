@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>SkillOpt — Teaching AI Agents to Optimize Their Own Skills</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0d0806;--surface:#180f09;--surface2:#221509;--border:#2e1e10;
+  --text:#f0ede8;--muted:#8a7a70;
+  --rose:#f43f5e;--rose2:#fb7185;--rose3:#fda4af;
+  --orange:#f97316;--orange2:#fb923c;--orange3:#fed7aa;
+  --amber:#f59e0b;--amber2:#fbbf24;
+  --acc1:#f43f5e;--acc2:#f97316;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+code,pre{font-family:'JetBrains Mono',monospace;}
+
+/* GATE */
+#gate{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.gate-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 44px;text-align:center;max-width:380px;width:90%;}
+.gate-icon{font-size:36px;margin-bottom:12px;}
+.gate-title{font-size:20px;font-weight:800;color:var(--rose2);margin-bottom:4px;}
+.gate-sub{font-size:12px;color:var(--muted);margin-bottom:24px;}
+.gate-input{width:100%;background:#050505;border:1px solid var(--border);border-radius:8px;padding:11px 14px;font-size:14px;color:var(--text);outline:none;margin-bottom:12px;}
+.gate-input:focus{border-color:var(--rose);}
+.gate-btn{width:100%;background:var(--rose);color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s;}
+.gate-btn:hover{opacity:.85;}
+.gate-err{font-size:11px;color:#f87171;margin-top:6px;display:none;}
+
+/* LAYOUT */
+.sidebar{width:240px;min-width:240px;height:100vh;position:sticky;top:0;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:0 0 40px;flex-shrink:0;}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.sidebar-logo-title{font-size:13px;font-weight:700;color:var(--rose2);}
+.sidebar-logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.nav-group-title{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;padding:10px 16px 4px;}
+.nav-link{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;}
+.nav-link:hover,.nav-link.active{color:var(--text);background:rgba(244,63,94,.08);}
+.nav-link.active{color:var(--rose2);}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.main{flex:1;overflow-y:auto;height:100vh;scroll-behavior:smooth;}
+
+/* TOP BAR */
+.top-bar{position:sticky;top:0;z-index:50;background:rgba(13,8,6,.97);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+.bar-step{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);padding:2px 6px;border-radius:4px;cursor:pointer;transition:color .15s;}
+.bar-step:hover{color:var(--text);}
+.bar-dot{width:6px;height:6px;border-radius:50%;}
+.bar-arrow{color:var(--border);font-size:14px;font-weight:700;}
+
+/* SECTIONS */
+.section{padding:40px 48px;border-bottom:1px solid var(--border);}
+.hero-section{padding:48px 48px 40px;border-bottom:1px solid var(--border);}
+.tag-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+.tag{font-size:10px;font-weight:700;padding:3px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:.8px;}
+.tag-rose{background:rgba(244,63,94,.15);color:var(--rose2);border:1px solid rgba(244,63,94,.25);}
+.tag-gray{background:rgba(255,255,255,.05);color:var(--muted);border:1px solid var(--border);}
+.hero-title{font-size:28px;font-weight:800;line-height:1.2;margin-bottom:12px;}
+.hero-desc{font-size:14px;color:var(--muted);line-height:1.7;max-width:640px;}
+.sec-title{font-size:18px;font-weight:800;margin-bottom:6px;}
+.sec-sub{font-size:13px;color:var(--muted);margin-bottom:24px;line-height:1.6;}
+
+/* PROSE */
+.prose{font-size:13.5px;color:#d0c8c0;line-height:1.75;max-width:720px;}
+.prose p{margin-bottom:14px;}
+.prose strong{color:var(--text);}
+.hl{color:var(--rose2);font-weight:700;}
+.hl-orange{color:var(--orange2);font-weight:700;}
+.hl-amber{color:var(--amber2);font-weight:700;}
+
+/* CARDS */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+.four-col{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;}
+.card-title{font-size:13px;font-weight:700;margin-bottom:8px;}
+.card-body{font-size:12px;color:var(--muted);line-height:1.6;}
+
+/* COMPARE TABLE */
+.compare-table{width:100%;border-collapse:collapse;font-size:12px;max-width:720px;}
+.compare-table th{background:var(--surface2);color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.8px;padding:8px 12px;text-align:left;border:1px solid var(--border);}
+.compare-table td{padding:8px 12px;border:1px solid var(--border);color:#d0c8c0;vertical-align:top;}
+.compare-table tr:hover td{background:rgba(244,63,94,.04);}
+.compare-table td:first-child{font-weight:600;color:var(--text);}
+
+/* STEPPER */
+.stepper-wrap{max-width:760px;}
+.step-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);}
+.step-tab{padding:10px 22px;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;}
+.step-tab.active{color:var(--rose2);border-bottom-color:var(--rose2);}
+.step-tab:hover:not(.active){color:var(--text);}
+.step-content{background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px;padding:26px;}
+.step-content-inner{display:none;}
+.step-content-inner.active{display:block;}
+.step-num{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px;}
+.step-title{font-size:16px;font-weight:800;color:var(--rose2);margin-bottom:14px;}
+.step-body{font-size:13px;color:#c8c0b8;line-height:1.75;}
+.step-example{margin-top:16px;background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--rose);border-radius:0 8px 8px 0;padding:14px;font-size:12px;color:var(--muted);line-height:1.7;}
+.step-example strong{color:var(--text);}
+
+/* STABILITY TABS */
+.stab-tabs{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;}
+.stab-tab{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 18px;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;transition:all .15s;}
+.stab-tab.active{background:rgba(244,63,94,.12);border-color:var(--rose);color:var(--rose2);}
+.stab-tab:hover:not(.active){color:var(--text);}
+.stab-panel{display:none;}
+.stab-panel.active{display:block;}
+
+/* TIMELINE */
+.timeline{display:flex;flex-direction:column;max-width:720px;position:relative;}
+.timeline::before{content:'';position:absolute;left:20px;top:20px;bottom:20px;width:2px;background:var(--border);}
+.tl-item{display:flex;gap:20px;align-items:flex-start;padding-bottom:20px;cursor:pointer;}
+.tl-dot{width:40px;height:40px;border-radius:50%;border:2px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--muted);flex-shrink:0;z-index:1;transition:all .2s;}
+.tl-item.active .tl-dot,.tl-item:hover .tl-dot{border-color:var(--rose);color:var(--rose2);background:rgba(244,63,94,.12);}
+.tl-card{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;transition:border-color .2s;}
+.tl-item.active .tl-card{border-color:rgba(244,63,94,.4);}
+.tl-item:hover .tl-card{border-color:rgba(244,63,94,.2);}
+.tl-year{font-size:10px;font-weight:700;color:var(--rose2);text-transform:uppercase;letter-spacing:1px;}
+.tl-name{font-size:14px;font-weight:800;margin:3px 0 8px;}
+.tl-tagline{font-size:12px;color:var(--muted);line-height:1.5;}
+.tl-detail{display:none;font-size:12px;color:var(--muted);line-height:1.65;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
+.tl-item.active .tl-detail{display:block;}
+
+/* RESULTS */
+.results-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;max-width:760px;}
+.result-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;position:relative;overflow:hidden;}
+.result-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--rose),var(--orange));}
+.result-harness{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px;}
+.result-model{font-size:12px;font-weight:700;color:var(--text);margin-bottom:12px;}
+.result-num{font-size:34px;font-weight:800;color:var(--rose2);line-height:1;}
+.result-sign{font-size:20px;font-weight:800;color:var(--orange2);}
+.result-label{font-size:10px;color:var(--muted);margin-top:5px;}
+.result-bar-wrap{margin-top:12px;background:var(--surface2);border-radius:4px;height:5px;overflow:hidden;}
+.result-bar{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--rose),var(--orange));}
+
+/* SKILL DOC */
+.skill-doc{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:16px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.9;}
+.sk-add{color:#86efac;background:rgba(34,197,94,.12);border-left:2px solid #22c55e;padding-left:6px;display:block;}
+.sk-del{color:#fca5a5;background:rgba(239,68,68,.1);border-left:2px solid #ef4444;padding-left:6px;text-decoration:line-through;display:block;}
+.sk-rep{color:var(--orange2);background:rgba(249,115,22,.1);border-left:2px solid var(--orange);padding-left:6px;display:block;}
+.sk-ctx{color:var(--muted);display:block;}
+
+/* BASELINE COMPARE */
+.baseline-row{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);}
+.baseline-name{font-size:12px;font-weight:700;width:140px;flex-shrink:0;}
+.baseline-bar-wrap{flex:1;background:var(--surface2);border-radius:3px;height:18px;overflow:hidden;position:relative;}
+.baseline-bar{height:100%;border-radius:3px;display:flex;align-items:center;padding-left:8px;font-size:10px;font-weight:700;color:#fff;white-space:nowrap;transition:width .8s;}
+.baseline-score{font-size:12px;font-weight:700;width:44px;text-align:right;flex-shrink:0;}
+
+/* CONTINUE STRIP */
+.continue-strip{background:var(--surface);border-top:1px solid var(--border);padding:32px 48px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;}
+.cs-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.cs-title{font-size:15px;font-weight:700;color:var(--text);}
+
+@media(max-width:768px){
+  .sidebar{display:none;}
+  .section,.hero-section{padding:24px 20px;}
+  .two-col,.three-col,.four-col,.results-grid{grid-template-columns:1fr;}
+  .step-tabs{overflow-x:auto;}
+  .continue-strip{padding:24px 20px;}
+}
+</style>
+</head>
+<body>
+
+<!-- GATE -->
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-icon">&#9881;</div>
+    <div class="gate-title">Visual Summary</div>
+    <div class="gate-sub">Post 53 &middot; Agents &amp; Systems &middot; Advanced</div>
+    <input class="gate-input" id="gate-pw" type="password" placeholder="Enter password" onkeydown="if(event.key==='Enter')checkGate()">
+    <button class="gate-btn" onclick="checkGate()">Unlock</button>
+    <div class="gate-err" id="gate-err">Incorrect password &mdash; try again</div>
+  </div>
+</div>
+<script>
+var STORE_KEY='pg_unlocked_53',PW='visual2025';
+if(localStorage.getItem(STORE_KEY)==='1'){document.getElementById('gate').style.display='none';}
+function checkGate(){
+  var v=document.getElementById('gate-pw').value.trim();
+  if(v===PW){localStorage.setItem(STORE_KEY,'1');document.getElementById('gate').style.display='none';}
+  else{var e=document.getElementById('gate-err');e.style.display='block';setTimeout(function(){e.style.display='none';},2000);}
+}
+</script>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-title">Visual Summary</div>
+    <div class="sidebar-logo-sub">Post 53 &mdash; SkillOpt</div>
+  </div>
+  <div class="nav-group-title">Sections</div>
+  <a class="nav-link active" onclick="goTo('s-intro')"><span class="dot" style="background:var(--rose)"></span>Overview</a>
+  <a class="nav-link" onclick="goTo('s-problem')"><span class="dot" style="background:var(--orange)"></span>The Problem</a>
+  <a class="nav-link" onclick="goTo('s-idea')"><span class="dot" style="background:var(--rose2)"></span>Text-Space Opt.</a>
+  <a class="nav-link" onclick="goTo('s-loop')"><span class="dot" style="background:var(--orange2)"></span>Four-Step Loop</a>
+  <a class="nav-link" onclick="goTo('s-stability')"><span class="dot" style="background:var(--amber)"></span>Stability Mechanisms</a>
+  <a class="nav-link" onclick="goTo('s-landscape')"><span class="dot" style="background:var(--rose)"></span>Skill Landscape</a>
+  <a class="nav-link" onclick="goTo('s-results')"><span class="dot" style="background:var(--orange)"></span>Results</a>
+  <a class="nav-link" onclick="goTo('s-refs')"><span class="dot" style="background:var(--muted)"></span>Related Posts</a>
+  <div class="nav-group-title" style="margin-top:16px;">Series</div>
+  <a class="nav-link" href="../">&#8592; All Posts</a>
+  <a class="nav-link" href="../52-agent-orchestration/">Post 52 &mdash; Orchestration</a>
+  <a class="nav-link" href="../51-institutional-memory/">Post 51 &mdash; Inst. Memory</a>
+  <a class="nav-link" href="../50-memory-agents/">Post 50 &mdash; Memory Agents</a>
+</div>
+
+<!-- MAIN -->
+<div class="main" id="main">
+
+<!-- TOP BAR -->
+<div class="top-bar">
+  <div class="bar-step" onclick="goTo('s-intro')"><span class="bar-dot" style="background:var(--rose)"></span>Overview</div>
+  <span class="bar-arrow">›</span>
+  <div class="bar-step" onclick="goTo('s-problem')">Problem</div>
+  <span class="bar-arrow">›</span>
+  <div class="bar-step" onclick="goTo('s-idea')">Text-Space Opt</div>
+  <span class="bar-arrow">›</span>
+  <div class="bar-step" onclick="goTo('s-loop')">4-Step Loop</div>
+  <span class="bar-arrow">›</span>
+  <div class="bar-step" onclick="goTo('s-stability')">Stability</div>
+  <span class="bar-arrow">›</span>
+  <div class="bar-step" onclick="goTo('s-landscape')">Landscape</div>
+  <span class="bar-arrow">›</span>
+  <div class="bar-step" onclick="goTo('s-results')">Results</div>
+</div>
+
+<!-- ═══════════════════════════════ HERO ═══════════════════════════════ -->
+<div class="hero-section" id="s-intro">
+  <div class="tag-row">
+    <span class="tag tag-rose">Post 53</span>
+    <span class="tag tag-rose">Agents &amp; Systems</span>
+    <span class="tag tag-gray">Microsoft &middot; May 2026</span>
+    <span class="tag tag-gray">Self-Evolving Agents</span>
+  </div>
+  <div class="hero-title">SkillOpt<br><span style="color:var(--rose2)">Teaching AI Agents to Optimize Their Own Skills</span></div>
+  <div class="hero-desc">Agent skills are typically hand-crafted, generated once, or loosely self-revised. SkillOpt changes this: it treats skill documents as external state to be optimized with the same rigor applied to model weights — bounded text-space edits, strict validation gates, and stability mechanisms borrowed from gradient descent. The result: consistent improvements across all 52 model &times; benchmark &times; harness combinations tested.</div>
+
+  <div class="two-col" style="margin-top:28px;max-width:720px;">
+    <div class="card" style="border-color:rgba(244,63,94,.3);">
+      <div class="card-title" style="color:var(--rose2);">The Core Idea</div>
+      <div class="card-body">If model <em>weights</em> can be optimized with gradient descent, why can't agent <em>skills</em> be optimized with text-space descent? SkillOpt introduces exactly this: a separate optimizer model proposes bounded add/delete/replace edits to a skill document, accepted only when validation strictly improves.</div>
+    </div>
+    <div class="card" style="border-color:rgba(249,115,22,.3);">
+      <div class="card-title" style="color:var(--orange2);">Why It Matters</div>
+      <div class="card-body">Optimized skills transfer across models, harnesses, and related benchmarks — with <strong>zero inference overhead</strong> at deployment. A skill optimized on GPT-5.5 is a standalone markdown file any model can use. No fine-tuning. No extra API calls. All cost is in optimization, not serving.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ PROBLEM ═══════════════════════════════ -->
+<div class="section" id="s-problem">
+  <div class="sec-title">The Problem with Static Skills</div>
+  <div class="sec-sub">Why hand-crafted and one-shot skill generation keeps failing in production</div>
+
+  <div class="prose">
+    <p>An agent <em>skill</em> is a reusable document that tells an agent how to approach a class of tasks — which tools to use, in what order, how to handle edge cases, what mistakes to avoid. Think of it as a standing operating procedure written for an AI.</p>
+    <p>The problem: most skills are either <strong>hand-crafted by humans</strong> (expensive, brittle, doesn't scale), <strong>generated once by an LLM</strong> and frozen (never improves, drifts as tasks evolve), or subject to <span class="hl">loose self-revision</span> — agents rewriting their own skills with no convergence guarantee, no stability mechanism, and no way to tell if the edit helped or hurt.</p>
+    <p>The failure mode is the same in all three cases: skills are treated as <em>static artifacts</em>, not as something that can be systematically improved over time. The missing ingredient is a principled optimizer for text.</p>
+  </div>
+
+  <div class="three-col" style="margin-top:24px;max-width:760px;">
+    <div class="card" style="border-color:rgba(239,68,68,.3);">
+      <div class="card-title" style="color:#f87171;">&#x2717; Hand-Crafted Skills</div>
+      <div class="card-body">Written by domain experts. Correct at creation. Brittle when tasks shift. Cannot incorporate failure signals from the agent's own execution history. Doesn't scale across diverse task domains.</div>
+    </div>
+    <div class="card" style="border-color:rgba(239,68,68,.2);">
+      <div class="card-title" style="color:#f87171;">&#x2717; One-Shot Generation</div>
+      <div class="card-body">LLM generates a skill from a prompt or a few examples. Fast. Zero improvement after creation. The skill that worked on task 1 may fail on task 47 — no feedback loop to fix it.</div>
+    </div>
+    <div class="card" style="border-color:rgba(239,68,68,.15);">
+      <div class="card-title" style="color:#f87171;">&#x2717; Loose Self-Revision</div>
+      <div class="card-body">Agent rewrites its own skill based on recent failures. No edit budget. No validation gate. An edit that helps on recent tasks may overwrite procedures that worked on older ones — catastrophic forgetting in text space.</div>
+    </div>
+  </div>
+
+  <div class="prose" style="margin-top:24px;">
+    <p>What's needed is something analogous to what made weight-space learning so powerful: a principled optimizer with bounded updates, a validation criterion, and mechanisms to prevent unstable convergence. SkillOpt brings all three to the text domain.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ IDEA ═══════════════════════════════ -->
+<div class="section" id="s-idea">
+  <div class="sec-title">Skills as External State — Text-Space Optimization</div>
+  <div class="sec-sub">The analogy that unlocks systematic skill learning</div>
+
+  <div class="prose">
+    <p>The central insight of SkillOpt is a tight analogy between <span class="hl">weight-space optimization</span> and <span class="hl-orange">text-space optimization</span>. In weight-space learning, a loss is computed on a training batch, gradients are propagated, weights are updated by a bounded step (learning rate), and the update is validated on held-out data. The process is systematic, convergent, and reproducible.</p>
+    <p>SkillOpt applies the same structure to skill documents. The "weights" are the words and procedures in the skill. The "gradient" is a natural-language reflection generated by an optimizer model that has read successful and failed rollouts. The "learning rate" is a textual budget bounding how much the skill can change per step. The "validation set" is a held-out task split that must show strict improvement before any edit is accepted.</p>
+    <p>Critically, the <strong>target model is frozen throughout</strong>. SkillOpt never touches the model. It only evolves the skill document — a separate, portable, model-agnostic artifact. This enables zero inference overhead at deployment and direct transferability across model families.</p>
+  </div>
+
+  <div style="margin-top:28px;overflow-x:auto;">
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th>Concept</th>
+          <th>Weight-Space (Gradient Descent)</th>
+          <th>Text-Space (SkillOpt)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Trainable artifact</td>
+          <td>Model weights (floats)</td>
+          <td>Skill document (markdown text)</td>
+        </tr>
+        <tr>
+          <td>Training signal</td>
+          <td>Loss on training batch</td>
+          <td>Scored rollouts (successes + failures)</td>
+        </tr>
+        <tr>
+          <td>Update mechanism</td>
+          <td>Gradient &times; learning rate</td>
+          <td>Optimizer reflection &rarr; bounded edits</td>
+        </tr>
+        <tr>
+          <td>Update bounds</td>
+          <td>Learning rate clipping</td>
+          <td>Textual LR budget (token diff cap)</td>
+        </tr>
+        <tr>
+          <td>Validation gate</td>
+          <td>Held-out val loss</td>
+          <td>Held-out task score (strict improvement)</td>
+        </tr>
+        <tr>
+          <td>Slow / periodic updates</td>
+          <td>Slow weights / EMA</td>
+          <td>Epoch-wise meta updates</td>
+        </tr>
+        <tr>
+          <td>Momentum memory</td>
+          <td>Gradient momentum buffer</td>
+          <td>Rejected-edit buffer</td>
+        </tr>
+        <tr>
+          <td>Inference overhead</td>
+          <td>None (weights baked in)</td>
+          <td>None (skill is a static markdown file)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ LOOP ═══════════════════════════════ -->
+<div class="section" id="s-loop">
+  <div class="sec-title">The Four-Step Optimization Loop</div>
+  <div class="sec-sub">Rollout &rarr; Reflect &rarr; Edit &rarr; Gate &mdash; click each step to explore</div>
+
+  <div class="stepper-wrap">
+    <div class="step-tabs">
+      <div class="step-tab active" onclick="setStep(0)">1 &middot; Rollout</div>
+      <div class="step-tab" onclick="setStep(1)">2 &middot; Reflect</div>
+      <div class="step-tab" onclick="setStep(2)">3 &middot; Edit</div>
+      <div class="step-tab" onclick="setStep(3)">4 &middot; Gate</div>
+    </div>
+    <div class="step-content">
+
+      <div class="step-content-inner active" id="step-0">
+        <div class="step-num">Step 1 of 4</div>
+        <div class="step-title">Rollout — Generate Scored Trajectories</div>
+        <div class="step-body">
+          The <strong>frozen target model</strong> executes a minibatch of tasks using the current version of the skill document. Each execution produces a trajectory: the sequence of tool calls, intermediate states, and final outputs. Every trajectory is scored by a task-specific evaluator — did the formula return the correct value? did the code patch pass the test suite?
+          <br><br>
+          Both <strong>successful trajectories</strong> and <strong>failed trajectories</strong> are collected and passed forward. Failures are not discarded — they are the primary learning signal. This mirrors supervised learning where negative examples are as important as positive ones.
+        </div>
+        <div class="step-example">
+          <strong>Example (SWE-bench task):</strong><br>
+          Current skill: "Use grep to locate the relevant function before editing."<br>
+          Rollout result: 7 successes, 3 failures — all failures involve multi-file changes where grep missed secondary definitions in imported modules.<br>
+          Batch scores: [1, 1, 0, 1, 0, 1, 1, 0, 1, 1] &rarr; mean 0.70
+        </div>
+      </div>
+
+      <div class="step-content-inner" id="step-1">
+        <div class="step-num">Step 2 of 4</div>
+        <div class="step-title">Reflect — Extract Reusable Lessons</div>
+        <div class="step-body">
+          A separate <strong>optimizer model</strong> — distinct from the frozen target — reads the minibatch of scored trajectories. It does not see the current skill yet. Its job: identify what consistently separates success from failure in this minibatch, then express that distinction as a reusable, procedural insight.
+          <br><br>
+          This reflection is the "gradient" in text space: it captures the direction the skill needs to move. The optimizer produces a natural-language description of the proposed change — not the change itself, but the reasoning that should motivate it.
+        </div>
+        <div class="step-example">
+          <strong>Example (continued):</strong><br>
+          Reflection: "All 3 failures involved multi-file changes. The skill instructs using grep for location, but grep searches one file at a time. Failures could have been avoided by checking imports before starting edits. The skill should add: when the task involves class inheritance or imported modules, expand search to the full repo before editing."
+        </div>
+      </div>
+
+      <div class="step-content-inner" id="step-2">
+        <div class="step-num">Step 3 of 4</div>
+        <div class="step-title">Edit — Apply Bounded Modifications</div>
+        <div class="step-body">
+          The optimizer model now sees both the current skill document and its reflection. It proposes concrete modifications: <strong>add</strong> new steps or rules, <strong>delete</strong> outdated or counterproductive instructions, or <strong>replace</strong> existing steps with improved versions.
+          <br><br>
+          All edits are constrained by a <span class="hl">textual learning-rate budget</span> — a ceiling on the total token count of changes per optimization step. This prevents the optimizer from rewriting the entire skill at once, which would destroy all accumulated knowledge. Small, targeted edits converge more reliably than large rewrites.
+        </div>
+        <div class="step-example">
+          <strong>Example (continued):</strong><br>
+          <span style="color:#86efac;">+ Step 2b: If the task involves class inheritance or imported modules, run `grep -r &lt;symbol&gt; .` before editing. Check all files that import the affected class.</span><br><br>
+          <span style="color:var(--muted);">[No deletions this step. Budget used: 18 / 50 tokens &mdash; well within bounds.]</span>
+        </div>
+      </div>
+
+      <div class="step-content-inner" id="step-3">
+        <div class="step-num">Step 4 of 4</div>
+        <div class="step-title">Gate — Accept Only Strict Improvements</div>
+        <div class="step-body">
+          The proposed edited skill is evaluated on a <strong>held-out validation set</strong> — separate from the minibatch used in the rollout. The edit is accepted and replaces the current skill <em>only if</em> the validation score is strictly higher than the current skill's score.
+          <br><br>
+          If the edit fails the gate, it enters the <strong>rejected-edit buffer</strong> — a memory of directions the optimizer should avoid re-proposing. This is one of the three core stability mechanisms. The loop then repeats with the next minibatch, keeping the current skill unchanged.
+        </div>
+        <div class="step-example">
+          <strong>Example (continued):</strong><br>
+          Current skill validation score: 0.70<br>
+          Edited skill validation score: 0.81<br><br>
+          Decision: <span style="color:#86efac;font-weight:700;">ACCEPTED &mdash;</span> edited skill replaces current skill. Loop repeats with new rollouts using the updated skill.
+        </div>
+      </div>
+
+    </div><!-- step-content -->
+  </div><!-- stepper-wrap -->
+</div>
+
+<!-- ═══════════════════════════════ STABILITY ═══════════════════════════════ -->
+<div class="section" id="s-stability">
+  <div class="sec-title">Three Stability Mechanisms</div>
+  <div class="sec-sub">What stops text-space optimization from diverging — click each to explore</div>
+
+  <div class="stab-tabs">
+    <div class="stab-tab active" onclick="setStab(0)">&#9312; Textual LR Budget</div>
+    <div class="stab-tab" onclick="setStab(1)">&#9313; Rejected-Edit Buffer</div>
+    <div class="stab-tab" onclick="setStab(2)">&#9314; Slow / Meta Updates</div>
+  </div>
+
+  <!-- STAB 0 -->
+  <div class="stab-panel active" id="stab-0" style="max-width:720px;">
+    <div class="card" style="border-color:rgba(244,63,94,.3);">
+      <div class="card-title" style="color:var(--rose2);font-size:15px;">Textual Learning-Rate Budget</div>
+      <div class="card-body" style="font-size:13px;line-height:1.75;color:#c8c0b8;">
+        <p style="margin-bottom:14px;">In gradient descent, the learning rate caps how far weights move per step — preventing oscillation and divergence. SkillOpt introduces the analogous concept for text: a <strong>token-diff budget</strong> that caps the total size of edits (adds + deletes + replacements) per optimization step.</p>
+        <p style="margin-bottom:18px;">Without this budget, the optimizer would rewrite entire sections of the skill in one step — destroying all accumulated procedures from prior iterations. Large rewrites also make it impossible to isolate which specific change caused performance to improve or degrade, breaking the optimization signal.</p>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:16px;">
+          <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Skill Document — Edit Under Budget Constraint (50 token budget)</div>
+          <div class="skill-doc">
+            <span class="sk-ctx"># Skill: Code Review Agent</span>
+            <span class="sk-ctx">## Step 1: Identify changed files</span>
+            <span class="sk-ctx">Run `git diff --name-only HEAD~1` to list modified files.</span>
+            <span class="sk-ctx">## Step 2: Check for tests</span>
+            <span class="sk-del">Look for files matching *_test.py or test_*.py.</span>
+            <span class="sk-add">Look for files matching *_test.py, test_*.py, or tests/ directory. If no tests exist, flag as high-priority review item.</span>
+            <span class="sk-ctx">## Step 3: Review diff</span>
+            <span class="sk-ctx">Summarize changes per file, focusing on logic branches.</span>
+            <span class="sk-add">## Step 3b: Check edge cases</span>
+            <span class="sk-add">For each changed function, verify: null inputs, empty collections, boundary values.</span>
+          </div>
+          <div style="display:flex;gap:20px;margin-top:12px;font-size:11px;flex-wrap:wrap;">
+            <span style="color:#86efac;">+ 28 tokens added</span>
+            <span style="color:#fca5a5;">&minus; 7 tokens removed</span>
+            <span style="color:var(--muted);">Budget used: 35 / 50 &nbsp;&#10003;</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STAB 1 -->
+  <div class="stab-panel" id="stab-1" style="max-width:720px;">
+    <div class="card" style="border-color:rgba(249,115,22,.3);">
+      <div class="card-title" style="color:var(--orange2);font-size:15px;">Rejected-Edit Buffer</div>
+      <div class="card-body" style="font-size:13px;line-height:1.75;color:#c8c0b8;">
+        <p style="margin-bottom:14px;">When a proposed edit fails the validation gate, it isn't simply discarded — it is stored in a <strong>rejected-edit buffer</strong>, a memory of optimization directions to avoid. In subsequent steps, the optimizer model reads the buffer and is instructed not to re-propose semantically similar edits.</p>
+        <p style="margin-bottom:18px;">This mirrors gradient momentum in weight-space optimization: knowing which directions made the loss worse and downweighting them. Without this buffer, the optimizer tends to cycle — proposing the same failing edit repeatedly when similar failure patterns generate similar reflections.</p>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:16px;">
+          <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Rejected-Edit Buffer — Avoiding Optimization Cycles</div>
+          <div style="display:flex;flex-direction:column;gap:10px;font-size:12px;">
+            <div style="display:flex;gap:12px;align-items:flex-start;">
+              <span style="color:#fca5a5;font-weight:700;white-space:nowrap;padding-top:8px;">Step 3</span>
+              <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:6px;padding:10px 14px;flex:1;">
+                Proposed: "Add a retry loop when tool call returns null"<br>
+                <span style="color:#fca5a5;">Gate: REJECTED — val score 0.68 &lt; current 0.71. Buffered.</span>
+              </div>
+            </div>
+            <div style="display:flex;gap:12px;align-items:flex-start;">
+              <span style="color:#f97316;font-weight:700;white-space:nowrap;padding-top:8px;">Step 6</span>
+              <div style="background:rgba(249,115,22,.08);border:1px solid rgba(249,115,22,.2);border-radius:6px;padding:10px 14px;flex:1;">
+                Proposed: "When tool returns empty response, retry up to 3 times"<br>
+                <span style="color:var(--orange2);">Buffer match detected. Optimizer informed: retry-loop variants have already failed. Redirected.</span>
+              </div>
+            </div>
+            <div style="display:flex;gap:12px;align-items:flex-start;">
+              <span style="color:#86efac;font-weight:700;white-space:nowrap;padding-top:8px;">Step 7</span>
+              <div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.2);border-radius:6px;padding:10px 14px;flex:1;">
+                Proposed: "When tool returns null, log and skip — do not retry, move to fallback"<br>
+                <span style="color:#86efac;">Gate: ACCEPTED — val score 0.78 &gt; current 0.71.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STAB 2 -->
+  <div class="stab-panel" id="stab-2" style="max-width:720px;">
+    <div class="card" style="border-color:rgba(245,158,11,.3);">
+      <div class="card-title" style="color:var(--amber2);font-size:15px;">Epoch-Wise Slow / Meta Updates</div>
+      <div class="card-body" style="font-size:13px;line-height:1.75;color:#c8c0b8;">
+        <p style="margin-bottom:14px;">Within each optimization epoch, edits are small and targeted — controlled by the LR budget. At the <strong>end of each epoch</strong>, SkillOpt performs a meta-update: a larger, holistic review of the full skill document in light of all the epoch's accumulated learning.</p>
+        <p style="margin-bottom:18px;">This mirrors slow-weight updates or EMA in weight-space training — periodic consolidation that smooths noise and integrates incremental changes. The meta-update removes contradictions introduced by successive small edits and reorganizes the skill for clarity. It still must pass the strict validation gate before replacing the current skill.</p>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:16px;">
+          <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">Epoch Structure</div>
+          <div style="display:flex;align-items:center;gap:0;overflow-x:auto;">
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;text-align:center;white-space:nowrap;min-width:110px;">
+              <div style="color:var(--rose2);font-weight:700;font-size:12px;">Steps 1&ndash;N</div>
+              <div style="color:var(--muted);font-size:11px;margin-top:4px;">Mini edits</div>
+              <div style="color:var(--muted);font-size:11px;">(LR budget)</div>
+            </div>
+            <div style="padding:0 10px;color:var(--border);font-size:22px;">&#8594;</div>
+            <div style="background:var(--surface);border:1px solid rgba(245,158,11,.35);border-radius:8px;padding:10px 14px;text-align:center;white-space:nowrap;min-width:110px;">
+              <div style="color:var(--amber2);font-weight:700;font-size:12px;">Epoch End</div>
+              <div style="color:var(--muted);font-size:11px;margin-top:4px;">Meta-update</div>
+              <div style="color:var(--muted);font-size:11px;">(holistic)</div>
+            </div>
+            <div style="padding:0 10px;color:var(--border);font-size:22px;">&#8594;</div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;text-align:center;white-space:nowrap;min-width:110px;">
+              <div style="color:var(--muted);font-weight:700;font-size:12px;">Gate</div>
+              <div style="color:var(--muted);font-size:11px;margin-top:4px;">Strict improve</div>
+              <div style="color:var(--muted);font-size:11px;">required</div>
+            </div>
+            <div style="padding:0 10px;color:var(--border);font-size:22px;">&#8594;</div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;text-align:center;white-space:nowrap;min-width:110px;">
+              <div style="color:var(--muted);font-weight:700;font-size:12px;">Next Epoch</div>
+              <div style="color:var(--muted);font-size:11px;margin-top:4px;">Clean, consistent</div>
+              <div style="color:var(--muted);font-size:11px;">skill document</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ LANDSCAPE ═══════════════════════════════ -->
+<div class="section" id="s-landscape">
+  <div class="sec-title">The Skill Evolution Landscape</div>
+  <div class="sec-sub">How agent skill learning evolved from 2023 to 2026 — click any system to expand</div>
+
+  <div class="timeline">
+
+    <div class="tl-item active" onclick="toggleTL(this)">
+      <div class="tl-dot">2023</div>
+      <div class="tl-card">
+        <div class="tl-year">Wang et al. &middot; NeurIPS 2023</div>
+        <div class="tl-name">Voyager &mdash; Skills as Executable Code</div>
+        <div class="tl-tagline">First to demonstrate autonomous skill library construction in open-ended environments.</div>
+        <div class="tl-detail">
+          <strong style="color:var(--text);">Mechanism:</strong> GPT-4 writes executable JavaScript programs for Minecraft tasks. Successful programs are stored in a vector DB and retrieved for future tasks. Skills compose — complex behaviors built from simpler ones via curriculum-guided exploration.<br><br>
+          <strong style="color:var(--text);">Key result:</strong> 3.3&times; more unique items collected, 15.3&times; faster tech-tree progression than prior SOTA. Skills transfer to novel Minecraft worlds.<br><br>
+          <strong style="color:var(--text);">Limitation:</strong> Skills are domain-specific executable code (JavaScript), not general natural-language procedures. No systematic skill refinement — skills are written once and stored. No validation gate or stability mechanism.
+        </div>
+      </div>
+    </div>
+
+    <div class="tl-item" onclick="toggleTL(this)">
+      <div class="tl-dot">2024</div>
+      <div class="tl-card">
+        <div class="tl-year">Zhao et al. &middot; AAAI 2024</div>
+        <div class="tl-name">ExpeL &mdash; Experience as Natural Language Insight</div>
+        <div class="tl-tagline">Trial-and-error learning without fine-tuning via accumulated experience pools.</div>
+        <div class="tl-detail">
+          <strong style="color:var(--text);">Mechanism:</strong> Agents collect successful and failed trajectories in an experience pool. A synthesis step extracts abstract procedural insights in natural language — e.g. "always check return type before casting" — injected into future prompts. Works with closed API models (GPT-4, Claude) where weights are inaccessible.<br><br>
+          <strong style="color:var(--text);">Key result:</strong> Consistent improvement across tasks with no weight updates. Generalizes across task types through accumulated insight.<br><br>
+          <strong style="color:var(--text);">Limitation:</strong> Insights are injected at inference time — growing context overhead. No systematic edit gating or budget. No mechanism to remove outdated or contradictory insights.
+        </div>
+      </div>
+    </div>
+
+    <div class="tl-item" onclick="toggleTL(this)">
+      <div class="tl-dot">2026</div>
+      <div class="tl-card">
+        <div class="tl-year">arXiv 2603 &middot; 2026</div>
+        <div class="tl-name">Trace2Skill &mdash; Parallel Trajectory Distillation</div>
+        <div class="tl-tagline">Fleet of specialist sub-agents distills diverse trajectories into transferable skill patches.</div>
+        <div class="tl-detail">
+          <strong style="color:var(--text);">Mechanism:</strong> Success-analyst and error-analyst sub-agents process trajectory batches in parallel. Proposals are conflict-free merged hierarchically into a unified skill directory. Prevents local overfitting through diversity of analysis perspectives.<br><br>
+          <strong style="color:var(--text);">Key result:</strong> Transfers across LLM scales, generalizes out-of-distribution. Outperforms Anthropic's official skills on spreadsheet, vision QA, and math reasoning tasks.<br><br>
+          <strong style="color:var(--text);">Limitation:</strong> Parallel fleet adds inference cost during optimization. No textual LR budget — edits can be large and destabilizing. No rejected-edit memory to prevent optimization cycles.
+        </div>
+      </div>
+    </div>
+
+    <div class="tl-item" onclick="toggleTL(this)">
+      <div class="tl-dot">2026</div>
+      <div class="tl-card">
+        <div class="tl-year">arXiv 2603 &middot; 2026</div>
+        <div class="tl-name">EvoSkill &mdash; Failure-Focused Multi-File Evolution</div>
+        <div class="tl-tagline">Iterative skill discovery from failed trajectories, generating structured multi-file skill packages.</div>
+        <div class="tl-detail">
+          <strong style="color:var(--text);">Mechanism:</strong> Applies textual feedback descent specifically to failure cases. Proposes multiple skill and prompt mutations jointly. Generates multi-file, structured skill packages — not just a single document. Information-isolated surrogate verification for failure diagnostics.<br><br>
+          <strong style="color:var(--text);">Key result:</strong> Outperforms standard prompt optimization (GEPA, TextGrad) on agent tasks. Multi-file skill packages are more modular than single-document skills.<br><br>
+          <strong style="color:var(--text);">Limitation:</strong> No bounded textual learning rate. No rejected-edit memory. Less stable convergence than SkillOpt in ablation comparisons.
+        </div>
+      </div>
+    </div>
+
+    <div class="tl-item" onclick="toggleTL(this)">
+      <div class="tl-dot" style="border-color:var(--rose);color:var(--rose2);background:rgba(244,63,94,.12);">2026</div>
+      <div class="tl-card" style="border-color:rgba(244,63,94,.4);">
+        <div class="tl-year" style="color:var(--rose2);">Yang et al. &middot; Microsoft Research &middot; May 2026</div>
+        <div class="tl-name" style="color:var(--rose2);">SkillOpt &mdash; First Systematic Text-Space Optimizer &#9733;</div>
+        <div class="tl-tagline">Principled text-space optimization with LR budgeting, rejected-edit buffer, and meta-updates.</div>
+        <div class="tl-detail">
+          <strong style="color:var(--text);">Mechanism:</strong> Frozen target model + separate optimizer model. Four-step loop: rollout &rarr; reflect &rarr; bounded edit &rarr; strict validation gate. Three stability mechanisms prevent divergence. Skills deployed as standalone markdown with zero inference overhead.<br><br>
+          <strong style="color:var(--text);">Key result:</strong> Best or tied on all 52 model &times; benchmark &times; harness combinations. +23.5 pts GPT-5.5 direct chat, +24.8 Codex agentic loop, +19.1 Claude Code.<br><br>
+          <strong style="color:var(--text);">Advantage over predecessors:</strong> Only system with all three stability mechanisms. Only system with cross-model, cross-harness, and cross-benchmark transferability tested at scale. Zero inference overhead at deployment time.
+        </div>
+      </div>
+    </div>
+
+  </div><!-- timeline -->
+</div>
+
+<!-- ═══════════════════════════════ RESULTS ═══════════════════════════════ -->
+<div class="section" id="s-results">
+  <div class="sec-title">Benchmark Results</div>
+  <div class="sec-sub">52 model &times; benchmark &times; harness combinations &mdash; SkillOpt best or tied on all 52</div>
+
+  <div class="results-grid" style="margin-bottom:32px;">
+    <div class="result-card">
+      <div class="result-harness">Direct Chat Harness</div>
+      <div class="result-model">GPT-5.5</div>
+      <div><span class="result-sign">+</span><span class="result-num">23.5</span></div>
+      <div class="result-label">points improvement over no-skill baseline</div>
+      <div class="result-bar-wrap"><div class="result-bar" style="width:94%"></div></div>
+    </div>
+    <div class="result-card">
+      <div class="result-harness">Codex Agentic Loop</div>
+      <div class="result-model">GPT-5.5</div>
+      <div><span class="result-sign">+</span><span class="result-num">24.8</span></div>
+      <div class="result-label">points improvement over no-skill baseline</div>
+      <div class="result-bar-wrap"><div class="result-bar" style="width:99%"></div></div>
+    </div>
+    <div class="result-card">
+      <div class="result-harness">Claude Code Harness</div>
+      <div class="result-model">GPT-5.5</div>
+      <div><span class="result-sign">+</span><span class="result-num">19.1</span></div>
+      <div class="result-label">points improvement over no-skill baseline</div>
+      <div class="result-bar-wrap"><div class="result-bar" style="width:76%"></div></div>
+    </div>
+  </div>
+
+  <div class="prose" style="margin-bottom:28px;">
+    <p>The evaluation covers <span class="hl">6 benchmarks</span> (OSWorld, SWE-bench, WebArena, GAIA, and domain-specific office task suites), <span class="hl-orange">7 target models</span> (GPT-5.5, Qwen 3.5, Qwen 3.6 variants, and others), and <span class="hl-amber">3 execution harnesses</span> (direct chat, Codex agentic loop, Claude Code). Across all 52 cells, SkillOpt achieves best or tied score.</p>
+    <p>Baselines tested: <strong>TextGrad</strong> (gradient-based text optimizer), <strong>GEPA</strong> (genetic-evolution prompt optimizer), <strong>EvoSkill</strong> (failure-focused skill evolution), <strong>Trace2Skill</strong> (parallel trajectory distillation). SkillOpt beats all four per-cell across all 52 combinations.</p>
+  </div>
+
+  <!-- Baseline comparison -->
+  <div style="max-width:640px;margin-bottom:32px;">
+    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">Relative Performance vs Baselines (illustrative, GPT-5.5 / SWE-bench)</div>
+    <div class="baseline-row">
+      <div class="baseline-name" style="color:var(--rose2);">SkillOpt</div>
+      <div class="baseline-bar-wrap"><div class="baseline-bar" style="width:95%;background:linear-gradient(90deg,var(--rose),var(--orange));">95</div></div>
+      <div class="baseline-score" style="color:var(--rose2);">95</div>
+    </div>
+    <div class="baseline-row">
+      <div class="baseline-name">Trace2Skill</div>
+      <div class="baseline-bar-wrap"><div class="baseline-bar" style="width:78%;background:#475569;">78</div></div>
+      <div class="baseline-score">78</div>
+    </div>
+    <div class="baseline-row">
+      <div class="baseline-name">EvoSkill</div>
+      <div class="baseline-bar-wrap"><div class="baseline-bar" style="width:71%;background:#475569;">71</div></div>
+      <div class="baseline-score">71</div>
+    </div>
+    <div class="baseline-row">
+      <div class="baseline-name">GEPA</div>
+      <div class="baseline-bar-wrap"><div class="baseline-bar" style="width:63%;background:#475569;">63</div></div>
+      <div class="baseline-score">63</div>
+    </div>
+    <div class="baseline-row" style="border-bottom:none;">
+      <div class="baseline-name">TextGrad</div>
+      <div class="baseline-bar-wrap"><div class="baseline-bar" style="width:58%;background:#475569;">58</div></div>
+      <div class="baseline-score">58</div>
+    </div>
+  </div>
+
+  <!-- Transfer properties -->
+  <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">Key Properties Validated</div>
+  <div class="four-col" style="max-width:720px;">
+    <div class="card" style="border-color:rgba(244,63,94,.2);">
+      <div class="card-title" style="color:var(--rose2);">Cross-Model Transfer</div>
+      <div class="card-body">A skill optimized on GPT-5.5 transfers to Qwen 3.5 and Qwen 3.6 without re-optimization. SkillOpt finds model-agnostic procedural knowledge, not model-specific prompt hacks.</div>
+    </div>
+    <div class="card" style="border-color:rgba(249,115,22,.2);">
+      <div class="card-title" style="color:var(--orange2);">Cross-Harness Transfer</div>
+      <div class="card-body">Skills transfer from direct chat to agentic loop harnesses (Codex, Claude Code) without modification. The skill encodes procedure, not harness-specific formatting.</div>
+    </div>
+    <div class="card" style="border-color:rgba(244,63,94,.15);">
+      <div class="card-title" style="color:var(--rose2);">Cross-Benchmark Transfer</div>
+      <div class="card-body">Skills generalize to nearby benchmarks in the same domain without retraining. Optimized on task distribution A &rarr; improves performance on related distribution B.</div>
+    </div>
+    <div class="card" style="border-color:rgba(249,115,22,.15);">
+      <div class="card-title" style="color:var(--orange2);">Zero Inference Overhead</div>
+      <div class="card-body">At deployment, the optimized skill is a standalone markdown file. No extra LLM calls, no runtime optimizer. All compute cost is in the optimization phase, not serving.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ RELATED POSTS ═══════════════════════════════ -->
+<div class="section" id="s-refs">
+  <div class="sec-title">Related Posts</div>
+  <div class="sec-sub">Build your understanding of agent systems and skill evolution</div>
+  <div class="three-col" style="max-width:720px;">
+    <a class="card" href="../52-agent-orchestration/" style="border-color:rgba(37,99,235,.3);display:block;">
+      <div class="card-title" style="color:#60a5fa;">Post 52 &mdash; LLM Agent Orchestration</div>
+      <div class="card-body">Topology patterns (Supervisor, Pipeline, Router, Swarm), LangGraph, CrewAI, AutoGen, MAST failure taxonomy, Mixture of Agents. The coordination layer that SkillOpt's skills run inside.</div>
+    </a>
+    <a class="card" href="../51-institutional-memory/" style="border-color:rgba(16,185,129,.3);display:block;">
+      <div class="card-title" style="color:#34d399;">Post 51 &mdash; Institutional Memory</div>
+      <div class="card-body">Capturing tacit expert knowledge for LLM agents. Complements SkillOpt: skills encode <em>how</em> to act; institutional memory encodes <em>what domain experts know</em>. Together they form a complete agent knowledge layer.</div>
+    </a>
+    <a class="card" href="../50-memory-agents/" style="border-color:rgba(245,158,11,.3);display:block;">
+      <div class="card-title" style="color:#fbbf24;">Post 50 &mdash; Memory in LLM Agents</div>
+      <div class="card-body">Survey of agent memory: inside-trial, cross-trial, external knowledge. Skill libraries like SkillOpt's outputs are cross-trial external memory — persistent, reusable, structured procedural knowledge.</div>
+    </a>
+  </div>
+</div>
+
+<!-- CONTINUE STRIP -->
+<div class="continue-strip">
+  <div>
+    <div class="cs-label">&#8592; Previous Post</div>
+    <a href="../52-agent-orchestration/" class="cs-title">Post 52 &mdash; LLM Agent Orchestration</a>
+  </div>
+  <div style="text-align:right;">
+    <div class="cs-label">All Posts &#8594;</div>
+    <a href="../" class="cs-title" style="color:var(--rose2);">Visual Summary</a>
+  </div>
+</div>
+
+</div><!-- end .main -->
+
+<script>
+function goTo(id){var el=document.getElementById(id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});}
+
+function setStep(i){
+  document.querySelectorAll('.step-tab').forEach(function(t,idx){t.classList.toggle('active',idx===i);});
+  document.querySelectorAll('.step-content-inner').forEach(function(p,idx){p.classList.toggle('active',idx===i);});
+}
+
+function setStab(i){
+  document.querySelectorAll('.stab-tab').forEach(function(t,idx){t.classList.toggle('active',idx===i);});
+  document.querySelectorAll('.stab-panel').forEach(function(p,idx){p.classList.toggle('active',idx===i);});
+}
+
+function toggleTL(item){
+  var was=item.classList.contains('active');
+  document.querySelectorAll('.tl-item').forEach(function(i){i.classList.remove('active');});
+  if(!was)item.classList.add('active');
+}
+
+var main=document.getElementById('main');
+var secs=['s-intro','s-problem','s-idea','s-loop','s-stability','s-landscape','s-results','s-refs'];
+main.addEventListener('scroll',function(){
+  var links=document.querySelectorAll('.sidebar .nav-link');
+  secs.forEach(function(id,i){
+    var el=document.getElementById(id);
+    if(!el)return;
+    var top=el.getBoundingClientRect().top;
+    if(top<=120&&top>-400){
+      links.forEach(function(l){l.classList.remove('active');});
+      if(links[i])links[i].classList.add('active');
+    }
+  });
+});
+</script>
+</body>
+</html>
