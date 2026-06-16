@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en" class="vs-post">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Multi-Vector Embeddings — Beyond the Single Point</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#04060f;--surface:#08111f;--surface2:#0d1a2e;--border:#152038;
+  --text:#dde8ff;--muted:#4a6a99;
+  --blue:#3b82f6;--blue2:#60a5fa;--blue3:#93c5fd;
+  --indigo:#6366f1;--indigo2:#818cf8;--indigo3:#a5b4fc;
+  --violet:#8b5cf6;--violet2:#a78bfa;
+  --cyan:#06b6d4;--cyan2:#22d3ee;
+  --amber:#f59e0b;--amber2:#fbbf24;
+  --emerald:#10b981;--emerald2:#34d399;
+  --rose:#f43f5e;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+code,pre{font-family:'JetBrains Mono',monospace;}
+
+/* GATE */
+#gate{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.gate-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 44px;text-align:center;max-width:380px;width:90%;}
+.gate-icon{font-size:36px;margin-bottom:12px;}
+.gate-title{font-size:20px;font-weight:800;color:var(--indigo2);margin-bottom:4px;}
+.gate-sub{font-size:12px;color:var(--muted);margin-bottom:24px;}
+.gate-input{width:100%;background:#020408;border:1px solid var(--border);border-radius:8px;padding:11px 14px;font-size:14px;color:var(--text);outline:none;margin-bottom:12px;}
+.gate-input:focus{border-color:var(--indigo);}
+.gate-btn{width:100%;background:var(--indigo);color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s;}
+.gate-btn:hover{opacity:.85;}
+.gate-err{font-size:11px;color:#f87171;margin-top:6px;display:none;}
+
+/* LAYOUT */
+.sidebar{width:240px;min-width:240px;height:100vh;position:sticky;top:0;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:0 0 40px;flex-shrink:0;}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.sidebar-logo-title{font-size:13px;font-weight:700;color:var(--indigo2);}
+.sidebar-logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.nav-group-title{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;padding:10px 16px 4px;}
+.nav-link{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;}
+.nav-link:hover,.nav-link.active{color:var(--text);background:rgba(99,102,241,.08);}
+.nav-link.active{color:var(--indigo2);}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.main{flex:1;overflow-y:auto;height:100vh;scroll-behavior:smooth;}
+
+/* TOP BAR */
+.top-bar{position:sticky;top:0;z-index:50;background:rgba(4,6,15,.97);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+.bar-step{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);padding:2px 6px;border-radius:4px;cursor:pointer;transition:color .15s;}
+.bar-step:hover{color:var(--text);}
+.bar-dot{width:6px;height:6px;border-radius:50%;}
+.bar-arrow{color:var(--border);font-size:14px;font-weight:700;}
+
+/* SECTIONS */
+.section{padding:40px 48px;border-bottom:1px solid var(--border);}
+.hero-section{padding:48px 48px 40px;border-bottom:1px solid var(--border);}
+.tag-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+.tag{font-size:10px;font-weight:700;padding:3px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:.8px;}
+.tag-indigo{background:rgba(99,102,241,.15);color:var(--indigo2);border:1px solid rgba(99,102,241,.25);}
+.tag-gray{background:rgba(255,255,255,.05);color:var(--muted);border:1px solid var(--border);}
+.tag-blue{background:rgba(59,130,246,.12);color:var(--blue2);border:1px solid rgba(59,130,246,.2);}
+.tag-violet{background:rgba(139,92,246,.12);color:var(--violet2);border:1px solid rgba(139,92,246,.2);}
+.hero-title{font-size:clamp(24px,4vw,40px);font-weight:800;line-height:1.1;margin-bottom:16px;letter-spacing:-1px;}
+.hero-desc{font-size:14px;color:var(--muted);max-width:680px;line-height:1.8;}
+.sec-title{font-size:22px;font-weight:800;margin-bottom:6px;letter-spacing:-.5px;}
+.sec-sub{font-size:13px;color:var(--muted);margin-bottom:28px;line-height:1.7;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;}
+.card-title{font-size:13px;font-weight:700;margin-bottom:6px;}
+.card-body{font-size:12px;color:var(--muted);line-height:1.7;}
+.stat-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px;}
+.stat-pill{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 18px;}
+.stat-num{font-size:22px;font-weight:800;line-height:1;}
+.stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-top:3px;}
+
+/* ARCHITECTURE VIZ */
+.arch-toggle{display:flex;gap:0;border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:24px;max-width:480px;}
+.arch-tab{flex:1;padding:10px 16px;font-size:12px;font-weight:700;text-align:center;cursor:pointer;transition:all .2s;color:var(--muted);background:var(--surface);}
+.arch-tab.active.single{background:rgba(59,130,246,.1);color:var(--blue2);border-bottom:2px solid var(--blue);}
+.arch-tab.active.multi{background:rgba(99,102,241,.1);color:var(--indigo2);border-bottom:2px solid var(--indigo);}
+
+.arch-diagram{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:700px;}
+.arch-flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+.arch-token{display:inline-flex;align-items:center;justify-content:center;padding:6px 10px;border-radius:6px;font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;border:1px solid;transition:all .3s;}
+.arch-arrow{font-size:18px;color:var(--muted);}
+.arch-box{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;text-align:center;font-size:12px;font-weight:700;}
+.arch-result{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+.single-vec{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;border:2px solid var(--blue);background:rgba(59,130,246,.12);color:var(--blue2);}
+.multi-vec-grid{display:flex;gap:4px;}
+.mv-dot{width:20px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;}
+.arch-score-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
+.arch-score-label{font-size:11px;color:var(--muted);}
+.arch-score-formula{font-family:'JetBrains Mono',monospace;font-size:12px;padding:6px 12px;border-radius:6px;}
+
+/* MAXSIM HEATMAP */
+.heatmap-wrap{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:20px;max-width:700px;}
+.heatmap-controls{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+.hm-btn{padding:6px 14px;font-size:11px;font-weight:700;border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--muted);background:var(--surface);transition:all .15s;}
+.hm-btn:hover{color:var(--text);}
+.hm-btn.active{background:rgba(99,102,241,.12);color:var(--indigo2);border-color:rgba(99,102,241,.3);}
+.heatmap-grid{display:inline-grid;gap:3px;margin-bottom:12px;}
+.hm-cell{width:52px;height:44px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;cursor:default;transition:all .3s;position:relative;}
+.hm-cell.max-cell{box-shadow:0 0 0 2px var(--indigo2);z-index:2;}
+.hm-cell.max-cell::after{content:'★';position:absolute;top:-8px;right:-4px;font-size:9px;color:var(--indigo2);}
+.hm-label-q{font-size:10px;font-weight:700;color:var(--indigo2);font-family:'JetBrains Mono',monospace;}
+.hm-label-d{font-size:10px;font-weight:700;color:var(--blue2);font-family:'JetBrains Mono',monospace;}
+.maxsim-sum{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:10px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.15);border-radius:8px;font-size:12px;}
+
+/* SYSTEM TIMELINE */
+.sys-timeline{display:flex;flex-direction:column;gap:2px;max-width:720px;}
+.sys-item{border:1px solid var(--border);border-radius:10px;overflow:hidden;cursor:pointer;transition:border-color .15s;}
+.sys-item:hover{border-color:rgba(99,102,241,.3);}
+.sys-item.open{border-color:rgba(99,102,241,.4);}
+.sys-header{display:flex;align-items:center;gap:12px;padding:14px 16px;}
+.sys-year{font-size:10px;font-weight:700;color:var(--muted);font-family:'JetBrains Mono',monospace;min-width:36px;}
+.sys-name{font-size:13px;font-weight:800;flex:1;}
+.sys-badge{font-size:10px;padding:2px 8px;border-radius:4px;font-weight:700;}
+.sys-chevron{font-size:12px;color:var(--muted);transition:transform .2s;}
+.sys-item.open .sys-chevron{transform:rotate(90deg);}
+.sys-body{display:none;padding:0 16px 16px;}
+.sys-item.open .sys-body{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+
+/* STORAGE CALCULATOR */
+.calc-wrap{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:22px;max-width:680px;}
+.calc-slider-row{display:grid;grid-template-columns:180px 1fr 80px;align-items:center;gap:12px;margin-bottom:14px;}
+.calc-label{font-size:12px;color:var(--text);}
+.calc-val{font-size:12px;font-weight:700;color:var(--indigo2);text-align:right;font-family:'JetBrains Mono',monospace;}
+input[type=range]{-webkit-appearance:none;height:4px;border-radius:2px;background:var(--border);outline:none;width:100%;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--indigo);cursor:pointer;}
+.calc-bars{margin-top:16px;display:flex;flex-direction:column;gap:8px;}
+.calc-bar-row{display:flex;align-items:center;gap:10px;}
+.calc-bar-label{font-size:11px;color:var(--muted);min-width:130px;}
+.calc-bar-track{flex:1;height:20px;background:var(--surface);border-radius:4px;overflow:hidden;}
+.calc-bar-fill{height:100%;border-radius:4px;display:flex;align-items:center;padding-left:8px;font-size:10px;font-weight:700;color:#fff;transition:width .4s cubic-bezier(.4,0,.2,1);}
+.calc-bar-num{font-size:11px;font-weight:700;min-width:60px;text-align:right;font-family:'JetBrains Mono',monospace;}
+
+/* DECISION TOOL */
+.decision-checks{display:flex;flex-direction:column;gap:6px;max-width:600px;margin-bottom:20px;}
+.dec-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:all .15s;}
+.dec-item:hover{border-color:rgba(99,102,241,.2);}
+.dec-item.checked{border-color:rgba(99,102,241,.3);background:rgba(99,102,241,.05);}
+.dec-cb{width:16px;height:16px;border-radius:4px;border:2px solid var(--muted);flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.dec-item.checked .dec-cb{background:var(--indigo);border-color:var(--indigo);}
+.dec-label{font-size:12px;color:var(--text);line-height:1.5;}
+.dec-result{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px;max-width:600px;}
+.dec-rec-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;}
+.dec-rec-title{font-size:16px;font-weight:800;margin-bottom:6px;}
+.dec-rec-body{font-size:12px;color:var(--muted);line-height:1.8;}
+
+/* EXERCISES */
+.ex-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-bottom:16px;}
+.ex-num{display:inline-flex;align-items:center;gap:8px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.2);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:700;color:var(--indigo2);margin-bottom:12px;}
+.ex-num-badge{background:var(--indigo);color:#fff;border-radius:50%;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;flex-shrink:0;}
+.choice-btn{padding:7px 14px;font-size:11px;font-weight:700;border-radius:6px;cursor:pointer;border:1px solid var(--border);color:var(--muted);background:var(--surface);transition:all .15s;margin:4px;}
+.choice-btn:hover:not(:disabled){border-color:var(--indigo);color:var(--text);}
+.choice-btn.correct{background:rgba(16,185,129,.1);color:var(--emerald2);border-color:rgba(16,185,129,.3);}
+.choice-btn.wrong{background:rgba(239,68,68,.08);color:#f87171;border-color:rgba(239,68,68,.2);}
+.match-fb{font-size:11px;margin-top:8px;padding:8px 12px;border-radius:6px;display:none;line-height:1.7;}
+.match-fb.show{display:block;}
+.fb-ok{background:rgba(16,185,129,.07);color:var(--emerald2);border:1px solid rgba(16,185,129,.15);}
+.fb-no{background:rgba(239,68,68,.07);color:#f87171;border:1px solid rgba(239,68,68,.15);}
+.q-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:12px;}
+.ex-check-btn{display:inline-flex;align-items:center;gap:6px;background:var(--indigo);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:11px;font-weight:700;cursor:pointer;transition:opacity .15s;margin-top:12px;}
+.ex-check-btn:hover{opacity:.85;}
+.ex-result{font-size:12px;padding:10px 14px;border-radius:8px;margin-top:10px;display:none;line-height:1.7;}
+.ex-result.show{display:block;}
+.ex-pass{background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.18);color:var(--emerald2);}
+.ex-partial{background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.18);color:var(--amber2);}
+.ll-btn{display:inline-flex;align-items:center;gap:6px;background:var(--indigo);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:12px;font-weight:700;cursor:pointer;transition:opacity .15s;margin-top:10px;}
+.ll-btn:hover{opacity:.85;}
+.ll-btn:disabled{opacity:.4;cursor:not-allowed;}
+.ll-btn-outline{background:transparent;border:1px solid var(--border);color:var(--muted);}
+.ll-btn-outline:hover{color:var(--text);border-color:var(--indigo);}
+.ll-key-input{background:#020408;border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:12px;color:var(--text);font-family:'JetBrains Mono',monospace;outline:none;flex:1;min-width:180px;}
+.ll-key-input:focus{border-color:var(--indigo);}
+.ll-text{width:100%;resize:vertical;font-family:'JetBrains Mono',monospace;font-size:11px;background:#020408;color:var(--indigo3);border:1px solid var(--border);border-radius:8px;padding:14px;outline:none;line-height:1.7;}
+.ll-text:focus{border-color:var(--indigo);}
+.ll-output{background:#020408;border:1px solid rgba(99,102,241,.2);border-radius:8px;padding:14px;font-size:12px;color:var(--text);line-height:1.8;display:none;}
+.ll-status{font-size:11px;color:var(--indigo2);padding:6px 0;display:none;}
+.ll-status.live{display:block;}
+
+/* CODE BLOCKS */
+.code-block{background:#020408;border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:11px;color:var(--indigo3);line-height:1.8;overflow-x:auto;margin-top:10px;}
+.code-block .kw{color:var(--violet2);}
+.code-block .fn{color:var(--blue2);}
+.code-block .str{color:var(--amber2);}
+.code-block .cm{color:var(--muted);}
+
+/* BENCHMARK TABLE */
+.bench-table{border-collapse:collapse;width:100%;max-width:680px;font-size:11px;}
+.bench-table th{padding:7px 10px;text-align:left;font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border);}
+.bench-table td{padding:7px 10px;border-bottom:1px solid rgba(21,32,56,.8);}
+.bench-table tr:hover td{background:rgba(99,102,241,.03);}
+.bench-table td:first-child{font-weight:700;color:var(--text);}
+.bench-table .highlight-row td{color:var(--indigo2);}
+.bench-table .highlight-row td:first-child{color:var(--indigo2);}
+
+/* CONTINUE STRIP */
+.continue-strip{background:var(--surface);border-top:1px solid var(--border);padding:28px 48px;display:flex;justify-content:space-between;align-items:center;gap:24px;}
+.cs-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.cs-title{font-size:15px;font-weight:700;color:var(--text);}
+
+@media(max-width:768px){
+  .sidebar{display:none;}
+  .section,.hero-section{padding:24px 20px;}
+  .two-col,.three-col{grid-template-columns:1fr;}
+  .sys-item.open .sys-body{grid-template-columns:1fr;}
+  .calc-slider-row{grid-template-columns:1fr 1fr;}
+  .continue-strip{padding:24px 20px;flex-direction:column;gap:16px;}
+}
+</style>
+</head>
+<body>
+
+<!-- GATE -->
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-icon">&#10024;</div>
+    <div class="gate-title">Visual Summary</div>
+    <div class="gate-sub">Post 56 &middot; Representations &middot; Advanced</div>
+    <input class="gate-input" id="gate-pw" type="password" placeholder="Enter password" onkeydown="if(event.key==='Enter')checkGate()">
+    <button class="gate-btn" onclick="checkGate()">Unlock</button>
+    <div class="gate-err" id="gate-err">Incorrect password &mdash; try again</div>
+  </div>
+</div>
+<script>
+var STORE_KEY='pg_unlocked_56',PW='visual2025';
+if(localStorage.getItem(STORE_KEY)==='1'){document.getElementById('gate').style.display='none';}
+function checkGate(){
+  var v=document.getElementById('gate-pw').value.trim();
+  if(v===PW){localStorage.setItem(STORE_KEY,'1');document.getElementById('gate').style.display='none';}
+  else{var e=document.getElementById('gate-err');e.style.display='block';setTimeout(function(){e.style.display='none';},2000);}
+}
+</script>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-title">Visual Summary</div>
+    <div class="sidebar-logo-sub">Post 56 &mdash; Multi-Vector Embeddings</div>
+  </div>
+  <div class="nav-group-title">Sections</div>
+  <a class="nav-link active" onclick="goTo('s-intro')"><span class="dot" style="background:var(--indigo)"></span>Overview</a>
+  <a class="nav-link" onclick="goTo('s-problem')"><span class="dot" style="background:var(--blue)"></span>The Pooling Problem</a>
+  <a class="nav-link" onclick="goTo('s-mechanism')"><span class="dot" style="background:var(--indigo)"></span>MaxSim Mechanism</a>
+  <a class="nav-link" onclick="goTo('s-systems')"><span class="dot" style="background:var(--violet)"></span>ColBERT Family</a>
+  <a class="nav-link" onclick="goTo('s-storage')"><span class="dot" style="background:var(--blue)"></span>Storage Trade-offs</a>
+  <a class="nav-link" onclick="goTo('s-weaviate')"><span class="dot" style="background:var(--cyan)"></span>Weaviate + Jina</a>
+  <a class="nav-link" onclick="goTo('s-when')"><span class="dot" style="background:var(--amber)"></span>Decision Guide</a>
+  <a class="nav-link" onclick="goTo('s-exercises')"><span class="dot" style="background:var(--emerald)"></span>Practice Exercises</a>
+  <a class="nav-link" onclick="goTo('s-refs')"><span class="dot" style="background:var(--muted)"></span>Related Posts</a>
+  <div class="nav-group-title" style="margin-top:16px;">Series</div>
+  <a class="nav-link" href="../">&#8592; All Posts</a>
+  <a class="nav-link" href="../08-embeddings-similarity/">Post 08 &mdash; Embeddings</a>
+  <a class="nav-link" href="../21-rag/">Post 21 &mdash; RAG</a>
+</div>
+
+<!-- MAIN -->
+<div class="main" id="main">
+
+<!-- TOP BAR -->
+<div class="top-bar">
+  <div class="bar-step" onclick="goTo('s-intro')"><span class="bar-dot" style="background:var(--indigo)"></span>Overview</div>
+  <span class="bar-arrow">›</span>
+  <div class="bar-step" onclick="goTo('s-problem')">Problem</div>
+  <span class="bar-arrow">›</span>
+  <div class="bar-step" onclick="goTo('s-mechanism')">MaxSim</div>
+  <span class="bar-arrow">›</span>
+  <div class="bar-step" onclick="goTo('s-systems')">Systems</div>
+  <span class="bar-arrow">›</span>
+  <div class="bar-step" onclick="goTo('s-storage')">Trade-offs</div>
+  <span class="bar-arrow">›</span>
+  <div class="bar-step" onclick="goTo('s-weaviate')">Weaviate</div>
+  <span class="bar-arrow">›</span>
+  <div class="bar-step" onclick="goTo('s-exercises')"><span class="bar-dot" style="background:var(--emerald)"></span>Exercises</div>
+</div>
+
+<!-- ═══ HERO ═══ -->
+<div class="hero-section" id="s-intro">
+  <div class="tag-row">
+    <span class="tag tag-indigo">Post 56</span>
+    <span class="tag tag-indigo">Representations</span>
+    <span class="tag tag-gray">ColBERT &middot; Weaviate &middot; 2024</span>
+    <span class="tag tag-blue">Late Interaction</span>
+  </div>
+  <div class="hero-title">Multi-Vector Embeddings<br><span style="color:var(--indigo2);">Beyond the Single Point</span></div>
+  <div class="hero-desc">A single embedding vector must compress an entire document into one point in space. For a sentence, that's fine. For a 500-word technical paper — or a PDF full of charts — that compression destroys the exact details retrieval depends on. Multi-vector embeddings keep a separate contextualised embedding for every token. Documents become constellations, not points. Matching becomes precise, not averaged.</div>
+
+  <div class="stat-row">
+    <div class="stat-pill"><div class="stat-num" style="color:var(--indigo2);">170×</div><div class="stat-label">Lower latency vs BERT reranker</div></div>
+    <div class="stat-pill"><div class="stat-num" style="color:var(--blue2);">+12.5</div><div class="stat-label">nDCG@10 on long docs (M3)</div></div>
+    <div class="stat-pill"><div class="stat-num" style="color:var(--violet2);">10×</div><div class="stat-label">Index compression (v1→v2)</div></div>
+    <div class="stat-pill"><div class="stat-num" style="color:var(--cyan2);">128</div><div class="stat-label">Dims per token (ColBERT)</div></div>
+    <div class="stat-pill"><div class="stat-num" style="color:var(--emerald2);">52.1</div><div class="stat-label">BEIR avg nDCG (Jina-ColBERT-v2)</div></div>
+  </div>
+
+  <div class="two-col" style="max-width:680px;margin-top:28px;">
+    <div class="card" style="border-color:rgba(59,130,246,.2);">
+      <div class="card-title" style="color:var(--blue2);">The Core Shift</div>
+      <div class="card-body">Single-vector: one point represents the entire document. Multi-vector (ColBERT): every token gets its own 128-dim contextualised vector. The document becomes a matrix — shape (N_tokens × 128). Retrieval compares each query token against every document token and takes the best match per query token.</div>
+    </div>
+    <div class="card" style="border-color:rgba(99,102,241,.2);">
+      <div class="card-title" style="color:var(--indigo2);">Why It Matters Now</div>
+      <div class="card-body">ColBERT's MaxSim score matches BERT-large reranker quality at 170× lower latency. ColBERTv2 compresses the index 10× via residual quantization. ColPali extends this to visual documents — skip OCR entirely; retrieve from raw PDF page images. Weaviate v1.29 ships native multi-vector support.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ THE POOLING PROBLEM ═══ -->
+<div class="section" id="s-problem">
+  <div class="sec-title">The Pooling Problem</div>
+  <div class="sec-sub">Why averaging token embeddings into a single vector loses the details that retrieval depends on</div>
+
+  <div class="two-col" style="max-width:720px;margin-bottom:24px;">
+    <div class="card" style="border-color:rgba(239,68,68,.2);">
+      <div class="card-title" style="color:#f87171;">&#10006; Single-Vector Failure Mode</div>
+      <div class="card-body" style="line-height:1.9;">
+        Query: <code style="color:var(--indigo3);">"bank loan interest rate"</code><br>
+        Document A: "The <strong style="color:var(--text);">river bank</strong> by the old mill floods in spring. <strong style="color:var(--text);">Loan</strong> of a fishing rod costs $5 a day."<br>
+        Document B: "A <strong style="color:var(--text);">financial institution</strong> offering <strong style="color:var(--text);">personal loans</strong> at a competitive <strong style="color:var(--text);">rate</strong>."<br><br>
+        Pooling collapses both documents to similar centroid embeddings. Document A scores high on "bank" and "loan" — wrong senses. Single-vector retrieval may rank it ahead of B.
+      </div>
+    </div>
+    <div class="card" style="border-color:rgba(99,102,241,.2);">
+      <div class="card-title" style="color:var(--indigo2);">&#10004; Multi-Vector Solution</div>
+      <div class="card-body" style="line-height:1.9;">
+        BERT produces <em>contextualised</em> embeddings — "bank" in a fishing context and "bank" in a finance context occupy different positions in the 768-dim space. ColBERT preserves all token embeddings. When "bank" from the query finds its best match, it matches the financial-institution token, not the river-bank token. No compression = no context collapse.
+      </div>
+    </div>
+  </div>
+
+  <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:14px;">Why Pooling Destroys Rare-Term Signals</div>
+  <div class="three-col" style="max-width:760px;">
+    <div class="card">
+      <div class="card-title" style="color:var(--blue2);">The Centroid Effect</div>
+      <div class="card-body">Pooling averages across all tokens. Common words (the, is, of) dominate numerically. A single rare but highly relevant term — a drug name, legal clause, error code — contributes less than 1/N of the final vector, where N is document length. The longer the document, the worse this gets.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--indigo2);">Word Order Lost</div>
+      <div class="card-body">"Not recommended" and "recommended, not unnecessary" pool to nearly identical vectors. Negation, qualification, and sequence — all destroyed. Multi-vector preserves position: each token's embedding captures its local context via BERT's attention, retaining meaning modifiers.</div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--violet2);">Visual Documents Fail Completely</div>
+      <div class="card-body">For PDFs with charts, tables, and infographics, text-based embeddings can't see the information at all — OCR either misses it or produces garbled text. ColPali bypasses OCR entirely: treat each page as an image, produce visual patch embeddings, apply late interaction over patches.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MAXSIM MECHANISM ═══ -->
+<div class="section" id="s-mechanism">
+  <div class="sec-title">MaxSim: Late Interaction</div>
+  <div class="sec-sub">The scoring function that makes multi-vector retrieval precise — explore it with the interactive heatmap below</div>
+
+  <div class="two-col" style="max-width:720px;margin-bottom:24px;">
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;">The Formula</div>
+      <div class="code-block" style="margin-top:0;">
+<span class="cm"># ColBERT late interaction score</span>
+S(q, d) = <span class="fn">Σ</span>ᵢ  <span class="kw">max</span>ⱼ  (Eq[i] · Ed[j]ᵀ)
+
+<span class="cm"># where:</span>
+<span class="cm"># Eq[i] = embedding of i-th QUERY token (128-dim)</span>
+<span class="cm"># Ed[j] = embedding of j-th DOC token (128-dim)</span>
+<span class="cm"># · = dot product (= cosine sim, vectors L2-normalised)</span>
+<span class="cm"># max_j = best-matching doc token for this query token</span>
+<span class="cm"># Σ_i = sum over all query tokens</span>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;">Intuition</div>
+      <div class="card-body" style="line-height:1.9;color:var(--muted);">
+        Think of it as a <strong style="color:var(--text);">panel of specialist judges</strong>. Each query token is one judge asking: "Which document token is most relevant to me specifically?" Each judge picks their own best match (the <code style="color:var(--indigo3);">max</code>). Their individual verdicts are summed. No judge is overruled by the others — a rare technical term gets its own vote, not an averaged one.<br><br>
+        Because BERT embeddings are contextualised, <code style="color:var(--indigo3);">"bank"</code> in a finance query finds the finance-sense "bank" in the document, not the river-bank token. Context collapses in pooling; it's <em>preserved</em> in late interaction.
+      </div>
+    </div>
+  </div>
+
+  <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;">Interactive MaxSim Heatmap</div>
+  <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">Each cell shows cosine similarity between a query token (row) and a document token (column). Step through to see how MaxSim selects the best match per row and accumulates the score.</div>
+
+  <div class="heatmap-wrap">
+    <div class="heatmap-controls">
+      <button class="hm-btn active" id="hmb-0" onclick="setHmScenario(0)">Scenario 1: Finance</button>
+      <button class="hm-btn" id="hmb-1" onclick="setHmScenario(1)">Scenario 2: Code Search</button>
+      <button class="hm-btn" id="hmb-2" onclick="setHmScenario(2)">Scenario 3: Negation</button>
+    </div>
+    <div style="display:flex;gap:32px;align-items:flex-start;flex-wrap:wrap;">
+      <div>
+        <div style="display:flex;gap:3px;margin-bottom:3px;padding-left:80px;" id="hm-col-labels"></div>
+        <div id="hm-rows"></div>
+      </div>
+      <div style="flex:1;min-width:180px;">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">MaxSim Accumulation</div>
+        <div id="hm-maxsim-rows" style="display:flex;flex-direction:column;gap:6px;"></div>
+        <div style="margin-top:12px;padding:10px 12px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.15);border-radius:8px;">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:4px;">Total MaxSim Score</div>
+          <div id="hm-total" style="font-size:20px;font-weight:800;color:var(--indigo2);font-family:'JetBrains Mono',monospace;">—</div>
+        </div>
+        <div id="hm-insight" style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.7;padding:8px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;margin-top:14px;flex-wrap:wrap;">
+      <button class="hm-btn" onclick="hmAnimate()">&#9654; Animate Step-by-Step</button>
+      <button class="hm-btn" onclick="hmShowAll()">Show All Maxima</button>
+      <button class="hm-btn" onclick="hmReset()">&#8635; Reset</button>
+    </div>
+  </div>
+
+  <div class="card" style="max-width:700px;margin-top:16px;border-color:rgba(99,102,241,.2);">
+    <div class="card-title" style="color:var(--indigo2);">ColBERT Architecture Details</div>
+    <div class="card-body" style="line-height:1.9;">
+      &bull; <strong style="color:var(--text);">Base model:</strong> BERT-base (12 layers, 110M params)<br>
+      &bull; <strong style="color:var(--text);">Special tokens:</strong> <code style="color:var(--indigo3);">[Q]</code> prepended to queries, <code style="color:var(--indigo3);">[D]</code> to documents<br>
+      &bull; <strong style="color:var(--text);">Query padding:</strong> Padded with <code style="color:var(--indigo3);">[MASK]</code> tokens to fixed length 32 — a form of soft query expansion<br>
+      &bull; <strong style="color:var(--text);">Dimension reduction:</strong> Linear projection BERT's 768 dims → <strong style="color:var(--text);">128 dims</strong>, then L2-normalise<br>
+      &bull; <strong style="color:var(--text);">Document filtering:</strong> Punctuation token embeddings are discarded before indexing<br>
+      &bull; <strong style="color:var(--text);">Pre-computation:</strong> All document token embeddings computed offline; only query embeddings computed at search time
+    </div>
+  </div>
+</div>
+
+<!-- ═══ COLBERT FAMILY ═══ -->
+<div class="section" id="s-systems">
+  <div class="sec-title">The ColBERT Family</div>
+  <div class="sec-sub">Five systems that shaped how multi-vector retrieval is built and deployed — click to expand each</div>
+
+  <div class="sys-timeline" id="sys-timeline"></div>
+</div>
+
+<!-- ═══ STORAGE TRADE-OFFS ═══ -->
+<div class="section" id="s-storage">
+  <div class="sec-title">Storage vs. Quality Trade-offs</div>
+  <div class="sec-sub">Multi-vector costs 4–10× more storage than single-vector — the calculator shows you exactly what that means for your deployment</div>
+
+  <div class="calc-wrap" style="margin-bottom:24px;">
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:16px;">Storage Calculator</div>
+    <div class="calc-slider-row">
+      <div class="calc-label">Number of documents</div>
+      <input type="range" id="sl-docs" min="1000" max="10000000" step="1000" value="100000" oninput="updateCalc()">
+      <div class="calc-val" id="sv-docs">100K</div>
+    </div>
+    <div class="calc-slider-row">
+      <div class="calc-label">Avg tokens per doc</div>
+      <input type="range" id="sl-toks" min="20" max="500" step="10" value="100" oninput="updateCalc()">
+      <div class="calc-val" id="sv-toks">100</div>
+    </div>
+    <div class="calc-slider-row">
+      <div class="calc-label">Embedding dimensions</div>
+      <input type="range" id="sl-dims" min="64" max="1536" step="64" value="128" oninput="updateCalc()">
+      <div class="calc-val" id="sv-dims">128</div>
+    </div>
+    <div class="calc-bars" id="calc-bars"></div>
+    <div id="calc-note" style="font-size:11px;color:var(--muted);margin-top:12px;padding:8px 12px;border-radius:6px;background:rgba(99,102,241,.04);border:1px solid rgba(99,102,241,.1);"></div>
+  </div>
+
+  <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">MS-MARCO Benchmark — Quality vs. Storage</div>
+  <table class="bench-table">
+    <thead>
+      <tr>
+        <th>System</th>
+        <th>MRR@10</th>
+        <th>MS-MARCO Index</th>
+        <th>Latency (GPU)</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>BM25</td><td>18.7</td><td>~3.5 GiB</td><td>62 ms</td><td>Lexical only; no semantics</td></tr>
+      <tr><td>DPR (dense)</td><td>~31</td><td>~25 GiB</td><td>&lt;1 ms</td><td>Single vector, 768 dims</td></tr>
+      <tr><td>BERT-large reranker</td><td>36.5</td><td>~25 GiB</td><td>32,900 ms</td><td>Expensive cross-encoder</td></tr>
+      <tr class="highlight-row"><td>ColBERT v1</td><td>36.0</td><td>154 GiB</td><td>458 ms</td><td>Matches BERT-large at 170× lower latency</td></tr>
+      <tr class="highlight-row"><td>ColBERT v2</td><td>39.7</td><td>16 GiB</td><td>~140 ms</td><td>10× storage reduction via residual compression</td></tr>
+      <tr class="highlight-row"><td>PLAID ColBERTv2</td><td>39.8</td><td>21.6 GiB</td><td>11–38 ms</td><td>3-stage filtering; 7× faster than vanilla v2</td></tr>
+    </tbody>
+  </table>
+
+  <div class="two-col" style="max-width:680px;margin-top:20px;">
+    <div class="card" style="border-color:rgba(99,102,241,.2);">
+      <div class="card-title" style="color:var(--indigo2);">ColBERTv2 Compression</div>
+      <div class="card-body" style="line-height:1.9;">
+        v1 stored each token vector as float32 (256 bytes). v2 uses <strong style="color:var(--text);">residual compression</strong>: cluster all token vectors via k-means; store centroid ID + 1–2 bit quantised residual. Result: <strong style="color:var(--text);">20–36 bytes per vector</strong> vs 256 bytes — ~10× compression with near-zero quality loss (MRR 39.7 vs 39.7 vanilla).
+      </div>
+    </div>
+    <div class="card" style="border-color:rgba(59,130,246,.2);">
+      <div class="card-title" style="color:var(--blue2);">MRL: Orthogonal Compression</div>
+      <div class="card-body" style="line-height:1.9;">
+        Matryoshka Representation Learning trains vectors so their first-D dimensions are always a valid representation. OpenAI text-embedding-3-large (3072 dims) truncated to 256 dims still outperforms ada-002 (1536 dims). MRL reduces vector <em>width</em>; multi-vector increases vector <em>count</em>. Jina-ColBERT-v2 applies both simultaneously: 128→64 dims with only 1.5% quality loss.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ WEAVIATE ═══ -->
+<div class="section" id="s-weaviate">
+  <div class="sec-title">Weaviate + Jina-ColBERT-v2</div>
+  <div class="sec-sub">Production multi-vector retrieval with Weaviate v1.29 — named vectors, automatic embedding via JinaAI API, variable-length token matrices</div>
+
+  <div class="two-col" style="max-width:720px;margin-bottom:20px;">
+    <div>
+      <div style="font-size:12px;font-weight:700;color:var(--cyan2);margin-bottom:8px;">1. Schema: Named Multi-Vector</div>
+      <div class="code-block">
+<span class="cm"># Weaviate v1.29+</span>
+<span class="kw">import</span> weaviate
+<span class="kw">from</span> weaviate.classes.config <span class="kw">import</span> Configure
+
+client = weaviate.<span class="fn">connect_to_weaviate_cloud</span>(...)
+
+client.collections.<span class="fn">create</span>(
+  name=<span class="str">"Documents"</span>,
+  vectorizer_config=[
+    Configure.NamedVectors.<span class="fn">text2vec_jinaai</span>(
+      name=<span class="str">"multi_vector"</span>,
+      source_properties=[<span class="str">"text"</span>],
+      vector_index_config=Configure.<span class="fn">MultiVectors</span>.<span class="fn">text2vec_jinaai</span>(
+        model=<span class="str">"jina-colbert-v2"</span>
+      )
+    )
+  ]
+)
+      </div>
+    </div>
+    <div>
+      <div style="font-size:12px;font-weight:700;color:var(--cyan2);margin-bottom:8px;">2. Inspect Embedding Shape</div>
+      <div class="code-block">
+<span class="cm"># Single-vector → flat list</span>
+<span class="cm"># Multi-vector → list of lists</span>
+v = response.objects[0].vector[<span class="str">'multi_vector'</span>]
+
+<span class="fn">type</span>(v)          <span class="cm"># list</span>
+<span class="fn">type</span>(v[0])        <span class="cm"># list  ← token vector</span>
+<span class="fn">len</span>(v)            <span class="cm"># 22–30  ← varies by doc length</span>
+<span class="fn">len</span>(v[0])         <span class="cm"># 128  ← fixed dim per token</span>
+
+<span class="cm"># Shape: (N_tokens, 128)</span>
+<span class="cm"># e.g. "Hello world" → (4, 128)</span>
+<span class="cm"># "A long paragraph..." → (42, 128)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="two-col" style="max-width:720px;">
+    <div>
+      <div style="font-size:12px;font-weight:700;color:var(--cyan2);margin-bottom:8px;">3. Semantic Search (near_text)</div>
+      <div class="code-block">
+collection = client.collections.<span class="fn">get</span>(<span class="str">"Documents"</span>)
+
+results = collection.query.<span class="fn">near_text</span>(
+  query=<span class="str">"bank loan interest rate"</span>,
+  target_vector=<span class="str">"multi_vector"</span>,
+  limit=5,
+  return_metadata=MetadataQuery(distance=<span class="kw">True</span>)
+)
+<span class="kw">for</span> obj <span class="kw">in</span> results.objects:
+  <span class="fn">print</span>(obj.properties[<span class="str">"text"</span>], obj.metadata.distance)
+      </div>
+    </div>
+    <div>
+      <div style="font-size:12px;font-weight:700;color:var(--cyan2);margin-bottom:8px;">4. Self-Provided Embeddings</div>
+      <div class="code-block">
+<span class="cm"># Bring your own ColBERT vectors</span>
+Configure.MultiVectors.<span class="fn">self_provided</span>(
+  name=<span class="str">"multi_vector"</span>
+)
+
+<span class="cm"># Insert with custom embeddings</span>
+batch.<span class="fn">add_object</span>(
+  properties={<span class="str">"text"</span>: doc[<span class="str">"text"</span>]},
+  vector={
+    <span class="str">"multi_vector"</span>: <span class="fn">get_colbert_embedding</span>(
+      doc[<span class="str">"text"</span>]  <span class="cm"># returns (N, 128) matrix</span>
+    )
+  }
+)
+      </div>
+    </div>
+  </div>
+
+  <div class="three-col" style="max-width:760px;margin-top:20px;">
+    <div class="card" style="border-color:rgba(6,182,212,.2);">
+      <div class="card-title" style="color:var(--cyan2);">Jina-ColBERT-v2</div>
+      <div class="card-body">128 dims per token &bull; 8,192-token context &bull; 89+ languages &bull; MRL-compatible: can truncate to 64 dims (1.5% quality loss, 50% storage saving) &bull; 52.1 avg nDCG@10 on 14 BEIR benchmarks</div>
+    </div>
+    <div class="card" style="border-color:rgba(99,102,241,.2);">
+      <div class="card-title" style="color:var(--indigo2);">Storage Reality (Weaviate)</div>
+      <div class="card-body">Single-vector 1536 dims: ~6 KB/object &bull; Multi-vector 64 × 96 dims: ~25 KB/object &bull; ~4× overhead &bull; For 1M docs: ~6 GB → ~25 GB. PLAID + residual compression substantially narrows this gap.</div>
+    </div>
+    <div class="card" style="border-color:rgba(59,130,246,.2);">
+      <div class="card-title" style="color:var(--blue2);">Query Types</div>
+      <div class="card-body"><code style="color:var(--indigo3);">near_text</code> — automatic embedding via JinaAI API &bull; <code style="color:var(--indigo3);">near_vector</code> — provide your own embedding matrix &bull; <code style="color:var(--indigo3);">hybrid</code> — combine BM25 + multi-vector MaxSim scoring</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ DECISION GUIDE ═══ -->
+<div class="section" id="s-when">
+  <div class="sec-title">Decision Guide</div>
+  <div class="sec-sub">Check every characteristic that describes your use case — get a system recommendation</div>
+
+  <div class="decision-checks" id="dec-items"></div>
+  <div class="dec-result" id="dec-result">
+    <div class="dec-rec-tag" style="color:var(--muted);">Recommendation</div>
+    <div class="dec-rec-title" id="dec-title" style="color:var(--muted);">Select your characteristics above</div>
+    <div class="dec-rec-body" id="dec-body">Check boxes that apply to your retrieval use case and a recommendation will appear here.</div>
+  </div>
+</div>
+
+<!-- ═══ EXERCISES ═══ -->
+<div class="section" id="s-exercises">
+  <div class="sec-title">Practice Exercises</div>
+  <div class="sec-sub">Three browser exercises + one live lab to build intuition for multi-vector retrieval</div>
+
+  <!-- EX 1: MaxSim Calculator -->
+  <div class="ex-box">
+    <div class="ex-num"><span class="ex-num-badge">1</span>&nbsp; MaxSim Puzzle — Identify the Best Matches</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">
+      Below is a similarity matrix for query <code style="color:var(--indigo3);">"null pointer exception fix"</code> against a code document. Each cell is the cosine similarity (0–100) between a query token and a document token. <strong style="color:var(--text);">Click the cell in each row that you think is the MaxSim winner</strong> (highest in that row), then check your score.
+    </div>
+    <div id="ex1-grid"></div>
+    <button class="ex-check-btn" onclick="checkEx1()">&#10003;&nbsp; Check Answers</button>
+    <div id="ex1-result" class="ex-result"></div>
+  </div>
+
+  <!-- EX 2: System Matcher -->
+  <div class="ex-box">
+    <div class="ex-num"><span class="ex-num-badge">2</span>&nbsp; System Matcher — Choose the Right Embedding Approach</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">For each retrieval scenario, select the best embedding approach. One correct answer per scenario.</div>
+    <div id="ex2-cards"></div>
+  </div>
+
+  <!-- EX 3: Compression Quiz -->
+  <div class="ex-box">
+    <div class="ex-num"><span class="ex-num-badge">3</span>&nbsp; Compression Trade-off Quiz</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">Test your understanding of the ColBERTv2 compression and MRL techniques.</div>
+    <div id="ex3-cards"></div>
+  </div>
+
+  <!-- LIVE LAB -->
+  <div class="ex-box" style="border-color:rgba(99,102,241,.3);">
+    <div class="ex-num" style="background:rgba(99,102,241,.15);border-color:rgba(99,102,241,.3);">
+      <span class="ex-num-badge" style="background:var(--amber);">&#9733;</span>&nbsp; Live Lab — MaxSim Token Walkthrough
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">
+      Enter a query and a passage. gpt-4o-mini simulates ColBERT's MaxSim — it identifies which passage tokens are the best match for each query token, explains the context-sensitive matching, and shows how the score would accumulate. Educational (no actual embeddings computed). Optional OpenAI key (~$0.001/run).
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px;">
+      <input class="ll-key-input" id="ll-key-in" type="password" placeholder="OpenAI API key (sk-...)" oninput="llKeyType()" style="max-width:320px;">
+      <button class="ll-btn" id="ll-save-btn" onclick="llSaveKey()" style="margin-top:0;" disabled>Save Key</button>
+      <button class="ll-btn ll-btn-outline" onclick="llClearKey()" style="margin-top:0;">Clear</button>
+    </div>
+    <div id="ll-key-st" style="font-size:11px;color:var(--muted);margin-bottom:12px;min-height:14px;"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px;">
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;">Query</div>
+        <textarea class="ll-text" id="ll-query" rows="2" style="color:var(--indigo3);">bank loan interest rate comparison</textarea>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;">Passage / Document</div>
+        <textarea class="ll-text" id="ll-passage" rows="2" style="color:var(--blue3);">Our financial institution offers personal loans at competitive annual percentage rates, with flexible repayment terms for qualified applicants.</textarea>
+      </div>
+    </div>
+    <button class="ll-btn" id="ll-btn-run" onclick="llRun()" disabled>&#10024;&nbsp; Run MaxSim Walkthrough</button>
+    <div class="ll-status" id="ll-status"></div>
+    <div id="ll-output-box" style="margin-top:16px;display:none;">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;">MaxSim Analysis</div>
+      <div class="ll-output" id="ll-output" style="display:block;white-space:pre-wrap;"></div>
+      <button class="ll-btn ll-btn-outline" onclick="llReset()" style="margin-top:8px;">&#8635;&nbsp; Try Another</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ RELATED POSTS ═══ -->
+<div class="section" id="s-refs">
+  <div class="sec-title">Related Posts</div>
+  <div class="sec-sub">Build the complete representation and retrieval picture</div>
+  <div class="three-col" style="max-width:720px;">
+    <a class="card" href="../08-embeddings-similarity/" style="border-color:rgba(59,130,246,.3);display:block;">
+      <div class="card-title" style="color:var(--blue2);">Post 08 &mdash; Embeddings &amp; Similarity</div>
+      <div class="card-body">Single-vector embeddings from first principles — word2vec, BERT pooling, cosine similarity, and why dot product search works. The foundation that Post 56 extends to multi-vector.</div>
+    </a>
+    <a class="card" href="../21-rag/" style="border-color:rgba(99,102,241,.3);display:block;">
+      <div class="card-title" style="color:var(--indigo2);">Post 21 &mdash; RAG</div>
+      <div class="card-body">Retrieval-Augmented Generation: vector databases, chunking strategies, and how retrieved context improves generation quality. Multi-vector embeddings directly upgrade the retrieval step in any RAG pipeline.</div>
+    </a>
+    <a class="card" href="../55-mcp-security/" style="border-color:rgba(139,92,246,.3);display:block;">
+      <div class="card-title" style="color:var(--violet2);">Post 55 &mdash; Securing MCP</div>
+      <div class="card-body">MCP agents with access to vector databases are a key attack surface — understanding multi-vector retrieval helps scope what data an agent can reach via semantic search and why DLP scanning of retrieved content matters.</div>
+    </a>
+  </div>
+</div>
+
+<!-- CONTINUE STRIP -->
+<div class="continue-strip">
+  <div>
+    <div class="cs-label">&#8592; Previous Post</div>
+    <a href="../55-mcp-security/" class="cs-title">Post 55 &mdash; Securing MCP</a>
+  </div>
+  <div style="text-align:right;">
+    <div class="cs-label">All Posts &#8594;</div>
+    <a href="../" class="cs-title" style="color:var(--indigo2);">Visual Summary</a>
+  </div>
+</div>
+
+</div><!-- end .main -->
+
+<script>
+function goTo(id){var el=document.getElementById(id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});}
+
+// ── HEATMAP ───────────────────────────────────────────────────────────────────
+var HM_SCENARIOS=[
+  {
+    label:'Scenario 1: Finance Query',
+    qtoks:['bank','loan','rate'],
+    dtoks:['river','bank','personal','loan','interest','rate'],
+    vals:[
+      [18,88,12,15,20,10],
+      [10,18,28,92,22,18],
+      [12,16,10,22,38,82]
+    ],
+    insight:'Query token "bank" ignores "river" (low: 18) and locks onto the financial-sense "bank" (88). "loan" fires at the matching "loan" (92). "rate" finds "rate" (82) over "interest" (38) — precise term matching, not averaging.'
+  },
+  {
+    label:'Scenario 2: Code Search',
+    qtoks:['null','pointer','fix'],
+    dtoks:['dereference','null','pointer','check','returns','bugfix'],
+    vals:[
+      [25,91,28,30,10,15],
+      [28,30,89,15,12,18],
+      [10,18,12,28,15,78]
+    ],
+    insight:'"null" matches document "null" (91) — not "dereference" despite semantic proximity. "pointer" finds "pointer" (89). "fix" correctly identifies "bugfix" (78) as the best token, showing that BERT captures morphological similarity in context.'
+  },
+  {
+    label:'Scenario 3: Negation',
+    qtoks:['not','recommended'],
+    dtoks:['highly','recommended','not','unnecessary','approach','avoided'],
+    vals:[
+      [12,15,88,20,10,25],
+      [18,82,20,28,32,38]
+    ],
+    insight:'Single-vector pooling would give "not recommended" and "highly recommended" similar cosine similarity scores because both contain the high-weight token "recommended". Multi-vector: "not" fires at the "not" token (88), correctly anchoring the negation.'
+  }
+];
+var hmCurrent=0,hmStep=-1,hmAnimTimer=null;
+
+function setHmScenario(i){
+  hmCurrent=i;hmStep=-1;
+  clearInterval(hmAnimTimer);
+  document.querySelectorAll('.hm-btn').forEach(function(b,idx){
+    if(idx<3)b.classList.toggle('active',idx===i);
+  });
+  renderHeatmap();
+}
+
+function renderHeatmap(){
+  var sc=HM_SCENARIOS[hmCurrent];
+  var colLabels=document.getElementById('hm-col-labels');
+  colLabels.innerHTML=sc.dtoks.map(function(t){
+    return '<div class="hm-label-d" style="width:52px;text-align:center;font-size:9px;">'+t+'</div>';
+  }).join('');
+  var rows=document.getElementById('hm-rows');
+  rows.innerHTML=sc.qtoks.map(function(qt,qi){
+    var cells=sc.vals[qi].map(function(v,di){
+      var heat=Math.round((v/100)*255);
+      var bg='rgba(99,102,241,'+((v/100)*0.7)+')';
+      var isMax=(hmStep>qi)||(hmStep===qi);
+      var maxIdx=sc.vals[qi].indexOf(Math.max.apply(null,sc.vals[qi]));
+      var maxCls=(isMax&&di===maxIdx)?'max-cell':'';
+      return '<div class="hm-cell '+maxCls+'" style="background:'+bg+';color:'+(v>50?'#fff':v>25?'#a5b4fc':'#4a6a99')+';">'+v+'</div>';
+    }).join('');
+    return '<div style="display:flex;align-items:center;gap:3px;margin-bottom:3px;">' +
+      '<div class="hm-label-q" style="width:74px;text-align:right;padding-right:6px;font-size:9px;">'+qt+'</div>' +
+      cells + '</div>';
+  }).join('');
+  updateMaxSimRows();
+}
+
+function updateMaxSimRows(){
+  var sc=HM_SCENARIOS[hmCurrent];
+  var cont=document.getElementById('hm-maxsim-rows');
+  var total=0;
+  cont.innerHTML=sc.qtoks.map(function(qt,qi){
+    var maxVal=Math.max.apply(null,sc.vals[qi]);
+    var maxTok=sc.dtoks[sc.vals[qi].indexOf(maxVal)];
+    var show=hmStep>=qi;
+    total+=show?maxVal:0;
+    return '<div style="display:flex;align-items:center;gap:6px;opacity:'+(show?'1':'0.3')+';transition:opacity .3s;">' +
+      '<code style="font-size:10px;color:var(--indigo3);min-width:60px;">'+qt+'</code>' +
+      '<span style="font-size:10px;color:var(--muted);">→ max(</span>' +
+      '<code style="font-size:10px;color:var(--blue2);">'+maxTok+'</code>' +
+      '<span style="font-size:10px;color:var(--muted);">) =</span>' +
+      '<span style="font-size:12px;font-weight:800;color:var(--indigo2);font-family:monospace;">'+(show?maxVal:'?')+'</span>' +
+      '</div>';
+  }).join('');
+  document.getElementById('hm-total').textContent=hmStep>=0?total.toString():'—';
+  var ins=document.getElementById('hm-insight');
+  ins.textContent=hmStep>=sc.qtoks.length-1?HM_SCENARIOS[hmCurrent].insight:'Step through each query token to see which document token is its best match.';
+}
+
+function hmAnimate(){
+  clearInterval(hmAnimTimer);
+  hmStep=-1;
+  renderHeatmap();
+  hmAnimTimer=setInterval(function(){
+    hmStep++;
+    renderHeatmap();
+    if(hmStep>=HM_SCENARIOS[hmCurrent].qtoks.length-1)clearInterval(hmAnimTimer);
+  },900);
+}
+function hmShowAll(){clearInterval(hmAnimTimer);hmStep=99;renderHeatmap();}
+function hmReset(){clearInterval(hmAnimTimer);hmStep=-1;renderHeatmap();}
+renderHeatmap();
+
+// ── SYSTEM TIMELINE ───────────────────────────────────────────────────────────
+var SYS=[
+  {year:'2020',name:'ColBERT v1',color:'var(--blue)',badge:'SIGIR 2020',badgeBg:'rgba(59,130,246,.15)',badgeColor:'var(--blue2)',
+   left:{title:'Architecture',body:'BERT-base encoder + linear 768→128 + L2-norm. Special tokens [Q]/[D]. Query padded to 32 with [MASK] (soft query expansion). Punctuation tokens filtered from documents.'},
+   right:{title:'Results on MS-MARCO',body:'MRR@10: 36.0 (vs BERT-large reranker 36.5). Latency: 458ms end-to-end (vs 32,900ms for BERT-large). 170× lower latency, 13,900× fewer FLOPs. Index: 154 GiB. First paper to show BERT-quality retrieval without full cross-encoder inference at query time.'}},
+  {year:'2022',name:'ColBERT v2',color:'var(--indigo)',badge:'NAACL 2022',badgeBg:'rgba(99,102,241,.15)',badgeColor:'var(--indigo2)',
+   left:{title:'Training: Knowledge Distillation',body:'Uses 23M-param MiniLM cross-encoder to generate hard negatives. Collects 64-way tuples (1 positive + 63 negatives per query). Trains with KL-divergence loss. Result: much better generalisation to unseen domains (BEIR benchmark).'},
+   right:{title:'Residual Compression',body:'Cluster all token vectors via k-means (centroids). Store centroid ID + 1–2 bit quantised residual per vector. 20–36 bytes/vector vs 256 bytes in v1 → 10× compression. Index: 154 GiB → 16 GiB. MRR@10: 39.7 (improves over v1). BEIR avg nDCG@10: ~49 (vs BM25: 43, DPR: 38).'}},
+  {year:'2022',name:'PLAID',color:'var(--violet)',badge:'CIKM 2022',badgeBg:'rgba(139,92,246,.15)',badgeColor:'var(--violet2)',
+   left:{title:'3-Stage Filtering Pipeline',body:'Stage 1: Centroid interaction — each passage approximated as bag of centroids; quick MaxSim on centroid level filters most candidates. Stage 2: Centroid pruning — passages below threshold t_cs discarded without residual decompression. Stage 3: Full MaxSim — exact scoring on remaining candidates with decompressed residuals.'},
+   right:{title:'Latency Results',body:'GPU (MS-MARCO, k=10): 11.5ms vs ~80ms vanilla ColBERTv2 → 7× speedup. CPU (8 threads, k=10): 31.5ms. Quality: essentially zero loss (MRR 39.8 vs 39.7). This is the production-ready inference layer for ColBERTv2 at scale.'}},
+  {year:'2024',name:'ColPali',color:'var(--cyan)',badge:'arxiv 2024',badgeBg:'rgba(6,182,212,.15)',badgeColor:'var(--cyan2)',
+   left:{title:'Vision-Language Multi-Vector',body:'Skips OCR entirely. Treats PDF pages as raw images. Backbone: PaliGemma-3B (SigLIP ViT + Gemma-2B LM). Each page produces ~1030 visual patch embeddings (128 dims each). Query text is projected to the same 128-dim space. Same MaxSim late interaction.'},
+   right:{title:'Why OCR-free matters',body:'Charts, tables, infographics — OCR misses semantic structure. ColPali achieves SOTA on ViDoRe benchmark across InfographicVQA, ArxivQA, TabFQuAD. Storage: ~264 KB/page (1030 × 128 × 2 bytes). ColQwen2 variant uses Qwen2-VL for ~768 patches and better efficiency.'}},
+  {year:'2024',name:'BGE-M3 / Jina-ColBERT-v2',color:'var(--emerald)',badge:'2024',badgeBg:'rgba(16,185,129,.15)',badgeColor:'var(--emerald2)',
+   left:{title:'Unified Model (BGE-M3)',body:'Single model for 3 retrieval modes: dense (CLS pooling + cosine), sparse (per-token importance weights, BM25-style), multi-vector (MaxSim). MIRACL (18 langs): dense 67.8 → all-3 70.0. MLDR long-doc: dense 52.5 → all-3 65.0 (+12.5 pts). Biggest gain is multi-vector on long documents.'},
+   right:{title:'Jina-ColBERT-v2',body:'128-dim ColBERT with MRL: can truncate to 64 dims with only 1.5% quality loss (50% storage savings). Supports 89+ languages, 8,192-token context. BEIR avg nDCG@10: 52.1 across 14 benchmarks. Natively integrated into Weaviate v1.29 via JinaAI API.'}}
+];
+
+function buildTimeline(){
+  document.getElementById('sys-timeline').innerHTML=SYS.map(function(s,i){
+    return '<div class="sys-item" id="sys-'+i+'" onclick="toggleSys('+i+')">' +
+      '<div class="sys-header">' +
+        '<div class="sys-year" style="color:'+s.color+';">'+s.year+'</div>' +
+        '<div class="sys-name" style="color:'+s.color+';">'+s.name+'</div>' +
+        '<div class="sys-badge" style="background:'+s.badgeBg+';color:'+s.badgeColor+';">'+s.badge+'</div>' +
+        '<div class="sys-chevron">&#9654;</div>' +
+      '</div>' +
+      '<div class="sys-body">' +
+        '<div class="card" style="border-color:'+s.color.replace('var(','rgba(').replace('--blue','59,130,246').replace('--indigo','99,102,241').replace('--violet','139,92,246').replace('--cyan','6,182,212').replace('--emerald','16,185,129')+',.25);padding:12px 14px;">' +
+          '<div class="card-title" style="font-size:11px;color:'+s.color+';">'+s.left.title+'</div>' +
+          '<div class="card-body">'+s.left.body+'</div>' +
+        '</div>' +
+        '<div class="card" style="padding:12px 14px;">' +
+          '<div class="card-title" style="font-size:11px;">'+s.right.title+'</div>' +
+          '<div class="card-body">'+s.right.body+'</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+function toggleSys(i){
+  var el=document.getElementById('sys-'+i);
+  var was=el.classList.contains('open');
+  document.querySelectorAll('.sys-item').forEach(function(x){x.classList.remove('open');});
+  if(!was)el.classList.add('open');
+}
+buildTimeline();
+
+// ── STORAGE CALCULATOR ───────────────────────────────────────────────────────
+function fmtBytes(b){if(b<1e6)return (b/1e3).toFixed(1)+' KB';if(b<1e9)return (b/1e6).toFixed(1)+' MB';return (b/1e9).toFixed(2)+' GB';}
+function fmtDocs(n){if(n>=1e6)return (n/1e6).toFixed(1)+'M';if(n>=1e3)return (n/1e3).toFixed(0)+'K';return n;}
+
+function updateCalc(){
+  var docs=+document.getElementById('sl-docs').value;
+  var toks=+document.getElementById('sl-toks').value;
+  var dims=+document.getElementById('sl-dims').value;
+  document.getElementById('sv-docs').textContent=fmtDocs(docs);
+  document.getElementById('sv-toks').textContent=toks;
+  document.getElementById('sv-dims').textContent=dims;
+  var single=docs*dims*4;
+  var multi=docs*toks*dims*2;
+  var multi_v2=docs*toks*36;
+  var bm25=docs*1500;
+  var maxB=Math.max(single,multi,multi_v2,bm25);
+  var bars=[
+    {label:'BM25 (sparse)',bytes:bm25,color:'var(--muted)'},
+    {label:'Single-vector (float32)',bytes:single,color:'var(--blue)'},
+    {label:'Multi-vector (float16)',bytes:multi,color:'var(--indigo)'},
+    {label:'Multi-vec + v2 compression',bytes:multi_v2,color:'var(--emerald)'},
+  ];
+  document.getElementById('calc-bars').innerHTML=bars.map(function(b){
+    var pct=Math.max((b.bytes/maxB)*100,1);
+    return '<div class="calc-bar-row">' +
+      '<div class="calc-bar-label">'+b.label+'</div>' +
+      '<div class="calc-bar-track"><div class="calc-bar-fill" style="width:'+pct+'%;background:'+b.color+';">'+fmtBytes(b.bytes)+'</div></div>' +
+      '<div class="calc-bar-num" style="color:'+b.color+';">'+fmtBytes(b.bytes)+'</div>' +
+      '</div>';
+  }).join('');
+  var ratio=Math.round(multi/single);
+  var ratio_v2=Math.round(multi_v2/single);
+  document.getElementById('calc-note').textContent=
+    'For '+fmtDocs(docs)+' documents (avg '+toks+' tokens, '+dims+' dims): multi-vector is '+ratio+'× larger than single-vector. With ColBERTv2 residual compression (36 bytes/vector) that drops to '+ratio_v2+'×. At 64 dims via MRL the gap narrows further.';
+}
+updateCalc();
+
+// ── DECISION TOOL ────────────────────────────────────────────────────────────
+var DEC_ITEMS=[
+  {label:'Documents are long (500+ tokens) or contain complex structure',tags:['mv','m3']},
+  {label:'Exact phrase matching or word order matters (legal, code, medical)',tags:['mv']},
+  {label:'Documents are PDFs with charts, tables, or infographics',tags:['colpali']},
+  {label:'Need zero-shot retrieval across many different domains',tags:['mv','m3']},
+  {label:'Storage is a hard constraint (< 2× overhead acceptable)',tags:['dense','mrl']},
+  {label:'Sub-millisecond retrieval latency required at scale',tags:['dense','mrl']},
+  {label:'Multilingual retrieval across 50+ languages',tags:['m3']},
+  {label:'Short documents (< 100 tokens): tweets, product names, sentences',tags:['dense']},
+  {label:'Need explainability — which tokens caused this document to rank?',tags:['mv']},
+  {label:'Building a two-stage pipeline (fast recall + slow precision reranking)',tags:['mv']},
+];
+var decState=DEC_ITEMS.map(function(){return false;});
+
+function buildDecItems(){
+  document.getElementById('dec-items').innerHTML=DEC_ITEMS.map(function(d,i){
+    return '<div class="dec-item" id="dec-'+i+'" onclick="toggleDec('+i+')">' +
+      '<div class="dec-cb" id="dec-cb-'+i+'"><span id="dec-ck-'+i+'" style="display:none;color:#fff;font-size:10px;font-weight:800;">&#10003;</span></div>' +
+      '<div class="dec-label">'+d.label+'</div>' +
+      '</div>';
+  }).join('');
+}
+function toggleDec(i){
+  decState[i]=!decState[i];
+  document.getElementById('dec-'+i).classList.toggle('checked',decState[i]);
+  document.getElementById('dec-ck-'+i).style.display=decState[i]?'block':'none';
+  updateDecision();
+}
+function updateDecision(){
+  var scores={mv:0,m3:0,colpali:0,dense:0,mrl:0};
+  DEC_ITEMS.forEach(function(d,i){if(decState[i])d.tags.forEach(function(t){scores[t]++;});});
+  var total=Object.values(scores).reduce(function(a,b){return a+b;},0);
+  if(total===0){
+    document.getElementById('dec-title').style.color='var(--muted)';
+    document.getElementById('dec-title').textContent='Select your characteristics above';
+    document.getElementById('dec-body').textContent='Check boxes that apply and a recommendation will appear here.';
+    return;
+  }
+  var rec='';
+  var recs=[];
+  if(scores.colpali>0)recs.push({sys:'ColPali',color:'var(--cyan2)',body:'Your use case involves visual documents (PDFs with charts/tables/infographics). ColPali is the only end-to-end solution that skips OCR and produces multi-vector embeddings directly from page images. ColQwen2 is a lighter-weight alternative.'});
+  if(scores.mv>=2)recs.push({sys:'ColBERT / Jina-ColBERT-v2 (Multi-Vector)',color:'var(--indigo2)',body:'Multiple signals point to multi-vector (ColBERT-style). Long documents, exact matching, zero-shot domain transfer, and explainability all favour MaxSim late interaction. Use Jina-ColBERT-v2 in Weaviate for a production-ready deployment, or PLAID+ColBERTv2 for maximum scale.'});
+  if(scores.m3>=2&&scores.mv<2)recs.push({sys:'BGE-M3 (Unified: Dense + Sparse + Multi-vector)',color:'var(--emerald2)',body:'Your use case spans languages or requires broad zero-shot coverage. BGE-M3 combines dense, sparse (BM25-style), and multi-vector signals in one model. The +12.5 nDCG@10 on long documents from the multi-vector component makes it the best single model for heterogeneous corpora.'});
+  if(scores.dense>=2&&scores.mv<2&&scores.colpali===0)recs.push({sys:'Dense Single-Vector (e.g. text-embedding-3, E5)',color:'var(--blue2)',body:'Your documents are short, latency is critical, and storage is constrained. Dense single-vector with HNSW is sub-millisecond and storage-efficient. Consider MRL models (text-embedding-3, Jina-v3) to trade dimensions for storage at minimal quality cost.'});
+  if(scores.mrl>0&&scores.dense>0&&scores.mv<2)recs.push({sys:'MRL-enabled Dense (text-embedding-3-large, Jina-v3)',color:'var(--amber2)',body:'You need both storage efficiency and semantic quality. MRL models encode information hierarchically — truncating to 256 dims still outperforms ada-002 at 1536 dims. Use the `dimensions` parameter in the OpenAI API or Jina API to right-size your index.'});
+  if(recs.length===0)recs.push({sys:'Hybrid: Dense first-stage + Multi-vector reranker',color:'var(--violet2)',body:'Mixed signals suggest a two-stage pipeline: fast dense retrieval (top-1000 recall), then multi-vector MaxSim reranking for precision. This gives near-ColBERT quality at dense retrieval latency for the bulk of traffic.'});
+  var top=recs[0];
+  document.getElementById('dec-title').style.color=top.color;
+  document.getElementById('dec-title').textContent=top.sys;
+  document.getElementById('dec-body').textContent=top.body;
+  if(recs.length>1){
+    document.getElementById('dec-body').textContent+='\n\nAlso consider: '+recs.slice(1).map(function(r){return r.sys;}).join(', ')+'.';
+  }
+}
+buildDecItems();
+
+// ── EXERCISE 1: MaxSim Puzzle ─────────────────────────────────────────────────
+var EX1={
+  qtoks:['null','pointer','fix'],
+  dtoks:['dereference','null','ptr','check','returns','patch'],
+  vals:[
+    [20,91,25,28,10,12],
+    [22,28,87,14,10,15],
+    [10,15,12,24,16,81]
+  ]
+};
+var ex1Selected=EX1.qtoks.map(function(){return -1;});
+
+function buildEx1(){
+  var html='<div style="overflow-x:auto;">';
+  html+='<div style="display:flex;gap:3px;margin-bottom:3px;padding-left:80px;">';
+  EX1.dtoks.forEach(function(t){html+='<div style="width:56px;text-align:center;font-size:9px;font-weight:700;color:var(--blue2);font-family:\'JetBrains Mono\',monospace;">'+t+'</div>';});
+  html+='</div>';
+  EX1.qtoks.forEach(function(qt,qi){
+    html+='<div style="display:flex;align-items:center;gap:3px;margin-bottom:4px;">';
+    html+='<div style="width:74px;text-align:right;padding-right:6px;font-size:10px;font-weight:700;color:var(--indigo2);font-family:\'JetBrains Mono\',monospace;">'+qt+'</div>';
+    EX1.vals[qi].forEach(function(v,di){
+      var bg='rgba(99,102,241,'+(v/100*0.7)+')';
+      var tc=v>50?'#fff':v>25?'#a5b4fc':'#4a6a99';
+      html+='<div id="ex1-c-'+qi+'-'+di+'" onclick="ex1Pick('+qi+','+di+')" style="width:56px;height:40px;border-radius:5px;background:'+bg+';color:'+tc+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;cursor:pointer;border:2px solid transparent;transition:all .15s;" onmouseover="this.style.borderColor=\'var(--indigo)\'" onmouseout="refreshEx1Cell('+qi+','+di+')">'+v+'</div>';
+    });
+    html+='</div>';
+  });
+  html+='</div>';
+  document.getElementById('ex1-grid').innerHTML=html;
+}
+function refreshEx1Cell(qi,di){
+  var el=document.getElementById('ex1-c-'+qi+'-'+di);
+  if(el)el.style.borderColor=ex1Selected[qi]===di?'var(--indigo2)':'transparent';
+}
+function ex1Pick(qi,di){
+  ex1Selected[qi]=di;
+  EX1.qtoks.forEach(function(_,q){
+    EX1.dtoks.forEach(function(_,d){
+      var el=document.getElementById('ex1-c-'+q+'-'+d);
+      if(el)el.style.borderColor=ex1Selected[q]===d?'var(--indigo2)':'transparent';
+    });
+  });
+  document.getElementById('ex1-result').className='ex-result';
+}
+function checkEx1(){
+  var score=0;var explanations=[];
+  EX1.qtoks.forEach(function(qt,qi){
+    var maxIdx=EX1.vals[qi].indexOf(Math.max.apply(null,EX1.vals[qi]));
+    var ok=ex1Selected[qi]===maxIdx;
+    if(ok)score++;
+    var icon=ok?'&#10003;':'&#10007;';
+    explanations.push('<strong>'+qt+':</strong> '+icon+' Max is "'+EX1.dtoks[maxIdx]+'" ('+EX1.vals[qi][maxIdx]+')'+(ok?'':', you picked "'+(ex1Selected[qi]>=0?EX1.dtoks[ex1Selected[qi]]:'nothing')+'"'));
+  });
+  var res=document.getElementById('ex1-result');
+  res.className='ex-result show '+(score===3?'ex-pass':'ex-partial');
+  res.innerHTML=(score===3?'&#10003; Perfect — 3/3 correct! MaxSim total = '+(EX1.vals[0][EX1.vals[0].indexOf(Math.max.apply(null,EX1.vals[0]))]+EX1.vals[1][EX1.vals[1].indexOf(Math.max.apply(null,EX1.vals[1]))]+EX1.vals[2][EX1.vals[2].indexOf(Math.max.apply(null,EX1.vals[2]))])+' out of 300.':'&#9888; '+score+'/3 correct. ')+explanations.join(' &bull; ');
+}
+buildEx1();
+
+// ── EXERCISE 2: SYSTEM MATCHER ────────────────────────────────────────────────
+var EX2=[
+  {q:'You need to retrieve specific clauses from 50,000 legal contracts, some 200+ pages long. Word order and exact phrasing matter. Latency can be up to 500ms.',correct:'ColBERT (Multi-vector)',choices:['Dense single-vector','ColBERT (Multi-vector)','ColPali','BM25'],fb:{'Dense single-vector':'Dense pooling loses exact phrasing in long documents — the very thing legal search needs. ColBERT\'s MaxSim preserves token-level matching across the full document length.','ColBERT (Multi-vector)':'&#10003; Correct. Long documents, exact phrase matching, word order, tolerance for higher latency — all point directly to ColBERT-style multi-vector MaxSim.','ColPali':'ColPali is for visual documents (PDFs with charts). Legal contracts are primarily text; ColPali\'s overhead isn\'t justified here.','BM25':'BM25 handles exact terms well but misses synonyms and semantic equivalences in legal language (e.g., "indemnification" vs "hold harmless"). Multi-vector combines both.'}},
+  {q:'Your corpus is product titles and short descriptions (avg 15 tokens). You need sub-millisecond retrieval for 100M products with strict RAM limits.',correct:'Dense single-vector',choices:['Dense single-vector','ColBERT (Multi-vector)','BGE-M3','Matryoshka (MRL)'],fb:{'Dense single-vector':'&#10003; Correct. Short documents + sub-millisecond latency + RAM constraints = dense single-vector. Multi-vector\'s benefits (preserving token context) don\'t apply to 15-token documents. HNSW over a single vector gives you <1ms retrieval.','ColBERT (Multi-vector)':'Multi-vector would use 15× more storage and compute for each 15-token product title, with zero quality benefit — pooling is nearly lossless at that length. Dense wins.','BGE-M3':'BGE-M3\'s unified model is excellent but adds latency and complexity unnecessary for short text. Dense single-vector is faster and cheaper at this scale.','Matryoshka (MRL)':'Good instinct — MRL reduces storage. But the question is WHICH model type, and MRL is a property of any model (dense or multi-vector). For short docs at 100M scale, dense+MRL is the answer, but the primary answer is dense.'}},
+  {q:'You\'re building a search engine over 500,000 research paper PDFs. The papers contain equations, figures, and tables that are critical to the search results.',correct:'ColPali',choices:['Dense single-vector','ColBERT (Multi-vector)','ColPali','BGE-M3'],fb:{'Dense single-vector':'OCR-then-embed would miss equations (garbled by OCR) and figures entirely. Dense single-vector can\'t handle the visual content in these papers.','ColBERT (Multi-vector)':'Text-only ColBERT would still rely on OCR, missing figures and equations. ColPali bypasses OCR by treating each page as an image.','ColPali':'&#10003; Correct. Visual documents with equations, figures, and tables — exactly what ColPali was designed for. It processes PDF pages as images, producing patch-level embeddings that capture visual structure OCR can\'t.','BGE-M3':'BGE-M3 is text-only and would still need OCR preprocessing. For PDFs with heavy visual content, OCR-free ColPali is the right choice.'}},
+  {q:'You\'re building a multilingual RAG system over documents in 40 languages. Documents vary from short news articles to long technical reports.',correct:'BGE-M3',choices:['Dense single-vector','ColBERT (Multi-vector)','ColPali','BGE-M3'],fb:{'Dense single-vector':'A monolingual or limited-multilingual dense model won\'t handle 40 languages well. You need a model built for multilingual retrieval.','ColBERT (Multi-vector)':'Standard ColBERT is primarily English. You\'d need Jina-ColBERT-v2 for multilingual, but even then M3\'s unified approach provides better coverage.','ColPali':'ColPali is for visual PDF retrieval, not multilingual text retrieval.','BGE-M3':'&#10003; Correct. BGE-M3 was built for multi-linguality (100+ languages), multi-functionality (dense + sparse + multi-vector), and multi-granularity (short + long docs). Its +12.5 nDCG gain on long docs from the multi-vector signal makes it ideal for mixed-length multilingual corpora.'}}
+];
+var ex2State=EX2.map(function(){return null;});
+
+function buildEx2(){
+  document.getElementById('ex2-cards').innerHTML=EX2.map(function(q,i){
+    return '<div class="q-card"><div style="font-size:12px;color:var(--text);margin-bottom:10px;line-height:1.7;"><strong style="color:var(--indigo2);">Scenario '+(i+1)+':</strong> '+q.q+'</div>' +
+      '<div style="display:flex;flex-wrap:wrap;">'+q.choices.map(function(c){return '<button class="choice-btn" id="ex2-'+i+'-'+c.replace(/[^a-zA-Z]/g,'')+'" onclick="pickEx2('+i+',\''+c.replace(/'/g,"\\'")+'\')">'+c+'</button>';}).join('')+'</div>' +
+      '<div class="match-fb" id="ex2fb-'+i+'"></div></div>';
+  }).join('');
+}
+function pickEx2(i,choice){
+  if(ex2State[i]!==null)return;
+  ex2State[i]=choice;
+  var q=EX2[i];
+  var ok=choice===q.correct;
+  q.choices.forEach(function(c){
+    var id='ex2-'+i+'-'+c.replace(/[^a-zA-Z]/g,'');
+    var btn=document.getElementById(id);
+    if(!btn)return;
+    if(c===q.correct)btn.className='choice-btn correct';
+    else if(c===choice)btn.className='choice-btn wrong';
+    else{btn.disabled=true;btn.style.opacity='.4';}
+  });
+  var fb=document.getElementById('ex2fb-'+i);
+  fb.className='match-fb show '+(ok?'fb-ok':'fb-no');
+  fb.textContent=q.fb[choice];
+}
+buildEx2();
+
+// ── EXERCISE 3: COMPRESSION QUIZ ─────────────────────────────────────────────
+var EX3=[
+  {q:'ColBERTv2 reduces index size from 154 GiB to ~16 GiB on MS-MARCO while keeping MRR@10 almost identical (39.7 vs 39.7). What technique achieves this compression?',correct:'Residual quantization (centroid + quantised residual)',choices:['Product quantization (PQ)','Residual quantization (centroid + quantised residual)','Reducing token dimensions from 128 to 32','Filtering out non-content tokens'],fb:{'Residual quantization (centroid + quantised residual)':'&#10003; Correct. Each token vector is stored as: (a) the ID of its nearest k-means centroid, plus (b) a 1–2 bit quantised residual capturing the difference. Total: 20–36 bytes/vector vs 256 bytes. The centroid captures most of the information; the residual captures the fine detail.','Product quantization (PQ)':'PQ is used in FAISS IVFPQ indexes (the retrieval index for ColBERT). The vector storage compression in ColBERTv2 specifically uses residual quantization, not standard PQ.','Reducing token dimensions from 128 to 32':'Dimension reduction does reduce storage, but ColBERTv2 keeps 128 dims. The 10× gain comes from bit-level quantization, not dimension reduction.','Filtering out non-content tokens':'ColBERT does filter punctuation tokens, but that\'s only a small reduction (punctuation is ~5–10% of tokens). The 10× compression is entirely from residual quantization.'}},
+  {q:'Matryoshka Representation Learning (MRL) allows OpenAI text-embedding-3-large (3072 dims) to be truncated to 256 dims. What is the quality impact?',correct:'256-dim MRL vector still outperforms ada-002 at 1536 dims',choices:['256-dim MRL vector still outperforms ada-002 at 1536 dims','Quality drops proportionally — roughly 1536/3072 = 50% worse','Quality drops to BM25 level at 256 dims','Quality is identical to full 3072 dims'],fb:{'256-dim MRL vector still outperforms ada-002 at 1536 dims':'&#10003; Correct. This is MRL\'s central result. Because MRL training forces the first D dimensions to always carry the most important semantic information, a 256-dim prefix from text-embedding-3-large contains more useful signal than the full 1536-dim ada-002 vector. 12× dimension reduction with quality gain.','Quality drops proportionally — roughly 1536/3072 = 50% worse':'This is how naive truncation works without MRL. MRL\'s training objective specifically prevents this — it optimises all dimensional prefixes simultaneously, so each prefix is a valid representation.','Quality drops to BM25 level at 256 dims':'BM25 is a lexical baseline. Even at very small MRL dimensions (64–128), the model retains semantic understanding far beyond BM25.','Quality is identical to full 3072 dims':'There is a small quality loss at 256 dims vs full 3072, but it\'s minor (~2–3%). The surprising result is that the quality is higher than ada-002 at 1536 dims, not that it\'s identical to full dims.'}}
+];
+var ex3State=EX3.map(function(){return null;});
+
+function buildEx3(){
+  document.getElementById('ex3-cards').innerHTML=EX3.map(function(q,i){
+    return '<div class="q-card"><div style="font-size:12px;color:var(--text);margin-bottom:10px;line-height:1.7;"><strong style="color:var(--indigo2);">Q'+(i+1)+':</strong> '+q.q+'</div>' +
+      '<div style="display:flex;flex-wrap:wrap;">'+q.choices.map(function(c){return '<button class="choice-btn" id="ex3-'+i+'-'+c.replace(/[^a-zA-Z0-9]/g,'').substring(0,20)+'" onclick="pickEx3('+i+',\''+c.replace(/'/g,"\\'").replace(/"/g,"&quot;")+'\')">'+c+'</button>';}).join('')+'</div>' +
+      '<div class="match-fb" id="ex3fb-'+i+'"></div></div>';
+  }).join('');
+}
+function pickEx3(i,choice){
+  if(ex3State[i]!==null)return;
+  ex3State[i]=choice;
+  var q=EX3[i];
+  var ok=choice===q.correct;
+  var allBtns=document.querySelectorAll('[id^="ex3-'+i+'-"]');
+  allBtns.forEach(function(btn){
+    var btnText=btn.textContent;
+    if(btnText===q.correct)btn.className='choice-btn correct';
+    else if(btnText===choice)btn.className='choice-btn wrong';
+    else{btn.disabled=true;btn.style.opacity='.4';}
+  });
+  var fb=document.getElementById('ex3fb-'+i);
+  fb.className='match-fb show '+(ok?'fb-ok':'fb-no');
+  var fbText=q.fb[choice];
+  if(!fbText){var keys=Object.keys(q.fb);for(var k=0;k<keys.length;k++){if(choice.startsWith(keys[k].substring(0,20))||keys[k].startsWith(choice.substring(0,20))){fbText=q.fb[keys[k]];break;}}}
+  fb.textContent=fbText||'See the correct answer highlighted above.';
+}
+buildEx3();
+
+// ── LIVE LAB ──────────────────────────────────────────────────────────────────
+var ll={apiKey:''};
+function llInit(){
+  var k=localStorage.getItem('ll_openai_key_56');
+  if(k){ll.apiKey=k;document.getElementById('ll-key-in').value=k;document.getElementById('ll-key-st').textContent='Key loaded.';document.getElementById('ll-btn-run').disabled=false;}
+}
+function llKeyType(){document.getElementById('ll-save-btn').disabled=document.getElementById('ll-key-in').value.trim().length<10;}
+function llSaveKey(){
+  var v=document.getElementById('ll-key-in').value.trim();
+  if(v.length<10)return;
+  ll.apiKey=v;localStorage.setItem('ll_openai_key_56',v);
+  document.getElementById('ll-key-st').textContent='Key saved.';
+  document.getElementById('ll-btn-run').disabled=false;
+}
+function llClearKey(){ll.apiKey='';localStorage.removeItem('ll_openai_key_56');document.getElementById('ll-key-in').value='';document.getElementById('ll-key-st').textContent='Key cleared.';document.getElementById('ll-btn-run').disabled=true;}
+function llReset(){document.getElementById('ll-output-box').style.display='none';document.getElementById('ll-btn-run').disabled=false;}
+
+async function llRun(){
+  if(!ll.apiKey){alert('Save your OpenAI key first.');return;}
+  var query=document.getElementById('ll-query').value.trim();
+  var passage=document.getElementById('ll-passage').value.trim();
+  if(!query||!passage){alert('Enter both a query and a passage.');return;}
+  var btn=document.getElementById('ll-btn-run');
+  var st=document.getElementById('ll-status');
+  btn.disabled=true;st.className='ll-status live';st.textContent='Running MaxSim walkthrough…';
+  var prompt='You are simulating ColBERT\'s MaxSim late interaction scoring.\n\nQuery: "'+query+'"\nPassage: "'+passage+'"\n\nTokenize both (roughly, word-level is fine). For each query token:\n1. Identify which passage token it would score highest with (the MaxSim match) — consider BERT\'s contextualised embeddings, not just literal word match\n2. Give an estimated similarity score 0–100\n3. Briefly explain WHY that passage token is the best match for this query token (context, semantics)\n\nThen compute the total MaxSim score (sum of all per-query-token maxima).\n\nFormat your response clearly with:\n- A table: Query Token | Best Passage Match | Score | Why\n- A "Total MaxSim Score: X / [max_possible]" line\n- A 2-sentence insight about what the matching reveals (e.g., did any query token find a semantically equivalent but non-identical passage token? Did context disambiguation happen?)\n\nBe educational and specific.';
+  try{
+    var r=await fetch('https://api.openai.com/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+ll.apiKey},
+      body:JSON.stringify({model:'gpt-4o-mini',messages:[{role:'system',content:'You are a helpful AI explaining information retrieval concepts.'},{role:'user',content:prompt}],max_tokens:600,temperature:0})
+    });
+    var d=await r.json();
+    if(d.error)throw new Error(d.error.message);
+    st.className='ll-status';
+    document.getElementById('ll-output').textContent=d.choices[0].message.content.trim();
+    document.getElementById('ll-output-box').style.display='block';
+    btn.disabled=false;
+  }catch(e){st.className='ll-status';btn.disabled=false;alert('OpenAI error: '+e.message);}
+}
+llInit();
+
+// ── SCROLL SPY ───────────────────────────────────────────────────────────────
+var mainEl=document.getElementById('main');
+var secs=['s-intro','s-problem','s-mechanism','s-systems','s-storage','s-weaviate','s-when','s-exercises','s-refs'];
+mainEl.addEventListener('scroll',function(){
+  var links=document.querySelectorAll('.sidebar .nav-link');
+  secs.forEach(function(id,i){
+    var el=document.getElementById(id);if(!el)return;
+    var top=el.getBoundingClientRect().top;
+    if(top<=120&&top>-400){links.forEach(function(l){l.classList.remove('active');});if(links[i])links[i].classList.add('active');}
+  });
+});
+</script>
+</body>
+</html>
