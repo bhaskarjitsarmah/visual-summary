@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="en" class="vs-post">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Open Knowledge Format — The Missing Layer for AI Agents</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#050f0a;--surface:#091c12;--surface2:#0f2918;--border:#173623;
+  --text:#d4f0dc;--muted:#3d7a53;
+  --green:#22c55e;--green2:#4ade80;--green3:#86efac;
+  --emerald:#10b981;--emerald2:#34d399;
+  --teal:#06b6d4;--teal2:#22d3ee;
+  --amber:#f59e0b;--amber2:#fbbf24;--amber3:#fde68a;
+  --violet:#8b5cf6;--violet2:#a78bfa;
+  --rose:#f43f5e;--red:#ef4444;
+  --cyan:#06b6d4;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+code,pre{font-family:'JetBrains Mono',monospace;}
+
+/* GATE */
+#gate{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.gate-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 44px;text-align:center;max-width:380px;width:90%;}
+.gate-icon{font-size:36px;margin-bottom:12px;}
+.gate-title{font-size:20px;font-weight:800;color:var(--green2);margin-bottom:4px;}
+.gate-sub{font-size:12px;color:var(--muted);margin-bottom:24px;}
+.gate-input{width:100%;background:#020706;border:1px solid var(--border);border-radius:8px;padding:11px 14px;font-size:14px;color:var(--text);outline:none;margin-bottom:12px;}
+.gate-input:focus{border-color:var(--green);}
+.gate-btn{width:100%;background:var(--green);color:#000;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s;}
+.gate-btn:hover{opacity:.85;}
+.gate-err{font-size:11px;color:#f87171;margin-top:6px;display:none;}
+
+/* LAYOUT */
+.sidebar{width:240px;min-width:240px;height:100vh;position:sticky;top:0;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:0 0 40px;flex-shrink:0;}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.sidebar-logo-title{font-size:13px;font-weight:700;color:var(--green2);}
+.sidebar-logo-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.nav-group-title{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;padding:10px 16px 4px;}
+.nav-link{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;}
+.nav-link:hover,.nav-link.active{color:var(--text);background:rgba(34,197,94,.07);}
+.nav-link.active{color:var(--green2);}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.main{flex:1;overflow-y:auto;height:100vh;scroll-behavior:smooth;}
+
+/* TOP BAR */
+.top-bar{position:sticky;top:0;z-index:50;background:rgba(5,15,10,.97);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+.bar-step{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);padding:2px 6px;border-radius:4px;cursor:pointer;transition:color .15s;}
+.bar-step:hover{color:var(--text);}
+.bar-dot{width:6px;height:6px;border-radius:50%;}
+.bar-arrow{color:var(--border);font-size:14px;font-weight:700;}
+
+/* SECTIONS */
+.section{padding:40px 48px;border-bottom:1px solid var(--border);}
+.hero-section{padding:48px 48px 40px;border-bottom:1px solid var(--border);}
+.tag-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+.tag{font-size:10px;font-weight:700;padding:3px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:.8px;}
+.tag-green{background:rgba(34,197,94,.15);color:var(--green2);border:1px solid rgba(34,197,94,.25);}
+.tag-gray{background:rgba(255,255,255,.05);color:var(--muted);border:1px solid var(--border);}
+.tag-amber{background:rgba(245,158,11,.12);color:var(--amber2);border:1px solid rgba(245,158,11,.2);}
+.hero-title{font-size:clamp(24px,4vw,40px);font-weight:800;line-height:1.1;margin-bottom:16px;letter-spacing:-1px;}
+.hero-desc{font-size:14px;color:var(--muted);max-width:680px;line-height:1.8;}
+.sec-title{font-size:22px;font-weight:800;margin-bottom:6px;letter-spacing:-.5px;}
+.sec-sub{font-size:13px;color:var(--muted);margin-bottom:28px;line-height:1.7;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;}
+.card-title{font-size:13px;font-weight:700;margin-bottom:6px;}
+.card-body{font-size:12px;color:var(--muted);line-height:1.7;}
+.stat-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px;}
+.stat-pill{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 18px;}
+.stat-num{font-size:22px;font-weight:800;line-height:1;}
+.stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-top:3px;}
+
+/* CODE BLOCKS */
+.code-block{background:#020706;border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:11px;line-height:1.8;overflow-x:auto;position:relative;}
+.kw{color:var(--violet2);}
+.fn{color:var(--teal2);}
+.str{color:var(--amber2);}
+.cm{color:var(--muted);}
+.hl{color:var(--green2);}
+.ann{position:absolute;right:8px;top:8px;font-size:9px;background:rgba(34,197,94,.1);color:var(--green2);border:1px solid rgba(34,197,94,.2);border-radius:4px;padding:2px 6px;font-weight:700;}
+
+/* FRAGMENT VIZ */
+.fragment-wrap{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:20px 24px;max-width:760px;}
+.frag-toggle{display:flex;gap:0;border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:18px;width:fit-content;}
+.frag-tab{padding:8px 18px;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s;color:var(--muted);background:var(--surface);}
+.frag-tab.chaos.active{background:rgba(239,68,68,.1);color:#f87171;border-bottom:2px solid var(--red);}
+.frag-tab.okf.active{background:rgba(34,197,94,.08);color:var(--green2);border-bottom:2px solid var(--green);}
+
+.chaos-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;}
+.chaos-silo{background:var(--surface);border:1px solid rgba(239,68,68,.25);border-radius:8px;padding:10px 12px;position:relative;}
+.chaos-silo-name{font-size:10px;font-weight:700;color:#f87171;margin-bottom:4px;}
+.chaos-silo-body{font-size:10px;color:var(--muted);line-height:1.6;}
+.chaos-arrow{font-size:10px;color:var(--red);opacity:.6;text-align:center;padding:4px;}
+.chaos-agent{background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2);border-radius:8px;padding:10px 12px;text-align:center;font-size:11px;color:#f87171;font-weight:700;}
+
+.okf-tree{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--green3);line-height:2;padding:12px 16px;background:#020706;border-radius:8px;border:1px solid var(--border);margin-bottom:12px;}
+.okf-agent{background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.2);border-radius:8px;padding:10px 12px;text-align:center;font-size:11px;color:var(--green2);font-weight:700;}
+
+/* ANATOMY VIEWER */
+.anatomy-wrap{background:#020706;border:1px solid var(--border);border-radius:12px;overflow:hidden;max-width:720px;}
+.anatomy-header{background:var(--surface2);padding:10px 16px;font-size:10px;font-weight:700;color:var(--muted);display:flex;justify-content:space-between;align-items:center;}
+.anatomy-body{display:grid;grid-template-columns:1fr 260px;}
+.anatomy-code{padding:16px 20px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.9;overflow-x:auto;}
+.anatomy-annotations{background:var(--surface);border-left:1px solid var(--border);padding:12px 14px;display:flex;flex-direction:column;gap:10px;}
+.ann-item{border-left:3px solid;padding:6px 10px;border-radius:0 6px 6px 0;cursor:pointer;transition:opacity .15s;}
+.ann-item:hover{opacity:.8;}
+.ann-item .ann-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px;}
+.ann-item .ann-desc{font-size:10px;color:var(--muted);line-height:1.5;}
+.ann-hl{transition:background .2s;}
+
+/* LAYER STACK */
+.layer-stack-viz{display:flex;flex-direction:column;gap:2px;max-width:560px;}
+.layer-viz-item{border-radius:10px;padding:14px 20px;display:flex;align-items:center;gap:14px;transition:all .2s;}
+.layer-viz-icon{font-size:20px;flex-shrink:0;}
+.layer-viz-title{font-size:13px;font-weight:800;}
+.layer-viz-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+
+/* STANDARDS TABS */
+.std-tabs{display:flex;gap:0;border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:20px;flex-wrap:wrap;}
+.std-tab{flex:1;min-width:90px;padding:9px 10px;font-size:10px;font-weight:700;text-align:center;cursor:pointer;transition:all .2s;color:var(--muted);background:var(--surface);}
+.std-tab.active{background:rgba(34,197,94,.1);color:var(--green2);border-bottom:2px solid var(--green);}
+.std-panel{display:none;}
+.std-panel.active{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+
+/* BUILDER */
+.builder-wrap{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:20px 24px;max-width:720px;}
+.builder-row{display:grid;grid-template-columns:120px 1fr;align-items:start;gap:10px;margin-bottom:12px;}
+.builder-label{font-size:11px;font-weight:700;color:var(--muted);padding-top:9px;}
+.builder-input{background:#020706;border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--text);outline:none;font-family:'JetBrains Mono',monospace;width:100%;}
+.builder-input:focus{border-color:var(--green);}
+.builder-select{background:#020706;border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--text);outline:none;width:100%;}
+.builder-output{background:#020706;border:1px solid rgba(34,197,94,.2);border-radius:8px;padding:14px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.8;white-space:pre-wrap;min-height:120px;margin-top:16px;color:var(--green3);}
+.builder-conformance{display:flex;gap:8px;align-items:center;margin-top:8px;font-size:11px;font-weight:700;}
+
+/* EXERCISES */
+.ex-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-bottom:16px;}
+.ex-num{display:inline-flex;align-items:center;gap:8px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.2);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:700;color:var(--green2);margin-bottom:12px;}
+.ex-num-badge{background:var(--green);color:#000;border-radius:50%;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;flex-shrink:0;}
+.choice-btn{padding:7px 14px;font-size:11px;font-weight:700;border-radius:6px;cursor:pointer;border:1px solid var(--border);color:var(--muted);background:var(--surface);transition:all .15s;margin:4px;}
+.choice-btn:hover:not(:disabled){border-color:var(--green);color:var(--text);}
+.choice-btn.correct{background:rgba(16,185,129,.1);color:var(--emerald2);border-color:rgba(16,185,129,.3);}
+.choice-btn.wrong{background:rgba(239,68,68,.08);color:#f87171;border-color:rgba(239,68,68,.2);}
+.fb-box{font-size:11px;margin-top:8px;padding:8px 12px;border-radius:6px;display:none;line-height:1.7;}
+.fb-box.show{display:block;}
+.fb-ok{background:rgba(16,185,129,.07);color:var(--emerald2);border:1px solid rgba(16,185,129,.15);}
+.fb-no{background:rgba(239,68,68,.07);color:#f87171;border:1px solid rgba(239,68,68,.15);}
+.q-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:12px;}
+.okf-snippet{background:#020706;border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.7;margin:8px 0;color:var(--green3);}
+.ex-check-btn{display:inline-flex;align-items:center;gap:6px;background:var(--green);color:#000;border:none;border-radius:8px;padding:8px 16px;font-size:11px;font-weight:700;cursor:pointer;transition:opacity .15s;margin-top:12px;}
+.ex-check-btn:hover{opacity:.85;}
+.ex-result{font-size:12px;padding:10px 14px;border-radius:8px;margin-top:10px;display:none;line-height:1.7;}
+.ex-result.show{display:block;}
+.ex-pass{background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.18);color:var(--emerald2);}
+.ex-partial{background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.18);color:var(--amber2);}
+.ll-btn{display:inline-flex;align-items:center;gap:6px;background:var(--green);color:#000;border:none;border-radius:8px;padding:9px 18px;font-size:12px;font-weight:700;cursor:pointer;transition:opacity .15s;margin-top:10px;}
+.ll-btn:hover{opacity:.85;}
+.ll-btn:disabled{opacity:.4;cursor:not-allowed;}
+.ll-btn-outline{background:transparent;border:1px solid var(--border);color:var(--muted);}
+.ll-btn-outline:hover{color:var(--text);border-color:var(--green);}
+.ll-key-input{background:#020706;border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:12px;color:var(--text);font-family:'JetBrains Mono',monospace;outline:none;flex:1;min-width:180px;}
+.ll-key-input:focus{border-color:var(--green);}
+.ll-text{width:100%;resize:vertical;font-family:'JetBrains Mono',monospace;font-size:11px;background:#020706;color:var(--amber3);border:1px solid var(--border);border-radius:8px;padding:14px;outline:none;line-height:1.7;}
+.ll-output{background:#020706;border:1px solid rgba(34,197,94,.2);border-radius:8px;padding:14px;font-size:11px;color:var(--text);line-height:1.8;white-space:pre-wrap;}
+.ll-status{font-size:11px;color:var(--green2);padding:6px 0;display:none;}
+.ll-status.live{display:block;}
+
+/* CONTINUE STRIP */
+.continue-strip{background:var(--surface);border-top:1px solid var(--border);padding:28px 48px;display:flex;justify-content:space-between;align-items:center;gap:24px;}
+.cs-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.cs-title{font-size:15px;font-weight:700;color:var(--text);}
+
+@media(max-width:768px){
+  .sidebar{display:none;}
+  .section,.hero-section{padding:24px 20px;}
+  .two-col,.three-col{grid-template-columns:1fr;}
+  .std-panel.active{grid-template-columns:1fr;}
+  .anatomy-body{grid-template-columns:1fr;}
+  .anatomy-annotations{border-left:none;border-top:1px solid var(--border);}
+  .chaos-grid{grid-template-columns:1fr 1fr;}
+  .builder-row{grid-template-columns:1fr;}
+  .continue-strip{padding:24px 20px;flex-direction:column;gap:16px;}
+}
+</style>
+</head>
+<body>
+
+<!-- GATE -->
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-icon">&#128218;</div>
+    <div class="gate-title">Visual Summary</div>
+    <div class="gate-sub">Post 57 &middot; Agents &amp; Systems &middot; 2026</div>
+    <input class="gate-input" id="gate-pw" type="password" placeholder="Enter password" onkeydown="if(event.key==='Enter')checkGate()">
+    <button class="gate-btn" onclick="checkGate()">Unlock</button>
+    <div class="gate-err" id="gate-err">Incorrect password &mdash; try again</div>
+  </div>
+</div>
+<script>
+var STORE_KEY='pg_unlocked_57',PW='visual2025';
+if(localStorage.getItem(STORE_KEY)==='1'){document.getElementById('gate').style.display='none';}
+function checkGate(){
+  var v=document.getElementById('gate-pw').value.trim();
+  if(v===PW){localStorage.setItem(STORE_KEY,'1');document.getElementById('gate').style.display='none';}
+  else{var e=document.getElementById('gate-err');e.style.display='block';setTimeout(function(){e.style.display='none';},2000);}
+}
+</script>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-title">Visual Summary</div>
+    <div class="sidebar-logo-sub">Post 57 &mdash; Open Knowledge Format</div>
+  </div>
+  <div class="nav-group-title">Sections</div>
+  <a class="nav-link active" onclick="goTo('s-intro')"><span class="dot" style="background:var(--green)"></span>Overview</a>
+  <a class="nav-link" onclick="goTo('s-problem')"><span class="dot" style="background:var(--red)"></span>The Problem</a>
+  <a class="nav-link" onclick="goTo('s-anatomy')"><span class="dot" style="background:var(--green)"></span>Anatomy</a>
+  <a class="nav-link" onclick="goTo('s-structure')"><span class="dot" style="background:var(--emerald)"></span>Bundle Structure</a>
+  <a class="nav-link" onclick="goTo('s-ecosystem')"><span class="dot" style="background:var(--teal)"></span>Ecosystem Fit</a>
+  <a class="nav-link" onclick="goTo('s-standards')"><span class="dot" style="background:var(--amber)"></span>Standards Landscape</a>
+  <a class="nav-link" onclick="goTo('s-builder')"><span class="dot" style="background:var(--green)"></span>Live Builder</a>
+  <a class="nav-link" onclick="goTo('s-exercises')"><span class="dot" style="background:var(--emerald)"></span>Practice Exercises</a>
+  <a class="nav-link" onclick="goTo('s-refs')"><span class="dot" style="background:var(--muted)"></span>Related Posts</a>
+  <div class="nav-group-title" style="margin-top:16px;">Series</div>
+  <a class="nav-link" href="../">&#8592; All Posts</a>
+  <a class="nav-link" href="../17-mcp/">Post 17 &mdash; MCP</a>
+  <a class="nav-link" href="../55-mcp-security/">Post 55 &mdash; MCP Security</a>
+  <a class="nav-link" href="../21-rag/">Post 21 &mdash; RAG</a>
+</div>
+
+<!-- MAIN -->
+<div class="main" id="main">
+
+<!-- TOP BAR -->
+<div class="top-bar">
+  <div class="bar-step" onclick="goTo('s-intro')"><span class="bar-dot" style="background:var(--green)"></span>Overview</div>
+  <span class="bar-arrow">›</span>
+  <div class="bar-step" onclick="goTo('s-problem')">Problem</div>
+  <span class="bar-arrow">›</span>
+  <div class="bar-step" onclick="goTo('s-anatomy')">Anatomy</div>
+  <span class="bar-arrow">›</span>
+  <div class="bar-step" onclick="goTo('s-structure')">Bundle</div>
+  <span class="bar-arrow">›</span>
+  <div class="bar-step" onclick="goTo('s-ecosystem')">Ecosystem</div>
+  <span class="bar-arrow">›</span>
+  <div class="bar-step" onclick="goTo('s-standards')">Standards</div>
+  <span class="bar-arrow">›</span>
+  <div class="bar-step" onclick="goTo('s-builder')">Builder</div>
+  <span class="bar-arrow">›</span>
+  <div class="bar-step" onclick="goTo('s-exercises')"><span class="bar-dot" style="background:var(--emerald)"></span>Exercises</div>
+</div>
+
+<!-- ═══ HERO ═══ -->
+<div class="hero-section" id="s-intro">
+  <div class="tag-row">
+    <span class="tag tag-green">Post 57</span>
+    <span class="tag tag-green">Agents &amp; Systems</span>
+    <span class="tag tag-gray">Google Cloud &middot; June 2026</span>
+    <span class="tag tag-amber">&#128218; OKF v0.1</span>
+  </div>
+  <div class="hero-title">Open Knowledge Format<br><span style="color:var(--green2);">The Missing Layer for AI Agents</span></div>
+  <div class="hero-desc">Models give agents reasoning. Tools give agents execution. But without curated organizational knowledge, agents become <em>fast, confident, and risky</em> — assembling context from incompatible silos on every query. The Open Knowledge Format (OKF) is Google Cloud's answer: a vendor-neutral spec that packages knowledge as plain Markdown directories, readable by humans, parseable by agents, distributable without any proprietary tooling.</div>
+
+  <div class="stat-row">
+    <div class="stat-pill"><div class="stat-num" style="color:var(--green2);">1</div><div class="stat-label">Required field (type)</div></div>
+    <div class="stat-pill"><div class="stat-num" style="color:var(--emerald2);">451</div><div class="stat-label">Lines in entire spec</div></div>
+    <div class="stat-pill"><div class="stat-num" style="color:var(--teal2);">5k+</div><div class="stat-label">Stars — Karpathy's LLM Wiki</div></div>
+    <div class="stat-pill"><div class="stat-num" style="color:var(--amber2);">3</div><div class="stat-label">Reference implementations</div></div>
+    <div class="stat-pill"><div class="stat-num" style="color:var(--violet2);">Apache 2.0</div><div class="stat-label">License</div></div>
+  </div>
+
+  <div class="two-col" style="max-width:680px;margin-top:28px;">
+    <div class="card" style="border-color:rgba(34,197,94,.2);">
+      <div class="card-title" style="color:var(--green2);">The USB-C Moment for AI Knowledge</div>
+      <div class="card-body">Every agent builder is solving the same context-assembly problem from scratch. Every catalog vendor reinvents the same data models. OKF is the USB-C connector — one portable format that any agent, any catalog, any organization can read without proprietary adapters.</div>
+    </div>
+    <div class="card" style="border-color:rgba(6,182,212,.2);">
+      <div class="card-title" style="color:var(--teal2);">What OKF Is Not</div>
+      <div class="card-body">OKF does not describe <em>data</em> (that's what tables, APIs, and schemas do). It describes the <strong style="color:var(--text);">knowledge around data</strong>: what a table means, how a metric is calculated, who owns what, what caveats exist. The context that turns raw data into organizational intelligence.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ THE PROBLEM ═══ -->
+<div class="section" id="s-problem">
+  <div class="sec-title">The Fragmentation Problem</div>
+  <div class="sec-sub">Toggle between the current reality and the OKF-organised world</div>
+
+  <div class="fragment-wrap">
+    <div class="frag-toggle">
+      <div class="frag-tab chaos active" id="ft-chaos" onclick="setFrag('chaos')">&#10006; Current Reality</div>
+      <div class="frag-tab okf" id="ft-okf" onclick="setFrag('okf')">&#10004; With OKF</div>
+    </div>
+
+    <div id="frag-chaos">
+      <div style="font-size:11px;color:#f87171;margin-bottom:12px;padding:8px 12px;background:rgba(239,68,68,.06);border-radius:6px;border:1px solid rgba(239,68,68,.15);">
+        &#9888;&nbsp; Agent query: <em>"How do I compute weekly active users?"</em> — must search 5 incompatible systems, get 5 inconsistent answers, synthesise manually.
+      </div>
+      <div class="chaos-grid">
+        <div class="chaos-silo">
+          <div class="chaos-silo-name">&#128212; Confluence Wiki</div>
+          <div class="chaos-silo-body">WAU = distinct users who logged in. Last updated 2023. No SQL. May be stale.</div>
+        </div>
+        <div class="chaos-silo">
+          <div class="chaos-silo-name">&#128172; Slack #data-eng</div>
+          <div class="chaos-silo-body">"We changed the WAU definition last quarter — see Jira ticket DS-1047"</div>
+        </div>
+        <div class="chaos-silo">
+          <div class="chaos-silo-name">&#128202; Data Catalog</div>
+          <div class="chaos-silo-body">Table: events. No description. Owner: unknown. 4 columns documented.</div>
+        </div>
+        <div class="chaos-silo">
+          <div class="chaos-silo-name">&#128190; SQL File</div>
+          <div class="chaos-silo-body">SELECT user_id, COUNT(*) … WHERE event_type = 'session_start' — no comments</div>
+        </div>
+        <div class="chaos-silo">
+          <div class="chaos-silo-name">&#129504; Senior Engineer</div>
+          <div class="chaos-silo-body">"Oh, the real definition uses 7-day rolling window, not calendar week. Talk to Priya."</div>
+        </div>
+        <div class="chaos-silo" style="border-color:rgba(245,158,11,.25);">
+          <div class="chaos-silo-name" style="color:var(--amber2);">&#129302; AI Agent Result</div>
+          <div class="chaos-silo-body" style="color:var(--amber2);">Assembled 3 conflicting definitions. Chose one arbitrarily. Fast, confident, wrong.</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="frag-okf" style="display:none;">
+      <div style="font-size:11px;color:var(--green2);margin-bottom:12px;padding:8px 12px;background:rgba(34,197,94,.06);border-radius:6px;border:1px solid rgba(34,197,94,.15);">
+        &#10003;&nbsp; Agent query: <em>"How do I compute weekly active users?"</em> — walks the OKF bundle, finds one canonical, curated definition.
+      </div>
+      <div class="okf-tree">
+analytics/<br>
+├── index.md&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--muted);">← directory listing</span><br>
+├── metrics/<br>
+│&nbsp;&nbsp; └── <span style="color:var(--green2);">weekly_active_users.md</span>&nbsp;<span style="color:var(--muted);">← canonical definition ✓</span><br>
+├── tables/<br>
+│&nbsp;&nbsp; ├── events.md&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--muted);">← schema + semantics</span><br>
+│&nbsp;&nbsp; └── users.md<br>
+└── log.md&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--muted);">← change history</span>
+      </div>
+      <div class="two-col" style="max-width:600px;gap:10px;">
+        <div class="okf-agent">
+          &#129302; Agent reads <code style="color:var(--green3);">weekly_active_users.md</code><br>
+          <span style="font-size:10px;font-weight:400;color:var(--muted);display:block;margin-top:4px;">Gets: precise SQL, 7-day rolling window definition, citation, and owner — in one file.</span>
+        </div>
+        <div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.2);border-radius:8px;padding:10px 12px;font-size:10px;color:var(--muted);line-height:1.7;">
+          <strong style="color:var(--green2);">No ambiguity:</strong> the <code style="color:var(--green3);">type: Metric</code> document is the single source of truth. Version-controlled in git. Agents and humans read the same file.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="three-col" style="max-width:760px;margin-top:20px;">
+    <div class="card" style="border-color:rgba(239,68,68,.2);">
+      <div class="card-title" style="color:#f87171;">The Tribal Knowledge Tax</div>
+      <div class="card-body">Critical context lives in senior engineers' heads — metric edge cases, join caveats, deprecated fields. OKF's LLM-maintainable format means agents can help write and update documentation, keeping it current at near-zero cost.</div>
+    </div>
+    <div class="card" style="border-color:rgba(245,158,11,.2);">
+      <div class="card-title" style="color:var(--amber2);">Wiki Abandonment Cycle</div>
+      <div class="card-body">Wikis get created. Wikis drift. Wikis get abandoned. OKF's core insight (from Karpathy's LLM Wiki): LLMs don't get bored, don't forget cross-references, and can update 15 files in one pass. The maintenance barrier disappears.</div>
+    </div>
+    <div class="card" style="border-color:rgba(34,197,94,.2);">
+      <div class="card-title" style="color:var(--green2);">The Knowledge Gap in Agents</div>
+      <div class="card-body">Models → reasoning power. MCP tools → execution power. OKF → enterprise judgment. Without the third layer, agents extrapolate from general training data and get org-specific answers wrong. Fast, confident, wrong.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ANATOMY ═══ -->
+<div class="section" id="s-anatomy">
+  <div class="sec-title">Concept Document Anatomy</div>
+  <div class="sec-sub">Every non-reserved <code style="color:var(--green3);">.md</code> file in an OKF bundle is a "concept document" — click annotations to learn each section</div>
+
+  <div class="anatomy-wrap" style="margin-bottom:20px;">
+    <div class="anatomy-header">
+      <span style="color:var(--green2);">tables/orders.md</span>
+      <span>OKF Concept Document — BigQuery Table</span>
+    </div>
+    <div class="anatomy-body">
+      <div class="anatomy-code" id="anatomy-code">
+<span id="ac-fm" class="ann-hl" style="border-left:3px solid var(--green);padding-left:6px;display:block;"><span class="kw">---</span>
+<span class="hl">type</span><span class="kw">: BigQuery Table</span>
+<span class="fn">title</span><span class="kw">: Orders</span>
+<span class="fn">description</span><span class="kw">: One row per completed customer order.</span>
+<span class="fn">resource</span><span class="kw">: https://console.cloud.google.com/bigquery?p=acme&amp;d=sales&amp;t=orders</span>
+<span class="fn">tags</span><span class="kw">: [sales, revenue, core]</span>
+<span class="fn">timestamp</span><span class="kw">: 2026-05-28T14:30:00Z</span>
+<span class="kw">---</span></span>
+
+<span id="ac-schema" class="ann-hl" style="display:block;"><span class="cm"># Schema</span>
+
+| Column       | Type   | Description                                  |
+|--------------|--------|----------------------------------------------|
+| order_id     | STRING | Globally unique order identifier.            |
+| customer_id  | STRING | FK to <span class="hl">[customers](/tables/customers.md)</span>.   |
+| order_date   | DATE   | UTC date the order was placed.               |
+| total_usd    | FLOAT  | Pre-tax order total in US dollars.           |</span>
+
+<span id="ac-joins" class="ann-hl" style="display:block;"><span class="cm"># Joins</span>
+
+Joined with <span class="hl">[customers](/tables/customers.md)</span> on <span class="str">`customer_id`</span>.</span>
+
+<span id="ac-cite" class="ann-hl" style="display:block;"><span class="cm"># Citations</span>
+
+<span class="kw">[1]</span> <span class="hl">[BigQuery export schema](https://support.google.com/...)</span>
+<span class="kw">[2]</span> <span class="hl">[Revenue definitions handbook](/metrics/revenue.md)</span></span>
+      </div>
+      <div class="anatomy-annotations">
+        <div class="ann-item" style="border-color:var(--green);" onclick="hlAnatomyPart('fm')">
+          <div class="ann-label" style="color:var(--green2);">YAML Frontmatter</div>
+          <div class="ann-desc"><code>type</code> is the only required field. All other keys (title, description, resource, tags, timestamp) are optional conventions. Unknown keys must be preserved by consumers.</div>
+        </div>
+        <div class="ann-item" style="border-color:var(--teal);" onclick="hlAnatomyPart('schema')">
+          <div class="ann-label" style="color:var(--teal2);">Schema Section</div>
+          <div class="ann-desc">Optional <code># Schema</code> heading. Recommended Markdown table with Column / Type / Description. Cross-links in descriptions build the knowledge graph.</div>
+        </div>
+        <div class="ann-item" style="border-color:var(--amber);" onclick="hlAnatomyPart('joins')">
+          <div class="ann-label" style="color:var(--amber2);">Joins Section</div>
+          <div class="ann-desc">Optional <code># Joins</code> heading. Markdown links to related concept documents. Link semantics (FK, depends-on, etc.) are conveyed by prose, not link syntax.</div>
+        </div>
+        <div class="ann-item" style="border-color:var(--violet);" onclick="hlAnatomyPart('cite')">
+          <div class="ann-label" style="color:var(--violet2);">Citations Section</div>
+          <div class="ann-desc">Optional <code># Citations</code> heading. Numbered list of external sources backing claims. Helps agents verify and trace provenance of documented knowledge.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="two-col" style="max-width:680px;">
+    <div class="card" style="border-color:rgba(34,197,94,.2);">
+      <div class="card-title" style="color:var(--green2);">Conformance Rules</div>
+      <div class="card-body" style="line-height:1.9;">
+        &#10003; Every <code style="color:var(--green3);">.md</code> has parseable YAML frontmatter<br>
+        &#10003; Every frontmatter has a non-empty <code style="color:var(--green3);">type</code> field<br>
+        &#10003; Reserved filenames (<code style="color:var(--green3);">index.md</code>, <code style="color:var(--green3);">log.md</code>) follow their structures<br><br>
+        <strong style="color:var(--text);">Consumers MUST NOT reject bundles with:</strong><br>
+        missing optional fields, unknown type values, unknown frontmatter keys, broken cross-links, missing index.md
+      </div>
+    </div>
+    <div class="card" style="border-color:rgba(6,182,212,.2);">
+      <div class="card-title" style="color:var(--teal2);">Reserved Filenames</div>
+      <div class="card-body" style="line-height:1.9;">
+        <code style="color:var(--green3);">index.md</code> — directory listing, no frontmatter, format: <code style="color:var(--amber3);">* [Title](url) - description</code><br><br>
+        <code style="color:var(--green3);">log.md</code> — chronological change history, ISO 8601 date headings (<code style="color:var(--amber3);">YYYY-MM-DD</code>), newest-first, prose entries with bold prefixes: <code style="color:var(--amber3);">**Update**</code>, <code style="color:var(--amber3);">**Creation**</code>, <code style="color:var(--amber3);">**Deprecation**</code>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ BUNDLE STRUCTURE ═══ -->
+<div class="section" id="s-structure">
+  <div class="sec-title">Bundle Structure &amp; Knowledge Graph</div>
+  <div class="sec-sub">An OKF bundle is a directory tree — distributable as a git repo, tarball, zip, or cloud storage prefix</div>
+
+  <div class="two-col" style="max-width:760px;margin-bottom:20px;">
+    <div>
+      <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px;">Typical Bundle Layout</div>
+      <div class="code-block" style="color:var(--green3);">
+analytics-bundle/<br>
+├── <span class="hl">index.md</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span class="cm"># root listing (reserved)</span><br>
+├── <span class="hl">log.md</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span class="cm"># change history (reserved)</span><br>
+├── <span class="fn">datasets/</span><br>
+│&nbsp;&nbsp; ├── index.md&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span class="cm"># section listing</span><br>
+│&nbsp;&nbsp; └── sales_db.md&nbsp;&nbsp;&nbsp; <span class="cm"># type: Dataset</span><br>
+├── <span class="fn">tables/</span><br>
+│&nbsp;&nbsp; ├── index.md<br>
+│&nbsp;&nbsp; ├── orders.md&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span class="cm"># type: BigQuery Table</span><br>
+│&nbsp;&nbsp; └── customers.md&nbsp;&nbsp; <span class="cm"># type: BigQuery Table</span><br>
+└── <span class="fn">metrics/</span><br>
+&nbsp;&nbsp;&nbsp; ├── index.md<br>
+&nbsp;&nbsp;&nbsp; └── wau.md&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span class="cm"># type: Metric</span>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px;">Knowledge Graph (Cross-Links)</div>
+      <div id="kg-viz" style="background:#020706;border:1px solid var(--border);border-radius:8px;padding:16px;min-height:200px;position:relative;overflow:hidden;"></div>
+      <div style="font-size:10px;color:var(--muted);margin-top:6px;">Markdown links between concept documents form a directed knowledge graph. Hover nodes to see connections.</div>
+    </div>
+  </div>
+
+  <div class="card" style="max-width:680px;border-color:rgba(34,197,94,.2);">
+    <div class="card-title" style="color:var(--green2);">Progressive Disclosure Navigation</div>
+    <div class="card-body" style="line-height:1.9;">
+      An agent managing token budget navigates the bundle progressively: <strong style="color:var(--text);">root index.md</strong> → finds <code style="color:var(--green3);">metrics/</code> → loads <strong style="color:var(--text);">metrics/index.md</strong> → loads <strong style="color:var(--text);">metrics/wau.md</strong>. Only the 3 files needed are ever read. No bulk-loading required. This makes OKF naturally token-efficient for agentic workflows.
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ECOSYSTEM FIT ═══ -->
+<div class="section" id="s-ecosystem">
+  <div class="sec-title">Where OKF Fits</div>
+  <div class="sec-sub">The three-layer model for AI agents — OKF fills the knowledge layer that most teams neglect</div>
+
+  <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;margin-bottom:24px;">
+    <div class="layer-stack-viz" style="flex-shrink:0;">
+      <div class="layer-viz-item" style="background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.25);">
+        <div class="layer-viz-icon">&#129504;</div>
+        <div><div class="layer-viz-title" style="color:var(--violet2);">Layer 3 — Reasoning</div><div class="layer-viz-sub">Foundation models (GPT-4, Claude, Gemini)<br>Gives agents thinking ability</div></div>
+      </div>
+      <div style="text-align:center;font-size:20px;color:var(--border);">&#8595;</div>
+      <div class="layer-viz-item" style="background:rgba(6,182,212,.1);border:1px solid rgba(6,182,212,.25);">
+        <div class="layer-viz-icon">&#9881;</div>
+        <div><div class="layer-viz-title" style="color:var(--teal2);">Layer 2 — Execution</div><div class="layer-viz-sub">MCP tools, APIs, SQL engines, code interpreters<br>Gives agents action ability</div></div>
+      </div>
+      <div style="text-align:center;font-size:20px;color:var(--border);">&#8595;</div>
+      <div class="layer-viz-item" style="background:rgba(34,197,94,.1);border:2px solid rgba(34,197,94,.4);">
+        <div class="layer-viz-icon">&#128218;</div>
+        <div><div class="layer-viz-title" style="color:var(--green2);">Layer 1 — Knowledge</div><div class="layer-viz-sub"><strong style="color:var(--green2);">OKF fills this layer</strong> — curated organizational context<br>Gives agents enterprise judgment</div></div>
+      </div>
+    </div>
+    <div style="flex:1;min-width:260px;">
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">OKF vs. Adjacent Standards</div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div class="card" style="padding:12px 16px;border-color:rgba(6,182,212,.2);">
+          <div class="card-title" style="font-size:11px;color:var(--teal2);">OKF + MCP = Knowledge + Tools</div>
+          <div class="card-body">MCP gives agents live access to tools at runtime. OKF gives agents curated context about what those tools mean. Together: agents act correctly (MCP) on the right understanding (OKF). Neither replaces the other.</div>
+        </div>
+        <div class="card" style="padding:12px 16px;border-color:rgba(245,158,11,.2);">
+          <div class="card-title" style="font-size:11px;color:var(--amber2);">OKF vs. RAG</div>
+          <div class="card-body">RAG derives knowledge from raw document chunks at query time. OKF stores curated, version-controlled concepts. OKF is the curation layer that makes RAG more accurate — explicit definitions replace ambiguous embeddings.</div>
+        </div>
+        <div class="card" style="padding:12px 16px;border-color:rgba(34,197,94,.2);">
+          <div class="card-title" style="font-size:11px;color:var(--green2);">CLAUDE.md / AGENTS.md hierarchy</div>
+          <div class="card-body"><code style="color:var(--green3);">CLAUDE.md</code> / <code style="color:var(--green3);">AGENTS.md</code> = project-level agent memory (60k+ repos). OKF = org-wide knowledge graphs. MCP = real-time tool integrations. OKF sits between the per-project and the live-tool layers.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="two-col" style="max-width:720px;">
+    <div class="card" style="border-color:rgba(34,197,94,.2);">
+      <div class="card-title" style="color:var(--green2);">Reference Implementations (Apache 2.0)</div>
+      <div class="card-body" style="line-height:1.9;">
+        <strong style="color:var(--text);">1. BigQuery Enrichment Agent</strong> — 2-pass LLM pipeline: Pass 1 drafts OKF documents for every table from BigQuery metadata; Pass 2 crawls authoritative docs to add citations and join paths.<br><br>
+        <strong style="color:var(--text);">2. Static HTML Visualizer</strong> (<code style="color:var(--green3);">viz.html</code>) — Cytoscape.js knowledge graph viewer. Self-contained file, no backend, data never leaves the browser.<br><br>
+        <strong style="color:var(--text);">3. CLI tool (<code style="color:var(--green3);">kcmd</code>)</strong> — TypeScript, bidirectional sync between local OKF files and Google Cloud Knowledge Catalog.
+      </div>
+    </div>
+    <div class="card" style="border-color:rgba(245,158,11,.2);">
+      <div class="card-title" style="color:var(--amber2);">The Open-Core Strategy</div>
+      <div class="card-body" style="line-height:1.9;">
+        OKF gives away the cheap part — a file format any text editor can open. Simultaneously, Google Cloud updated <strong style="color:var(--text);">Cloud Knowledge Catalog</strong> to ingest OKF bundles and serve them to Vertex AI agents automatically.<br><br>
+        This is the classic open-format / managed-service strategy: format is free and portable; enterprise infrastructure (audit trails, RBAC, automated refresh, agent integration) lives in the managed service.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ STANDARDS LANDSCAPE ═══ -->
+<div class="section" id="s-standards">
+  <div class="sec-title">Standards Landscape</div>
+  <div class="sec-sub">OKF deliberately inverts the complexity of prior standards — click each to compare</div>
+
+  <div class="std-tabs" id="std-tabs">
+    <div class="std-tab active" onclick="setStd(0)">vs DCAT</div>
+    <div class="std-tab" onclick="setStd(1)">vs Frictionless</div>
+    <div class="std-tab" onclick="setStd(2)">vs Data Contracts</div>
+    <div class="std-tab" onclick="setStd(3)">vs Delta Sharing</div>
+    <div class="std-tab" onclick="setStd(4)">vs MCP</div>
+  </div>
+
+  <div id="std-panels"></div>
+</div>
+
+<!-- ═══ LIVE BUILDER ═══ -->
+<div class="section" id="s-builder">
+  <div class="sec-title">Live OKF Document Builder</div>
+  <div class="sec-sub">Fill in the fields below — a conformant OKF concept document is generated in real-time. Watch the conformance status change as you add the required <code style="color:var(--green3);">type</code> field.</div>
+
+  <div class="builder-wrap">
+    <div class="builder-row">
+      <div class="builder-label">type <span style="color:var(--red);">*</span></div>
+      <div>
+        <input class="builder-input" id="b-type" placeholder="e.g. BigQuery Table, Metric, Runbook, API" oninput="updateBuilder()">
+        <div style="font-size:10px;color:var(--muted);margin-top:3px;">The only required field. Producers choose their own type names.</div>
+      </div>
+    </div>
+    <div class="builder-row">
+      <div class="builder-label">title</div>
+      <input class="builder-input" id="b-title" placeholder="e.g. Weekly Active Users" oninput="updateBuilder()">
+    </div>
+    <div class="builder-row">
+      <div class="builder-label">description</div>
+      <input class="builder-input" id="b-desc" placeholder="One sentence summary of this concept" oninput="updateBuilder()">
+    </div>
+    <div class="builder-row">
+      <div class="builder-label">resource</div>
+      <input class="builder-input" id="b-resource" placeholder="URI to the authoritative source" oninput="updateBuilder()">
+    </div>
+    <div class="builder-row">
+      <div class="builder-label">tags</div>
+      <input class="builder-input" id="b-tags" placeholder="sales, revenue, core (comma-separated)" oninput="updateBuilder()">
+    </div>
+    <div class="builder-row">
+      <div class="builder-label">schema rows</div>
+      <input class="builder-input" id="b-schema" placeholder="col1:TYPE:desc, col2:TYPE:desc (comma-separated triplets)" oninput="updateBuilder()">
+    </div>
+    <div class="builder-conformance">
+      <div id="b-badge" style="padding:3px 10px;border-radius:20px;background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.2);font-size:10px;">&#10006; Not conformant — add type field</div>
+    </div>
+    <div class="builder-output" id="b-output">Fill in the <strong>type</strong> field to generate a conformant OKF document.</div>
+    <button class="ll-btn" style="margin-top:10px;" onclick="copyBuilder()">&#128203; Copy to Clipboard</button>
+  </div>
+</div>
+
+<!-- ═══ EXERCISES ═══ -->
+<div class="section" id="s-exercises">
+  <div class="sec-title">Practice Exercises</div>
+  <div class="sec-sub">Three browser exercises + one live lab to solidify your OKF understanding</div>
+
+  <!-- EX 1: Conformance Quiz -->
+  <div class="ex-box">
+    <div class="ex-num"><span class="ex-num-badge">1</span>&nbsp; OKF Conformance Checker</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">
+      Below are 4 concept document frontmatter snippets. For each one, decide whether it is <strong style="color:var(--green2);">conformant</strong> or <strong style="color:#f87171;">non-conformant</strong> with OKF v0.1 rules, then explain why.
+    </div>
+    <div id="ex1-cards"></div>
+    <button class="ex-check-btn" onclick="checkEx1()">&#10003;&nbsp; Check Answers</button>
+    <div id="ex1-result" class="ex-result"></div>
+  </div>
+
+  <!-- EX 2: Layer Matcher -->
+  <div class="ex-box">
+    <div class="ex-num"><span class="ex-num-badge">2</span>&nbsp; Layer Matcher — OKF, MCP, RAG, or Data Contract?</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">For each scenario, select whether OKF, MCP, RAG, or a Data Contract is the primary solution.</div>
+    <div id="ex2-cards"></div>
+  </div>
+
+  <!-- EX 3: Index.md Builder -->
+  <div class="ex-box">
+    <div class="ex-num"><span class="ex-num-badge">3</span>&nbsp; OKF Structure Quiz</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">Test your understanding of OKF's reserved filenames, conformance rules, and versioning.</div>
+    <div id="ex3-cards"></div>
+  </div>
+
+  <!-- LIVE LAB -->
+  <div class="ex-box" style="border-color:rgba(34,197,94,.3);">
+    <div class="ex-num" style="background:rgba(34,197,94,.15);border-color:rgba(34,197,94,.3);">
+      <span class="ex-num-badge" style="background:var(--amber);">&#9733;</span>&nbsp; Live Lab — OKF Document Generator
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">
+      Describe a database table (name, purpose, main columns) in plain text. gpt-4o-mini generates a complete, conformant OKF concept document for it — including proper frontmatter, schema table, join hints, and citations. Optional OpenAI key (~$0.001/run).
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px;">
+      <input class="ll-key-input" id="ll-key-in" type="password" placeholder="OpenAI API key (sk-...)" oninput="llKeyType()" style="max-width:320px;">
+      <button class="ll-btn" id="ll-save-btn" onclick="llSaveKey()" style="margin-top:0;" disabled>Save Key</button>
+      <button class="ll-btn ll-btn-outline" onclick="llClearKey()" style="margin-top:0;">Clear</button>
+    </div>
+    <div id="ll-key-st" style="font-size:11px;color:var(--muted);margin-bottom:12px;min-height:14px;"></div>
+    <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;">Describe your table <span style="font-weight:400;text-transform:none;letter-spacing:0;">(pre-filled with an example)</span></div>
+    <textarea class="ll-text" id="ll-text-in" rows="4">Table name: user_sessions. Purpose: tracks every user login session in our SaaS app. Key columns: session_id (unique string), user_id (FK to users table), started_at (timestamp), ended_at (timestamp), device_type (mobile/desktop/tablet), country_code (ISO 2-char). Owner: growth-eng team. Used to compute WAU and DAU metrics.</textarea>
+    <button class="ll-btn" id="ll-btn-run" onclick="llRun()" disabled>&#128218;&nbsp; Generate OKF Document</button>
+    <div class="ll-status" id="ll-status"></div>
+    <div id="ll-output-box" style="margin-top:16px;display:none;">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;">Generated OKF Document</div>
+      <div class="ll-output" id="ll-output"></div>
+      <button class="ll-btn ll-btn-outline" onclick="llReset()" style="margin-top:8px;">&#8635;&nbsp; Generate Another</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ RELATED POSTS ═══ -->
+<div class="section" id="s-refs">
+  <div class="sec-title">Related Posts</div>
+  <div class="sec-sub">Complete your AI systems knowledge stack</div>
+  <div class="three-col" style="max-width:720px;">
+    <a class="card" href="../17-mcp/" style="border-color:rgba(6,182,212,.3);display:block;">
+      <div class="card-title" style="color:var(--teal2);">Post 17 &mdash; MCP Introduction</div>
+      <div class="card-body">The Model Context Protocol: OKF's complementary "Execution layer" partner. Where OKF is static curated knowledge, MCP is live tool access. Together they form Layer 1 + Layer 2 of the agent stack.</div>
+    </a>
+    <a class="card" href="../55-mcp-security/" style="border-color:rgba(239,68,68,.3);display:block;">
+      <div class="card-title" style="color:#f87171;">Post 55 &mdash; Securing MCP</div>
+      <div class="card-body">OKF bundles exposed via MCP are an attack surface — understanding how agents query knowledge files matters for the lethal trifecta threat model. OKF's provenance (log.md) also supports the audit layer.</div>
+    </a>
+    <a class="card" href="../21-rag/" style="border-color:rgba(245,158,11,.3);display:block;">
+      <div class="card-title" style="color:var(--amber2);">Post 21 &mdash; RAG</div>
+      <div class="card-body">Retrieval-Augmented Generation retrieves chunks; OKF retrieves curated concepts. OKF-as-a-knowledge-layer dramatically improves the signal quality that RAG pipelines retrieve — fewer ambiguous embeddings, more precise answers.</div>
+    </a>
+  </div>
+</div>
+
+<!-- CONTINUE STRIP -->
+<div class="continue-strip">
+  <div>
+    <div class="cs-label">&#8592; Previous Post</div>
+    <a href="../56-multi-vector/" class="cs-title">Post 56 &mdash; Multi-Vector Embeddings</a>
+  </div>
+  <div style="text-align:right;">
+    <div class="cs-label">All Posts &#8594;</div>
+    <a href="../" class="cs-title" style="color:var(--green2);">Visual Summary</a>
+  </div>
+</div>
+
+</div><!-- end .main -->
+
+<script>
+function goTo(id){var el=document.getElementById(id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});}
+
+// ── FRAG TOGGLE ───────────────────────────────────────────────────────────────
+function setFrag(mode){
+  document.getElementById('frag-chaos').style.display=mode==='chaos'?'block':'none';
+  document.getElementById('frag-okf').style.display=mode==='okf'?'block':'none';
+  document.getElementById('ft-chaos').className='frag-tab chaos'+(mode==='chaos'?' active':'');
+  document.getElementById('ft-okf').className='frag-tab okf'+(mode==='okf'?' active':'');
+}
+
+// ── ANATOMY HIGHLIGHT ────────────────────────────────────────────────────────
+function hlAnatomyPart(part){
+  ['fm','schema','joins','cite'].forEach(function(p){
+    var el=document.getElementById('ac-'+p);
+    if(el)el.style.borderLeft=p===part?'3px solid var(--green)':'none';
+    if(el)el.style.background=p===part?'rgba(34,197,94,.04)':'transparent';
+    if(el)el.style.paddingLeft=p===part?'6px':'0';
+  });
+}
+
+// ── KNOWLEDGE GRAPH ───────────────────────────────────────────────────────────
+function buildKG(){
+  var nodes=[
+    {id:'wau',label:'weekly_active_users.md',x:50,y:30,color:'var(--amber)'},
+    {id:'events',label:'events.md',x:20,y:65,color:'var(--teal)'},
+    {id:'users',label:'users.md',x:80,y:65,color:'var(--teal)'},
+    {id:'orders',label:'orders.md',x:50,y:100,color:'var(--green)'},
+    {id:'customers',label:'customers.md',x:80,y:100,color:'var(--green)'},
+  ];
+  var edges=[
+    {from:'wau',to:'events'},
+    {from:'wau',to:'users'},
+    {from:'orders',to:'customers'},
+  ];
+  var W=320,H=140;
+  var svg='<svg width="100%" viewBox="0 0 '+W+' '+H+'" style="overflow:visible;">';
+  edges.forEach(function(e){
+    var s=nodes.find(function(n){return n.id===e.from;});
+    var t=nodes.find(function(n){return n.id===e.to;});
+    if(!s||!t)return;
+    svg+='<line x1="'+(s.x/100*W)+'" y1="'+(s.y/100*H)+'" x2="'+(t.x/100*W)+'" y2="'+(t.y/100*H)+'" stroke="rgba(34,197,94,.3)" stroke-width="1.5" stroke-dasharray="4,3"/>';
+  });
+  nodes.forEach(function(n){
+    svg+='<g><circle cx="'+(n.x/100*W)+'" cy="'+(n.y/100*H)+'" r="7" fill="'+n.color+'" opacity=".7"/>';
+    svg+='<text x="'+(n.x/100*W+10)+'" y="'+(n.y/100*H+4)+'" fill="#4ade80" font-size="8" font-family="JetBrains Mono, monospace">'+n.label+'</text></g>';
+  });
+  svg+='</svg>';
+  document.getElementById('kg-viz').innerHTML=svg;
+}
+buildKG();
+
+// ── STANDARDS PANELS ─────────────────────────────────────────────────────────
+var STDS=[
+  {name:'DCAT',
+   rows:[
+     ['Foundation','RDF/OWL ontology (triples)','Plain Markdown + YAML'],
+     ['Human readability','Low — requires tooling','High — any text editor'],
+     ['Agent consumption','Requires SPARQL/RDF','Direct file read'],
+     ['Setup cost','High — schema + toolchain','Near-zero'],
+     ['Standardization','W3C','Google Cloud (Apache 2.0)'],
+     ['Target','Gov open data catalogs','AI agents + engineers'],
+   ],
+   insight:'DCAT is semantically richer (can express arbitrary RDF triples). OKF deliberately inverts this bet: fewer features = more adoption. W3C OWL/RDF had more power and failed to achieve broad adoption due to complexity.',
+   insight_color:'var(--amber2)'},
+  {name:'Frictionless Data',
+   rows:[
+     ['Format','datapackage.json (JSON)','Directories of .md files'],
+     ['Primary focus','Tabular data + schema','Knowledge around data'],
+     ['Contains data?','Yes (CSV, JSON files)','No — references data'],
+     ['Required fields','resources array','type field only'],
+     ['Human readable','Low (JSON)','High (Markdown)'],
+     ['Relationship graph','No','Yes (Markdown links)'],
+   ],
+   insight:'Frictionless Data packages the data itself. OKF packages knowledge about data. Complementary: an OKF bundle might reference a Frictionless Data package for the actual tabular content.',
+   insight_color:'var(--teal2)'},
+  {name:'Data Contracts',
+   rows:[
+     ['Focus','Governance, SLAs, quality rules','Knowledge and context'],
+     ['Fields','Schema + quality + SLA + owner','type + optional metadata'],
+     ['Consumers','Data platform governance','AI agents + humans'],
+     ['Enforcement','Machine-enforced','Producer convention only'],
+     ['Rigidity','Highly structured','Intentionally minimal'],
+     ['Spec complexity','High (v3.1, multi-section)','451 lines of Markdown'],
+   ],
+   insight:'Data Contracts govern data pipelines with SLAs and quality expectations. OKF documents what data means. OKF documents can include contract-like elements (ownership, confidence level) but without enforcement — the agent stack vs. the governance stack.',
+   insight_color:'var(--violet2)'},
+  {name:'Delta Sharing',
+   rows:[
+     ['Focus','Secure cross-org data access','Knowledge context packaging'],
+     ['Mechanism','HTTP API + Parquet/Delta Lake','Plain Markdown files'],
+     ['Carries','Actual data','Metadata and context'],
+     ['Infrastructure','Requires server runtime','Zero infrastructure'],
+     ['Authentication','Required (access control)','None (format only)'],
+     ['Use case','Cross-org data transfer','Knowledge documentation'],
+   ],
+   insight:'Delta Sharing solves how to transfer data securely across organizations. OKF solves what context surrounds data. They operate at different layers and could be combined: a Delta Sharing endpoint can have an OKF bundle describing its datasets.',
+   insight_color:'var(--emerald2)'},
+  {name:'MCP',
+   rows:[
+     ['Nature','Runtime protocol','Static file format'],
+     ['Focus','Live tool execution','Curated knowledge layer'],
+     ['Freshness','Real-time','Point-in-time (timestamp)'],
+     ['Infrastructure','Client/server runtime','Git repo or directory'],
+     ['Relationship','Execution layer (L2)','Knowledge layer (L1)'],
+     ['Complementarity','&#10003; Works with OKF','&#10003; Works with MCP'],
+   ],
+   insight:'MCP and OKF are explicitly complementary. MCP gives agents live access to tools; OKF gives agents curated context about what those tools mean. Post 55 covered the security implications of combining both in one agent session.',
+   insight_color:'var(--green2)'},
+];
+
+function buildStdPanels(){
+  document.getElementById('std-panels').innerHTML=STDS.map(function(s,i){
+    var rows=s.rows.map(function(r){
+      return '<tr><td style="padding:6px 10px;border-bottom:1px solid rgba(23,54,35,.6);font-weight:600;color:var(--text);font-size:11px;min-width:120px;">'+r[0]+'</td>' +
+        '<td style="padding:6px 10px;border-bottom:1px solid rgba(23,54,35,.6);font-size:11px;color:var(--muted);">'+r[1]+'</td>' +
+        '<td style="padding:6px 10px;border-bottom:1px solid rgba(23,54,35,.6);font-size:11px;color:var(--green2);">'+r[2]+'</td></tr>';
+    }).join('');
+    return '<div class="std-panel'+(i===0?' active':'')+'" id="std-p-'+i+'">' +
+      '<div>' +
+        '<table style="border-collapse:collapse;width:100%;">' +
+          '<thead><tr>' +
+            '<th style="padding:6px 10px;text-align:left;font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);">Dimension</th>' +
+            '<th style="padding:6px 10px;text-align:left;font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);">'+s.name+'</th>' +
+            '<th style="padding:6px 10px;text-align:left;font-size:9px;font-weight:700;color:var(--green2);text-transform:uppercase;border-bottom:1px solid var(--border);">OKF</th>' +
+          '</tr></thead>' +
+          '<tbody>'+rows+'</tbody>' +
+        '</table>' +
+      '</div>' +
+      '<div class="card" style="padding:12px 16px;border-color:'+s.insight_color.replace('var(','rgba(').replace('--green2','34,197,94').replace('--teal2','6,182,212').replace('--violet2','139,92,246').replace('--emerald2','16,185,129').replace('--amber2','245,158,11')+',.25);align-self:start;">' +
+        '<div class="card-title" style="font-size:11px;color:'+s.insight_color+';">Key Distinction</div>' +
+        '<div class="card-body">'+s.insight+'</div>' +
+      '</div>' +
+      '</div>';
+  }).join('');
+}
+function setStd(i){
+  document.querySelectorAll('.std-tab').forEach(function(t,idx){t.classList.toggle('active',idx===i);});
+  document.querySelectorAll('.std-panel').forEach(function(p,idx){p.classList.toggle('active',idx===i);});
+}
+buildStdPanels();
+
+// ── BUILDER ──────────────────────────────────────────────────────────────────
+function updateBuilder(){
+  var type=document.getElementById('b-type').value.trim();
+  var title=document.getElementById('b-title').value.trim();
+  var desc=document.getElementById('b-desc').value.trim();
+  var resource=document.getElementById('b-resource').value.trim();
+  var tags=document.getElementById('b-tags').value.trim();
+  var schema=document.getElementById('b-schema').value.trim();
+  var conformant=type.length>0;
+  var badge=document.getElementById('b-badge');
+  badge.textContent=conformant?'&#10003; Conformant (type field present)':'&#10006; Not conformant — add type field';
+  badge.style.background=conformant?'rgba(34,197,94,.12)':'rgba(239,68,68,.12)';
+  badge.style.color=conformant?'var(--green2)':'#f87171';
+  badge.style.borderColor=conformant?'rgba(34,197,94,.2)':'rgba(239,68,68,.2)';
+  if(!type){document.getElementById('b-output').textContent='Fill in the type field to generate a conformant OKF document.';return;}
+  var now=new Date().toISOString().split('.')[0]+'Z';
+  var fm='---\n';
+  fm+='type: '+type+'\n';
+  if(title)fm+='title: '+title+'\n';
+  if(desc)fm+='description: '+desc+'\n';
+  if(resource)fm+='resource: '+resource+'\n';
+  if(tags)fm+='tags: ['+tags.split(',').map(function(t){return t.trim();}).filter(Boolean).join(', ')+']\n';
+  fm+='timestamp: '+now+'\n';
+  fm+='---\n';
+  var body='';
+  if(schema){
+    body+='\n# Schema\n\n| Column | Type | Description |\n|--------|------|-------------|\n';
+    schema.split(',').forEach(function(s){
+      var parts=s.trim().split(':');
+      if(parts.length>=2)body+='| '+(parts[0]||'').trim()+' | '+(parts[1]||'').trim()+' | '+(parts[2]||'').trim()+' |\n';
+    });
+  }
+  body+='\n# Examples\n\n_Add usage examples here._\n';
+  document.getElementById('b-output').textContent=fm+body;
+}
+function copyBuilder(){
+  var txt=document.getElementById('b-output').textContent;
+  navigator.clipboard.writeText(txt).then(function(){alert('Copied to clipboard!');}).catch(function(){});
+}
+
+// ── EXERCISE 1: CONFORMANCE QUIZ ──────────────────────────────────────────────
+var EX1_ITEMS=[
+  {
+    snippet:'---\ntitle: Revenue Report\ndescription: Monthly revenue by region.\n---',
+    conformant:false,
+    explain:'Non-conformant — the required <code>type</code> field is missing. OKF v0.1 conformance requires every non-reserved .md file to have a non-empty <code>type</code> field in its YAML frontmatter. Title and description alone are not sufficient.'
+  },
+  {
+    snippet:'---\ntype: Metric\ntitle: Daily Active Users\ndestination: /metrics/dau.md\n---',
+    conformant:true,
+    explain:'Conformant — <code>type: Metric</code> is present and non-empty. The unknown key <code>destination</code> is acceptable: consumers MUST NOT reject bundles containing unknown frontmatter keys. The spec explicitly requires consumers to preserve unrecognized fields.'
+  },
+  {
+    snippet:'---\ntype: \ntitle: Orders Table\ndescription: Order data.\n---',
+    conformant:false,
+    explain:'Non-conformant — <code>type</code> is present but empty. The spec requires a <em>non-empty</em> type field. An empty string value does not satisfy the conformance requirement.'
+  },
+  {
+    snippet:'---\ntype: Runbook\ntitle: Incident Response\ntimestamp: 2026-06-01T09:00:00Z\ncustom_owner: platform-ops\n---',
+    conformant:true,
+    explain:'Conformant — <code>type: Runbook</code> is present and non-empty. The custom <code>custom_owner</code> field is an extension: consumers MUST preserve unknown keys and MUST NOT reject the document because of them. The timestamp is valid ISO 8601.'
+  }
+];
+var ex1State=EX1_ITEMS.map(function(){return null;});
+
+function buildEx1(){
+  document.getElementById('ex1-cards').innerHTML=EX1_ITEMS.map(function(item,i){
+    return '<div class="q-card">' +
+      '<div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px;">Snippet '+(i+1)+':</div>' +
+      '<div class="okf-snippet">'+item.snippet.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:4px;">' +
+        '<button class="choice-btn" id="ex1-'+i+'-conf" onclick="pickEx1('+i+',true)">&#10003; Conformant</button>' +
+        '<button class="choice-btn" id="ex1-'+i+'-nonconf" onclick="pickEx1('+i+',false)">&#10006; Non-conformant</button>' +
+      '</div>' +
+      '<div class="fb-box" id="ex1-fb-'+i+'"></div>' +
+      '</div>';
+  }).join('');
+}
+function pickEx1(i,choice){
+  if(ex1State[i]!==null)return;
+  ex1State[i]=choice;
+  var ok=choice===EX1_ITEMS[i].conformant;
+  var cBtn=document.getElementById('ex1-'+i+'-conf');
+  var ncBtn=document.getElementById('ex1-'+i+'-nonconf');
+  if(EX1_ITEMS[i].conformant){cBtn.className='choice-btn correct';ncBtn.className='choice-btn wrong';}
+  else{ncBtn.className='choice-btn correct';cBtn.className='choice-btn wrong';}
+  if(!ok){(choice?cBtn:ncBtn).className='choice-btn wrong';}
+  cBtn.disabled=ncBtn.disabled=true;
+  var fb=document.getElementById('ex1-fb-'+i);
+  fb.className='fb-box show '+(ok?'fb-ok':'fb-no');
+  fb.innerHTML=(ok?'&#10003; Correct — ':'&#10007; Incorrect — ')+EX1_ITEMS[i].explain;
+}
+function checkEx1(){
+  var unanswered=ex1State.filter(function(s){return s===null;}).length;
+  if(unanswered>0){alert('Please answer all '+(unanswered)+' remaining snippet(s) first.');return;}
+  var correct=ex1State.filter(function(s,i){return s===EX1_ITEMS[i].conformant;}).length;
+  var res=document.getElementById('ex1-result');
+  res.className='ex-result show '+(correct===4?'ex-pass':'ex-partial');
+  res.innerHTML=(correct===4?'&#10003; Perfect — 4/4 correct! You have a solid grasp of OKF v0.1 conformance rules.':'&#9888; '+correct+'/4 correct. Review the feedback above — the key rule is: <code>type</code> must be present AND non-empty; unknown keys are always allowed.');
+}
+buildEx1();
+
+// ── EXERCISE 2: LAYER MATCHER ─────────────────────────────────────────────────
+var EX2=[
+  {q:'A data team wants to give AI agents the canonical definition of "monthly recurring revenue" — what it includes, what it excludes, which table to query, and who owns the definition.',correct:'OKF',choices:['OKF','MCP','RAG','Data Contract'],fb:{'OKF':'&#10003; Correct. This is exactly the knowledge-layer problem OKF solves: curated, version-controlled canonical definitions that agents can navigate directly. An OKF Metric document with type, description, SQL pattern, and citations is the right answer.','MCP':'MCP provides live tool access (query a database, call an API). It doesn\'t store curated definitions. The definition of MRR should be in an OKF file; the MCP tool might execute the SQL query.','RAG':'RAG retrieves chunks from documents at query time. For a precise, high-stakes definition like MRR, you want explicit curation (OKF), not probabilistic retrieval from wiki chunks. RAG might find conflicting definitions.','Data Contract':'Data Contracts govern pipeline SLAs and quality expectations. A data contract might reference the MRR definition but doesn\'t document semantic meaning for agents to navigate.'}},
+  {q:'A platform team wants agents to execute queries against a BigQuery dataset in real time — reading live data, running aggregations, and returning results to users.',correct:'MCP',choices:['OKF','MCP','RAG','Data Contract'],fb:{'OKF':'OKF is a static knowledge format — it documents what a table means, not how to execute queries against it. Live query execution requires a tool, not a file.','MCP':'&#10003; Correct. MCP (the execution layer) provides the runtime protocol for agents to call a BigQuery tool and get live results. OKF might document what the dataset means; MCP executes against it.','RAG':'RAG retrieves from a vector index of pre-indexed documents. It doesn\'t execute live database queries.','Data Contract':'Data Contracts define schema and quality expectations. They don\'t provide runtime execution capability.'}},
+  {q:'An engineering team has 10,000 internal documents, Confluence pages, and GitHub READMEs. They want to surface relevant chunks when an agent answers questions — no curation, just bulk retrieval.',correct:'RAG',choices:['OKF','MCP','RAG','Data Contract'],fb:{'OKF':'OKF requires curation: someone must write or generate a concept document for each knowledge unit. For 10,000 uncurated documents where bulk indexing is the goal, RAG is the right starting point.','MCP':'MCP provides tool access, not document retrieval from a bulk corpus.','RAG':'&#10003; Correct. For bulk, uncurated document retrieval, RAG (embed documents, retrieve by similarity) is the right tool. OKF becomes valuable when you want to curate the most important knowledge on top of RAG.','Data Contract':'Data Contracts are for data pipeline governance, not document retrieval.'}},
+  {q:'A data platform team wants to enforce that the orders table always has <1% null rate on order_id, and any schema changes must go through an approval workflow with a defined SLA.',correct:'Data Contract',choices:['OKF','MCP','RAG','Data Contract'],fb:{'OKF':'OKF can document ownership and caveats but doesn\'t enforce SLAs or run quality checks. It\'s descriptive, not prescriptive.','MCP':'MCP provides tool access, not pipeline governance or quality enforcement.','RAG':'RAG is for retrieval, not governance enforcement.','Data Contract':'&#10003; Correct. Quality assertions, SLAs, schema change workflows — these are exactly what data contracts (Open Data Contract Standard v3.x) are designed to enforce. OKF documents what the data means; contracts govern how it must behave.'}}
+];
+var ex2State=EX2.map(function(){return null;});
+
+function buildEx2(){
+  document.getElementById('ex2-cards').innerHTML=EX2.map(function(q,i){
+    return '<div class="q-card"><div style="font-size:12px;color:var(--text);margin-bottom:10px;line-height:1.7;"><strong style="color:var(--green2);">Scenario '+(i+1)+':</strong> '+q.q+'</div>' +
+      '<div style="display:flex;flex-wrap:wrap;">'+q.choices.map(function(c){return '<button class="choice-btn" id="ex2-'+i+'-'+c.replace(/\s/g,'')+'" onclick="pickEx2('+i+',\''+c+'\')">'+c+'</button>';}).join('')+'</div>' +
+      '<div class="fb-box" id="ex2fb-'+i+'"></div></div>';
+  }).join('');
+}
+function pickEx2(i,choice){
+  if(ex2State[i]!==null)return;
+  ex2State[i]=choice;
+  var q=EX2[i];var ok=choice===q.correct;
+  q.choices.forEach(function(c){
+    var btn=document.getElementById('ex2-'+i+'-'+c.replace(/\s/g,''));
+    if(!btn)return;
+    if(c===q.correct)btn.className='choice-btn correct';
+    else if(c===choice)btn.className='choice-btn wrong';
+    else{btn.disabled=true;btn.style.opacity='.4';}
+  });
+  var fb=document.getElementById('ex2fb-'+i);
+  fb.className='fb-box show '+(ok?'fb-ok':'fb-no');
+  fb.textContent=q.fb[choice];
+}
+buildEx2();
+
+// ── EXERCISE 3: STRUCTURE QUIZ ────────────────────────────────────────────────
+var EX3=[
+  {q:'Which of the following is the ONLY mandatory field in an OKF concept document\'s frontmatter?',correct:'type',choices:['title','type','resource','description'],fb:{'type':'&#10003; Correct. The OKF v0.1 spec has exactly one required field: <code>type</code> — and it must be non-empty. All other frontmatter fields (title, description, resource, tags, timestamp) are recommended conventions but optional.','title':'Title is a recommended convention but optional. Only <code>type</code> is required.','resource':'Resource (the URI to the authoritative source) is optional. Very useful, but not required for conformance.','description':'Description is optional. A bundle with only <code>type: Runbook</code> in its frontmatter is conformant.'}},
+  {q:'An OKF consumer reads a bundle and finds a concept document with frontmatter containing <code>custom_priority: P1</code> — a key not mentioned in the spec. What should the consumer do?',correct:'Preserve the unknown key and continue',choices:['Reject the bundle as non-conformant','Strip the unknown key and continue','Preserve the unknown key and continue','Throw an error and stop processing'],fb:{'Preserve the unknown key and continue':'&#10003; Correct. OKF consumers MUST preserve unknown frontmatter keys. The spec explicitly states that bundles MUST NOT be rejected because of unrecognized fields. This extensibility is intentional — producers need to add custom metadata without breaking consumers.','Reject the bundle as non-conformant':'The opposite of the spec rule. Unknown keys are explicitly allowed — producers need to extend the format without breaking existing consumers.','Strip the unknown key and continue':'Also wrong. Consumers must PRESERVE (not strip) unknown keys. Silently stripping custom metadata would break producer workflows.','Throw an error and stop processing':'Wrong. The spec is explicit: consumers should tolerate unknown fields, unknown type values, broken cross-links, and missing optional files — all gracefully.'}}
+];
+var ex3State=EX3.map(function(){return null;});
+function buildEx3(){
+  document.getElementById('ex3-cards').innerHTML=EX3.map(function(q,i){
+    return '<div class="q-card"><div style="font-size:12px;color:var(--text);margin-bottom:10px;line-height:1.7;"><strong style="color:var(--green2);">Q'+(i+1)+':</strong> '+q.q+'</div>' +
+      '<div style="display:flex;flex-wrap:wrap;">'+q.choices.map(function(c){return '<button class="choice-btn" id="ex3-'+i+'-'+c.replace(/[^a-zA-Z0-9]/g,'').substring(0,16)+'" onclick="pickEx3('+i+',\''+c.replace(/'/g,"\\'")+'\')">'+c+'</button>';}).join('')+'</div>' +
+      '<div class="fb-box" id="ex3fb-'+i+'"></div></div>';
+  }).join('');
+}
+function pickEx3(i,choice){
+  if(ex3State[i]!==null)return;
+  ex3State[i]=choice;
+  var q=EX3[i];var ok=choice===q.correct;
+  var allBtns=document.querySelectorAll('[id^="ex3-'+i+'-"]');
+  allBtns.forEach(function(btn){
+    if(btn.textContent===q.correct)btn.className='choice-btn correct';
+    else if(btn.textContent===choice)btn.className='choice-btn wrong';
+    else{btn.disabled=true;btn.style.opacity='.4';}
+  });
+  var fb=document.getElementById('ex3fb-'+i);
+  fb.className='fb-box show '+(ok?'fb-ok':'fb-no');
+  fb.innerHTML=q.fb[choice]||q.fb[Object.keys(q.fb).find(function(k){return choice.startsWith(k.substring(0,10));})];
+}
+buildEx3();
+
+// ── LIVE LAB ──────────────────────────────────────────────────────────────────
+var ll={apiKey:''};
+function llInit(){
+  var k=localStorage.getItem('ll_openai_key_57');
+  if(k){ll.apiKey=k;document.getElementById('ll-key-in').value=k;document.getElementById('ll-key-st').textContent='Key loaded.';document.getElementById('ll-btn-run').disabled=false;}
+}
+function llKeyType(){document.getElementById('ll-save-btn').disabled=document.getElementById('ll-key-in').value.trim().length<10;}
+function llSaveKey(){var v=document.getElementById('ll-key-in').value.trim();if(v.length<10)return;ll.apiKey=v;localStorage.setItem('ll_openai_key_57',v);document.getElementById('ll-key-st').textContent='Key saved.';document.getElementById('ll-btn-run').disabled=false;}
+function llClearKey(){ll.apiKey='';localStorage.removeItem('ll_openai_key_57');document.getElementById('ll-key-in').value='';document.getElementById('ll-key-st').textContent='Key cleared.';document.getElementById('ll-btn-run').disabled=true;}
+function llReset(){document.getElementById('ll-output-box').style.display='none';document.getElementById('ll-btn-run').disabled=false;}
+
+async function llRun(){
+  if(!ll.apiKey){alert('Save your OpenAI key first.');return;}
+  var desc=document.getElementById('ll-text-in').value.trim();
+  if(!desc){alert('Describe your table first.');return;}
+  var btn=document.getElementById('ll-btn-run');
+  var st=document.getElementById('ll-status');
+  btn.disabled=true;st.className='ll-status live';st.textContent='Generating OKF concept document…';
+  var prompt='You are an expert in the Open Knowledge Format (OKF) v0.1, a spec by Google Cloud for packaging organizational knowledge as Markdown files.\n\nGenerate a complete, conformant OKF concept document based on this description:\n---\n'+desc+'\n---\n\nRequirements:\n1. Begin with YAML frontmatter delimited by --- (required: type field; include title, description, resource as placeholder URL, tags, timestamp as today 2026-06-17T00:00:00Z)\n2. Include a # Schema section with a proper Markdown table (Column | Type | Description) based on the described columns\n3. Include a # Joins section if any foreign keys were mentioned (use Markdown link syntax like [table_name](/tables/table_name.md))\n4. Include a brief # Examples section showing a sample SQL query that uses this table\n5. Choose an appropriate type value (e.g. "BigQuery Table", "Metric", "Runbook", etc.)\n\nReturn ONLY the Markdown content of the .md file — no additional explanation. Start with the --- frontmatter delimiter.';
+  try{
+    var r=await fetch('https://api.openai.com/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+ll.apiKey},
+      body:JSON.stringify({model:'gpt-4o-mini',messages:[{role:'system',content:'You are a data engineer expert in the Open Knowledge Format specification.'},{role:'user',content:prompt}],max_tokens:700,temperature:0.2})
+    });
+    var d=await r.json();
+    if(d.error)throw new Error(d.error.message);
+    st.className='ll-status';
+    document.getElementById('ll-output').textContent=d.choices[0].message.content.trim();
+    document.getElementById('ll-output-box').style.display='block';
+    btn.disabled=false;
+  }catch(e){st.className='ll-status';btn.disabled=false;alert('OpenAI error: '+e.message);}
+}
+llInit();
+
+// ── SCROLL SPY ───────────────────────────────────────────────────────────────
+var mainEl=document.getElementById('main');
+var secs=['s-intro','s-problem','s-anatomy','s-structure','s-ecosystem','s-standards','s-builder','s-exercises','s-refs'];
+mainEl.addEventListener('scroll',function(){
+  var links=document.querySelectorAll('.sidebar .nav-link');
+  secs.forEach(function(id,i){
+    var el=document.getElementById(id);if(!el)return;
+    var top=el.getBoundingClientRect().top;
+    if(top<=120&&top>-400){links.forEach(function(l){l.classList.remove('active');});if(links[i])links[i].classList.add('active');}
+  });
+});
+</script>
+</body>
+</html>
