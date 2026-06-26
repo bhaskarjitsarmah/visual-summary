@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="en" class="vs-post">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Claude Tag — The First Multiplayer AI Teammate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0a0807;--surface:#151009;--surface2:#1e160e;--border:#2c1f13;
+  --text:#f0e4d4;--muted:#7a5848;
+  --orange:#f97316;--orange2:#fb923c;--orange3:#fdba74;
+  --amber:#f59e0b;--amber2:#fbbf24;
+  --copper:#e8724a;--copper2:#f08060;
+  --teal:#06b6d4;--teal2:#22d3ee;
+  --emerald:#10b981;--emerald2:#34d399;
+  --red:#ef4444;--red2:#f87171;
+  --violet:#8b5cf6;--violet2:#a78bfa;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+code,pre{font-family:'JetBrains Mono',monospace;}
+
+/* GATE */
+#gate{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.gate-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 44px;text-align:center;max-width:380px;width:90%;}
+.gate-icon{font-size:36px;margin-bottom:12px;}
+.gate-title{font-size:20px;font-weight:800;color:var(--orange2);margin-bottom:4px;}
+.gate-sub{font-size:12px;color:var(--muted);margin-bottom:24px;}
+.gate-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;color:var(--text);font-size:14px;outline:none;margin-bottom:12px;}
+.gate-input:focus{border-color:var(--orange);}
+.gate-btn{width:100%;background:var(--orange);color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;}
+.gate-btn:hover{background:var(--orange2);}
+.gate-err{font-size:12px;color:var(--red);margin-top:8px;display:none;}
+
+/* SIDEBAR */
+#sidebar{width:240px;min-height:100vh;background:var(--surface);border-right:1px solid var(--border);position:sticky;top:0;height:100vh;overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column;}
+.sidebar-logo{padding:20px 20px 16px;border-bottom:1px solid var(--border);}
+.sidebar-logo-main{font-size:13px;font-weight:700;color:var(--orange2);}
+.sidebar-logo-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+.sidebar-nav{padding:16px 0;flex:1;}
+.nav-section{padding:0 12px;margin-bottom:4px;}
+.nav-section-label{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);padding:8px 8px 4px;}
+.nav-link{display:block;padding:7px 8px;border-radius:7px;font-size:12px;color:var(--muted);cursor:pointer;transition:all 0.15s;}
+.nav-link:hover,.nav-link.active{background:rgba(249,115,22,0.12);color:var(--orange2);}
+.sidebar-footer{padding:16px 20px;border-top:1px solid var(--border);}
+.sidebar-footer-text{font-size:11px;color:var(--muted);}
+
+/* MAIN */
+#main-wrap{flex:1;min-width:0;display:flex;flex-direction:column;}
+
+/* TOP BAR */
+.top-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 48px;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:100;}
+.top-bar-left{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.top-bar-back{font-size:12px;color:var(--muted);padding:6px 12px;border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:all 0.15s;}
+.top-bar-back:hover{color:var(--text);border-color:var(--muted);}
+.tag{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+.tag-orange{background:rgba(249,115,22,0.15);color:var(--orange2);border:1px solid rgba(249,115,22,0.3);}
+.tag-teal{background:rgba(6,182,212,0.12);color:var(--teal2);border:1px solid rgba(6,182,212,0.25);}
+.reading-time{font-size:11px;color:var(--muted);}
+
+/* HERO */
+.hero{padding:64px 48px 52px;border-bottom:1px solid var(--border);position:relative;overflow:hidden;}
+.hero::before{content:'';position:absolute;top:-100px;right:-100px;width:500px;height:500px;background:radial-gradient(circle,rgba(249,115,22,0.07) 0%,transparent 70%);pointer-events:none;}
+.hero-kicker{font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--orange);font-weight:700;margin-bottom:20px;}
+.hero-title{font-size:2.4rem;font-weight:800;line-height:1.15;margin-bottom:16px;background:linear-gradient(135deg,var(--text) 40%,var(--orange2) 65%,var(--amber));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.hero-desc{font-size:1rem;color:var(--muted);max-width:640px;line-height:1.75;margin-bottom:28px;}
+
+/* SLACK MOCKUP */
+.slack-mock{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;max-width:600px;margin-bottom:28px;}
+.slack-mock-hd{background:var(--surface2);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:8px;}
+.slack-channel-name{font-size:13px;font-weight:700;color:var(--text);}
+.slack-channel-sub{font-size:11px;color:var(--muted);}
+.slack-messages{padding:16px;}
+.slack-msg{display:flex;gap:10px;margin-bottom:14px;}
+.slack-avatar{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;}
+.slack-msg-body{flex:1;}
+.slack-msg-author{font-size:12px;font-weight:700;color:var(--text);margin-bottom:2px;}
+.slack-msg-time{font-size:10px;color:var(--muted);margin-left:6px;}
+.slack-msg-text{font-size:13px;color:var(--text);}
+.slack-msg-text .at-claude{color:var(--orange2);font-weight:700;background:rgba(249,115,22,0.1);padding:1px 4px;border-radius:3px;}
+.claude-response{border-left:3px solid var(--orange);padding-left:12px;margin-top:4px;}
+
+/* HERO STATS */
+.hero-stats{display:flex;gap:40px;flex-wrap:wrap;}
+.hero-stat-val{font-size:1.8rem;font-weight:800;color:var(--orange2);}
+.hero-stat-lbl{font-size:11px;color:var(--muted);margin-top:2px;}
+
+/* CONTENT */
+.content-section{padding:48px 48px 40px;border-bottom:1px solid var(--border);}
+.section-label{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--orange);font-weight:700;margin-bottom:8px;}
+.section-title{font-size:1.5rem;font-weight:800;color:var(--text);margin-bottom:12px;}
+.section-desc{font-size:0.9rem;color:var(--muted);line-height:1.7;max-width:720px;margin-bottom:28px;}
+.callout{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--orange);border-radius:8px;padding:16px 20px;margin-bottom:20px;font-size:0.875rem;color:var(--text);line-height:1.65;}
+.callout.teal{border-left-color:var(--teal);}
+.callout.emerald{border-left-color:var(--emerald);}
+.callout.red{border-left-color:var(--red);}
+.callout strong{color:var(--orange3);}
+.callout.teal strong{color:var(--teal2);}
+.callout.emerald strong{color:var(--emerald2);}
+.callout.red strong{color:var(--red2);}
+
+/* COMPARE */
+.compare-wrap{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;}
+.compare-col{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;}
+.compare-col.highlight{border-color:var(--orange);background:rgba(249,115,22,0.04);}
+.compare-col-title{font-size:0.95rem;font-weight:800;color:var(--text);margin-bottom:4px;}
+.compare-col-sub{font-size:11px;color:var(--muted);margin-bottom:16px;}
+.compare-items{display:flex;flex-direction:column;gap:10px;}
+.compare-item{display:flex;gap:10px;align-items:flex-start;font-size:0.82rem;}
+.compare-item-icon{width:18px;height:18px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;margin-top:1px;}
+.compare-item-text{color:var(--muted);line-height:1.5;}
+.compare-item-text strong{color:var(--text);}
+
+/* POWER CARDS */
+.power-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:24px;}
+.power-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;transition:all 0.2s;}
+.power-card:hover{border-color:var(--orange);background:rgba(249,115,22,0.04);}
+.power-icon{font-size:28px;margin-bottom:12px;}
+.power-verb{font-size:1.3rem;font-weight:800;color:var(--orange2);margin-bottom:4px;font-family:'JetBrains Mono',monospace;}
+.power-title{font-size:0.88rem;font-weight:700;color:var(--text);margin-bottom:8px;}
+.power-body{font-size:0.82rem;color:var(--muted);line-height:1.6;}
+.power-quote{margin-top:12px;padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--orange3);font-style:italic;}
+
+/* PERMISSION EXPLORER */
+.perm-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px;margin-bottom:24px;}
+.perm-tree{display:flex;flex-direction:column;gap:12px;}
+.perm-workspace{border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.perm-ws-hd{background:var(--surface2);padding:12px 16px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;color:var(--text);}
+.perm-channels{padding:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.perm-channel{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;cursor:pointer;transition:all 0.2s;}
+.perm-channel.active,.perm-channel:hover{border-color:var(--orange);}
+.perm-channel-name{font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px;}
+.perm-channel-sub{font-size:10px;color:var(--muted);}
+.perm-detail{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:18px;margin-top:16px;}
+.perm-detail-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;}
+.perm-tool-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.perm-tool{border-radius:7px;padding:8px 10px;font-size:11px;font-weight:600;text-align:center;}
+.perm-tool.allowed{background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);color:var(--emerald2);}
+.perm-tool.blocked{background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15);color:var(--red2);}
+.perm-memory-note{font-size:11px;color:var(--muted);margin-top:12px;padding:8px;background:var(--surface);border-radius:6px;}
+
+/* SANDBOX LIFECYCLE */
+.sandbox-steps-nav{display:flex;gap:0;border:1px solid var(--border);border-radius:12px 12px 0 0;overflow:hidden;}
+.sandbox-step-btn{flex:1;padding:12px 6px;background:var(--surface);border:none;border-right:1px solid var(--border);color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;transition:all 0.2s;text-align:center;line-height:1.3;}
+.sandbox-step-btn:last-child{border-right:none;}
+.sandbox-step-btn.active{background:rgba(6,182,212,0.15);color:var(--teal2);}
+.sandbox-step-num{display:block;font-size:1.3rem;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--muted);margin-bottom:4px;}
+.sandbox-step-btn.active .sandbox-step-num{color:var(--teal);}
+.sandbox-panel{background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 12px 12px;padding:28px;margin-bottom:24px;}
+.sandbox-panel-title{font-size:1rem;font-weight:800;color:var(--teal2);margin-bottom:8px;}
+.sandbox-panel-desc{font-size:0.85rem;color:var(--muted);margin-bottom:18px;line-height:1.65;}
+.sandbox-diagram{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:20px;}
+.sb-row{display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap;}
+.sb-node{padding:8px 14px;border-radius:8px;font-size:12px;font-weight:700;}
+.sb-node.slack{background:rgba(74,0,144,0.2);border:1px solid rgba(74,0,144,0.4);color:#c4b5fd;}
+.sb-node.proxy{background:rgba(249,115,22,0.15);border:1px solid rgba(249,115,22,0.3);color:var(--orange2);}
+.sb-node.sandbox{background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.25);color:var(--teal2);}
+.sb-node.vault{background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);color:var(--emerald2);}
+.sb-node.api{background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.25);color:var(--violet2);}
+.sb-node.danger{background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:var(--red2);}
+.sb-node.inactive{opacity:0.3;}
+.sb-arrow{color:var(--muted);font-size:16px;}
+.sb-label{font-size:11px;color:var(--muted);}
+.sb-highlight{font-size:12px;margin-top:12px;padding:10px 14px;border-radius:6px;background:rgba(6,182,212,0.06);border:1px solid rgba(6,182,212,0.15);color:var(--teal2);}
+
+/* SKILLS LEVELS */
+.skills-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px;margin-bottom:24px;}
+.skills-title{font-size:0.95rem;font-weight:700;color:var(--text);margin-bottom:6px;}
+.skills-desc{font-size:0.82rem;color:var(--muted);margin-bottom:20px;}
+.skill-levels{display:flex;flex-direction:column;gap:0;}
+.skill-level{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:10px;transition:all 0.2s;}
+.skill-level-hd{display:flex;align-items:center;gap:14px;padding:14px 18px;cursor:pointer;background:var(--surface);}
+.skill-level-hd:hover{background:var(--surface2);}
+.skill-level.open .skill-level-hd{background:rgba(249,115,22,0.08);}
+.skill-level-num{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0;color:#fff;}
+.skill-level-info{flex:1;}
+.skill-level-title{font-size:0.88rem;font-weight:700;color:var(--text);}
+.skill-level-sub{font-size:11px;color:var(--muted);}
+.skill-level-cost{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;border:1px solid var(--border);color:var(--muted);}
+.skill-level-body{display:none;padding:14px 18px;border-top:1px solid var(--border);background:var(--bg);font-size:0.82rem;color:var(--muted);line-height:1.7;}
+.skill-level.open .skill-level-body{display:block;}
+
+/* MANAGED AGENTS */
+.managed-wrap{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px;}
+.managed-node{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;}
+.managed-node-icon{font-size:32px;margin-bottom:8px;}
+.managed-node-title{font-size:0.95rem;font-weight:800;color:var(--text);margin-bottom:4px;}
+.managed-node-sub{font-size:11px;color:var(--muted);margin-bottom:8px;}
+.managed-node-trait{font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;border:1px solid var(--border);}
+.managed-scenario{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:16px;}
+.managed-scenario-title{font-size:0.88rem;font-weight:700;color:var(--text);margin-bottom:8px;}
+.managed-scenario-desc{font-size:0.82rem;color:var(--muted);line-height:1.6;}
+
+/* CONTEXT COMPOUND */
+.context-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px;margin-bottom:24px;}
+.context-sources{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;}
+.ctx-src{border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:all 0.2s;text-align:center;}
+.ctx-src:hover,.ctx-src.on{border-color:var(--orange);background:rgba(249,115,22,0.08);}
+.ctx-src-icon{font-size:22px;margin-bottom:6px;}
+.ctx-src-label{font-size:11px;font-weight:700;color:var(--text);}
+.ctx-src-content{font-size:10px;color:var(--muted);margin-top:3px;}
+.ctx-src.on .ctx-src-content{color:var(--orange3);}
+.ctx-result{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:18px;min-height:80px;font-size:13px;line-height:1.7;transition:all 0.3s;}
+.ctx-result-placeholder{color:var(--muted);font-style:italic;}
+
+/* THE 65% */
+.stat65-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px;margin-bottom:24px;text-align:center;}
+.stat65-num{font-size:4rem;font-weight:800;color:var(--orange2);font-family:'JetBrains Mono',monospace;}
+.stat65-label{font-size:1rem;color:var(--text);font-weight:600;margin-bottom:8px;}
+.stat65-sub{font-size:0.85rem;color:var(--muted);margin-bottom:24px;}
+.stat65-bar-wrap{width:100%;height:20px;background:var(--surface2);border-radius:10px;overflow:hidden;margin-bottom:8px;}
+.stat65-bar{height:100%;border-radius:10px;background:linear-gradient(90deg,var(--orange),var(--amber));transition:width 1.5s ease;}
+.stat65-bar-labels{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);}
+
+/* EXERCISES */
+.ex-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:16px;}
+.ex-hd{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.ex-num{width:28px;height:28px;border-radius:50%;background:var(--orange);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;}
+.ex-title{font-size:0.95rem;font-weight:700;color:var(--text);}
+.ex-desc{font-size:0.85rem;color:var(--muted);margin-bottom:18px;line-height:1.65;}
+.ex-scenario{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:0.83rem;color:var(--text);margin-bottom:14px;line-height:1.65;}
+.ex-scenario strong{color:var(--orange3);}
+.q-options{display:grid;gap:8px;margin-bottom:12px;}
+.q-opt{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;cursor:pointer;font-size:0.83rem;transition:all 0.15s;}
+.q-opt:hover{border-color:var(--orange);color:var(--orange3);}
+.q-opt.correct{background:rgba(16,185,129,0.1);border-color:var(--emerald);color:var(--emerald2);}
+.q-opt.wrong{background:rgba(239,68,68,0.08);border-color:var(--red);color:var(--red2);}
+.q-feedback{font-size:12px;padding:10px 14px;border-radius:6px;margin-top:4px;display:none;}
+.q-feedback.show{display:block;}
+.q-feedback.ok{background:rgba(16,185,129,0.1);color:var(--emerald2);}
+.q-feedback.err{background:rgba(239,68,68,0.08);color:var(--red2);}
+
+/* LIVE LAB */
+.lab-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:16px;}
+.lab-key-row{display:flex;gap:10px;margin-bottom:16px;}
+.lab-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;outline:none;}
+.lab-input:focus{border-color:var(--orange);}
+.lab-btn{background:var(--orange);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;}
+.lab-btn:hover{background:var(--orange2);}
+.lab-btn:disabled{opacity:0.5;cursor:not-allowed;}
+.lab-textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;color:var(--text);font-size:13px;outline:none;resize:vertical;min-height:90px;line-height:1.6;margin-bottom:12px;}
+.lab-textarea:focus{border-color:var(--orange);}
+.lab-run-btn{background:var(--orange);color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;}
+.lab-run-btn:disabled{opacity:0.5;cursor:not-allowed;}
+.lab-output{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:18px;font-size:13px;margin-top:12px;line-height:1.7;display:none;color:var(--text);}
+.lab-output pre{white-space:pre-wrap;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--orange3);}
+
+/* REFS */
+.ref-list{display:flex;flex-direction:column;gap:8px;}
+.ref-item{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 18px;display:flex;gap:14px;align-items:flex-start;}
+.ref-num{color:var(--orange2);font-weight:800;font-size:13px;flex-shrink:0;font-family:'JetBrains Mono',monospace;min-width:24px;}
+.ref-title{font-size:0.875rem;font-weight:600;color:var(--text);}
+.ref-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+.ref-link{font-size:11px;color:var(--orange2);margin-top:3px;display:block;}
+
+/* CONTINUE STRIP */
+.continue-strip{background:var(--surface);border-top:1px solid var(--border);padding:28px 48px;display:flex;justify-content:space-between;align-items:center;gap:24px;}
+.cs-link{display:flex;flex-direction:column;gap:4px;padding:16px 20px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:all 0.2s;text-decoration:none;}
+.cs-link:hover{border-color:var(--orange);background:rgba(249,115,22,0.05);}
+.cs-label{font-size:11px;color:var(--muted);}
+.cs-title{font-size:0.88rem;font-weight:700;color:var(--orange2);}
+
+/* UTILITIES */
+.tw-cols{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;}
+.info-block{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;}
+.info-block-title{font-size:0.85rem;font-weight:700;color:var(--text);margin-bottom:8px;}
+.info-block-body{font-size:0.8rem;color:var(--muted);line-height:1.65;}
+.timeline-row{display:flex;flex-direction:column;gap:10px;margin-bottom:24px;}
+.timeline-item{display:flex;gap:16px;align-items:flex-start;}
+.timeline-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:4px;}
+.timeline-body{flex:1;}
+.timeline-title{font-size:0.88rem;font-weight:700;color:var(--text);}
+.timeline-sub{font-size:0.8rem;color:var(--muted);}
+
+/* RESPONSIVE */
+@media(max-width:900px){
+  #sidebar{display:none;}
+  .content-section,.hero{padding:36px 20px;}
+  .top-bar{padding:10px 20px;}
+  .continue-strip{padding:24px 20px;flex-direction:column;gap:16px;}
+  .compare-wrap,.tw-cols,.power-grid,.managed-wrap,.context-sources{grid-template-columns:1fr;}
+  .perm-channels{grid-template-columns:1fr;}
+  .sandbox-steps-nav{flex-wrap:wrap;}
+}
+</style>
+</head>
+<body>
+
+<!-- GATE -->
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-icon">🏷️</div>
+    <div class="gate-title">Claude Tag</div>
+    <div class="gate-sub">Post 59 &middot; Agents &amp; Systems &middot; 2026</div>
+    <input class="gate-input" type="password" id="gate-pw" placeholder="Enter access code…" onkeydown="if(event.key==='Enter')checkGate()">
+    <button class="gate-btn" onclick="checkGate()">Unlock Post</button>
+    <div class="gate-err" id="gate-err">Incorrect — try again</div>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<nav id="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-main">Visual Summary</div>
+    <div class="sidebar-logo-sub">Post 59 — Claude Tag</div>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-section">
+      <div class="nav-section-label">Navigation</div>
+      <a class="nav-link" href="../">&#8592; All Posts</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">Sections</div>
+      <a class="nav-link active" id="nl-intro" onclick="scrollSec('s-intro')">The Multiplayer Shift</a>
+      <a class="nav-link" id="nl-powers" onclick="scrollSec('s-powers')">Four Superpowers</a>
+      <a class="nav-link" id="nl-identity" onclick="scrollSec('s-identity')">Agent Identity Model</a>
+      <a class="nav-link" id="nl-sandbox" onclick="scrollSec('s-sandbox')">Ephemeral Sandbox</a>
+      <a class="nav-link" id="nl-skills" onclick="scrollSec('s-skills')">Agent Skills</a>
+      <a class="nav-link" id="nl-session" onclick="scrollSec('s-session')">Managed Agents</a>
+      <a class="nav-link" id="nl-context" onclick="scrollSec('s-context')">Compounding Context</a>
+      <a class="nav-link" id="nl-ex" onclick="scrollSec('s-ex')">Practice Exercises</a>
+      <a class="nav-link" id="nl-refs" onclick="scrollSec('s-refs')">References</a>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    <div class="sidebar-footer-text">Launched June 23, 2026<br>Anthropic &middot; Enterprise &amp; Team</div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div id="main-wrap">
+
+<!-- TOP BAR -->
+<div class="top-bar">
+  <div class="top-bar-left">
+    <a class="top-bar-back" href="../">&#8592; All Posts</a>
+    <span class="tag tag-orange">Post 59</span>
+    <span class="tag tag-teal">Agents</span>
+  </div>
+  <div class="reading-time">~15 min read</div>
+</div>
+
+<!-- HERO -->
+<section class="hero" id="s-hero">
+  <div class="hero-kicker">Multiplayer AI &middot; Enterprise Agents &middot; Anthropic &middot; June 2026</div>
+  <h1 class="hero-title">Claude Tag: The First<br>Multiplayer AI Teammate</h1>
+  <p class="hero-desc">Every AI product before Claude Tag was single-player — one human, one session, zero organizational memory. Claude Tag breaks this pattern: it lives in your Slack channels, accumulates institutional knowledge, acts autonomously across tools, and any team member can pick up where another left off.</p>
+
+  <!-- Slack Mock -->
+  <div class="slack-mock">
+    <div class="slack-mock-hd">
+      <span style="font-size:16px">#</span>
+      <div>
+        <div class="slack-channel-name">product-engineering</div>
+        <div class="slack-channel-sub">48 members &middot; Claude Tag active</div>
+      </div>
+    </div>
+    <div class="slack-messages">
+      <div class="slack-msg">
+        <div class="slack-avatar" style="background:#6366f1">S</div>
+        <div class="slack-msg-body">
+          <div class="slack-msg-author">Sarah <span class="slack-msg-time">9:14 AM</span></div>
+          <div class="slack-msg-text"><span class="at-claude">@Claude</span> Can you pull Q2 metrics from the warehouse and summarize them?</div>
+        </div>
+      </div>
+      <div class="slack-msg">
+        <div class="slack-avatar" style="background:var(--orange)">C</div>
+        <div class="slack-msg-body">
+          <div class="slack-msg-author">Claude <span class="slack-msg-time">9:14 AM</span></div>
+          <div class="slack-msg-text claude-response">Q2 summary: Revenue $4.2M (+18% QoQ), DAU 124k (+31%), churn 2.1% (improved from 2.8%). Full breakdown in the thread ↓</div>
+        </div>
+      </div>
+      <div class="slack-msg">
+        <div class="slack-avatar" style="background:#0ea5e9">J</div>
+        <div class="slack-msg-body">
+          <div class="slack-msg-author">James <span class="slack-msg-time">9:41 AM</span></div>
+          <div class="slack-msg-text"><span class="at-claude">@Claude</span> Nice — draft a board brief from this, highlight the churn improvement as the lead story.</div>
+        </div>
+      </div>
+      <div class="slack-msg">
+        <div class="slack-avatar" style="background:var(--orange)">C</div>
+        <div class="slack-msg-body">
+          <div class="slack-msg-author">Claude <span class="slack-msg-time">9:41 AM</span></div>
+          <div class="slack-msg-text claude-response">Board Brief: "Q2 Retention Turnaround — Churn fell 0.7pp to 2.1%, the lowest since Q3'24, underpinned by the new onboarding flow (DAU +31%). Revenue outperformed at $4.2M..." [continues in thread]</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hero-stats">
+    <div>
+      <div class="hero-stat-val">65%</div>
+      <div class="hero-stat-lbl">Anthropic's product code written by Claude Tag</div>
+    </div>
+    <div>
+      <div class="hero-stat-val">June 23</div>
+      <div class="hero-stat-lbl">2026 — beta launch date</div>
+    </div>
+    <div>
+      <div class="hero-stat-val">Aug 3</div>
+      <div class="hero-stat-lbl">old Slack app migrated</div>
+    </div>
+    <div>
+      <div class="hero-stat-val">84%</div>
+      <div class="hero-stat-lbl">Opus 4.8 on Online-Mind2Web</div>
+    </div>
+  </div>
+</section>
+
+<!-- S1: THE MULTIPLAYER SHIFT -->
+<section class="content-section" id="s-intro">
+  <div class="section-label">Background</div>
+  <h2 class="section-title">The Single-Player Problem</h2>
+  <p class="section-desc">Every AI product that came before was fundamentally single-player: one human, one conversation, one session. Knowledge died when the chat ended. Two teammates using the same AI still worked in complete isolation from each other. Claude Tag is built to break every one of these constraints.</p>
+
+  <div class="compare-wrap">
+    <div class="compare-col">
+      <div class="compare-col-title">Claude.ai / Claude Code</div>
+      <div class="compare-col-sub">The Single-Player Era (2023–2025)</div>
+      <div class="compare-items">
+        <div class="compare-item">
+          <div class="compare-item-icon" style="background:rgba(239,68,68,0.15);color:var(--red2)">✗</div>
+          <div class="compare-item-text"><strong>Context dies at session end</strong> — start fresh every time, re-explain your stack, your preferences, your project</div>
+        </div>
+        <div class="compare-item">
+          <div class="compare-item-icon" style="background:rgba(239,68,68,0.15);color:var(--red2)">✗</div>
+          <div class="compare-item-text"><strong>Invisible to teammates</strong> — no one can see what you asked, no one can continue your thread</div>
+        </div>
+        <div class="compare-item">
+          <div class="compare-item-icon" style="background:rgba(239,68,68,0.15);color:var(--red2)">✗</div>
+          <div class="compare-item-text"><strong>No cross-system awareness</strong> — AI can't see your Slack + your Notion + your GitHub together</div>
+        </div>
+        <div class="compare-item">
+          <div class="compare-item-icon" style="background:rgba(239,68,68,0.15);color:var(--red2)">✗</div>
+          <div class="compare-item-text"><strong>Reactive only</strong> — only acts when you explicitly ask, never watches for relevant context</div>
+        </div>
+      </div>
+    </div>
+    <div class="compare-col highlight">
+      <div class="compare-col-title">Claude Tag</div>
+      <div class="compare-col-sub">The Multiplayer Era (2026)</div>
+      <div class="compare-items">
+        <div class="compare-item">
+          <div class="compare-item-icon" style="background:rgba(16,185,129,0.15);color:var(--emerald2)">✓</div>
+          <div class="compare-item-text"><strong>Channel-scoped persistent memory</strong> — accumulates vocabulary, workflows, and decisions as the team works</div>
+        </div>
+        <div class="compare-item">
+          <div class="compare-item-icon" style="background:rgba(16,185,129,0.15);color:var(--emerald2)">✓</div>
+          <div class="compare-item-text"><strong>Any team member can continue</strong> — James picked up Sarah's query above with full context intact</div>
+        </div>
+        <div class="compare-item">
+          <div class="compare-item-icon" style="background:rgba(16,185,129,0.15);color:var(--emerald2)">✓</div>
+          <div class="compare-item-text"><strong>Cross-system synthesis</strong> — Slack + Drive + GitHub + warehouse combined into one answer</div>
+        </div>
+        <div class="compare-item">
+          <div class="compare-item-icon" style="background:rgba(16,185,129,0.15);color:var(--emerald2)">✓</div>
+          <div class="compare-item-text"><strong>Ambient monitoring</strong> — proactively flags updates, follows up on forgotten threads</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>Cat Wu (Anthropic Head of Product):</strong> "Claude Code, Cowork, and Chat are very single-player, whereas Claude Tag is built to be interactive and multiplayer." — The unit of AI shifts from conversation to team channel.
+  </div>
+
+  <div class="timeline-row">
+    <div class="timeline-item">
+      <div class="timeline-dot" style="background:var(--muted)"></div>
+      <div class="timeline-body">
+        <div class="timeline-title">Late 2024 — Claude Code</div>
+        <div class="timeline-sub">Terminal-based tool for software engineers. Single-player, file-level context, best-in-class coding. No memory between sessions.</div>
+      </div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-dot" style="background:var(--muted)"></div>
+      <div class="timeline-body">
+        <div class="timeline-title">Jan 12, 2026 — Claude Cowork</div>
+        <div class="timeline-sub">Desktop agent for non-technical users. Single-player with GUI automation. Persistent across reboots but still one-to-one.</div>
+      </div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-dot" style="background:var(--orange)"></div>
+      <div class="timeline-body">
+        <div class="timeline-title">Jun 23, 2026 — Claude Tag</div>
+        <div class="timeline-sub">First explicitly multiplayer, channel-native AI teammate. Lives in Slack. Team memory. Proactive monitoring. Service account identity. Beta for Enterprise + Teams.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- S2: FOUR SUPERPOWERS -->
+<section class="content-section" id="s-powers">
+  <div class="section-label">Core Capabilities</div>
+  <h2 class="section-title">Four Superpowers of @Claude</h2>
+  <p class="section-desc">Anthropic describes Claude Tag through four verbs: learns, takes initiative, works asynchronously, and is everywhere you work. Each represents a step beyond the capability ceiling of previous AI interfaces.</p>
+
+  <div class="power-grid">
+    <div class="power-card">
+      <div class="power-icon">🧠</div>
+      <div class="power-verb">@Claude learns</div>
+      <div class="power-title">Channel-Scoped Persistent Memory</div>
+      <div class="power-body">Claude persistently builds context within specific Slack channels — accumulating vocabulary, team workflows, past decisions, and recurring patterns. If your engineering channel discusses "the hydration bug" once, Claude learns that context and can reference it in future threads. Admins can optionally grant cross-channel read access. Memory writes are always logged for audit.</div>
+      <div class="power-quote">"Each connected system makes every other one more useful because Claude can combine context across them."</div>
+    </div>
+    <div class="power-card">
+      <div class="power-icon">⚡</div>
+      <div class="power-verb">@Claude takes initiative</div>
+      <div class="power-title">Ambient Mode — Proactive Monitoring</div>
+      <div class="power-body">In ambient mode (opt-in), Claude monitors channels without being explicitly tagged. It flags updates that match your team's standing interests, follows up on forgotten threads, alerts to relevant signals from connected systems, and posts weekly digests — acting like a team member who's always in the room, not just one you have to summon. Anthropic recommends starting without ambient until you understand failure modes.</div>
+      <div class="power-quote">"Anthropic recommends keeping ambient off until teams understand failure modes."</div>
+    </div>
+    <div class="power-card">
+      <div class="power-icon">⏳</div>
+      <div class="power-verb">@Claude works asynchronously</div>
+      <div class="power-title">Long-Horizon Autonomous Tasks</div>
+      <div class="power-body">Claude can schedule tasks for itself, pursuing multi-stage projects over hours or days without needing constant supervision. When assigned a complex task, it breaks it into stages, works through connected tools, and delivers results in a visible Slack thread — all while the team focuses on other work. Every step of the checklist stays visible to the entire channel.</div>
+      <div class="power-quote">"Tasks can be delegated while teams focus elsewhere, with results delivered asynchronously."</div>
+    </div>
+    <div class="power-card">
+      <div class="power-icon">🔗</div>
+      <div class="power-verb">@Claude is everywhere</div>
+      <div class="power-title">Cross-System Context Synthesis</div>
+      <div class="power-body">With the right connections granted, Claude integrates Slack threads, Google Drive documents, GitHub issues and PRs, data warehouse queries, Datadog logs, Linear tickets, and more into single, synthesized answers. No single tool in your stack can answer "why are we seeing these anomalies?" by drawing on all five systems simultaneously — Claude Tag can.</div>
+      <div class="power-quote">"Pulling a thread from Slack, a doc from Drive, a ticket from a tracker, and a query from a warehouse into one answer no single tool could provide."</div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>What Claude Tag is NOT:</strong> An autonomous agent that acts without oversight. Claude Tag is a bounded system — what it can reach is defined by admin-controlled permissions, sandbox isolation limits outbound traffic, and every action is logged. The "initiative" in ambient mode still operates within the permission envelope the admin defines.
+  </div>
+</section>
+
+<!-- S3: AGENT IDENTITY MODEL -->
+<section class="content-section" id="s-identity">
+  <div class="section-label">Security Architecture</div>
+  <h2 class="section-title">Agent Identity: A New Permission Model</h2>
+  <p class="section-desc">The most architecturally significant innovation. Rather than borrowing human credentials, Claude Tag operates as a first-class service account with its own identity — shifting the access-control question from "what can this user do?" to "what can this agent do in this compartment?" Click any channel below to explore its permission scope.</p>
+
+  <div class="callout teal">
+    <strong>The Key Insight:</strong> "What it can reach depends on the channel you're in, not on who you are." Claude's legal channel identity cannot access engineering code, even if the same human admin manages both channels. This makes agent permissions auditable, revocable, and bounded — just like a human employee's access card.
+  </div>
+
+  <div class="perm-wrap">
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:16px;">Click a channel to see its permission scope</div>
+    <div class="perm-workspace">
+      <div class="perm-ws-hd">
+        <span>🏢</span>
+        <span>acme-corp workspace — Claude Tag</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--muted)">Baseline: Slack read, public channels</span>
+      </div>
+      <div class="perm-channels" id="perm-channels">
+        <div class="perm-channel active" onclick="showPerm(0)">
+          <div class="perm-channel-name"># engineering</div>
+          <div class="perm-channel-sub">Public &middot; 24 members</div>
+        </div>
+        <div class="perm-channel" onclick="showPerm(1)">
+          <div class="perm-channel-name"># legal-review</div>
+          <div class="perm-channel-sub">Private &middot; 6 members</div>
+        </div>
+        <div class="perm-channel" onclick="showPerm(2)">
+          <div class="perm-channel-name"># customer-success</div>
+          <div class="perm-channel-sub">Public &middot; 18 members</div>
+        </div>
+        <div class="perm-channel" onclick="showPerm(3)">
+          <div class="perm-channel-name"># data-insights</div>
+          <div class="perm-channel-sub">Private &middot; 11 members</div>
+        </div>
+        <div class="perm-channel" onclick="showPerm(4)">
+          <div class="perm-channel-name"># hr-private</div>
+          <div class="perm-channel-sub">Private &middot; 4 members</div>
+        </div>
+        <div class="perm-channel" onclick="showPerm(5)">
+          <div class="perm-channel-name"># general</div>
+          <div class="perm-channel-sub">Public &middot; 180 members</div>
+        </div>
+      </div>
+    </div>
+    <div class="perm-detail" id="perm-detail">
+      <!-- injected by JS -->
+    </div>
+  </div>
+
+  <div class="tw-cols">
+    <div class="info-block">
+      <div class="info-block-title">Why Service Account Identity Matters</div>
+      <div class="info-block-body">With user-delegation, an AI acts as you — it has your GitHub token, your Drive access, your email. If the AI makes a mistake, it looks like you made it. If it's compromised, the attacker has your full permissions. Service account identity separates AI actions from human actions cleanly: the PR was opened by "Claude App", not you.</div>
+    </div>
+    <div class="info-block">
+      <div class="info-block-title">Private Channel Isolation</div>
+      <div class="info-block-body">Each private channel gets a <em>distinct</em> Claude identity. Memories from legal review never appear in product discussions. Tools granted to data insights are blocked from HR. "A shared channel can never become a side door into someone's private documents." This is architecturally enforced, not just policy-based.</div>
+    </div>
+  </div>
+</section>
+
+<!-- S4: EPHEMERAL SANDBOX -->
+<section class="content-section" id="s-sandbox">
+  <div class="section-label">Infrastructure</div>
+  <h2 class="section-title">The Ephemeral Sandbox Architecture</h2>
+  <p class="section-desc">Claude Tag runs in Anthropic-hosted ephemeral sandboxes — not on your infrastructure. Each Slack thread gets its own sandbox. The key security invariant: sandboxes hold no credentials. An Agent Proxy injects credentials at the network boundary when a tool call is made. Outbound traffic to any host the admin hasn't allowed is blocked by default.</p>
+
+  <div class="sandbox-steps-nav" id="sb-nav">
+    <button class="sandbox-step-btn active" onclick="setSandbox(0)">
+      <span class="sandbox-step-num">01</span>
+      Message<br>Arrives
+    </button>
+    <button class="sandbox-step-btn" onclick="setSandbox(1)">
+      <span class="sandbox-step-num">02</span>
+      Sandbox<br>Provisioned
+    </button>
+    <button class="sandbox-step-btn" onclick="setSandbox(2)">
+      <span class="sandbox-step-num">03</span>
+      Credentials<br>Injected
+    </button>
+    <button class="sandbox-step-btn" onclick="setSandbox(3)">
+      <span class="sandbox-step-num">04</span>
+      Tool Calls<br>Execute
+    </button>
+    <button class="sandbox-step-btn" onclick="setSandbox(4)">
+      <span class="sandbox-step-num">05</span>
+      Sandbox<br>Discards
+    </button>
+  </div>
+  <div class="sandbox-panel" id="sandbox-panel">
+    <!-- injected by JS -->
+  </div>
+
+  <div class="callout teal">
+    <strong>Default-Deny Outbound:</strong> The sandbox blocks all outbound traffic by default. An admin must explicitly allowlist each external host. This means a compromised tool cannot exfiltrate data to an arbitrary endpoint — only pre-approved destinations are reachable. No credential is ever resident in the sandbox environment itself.
+  </div>
+</section>
+
+<!-- S5: AGENT SKILLS -->
+<section class="content-section" id="s-skills">
+  <div class="section-label">Context Management</div>
+  <h2 class="section-title">Agent Skills: Progressive Context Loading</h2>
+  <p class="section-desc">Agent Skills are organized folders of instructions, scripts, and resources that Claude loads dynamically using progressive disclosure — never dumping everything into context at once. This solves the context-window efficiency problem: Claude knows enough to recognize relevance, but only loads deep detail when needed.</p>
+
+  <div class="skills-wrap">
+    <div class="skills-title">Three-Tier Loading Architecture</div>
+    <div class="skills-desc">Each skill loads in three tiers based on relevance. Click each tier to understand when and why it loads.</div>
+
+    <div class="skill-level open" id="sl-0">
+      <div class="skill-level-hd" onclick="toggleSkill(0)">
+        <div class="skill-level-num" style="background:var(--orange)">1</div>
+        <div class="skill-level-info">
+          <div class="skill-level-title">Tier 1 — Always Loaded (Metadata)</div>
+          <div class="skill-level-sub">Skill name, one-line description, entry conditions</div>
+        </div>
+        <div class="skill-level-cost" style="color:var(--emerald2);border-color:rgba(16,185,129,0.3)">~50 tokens</div>
+      </div>
+      <div class="skill-level-body">
+        <strong style="color:var(--text)">What it contains:</strong> The skill's name, a brief description of what it does, and the trigger conditions under which the full skill content should load.<br><br>
+        <strong style="color:var(--text)">Why this tier exists:</strong> Claude needs to know what skills are available without loading all their content. A workspace with 40 skills would fill the context window before the user even sends a message. Metadata allows Claude to recognize relevance cheaply.<br><br>
+        <strong style="color:var(--text)">Example:</strong> <code style="color:var(--orange3)">skill: "github-pr-review" — Reviews GitHub PRs for bugs, style, and performance. Loads when a PR URL is mentioned.</code>
+      </div>
+    </div>
+
+    <div class="skill-level" id="sl-1">
+      <div class="skill-level-hd" onclick="toggleSkill(1)">
+        <div class="skill-level-num" style="background:var(--amber)">2</div>
+        <div class="skill-level-info">
+          <div class="skill-level-title">Tier 2 — Loaded on Match (SKILL.md)</div>
+          <div class="skill-level-sub">Full skill instructions, tool invocations, expected outputs</div>
+        </div>
+        <div class="skill-level-cost" style="color:var(--amber2);border-color:rgba(245,158,11,0.3)">~2–8k tokens</div>
+      </div>
+      <div class="skill-level-body">
+        <strong style="color:var(--text)">What it contains:</strong> The complete SKILL.md file — detailed instructions for how Claude should behave when this skill is active, which tools to call, what output format to use, and any constraints or safety notes.<br><br>
+        <strong style="color:var(--text)">Why this tier exists:</strong> Loading every full skill document for every turn wastes tokens and injects irrelevant instructions. Loading on match ensures Claude has the right instructions exactly when needed, without bloating context for unrelated tasks.<br><br>
+        <strong style="color:var(--text)">Trigger:</strong> Claude detects a GitHub PR URL in the user's message → loads the full github-pr-review SKILL.md → begins following its detailed review protocol.
+      </div>
+    </div>
+
+    <div class="skill-level" id="sl-2">
+      <div class="skill-level-hd" onclick="toggleSkill(2)">
+        <div class="skill-level-num" style="background:var(--teal)">3</div>
+        <div class="skill-level-info">
+          <div class="skill-level-title">Tier 3 — Loaded on Demand (Supplementary Files)</div>
+          <div class="skill-level-sub">Referenced templates, schemas, examples, lookup tables</div>
+        </div>
+        <div class="skill-level-cost" style="color:var(--teal2);border-color:rgba(6,182,212,0.3)">variable</div>
+      </div>
+      <div class="skill-level-body">
+        <strong style="color:var(--text)">What it contains:</strong> Files referenced from SKILL.md but not pre-loaded — templates, code examples, domain-specific lookup tables, or large schemas that are only needed for specific sub-tasks.<br><br>
+        <strong style="color:var(--text)">Why this tier exists:</strong> A PR review skill might reference a 15-page security checklist that's only needed for security-sensitive code paths. Loading it for every PR review wastes tokens; loading it only when Claude encounters authentication code is efficient and targeted.<br><br>
+        <strong style="color:var(--text)">Key principle:</strong> Information is never all loaded at once. The harness fetches exactly the files the active skill instructs it to load for the specific task at hand.
+      </div>
+    </div>
+  </div>
+
+  <div class="callout emerald">
+    <strong>Why This Architecture Matters:</strong> A workspace might have 30+ skills (GitHub, Linear, Datadog, Google Drive, Confluence, customer CRM, custom internal tools…). Naively loading all of them for every message would consume 200k+ tokens before the user writes a word. Progressive disclosure keeps Claude fast, cheap, and focused — it only knows what's relevant to the current task.
+  </div>
+</section>
+
+<!-- S6: MANAGED AGENTS -->
+<section class="content-section" id="s-session">
+  <div class="section-label">Infrastructure Architecture</div>
+  <h2 class="section-title">Managed Agents: Brain × Session × Sandbox</h2>
+  <p class="section-desc">Claude Tag is built on Anthropic's Managed Agents infrastructure, which decouples three independently scalable and restartable components. This design enables resilience, parallelism, and the enormous performance improvements that made Claude Tag viable at enterprise scale.</p>
+
+  <div class="managed-wrap">
+    <div class="managed-node">
+      <div class="managed-node-icon">🧠</div>
+      <div class="managed-node-title">Brain</div>
+      <div class="managed-node-sub">Claude + stateless harness</div>
+      <div class="managed-node-trait" style="background:rgba(249,115,22,0.1);color:var(--orange2);border-color:rgba(249,115,22,0.25)">Stateless</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:10px;">The LLM + orchestration logic. Can be restarted at any time — it re-attaches to the session log to resume. Multiple brains can share one session. Powers intelligent reasoning and tool selection.</div>
+    </div>
+    <div class="managed-node">
+      <div class="managed-node-icon">📋</div>
+      <div class="managed-node-title">Session</div>
+      <div class="managed-node-sub">Append-only event log</div>
+      <div class="managed-node-trait" style="background:rgba(16,185,129,0.1);color:var(--emerald2);border-color:rgba(16,185,129,0.25)">Durable</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:10px;">The canonical source of truth. Every Slack message, tool call, result, and observation is written here. Stored outside Claude's context window, retrieved via <code style="font-size:10px">getEvents()</code>. Survives sandbox and brain restarts.</div>
+    </div>
+    <div class="managed-node">
+      <div class="managed-node-icon">📦</div>
+      <div class="managed-node-title">Sandbox</div>
+      <div class="managed-node-sub">Ephemeral execution environment</div>
+      <div class="managed-node-trait" style="background:rgba(6,182,212,0.1);color:var(--teal2);border-color:rgba(6,182,212,0.25)">Ephemeral</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:10px;">"Cattle, not pets." Provisioned fresh for each Slack thread. Discards all state when idle. No credentials stored. Multiple sandboxes can connect to one brain simultaneously. P50 TTFT improved ~60%.</div>
+    </div>
+  </div>
+
+  <div class="managed-scenario">
+    <div class="managed-scenario-title">Scenario: Sandbox Crashes Mid-Task</div>
+    <div class="managed-scenario-desc">Claude Tag is running a 3-hour data analysis. Halfway through, the sandbox crashes (hardware failure). <strong style="color:var(--text)">With legacy architecture:</strong> the entire task fails, all progress lost. <strong style="color:var(--orange2)">With Managed Agents:</strong> the session log is intact (durable, not in the sandbox). A new sandbox is provisioned. The brain reconnects via its session ID. It calls <code style="font-size:11px">getEvents()</code> to recover the full event history. The task resumes from the last completed step. No data lost, minimal delay.</div>
+  </div>
+
+  <div class="managed-scenario">
+    <div class="managed-scenario-title">Performance: What Decoupling Enables</div>
+    <div class="managed-scenario-desc">By separating session state (durable, external) from the brain (stateless, fast) and sandbox (ephemeral), new sandboxes can cold-start much faster — they don't need to restore any state, just connect to the session and begin executing. <strong style="color:var(--orange2)">P50 time-to-first-token dropped ~60%.</strong> <strong style="color:var(--orange2)">P95 dropped over 90%.</strong> This made interactive Slack response times practical for the first time.</div>
+  </div>
+</section>
+
+<!-- S7: COMPOUNDING CONTEXT -->
+<section class="content-section" id="s-context">
+  <div class="section-label">Cross-System Synthesis</div>
+  <h2 class="section-title">The Context Multiplier Effect</h2>
+  <p class="section-desc">Each connected system makes every other one more useful. When Claude can read your Slack thread AND query your data warehouse AND fetch the relevant GitHub issue AND search your Notion docs, it synthesizes answers that no single tool could produce. Toggle sources below to see how the answer changes.</p>
+
+  <div class="context-wrap">
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">Task: "Why are we seeing the API latency spike this week?"</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:16px;">Select which sources Claude has access to:</div>
+    <div class="context-sources" id="ctx-sources">
+      <div class="ctx-src on" onclick="toggleCtx(0)">
+        <div class="ctx-src-icon">💬</div>
+        <div class="ctx-src-label">Slack Thread</div>
+        <div class="ctx-src-content">Team discussion from Mon</div>
+      </div>
+      <div class="ctx-src" onclick="toggleCtx(1)">
+        <div class="ctx-src-icon">🗄️</div>
+        <div class="ctx-src-label">Data Warehouse</div>
+        <div class="ctx-src-content">API p99 latency metrics</div>
+      </div>
+      <div class="ctx-src" onclick="toggleCtx(2)">
+        <div class="ctx-src-icon">🐙</div>
+        <div class="ctx-src-label">GitHub</div>
+        <div class="ctx-src-content">PR #441 merged Mon 11pm</div>
+      </div>
+      <div class="ctx-src" onclick="toggleCtx(3)">
+        <div class="ctx-src-icon">📊</div>
+        <div class="ctx-src-label">Datadog</div>
+        <div class="ctx-src-content">Error rate spike logs</div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Claude's answer:</div>
+    <div class="ctx-result" id="ctx-result">
+      <span class="ctx-result-placeholder">Select at least one source to see how Claude responds...</span>
+    </div>
+  </div>
+
+  <div class="stat65-wrap">
+    <div class="stat65-num" id="stat65-num">0%</div>
+    <div class="stat65-label">of Anthropic's product team code is written by Claude Tag</div>
+    <div class="stat65-sub">Including most of the code that built Claude Tag itself — the product is its own best proof of concept.</div>
+    <div class="stat65-bar-wrap"><div class="stat65-bar" id="stat65-bar" style="width:0%"></div></div>
+    <div class="stat65-bar-labels"><span>0%</span><span>Human</span><span>50%</span><span style="color:var(--orange2)">Claude Tag</span><span>100%</span></div>
+  </div>
+
+  <div class="callout red">
+    <strong>The Context Sovereignty Question (critical perspective):</strong> As institutional memory accumulates in Claude Tag, switching costs compound. "Rent the agent, own the memory" — can your organization export its accumulated knowledge to formats other AI systems could use? This is the "Context Sovereignty Test": check whether your AI infrastructure lets you own your knowledge or just borrow access to it.
+  </div>
+</section>
+
+<!-- S8: EXERCISES -->
+<section class="content-section" id="s-ex">
+  <div class="section-label">Practice</div>
+  <h2 class="section-title">Practice Exercises</h2>
+  <p class="section-desc">Test your understanding of Claude Tag's architecture, permission model, and security design. Two browser exercises plus an optional Live Lab.</p>
+
+  <!-- Exercise 1 -->
+  <div class="ex-card">
+    <div class="ex-hd"><div class="ex-num">1</div><div class="ex-title">Permission Scope Quiz</div></div>
+    <div class="ex-desc">Identify the correct behavior of Claude Tag's permission model in each scenario.</div>
+    <div id="ex1-body"></div>
+  </div>
+
+  <!-- Exercise 2 -->
+  <div class="ex-card">
+    <div class="ex-hd"><div class="ex-num">2</div><div class="ex-title">Architecture Design Quiz</div></div>
+    <div class="ex-desc">Match each design choice to the architectural principle it serves in the Managed Agents infrastructure.</div>
+    <div id="ex2-body"></div>
+  </div>
+
+  <!-- Live Lab -->
+  <div class="lab-wrap">
+    <div class="ex-hd"><div class="ex-num" style="background:var(--teal)">3</div><div class="ex-title">Live Lab — Simulate a Claude Tag Session</div></div>
+    <p style="font-size:0.83rem;color:var(--muted);margin-bottom:16px;">Describe a team scenario (project, tools used, team members involved). The lab will simulate a realistic Claude Tag Slack session — how Claude would respond, what tools it would reach for, and how context accumulates across messages. Requires your OpenAI API key (stored only in your browser).</p>
+    <div class="lab-key-row">
+      <input class="lab-input" type="password" id="lab-key" placeholder="sk-… (stored in localStorage only)">
+      <button class="lab-btn" onclick="saveLabKey()">Save Key</button>
+    </div>
+    <textarea class="lab-textarea" id="lab-scenario" placeholder="Example: We're a product team using Slack, GitHub, and a Postgres data warehouse. Sarah asks Claude to investigate why signups dropped 15% this week by checking the warehouse and recent PRs."></textarea>
+    <button class="lab-run-btn" id="lab-run-btn" onclick="runLab()">&#9654; Simulate Claude Tag Session</button>
+    <div class="lab-output" id="lab-output"></div>
+  </div>
+</section>
+
+<!-- S9: REFS -->
+<section class="content-section" id="s-refs">
+  <div class="section-label">Further Reading</div>
+  <h2 class="section-title">References</h2>
+  <div class="ref-list">
+    <div class="ref-item">
+      <div class="ref-num">[1]</div>
+      <div>
+        <div class="ref-title">Introducing Claude Tag — Anthropic</div>
+        <div class="ref-meta">Official announcement &middot; June 23, 2026</div>
+        <a class="ref-link" href="https://www.anthropic.com/news/introducing-claude-tag" target="_blank">anthropic.com/news/introducing-claude-tag</a>
+      </div>
+    </div>
+    <div class="ref-item">
+      <div class="ref-num">[2]</div>
+      <div>
+        <div class="ref-title">Agent Identity Access Model</div>
+        <div class="ref-meta">Anthropic Engineering Blog &middot; June 24, 2026 &middot; The permission framework underpinning Claude Tag</div>
+        <a class="ref-link" href="https://claude.com/blog/agent-identity-access-model" target="_blank">claude.com/blog/agent-identity-access-model</a>
+      </div>
+    </div>
+    <div class="ref-item">
+      <div class="ref-num">[3]</div>
+      <div>
+        <div class="ref-title">Equipping Agents for the Real World with Agent Skills</div>
+        <div class="ref-meta">Anthropic Engineering &middot; Progressive disclosure architecture for dynamic skill loading</div>
+        <a class="ref-link" href="https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills" target="_blank">anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills</a>
+      </div>
+    </div>
+    <div class="ref-item">
+      <div class="ref-num">[4]</div>
+      <div>
+        <div class="ref-title">Managed Agents Infrastructure</div>
+        <div class="ref-meta">Anthropic Engineering &middot; Brain/Session/Sandbox decoupling — 60% P50 TTFT improvement</div>
+        <a class="ref-link" href="https://www.anthropic.com/engineering/managed-agents" target="_blank">anthropic.com/engineering/managed-agents</a>
+      </div>
+    </div>
+    <div class="ref-item">
+      <div class="ref-num">[5]</div>
+      <div>
+        <div class="ref-title">Claude Opus 4.8 — Model Announcement</div>
+        <div class="ref-meta">Anthropic &middot; 84% on Online-Mind2Web, 61% cheaper than Opus 4.7 for enterprise data</div>
+        <a class="ref-link" href="https://www.anthropic.com/news/claude-opus-4-8" target="_blank">anthropic.com/news/claude-opus-4-8</a>
+      </div>
+    </div>
+    <div class="ref-item">
+      <div class="ref-num">[6]</div>
+      <div>
+        <div class="ref-title">The Real Claude Tag Question: Context Sovereignty</div>
+        <div class="ref-meta">AlphaSignal AI &middot; Critical analysis of memory lock-in and enterprise data portability concerns</div>
+        <a class="ref-link" href="https://alphasignalai.substack.com/p/the-real-claude-tag-question-is-context" target="_blank">alphasignalai.substack.com</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTINUE STRIP -->
+<div class="continue-strip">
+  <a class="cs-link" href="../58-formal-judge/">
+    <div class="cs-label">&#8592; Previous Post</div>
+    <div class="cs-title">Post 58 — FormalJudge</div>
+  </a>
+  <a class="cs-link" href="../">
+    <div class="cs-label">All Posts &#8594;</div>
+    <div class="cs-title">Visual Summary Index</div>
+  </a>
+</div>
+
+</div><!-- /main-wrap -->
+
+<script>
+/* ── GATE ───────────────────────── */
+const GATE_KEY='pg_unlocked_59';
+const LAB_KEY='ll_openai_key_59';
+(function(){
+  if(localStorage.getItem(GATE_KEY)==='1') document.getElementById('gate').style.display='none';
+  const k=localStorage.getItem(LAB_KEY);
+  if(k) document.getElementById('lab-key').value=k;
+})();
+function checkGate(){
+  const pw=document.getElementById('gate-pw').value.trim();
+  const err=document.getElementById('gate-err');
+  if(pw==='visual2025'){localStorage.setItem(GATE_KEY,'1');document.getElementById('gate').style.display='none';}
+  else{err.style.display='block';setTimeout(()=>err.style.display='none',2000);}
+}
+function saveLabKey(){
+  const v=document.getElementById('lab-key').value.trim();
+  if(v){localStorage.setItem(LAB_KEY,v);alert('Key saved to localStorage.');}
+}
+
+/* ── SIDEBAR SCROLL ─────────────── */
+const NAV_MAP={'s-intro':'nl-intro','s-powers':'nl-powers','s-identity':'nl-identity','s-sandbox':'nl-sandbox','s-skills':'nl-skills','s-session':'nl-session','s-context':'nl-context','s-ex':'nl-ex','s-refs':'nl-refs'};
+function scrollSec(id){
+  document.getElementById(id).scrollIntoView({behavior:'smooth'});
+  document.querySelectorAll('.nav-link').forEach(l=>l.classList.remove('active'));
+  const nl=document.getElementById(NAV_MAP[id]);
+  if(nl)nl.classList.add('active');
+}
+const obs=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{if(e.isIntersecting){
+    document.querySelectorAll('.nav-link').forEach(l=>l.classList.remove('active'));
+    const nl=document.getElementById(NAV_MAP[e.target.id]);
+    if(nl)nl.classList.add('active');
+  }});
+},{threshold:0.15});
+Object.keys(NAV_MAP).forEach(id=>{const el=document.getElementById(id);if(el)obs.observe(el);});
+
+/* ── PERMISSION EXPLORER ─────────── */
+const PERM_DATA=[
+  {
+    name:'# engineering',
+    type:'Public channel — shared workspace identity',
+    tools:[
+      {name:'GitHub',a:true},{name:'Linear',a:true},{name:'Datadog',a:true},
+      {name:'Warehouse',a:true},{name:'Slack read',a:true},{name:'Google Drive',a:true},
+      {name:'Salesforce CRM',a:false},{name:'HR System',a:false},{name:'Legal Docs',a:false}
+    ],
+    mem:'Memory from this channel can be referenced in other public channels (if admin grants cross-channel read).'
+  },
+  {
+    name:'# legal-review',
+    type:'Private channel — isolated identity (separate from engineering)',
+    tools:[
+      {name:'Legal Docs',a:true},{name:'Slack read',a:true},{name:'Google Drive',a:true},
+      {name:'GitHub',a:false},{name:'Datadog',a:false},{name:'Warehouse',a:false},
+      {name:'Engineering memory',a:false},{name:'Salesforce CRM',a:false},{name:'HR System',a:false}
+    ],
+    mem:'Private channel isolation: memories, tool access, and identity are fully separate from all other channels — including # engineering.'
+  },
+  {
+    name:'# customer-success',
+    type:'Public channel — shared workspace identity',
+    tools:[
+      {name:'Salesforce CRM',a:true},{name:'Slack read',a:true},{name:'Zendesk',a:true},
+      {name:'Google Drive',a:true},{name:'GitHub',a:false},{name:'Datadog',a:false},
+      {name:'Warehouse',a:false},{name:'HR System',a:false},{name:'Legal Docs',a:false}
+    ],
+    mem:'Can see messages and memory from other public channels if cross-channel read is granted. Cannot reach engineering or legal private channels.'
+  },
+  {
+    name:'# data-insights',
+    type:'Private channel — isolated identity',
+    tools:[
+      {name:'Warehouse',a:true},{name:'Slack read',a:true},{name:'Google Drive',a:true},
+      {name:'Looker',a:true},{name:'GitHub',a:false},{name:'Salesforce CRM',a:false},
+      {name:'HR System',a:false},{name:'Legal Docs',a:false},{name:'Datadog',a:false}
+    ],
+    mem:'Private channel — data warehouse and analytics tools only. Queries are logged to the audit trail but no results ever leave to other channels.'
+  },
+  {
+    name:'# hr-private',
+    type:'Private channel — isolated identity (most restricted)',
+    tools:[
+      {name:'HR System',a:true},{name:'Slack read',a:true},
+      {name:'GitHub',a:false},{name:'Datadog',a:false},{name:'Warehouse',a:false},
+      {name:'Salesforce CRM',a:false},{name:'Legal Docs',a:false},{name:'Google Drive',a:false},{name:'Linear',a:false}
+    ],
+    mem:'Maximum isolation. HR data never crosses into any other channel context. Strict audit logging required. Admin must explicitly approve any future tool additions.'
+  },
+  {
+    name:'# general',
+    type:'Public channel — baseline workspace permissions only',
+    tools:[
+      {name:'Slack read',a:true},
+      {name:'GitHub',a:false},{name:'Datadog',a:false},{name:'Warehouse',a:false},
+      {name:'Salesforce CRM',a:false},{name:'HR System',a:false},{name:'Legal Docs',a:false},
+      {name:'Linear',a:false},{name:'Google Drive',a:false}
+    ],
+    mem:'General channel — only baseline Slack access. No connected tools. Useful for announcements and onboarding but not for task execution.'
+  }
+];
+let permIdx=0;
+function showPerm(i){
+  permIdx=i;
+  document.querySelectorAll('.perm-channel').forEach((c,j)=>c.classList.toggle('active',j===i));
+  const d=PERM_DATA[i];
+  const toolHtml=d.tools.map(t=>`<div class="perm-tool ${t.a?'allowed':'blocked'}">${t.a?'✓':'✗'} ${t.name}</div>`).join('');
+  document.getElementById('perm-detail').innerHTML=`
+    <div class="perm-detail-title">${d.name} — ${d.type}</div>
+    <div class="perm-tool-grid">${toolHtml}</div>
+    <div class="perm-memory-note">🔒 Memory: ${d.mem}</div>
+  `;
+}
+showPerm(0);
+
+/* ── SANDBOX LIFECYCLE ───────────── */
+const SB_STEPS=[
+  {
+    title:'Slack Message Triggers Execution',
+    desc:'A team member sends "@Claude investigate the latency spike" in #engineering. Claude Tag\'s webhook receives the event. The system identifies the channel, resolves its permission envelope (which tools are allowed), and prepares to route the task.',
+    html:`<div class="sb-row">
+      <div class="sb-node slack">Slack Message</div>
+      <div class="sb-arrow">→</div>
+      <div class="sb-node proxy">Webhook Handler</div>
+      <div class="sb-arrow">→</div>
+      <div class="sb-node sandbox inactive">Sandbox (not yet)</div>
+    </div>
+    <div class="sb-label">Channel #engineering identified — permission envelope resolved (GitHub ✓ Datadog ✓ Warehouse ✓)</div>
+    <div class="sb-highlight">No sandbox exists yet. No credentials have been accessed. Nothing is at risk.</div>`
+  },
+  {
+    title:'Ephemeral Sandbox Provisioned',
+    desc:'A fresh, empty sandbox is spun up by Anthropic\'s infrastructure — specifically for this Slack thread. It contains no files, no credentials, no persistent state from previous tasks. It\'s a clean-room execution environment. A new session ID is assigned for this thread\'s event log.',
+    html:`<div class="sb-row">
+      <div class="sb-node slack">Slack Message</div>
+      <div class="sb-arrow">→</div>
+      <div class="sb-node proxy">Webhook Handler</div>
+      <div class="sb-arrow">→</div>
+      <div class="sb-node sandbox">Fresh Sandbox ✓</div>
+    </div>
+    <div class="sb-row" style="margin-top:8px">
+      <div class="sb-node vault inactive">Credential Vault</div>
+      <div class="sb-arrow" style="opacity:0.3">—x—</div>
+      <div class="sb-node sandbox">Sandbox (empty)</div>
+    </div>
+    <div class="sb-label">Sandbox state: no credentials, no files, no memory. Clean slate.</div>
+    <div class="sb-highlight">Session ID assigned: events will be logged to the durable append-only session log.</div>`
+  },
+  {
+    title:'Credentials Injected at Network Boundary',
+    desc:'When Claude decides to call a tool (e.g., query Datadog), the sandbox makes a request to the Agent Proxy — not directly to Datadog. The Proxy looks up the credential vault for the #engineering channel\'s Datadog token and injects it at the network boundary. The credential is never passed to Claude\'s generated code or stored in the sandbox.',
+    html:`<div class="sb-row">
+      <div class="sb-node sandbox">Sandbox</div>
+      <div class="sb-arrow">→</div>
+      <div class="sb-node proxy">Agent Proxy</div>
+      <div class="sb-arrow">→</div>
+      <div class="sb-node vault">Credential Vault</div>
+    </div>
+    <div class="sb-arrow" style="padding-left:120px">↓ injects token</div>
+    <div class="sb-row">
+      <div class="sb-node sandbox inactive" style="opacity:0.3">Sandbox never sees token</div>
+      <div class="sb-arrow">—</div>
+      <div class="sb-node proxy">Proxy calls Datadog</div>
+      <div class="sb-arrow">→</div>
+      <div class="sb-node api">Datadog API ✓</div>
+    </div>
+    <div class="sb-highlight">The credential vault knows which channel maps to which token. Credentials never touch sandbox memory.</div>`
+  },
+  {
+    title:'Tool Calls Execute (Default-Deny Outbound)',
+    desc:'Claude makes multiple tool calls to investigate the latency spike: queries Datadog logs, fetches GitHub PRs merged this week, runs a warehouse query. Each goes through the Agent Proxy. Any call to a non-allowlisted host is blocked outright — the sandbox cannot exfiltrate data to arbitrary endpoints, even if Claude tried.',
+    html:`<div class="sb-row">
+      <div class="sb-node proxy">Agent Proxy</div>
+      <div class="sb-arrow">→</div>
+      <div class="sb-node api">Datadog ✓</div>
+    </div>
+    <div class="sb-row">
+      <div class="sb-node proxy">Agent Proxy</div>
+      <div class="sb-arrow">→</div>
+      <div class="sb-node api">GitHub ✓</div>
+    </div>
+    <div class="sb-row">
+      <div class="sb-node proxy">Agent Proxy</div>
+      <div class="sb-arrow">→</div>
+      <div class="sb-node danger">random-host.io ✗ BLOCKED</div>
+    </div>
+    <div class="sb-highlight">Default-deny: only pre-allowlisted hosts receive traffic. All calls logged to the audit trail.</div>`
+  },
+  {
+    title:'Sandbox Discards — Result Posted to Thread',
+    desc:'Once Claude has gathered the evidence and synthesized an answer, it posts the response to the Slack thread. The sandbox is then marked idle and all state discarded — nothing carries over to the next task. The result is visible to the entire channel. The session log retains the full event history for future context.',
+    html:`<div class="sb-row">
+      <div class="sb-node sandbox">Sandbox</div>
+      <div class="sb-arrow">→</div>
+      <div class="sb-node slack">Post to Thread ✓</div>
+    </div>
+    <div class="sb-row" style="margin-top:8px">
+      <div class="sb-node sandbox" style="opacity:0.4;text-decoration:line-through">Sandbox discards</div>
+      <div class="sb-arrow">→</div>
+      <div class="sb-node vault">Session Log (retained)</div>
+    </div>
+    <div class="sb-label">Next @Claude message in this thread: a fresh sandbox connects to the existing session log and has full context.</div>
+    <div class="sb-highlight">No state survives in the sandbox. Only the session log is durable — and only as designed.</div>`
+  }
+];
+let sbIdx=0;
+function setSandbox(i){
+  sbIdx=i;
+  document.querySelectorAll('.sandbox-step-btn').forEach((b,j)=>b.classList.toggle('active',j===i));
+  const s=SB_STEPS[i];
+  document.getElementById('sandbox-panel').innerHTML=`
+    <div class="sandbox-panel-title">Step ${i+1}: ${s.title}</div>
+    <div class="sandbox-panel-desc">${s.desc}</div>
+    <div class="sandbox-diagram">${s.html}</div>
+    <div style="display:flex;justify-content:space-between;margin-top:16px;">
+      <button onclick="setSandbox(Math.max(0,sbIdx-1))" style="padding:7px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--muted);cursor:pointer;font-size:12px;" ${i===0?'disabled':''}>&#8592; Previous</button>
+      <button onclick="setSandbox(Math.min(4,sbIdx+1))" style="padding:7px 16px;background:${i<4?'var(--orange)':'var(--surface2)'};border:1px solid ${i<4?'var(--orange)':'var(--border)'};border-radius:7px;color:${i<4?'#fff':'var(--muted)'};cursor:pointer;font-size:12px;font-weight:${i<4?'700':'400'};" ${i===4?'disabled':''}>Next Step &#8594;</button>
+    </div>`;
+}
+setSandbox(0);
+
+/* ── AGENT SKILLS ACCORDION ───────── */
+function toggleSkill(i){
+  document.getElementById('sl-'+i).classList.toggle('open');
+}
+
+/* ── CONTEXT MULTIPLIER ──────────── */
+const CTX_SOURCES=[
+  {on:true},  // Slack
+  {on:false}, // Warehouse
+  {on:false}, // GitHub
+  {on:false}  // Datadog
+];
+const CTX_ANSWERS=[
+  // [none, slack, warehouse, github, datadog, slack+warehouse, slack+github, slack+datadog, warehouse+github, warehouse+datadog, github+datadog, slack+warehouse+github, slack+warehouse+datadog, slack+github+datadog, warehouse+github+datadog, all]
+  {
+    mask:[true,false,false,false],
+    text:'Based on the Slack thread from Monday: "James mentioned a deployment went out late Sunday — could explain the slowdown we\'re seeing today." However, I can only see the discussion, not the actual metrics or what was deployed.'
+  },
+  {
+    mask:[false,true,false,false],
+    text:'The warehouse shows API p99 latency climbing from 82ms to 340ms starting Monday 00:47 UTC. The spike affects the /search and /recommend endpoints specifically. Without Slack or GitHub context I can\'t correlate this to a cause.'
+  },
+  {
+    mask:[false,false,true,false],
+    text:'PR #441 was merged Monday 11:42 PM — it touched the search indexing service and the recommendation cache eviction logic. Without metrics I can\'t confirm this caused the spike, but the timing is suspicious.'
+  },
+  {
+    mask:[false,false,false,true],
+    text:'Datadog shows error rate on search-service pods spiking to 4.2% from a baseline of 0.1%, beginning Monday 00:47 UTC. Memory pressure is high on the 3 pods in us-east-1. Without deployment history I can\'t identify what changed.'
+  },
+  {
+    mask:[true,true,false,false],
+    text:'Combining Slack + warehouse: the Monday deployment James mentioned correlates precisely with the p99 latency climb to 340ms starting 00:47 UTC. The /search and /recommend endpoints are hit hardest. This points to something in the recent deploy affecting those code paths.'
+  },
+  {
+    mask:[true,false,true,false],
+    text:'Combining Slack + GitHub: PR #441 (search indexing + cache eviction) merged at 11:42 PM lines up with the deployment James mentioned. The changed code paths match the endpoints team members said feel "sluggish." Still need metrics to quantify the impact.'
+  },
+  {
+    mask:[false,true,true,false],
+    text:'The warehouse + GitHub combination is telling: PR #441 touched cache eviction and the latency spike to 340ms begins exactly after merge time. The /search endpoint degradation is consistent with a cache cold-start caused by aggressive eviction in the PR.'
+  },
+  {
+    mask:[true,true,true,false],
+    text:'<strong>Strong root cause signal:</strong> PR #441 (merged Mon 11:42 PM) modified cache eviction in the search indexing service. The warehouse shows p99 spiking from 82ms to 340ms starting at 00:47 UTC on the /search and /recommend endpoints. Slack confirms the team noticed slowness Monday morning. Likely cause: overly aggressive cache eviction forcing cold rebuilds on every request. Recommend reverting the cache TTL changes in PR #441.'
+  },
+  {
+    mask:[true,true,true,true],
+    text:'<strong>Root cause confirmed across all 4 sources:</strong> PR #441 (search caching) → cache cold-start → p99 spike to 340ms → 4.2% error rate on 3 overloaded pods in us-east-1. Slack thread corroborates team observations starting Monday AM. Recommendation: (1) revert cache eviction TTL in PR #441, (2) scale us-east-1 search pods ×2 as stopgap, (3) add cache hit-rate monitoring to the latency dashboard. ETA to recovery: ~20 minutes after revert deploys.'
+  }
+];
+function toggleCtx(i){
+  CTX_SOURCES[i].on=!CTX_SOURCES[i].on;
+  document.querySelectorAll('.ctx-src')[i].classList.toggle('on',CTX_SOURCES[i].on);
+  updateCtxAnswer();
+}
+function updateCtxAnswer(){
+  const mask=CTX_SOURCES.map(s=>s.on);
+  const active=mask.filter(Boolean).length;
+  if(active===0){
+    document.getElementById('ctx-result').innerHTML='<span class="ctx-result-placeholder">Select at least one source...</span>';
+    return;
+  }
+  // Find best match
+  let best=null;
+  let bestScore=-1;
+  CTX_ANSWERS.forEach(a=>{
+    let score=0;
+    let match=true;
+    for(let i=0;i<4;i++){
+      if(a.mask[i]===mask[i])score++;
+      if(a.mask[i]&&!mask[i])match=false;
+    }
+    if(match&&score>bestScore){bestScore=score;best=a;}
+  });
+  if(!best){
+    // Fallback: just show generic
+    const count=active;
+    document.getElementById('ctx-result').innerHTML=`With ${count} source${count>1?'s':''} connected, Claude can start forming a picture — but more context would sharpen the answer.`;
+    return;
+  }
+  document.getElementById('ctx-result').innerHTML=best.text;
+}
+updateCtxAnswer();
+
+/* ── 65% ANIMATION ───────────────── */
+function animate65(){
+  const bar=document.getElementById('stat65-bar');
+  const num=document.getElementById('stat65-num');
+  bar.style.width='65%';
+  let v=0;
+  const timer=setInterval(()=>{
+    v+=1;
+    num.textContent=v+'%';
+    if(v>=65)clearInterval(timer);
+  },25);
+}
+// Trigger when section is visible
+const stat65El=document.querySelector('.stat65-wrap');
+let stat65Fired=false;
+const obs65=new IntersectionObserver(entries=>{
+  if(entries[0].isIntersecting&&!stat65Fired){stat65Fired=true;animate65();}
+},{threshold:0.4});
+obs65.observe(stat65El);
+
+/* ── EXERCISES ───────────────────── */
+const EX1=[
+  {
+    id:'e1q1',
+    scenario:'A developer in <strong>#engineering</strong> asks @Claude to pull the Q3 revenue report from the data warehouse. Claude has Warehouse access in #engineering. Later, a user in <strong>#hr-private</strong> asks @Claude the same question.',
+    opts:['Claude uses the same warehouse credentials in both channels','Claude uses different channel-scoped permissions — #hr-private must have warehouse access separately granted','Claude inherits #engineering\'s memory into #hr-private since it\'s the same workspace','The query fails in both channels because private channels block all tool use'],
+    correct:1,
+    feedback:'Correct! Each channel has independent permission scopes. #hr-private has a separate Claude identity with separate tool grants. Warehouse access in #engineering does not carry over.'
+  },
+  {
+    id:'e1q2',
+    scenario:'Your team is concerned that Claude Tag might accidentally leak private channel discussions into public channels. Which architectural guarantee prevents this?',
+    opts:['Admins must manually delete private channel messages every week','Private channels have distinct Claude identities — memory and access are fully isolated','Claude\'s constitution prevents it from mentioning private channel content','Slack encryption prevents cross-channel data access'],
+    correct:1,
+    feedback:'Correct! Private channels receive distinct Claude identities with separate permission envelopes. "A shared channel can never become a side door into someone\'s private documents" — this is architecturally enforced, not just policy-based.'
+  },
+  {
+    id:'e1q3',
+    scenario:'A team is evaluating whether to use Claude Tag. Their main concern is vendor lock-in — if they accumulate 2 years of institutional memory in Claude Tag\'s channel history, can they take it with them if they switch providers?',
+    opts:['Yes — Anthropic provides a full memory export API at any time','No — channel memory is stored in Anthropic\'s infrastructure; portability depends on Anthropic\'s export tools','Yes — because Slack itself stores all messages and Claude only reads them','No — but this is not a concern because switching AI providers is always free'],
+    correct:1,
+    feedback:'Correct! This is the "Context Sovereignty" concern. The institutional memory Claude accumulates lives in Anthropic\'s infrastructure. Whether you can export it in a format another AI can consume depends on Anthropic\'s data portability tools — the "Rent the agent, own the memory" risk.'
+  }
+];
+const EX2=[
+  {
+    id:'e2q1',
+    scenario:'The Managed Agents architecture stores the session event log outside the Claude context window, in durable external storage. What specific problem does this solve?',
+    opts:['It makes responses faster by compressing messages','When the sandbox crashes mid-task, the brain can reconnect and resume without data loss','It prevents Claude from reading its own previous messages','It reduces the cost per message by not sending history'],
+    correct:1,
+    feedback:'Correct! Durable external session storage means sandbox failures don\'t lose progress. The brain reconnects via session ID, calls getEvents() to recover history, and resumes from the last completed step. This is what enables long-running async tasks to survive infrastructure failures.'
+  },
+  {
+    id:'e2q2',
+    scenario:'Agent Skills use a 3-tier progressive disclosure system — metadata loaded always, full SKILL.md loaded on match, supplementary files loaded on demand. What\'s the primary reason for this design?',
+    opts:['To hide instruction content from competing AI systems','Context window efficiency — a workspace with 40 skills would consume 200k+ tokens if all loaded upfront','To increase response latency for billing purposes','To prevent Claude from using skills the user hasn\'t explicitly requested'],
+    correct:1,
+    feedback:'Correct! Progressive disclosure is pure context-window optimization. Loading 40+ skill documents for every message would fill context before the user\'s question even begins. Tier 1 metadata (50 tokens) lets Claude recognize relevance; Tier 2-3 load only when needed.'
+  }
+];
+function renderEx(qs,cid){
+  const el=document.getElementById(cid);
+  el.innerHTML=qs.map((q,qi)=>`
+    <div id="${q.id}" style="margin-bottom:20px;">
+      <div class="ex-scenario">${q.scenario}</div>
+      <div class="q-options">${q.opts.map((o,oi)=>`<div class="q-opt" onclick="answerQ('${q.id}',${oi},${q.correct},'${q.feedback.replace(/'/g,"\\'")}',this)">${o}</div>`).join('')}</div>
+      <div class="q-feedback" id="${q.id}-fb"></div>
+    </div>`).join('');
+}
+function answerQ(id,chosen,correct,fb,el){
+  const c=document.getElementById(id);
+  c.querySelectorAll('.q-opt').forEach(o=>o.style.pointerEvents='none');
+  el.classList.add(chosen===correct?'correct':'wrong');
+  if(chosen!==correct)c.querySelectorAll('.q-opt')[correct].classList.add('correct');
+  const f=document.getElementById(id+'-fb');
+  f.textContent=(chosen===correct?'✓ ':'✗ ')+fb;
+  f.className='q-feedback show '+(chosen===correct?'ok':'err');
+}
+renderEx(EX1,'ex1-body');
+renderEx(EX2,'ex2-body');
+
+/* ── LIVE LAB ────────────────────── */
+async function runLab(){
+  const k=localStorage.getItem(LAB_KEY)||document.getElementById('lab-key').value.trim();
+  if(!k){alert('Enter your OpenAI API key first.');return;}
+  const scenario=document.getElementById('lab-scenario').value.trim();
+  if(!scenario){alert('Describe a team scenario first.');return;}
+  const btn=document.getElementById('lab-run-btn');
+  const out=document.getElementById('lab-output');
+  btn.disabled=true;btn.textContent='Simulating…';
+  out.style.display='block';
+  out.innerHTML='<span style="color:var(--muted)">Simulating Claude Tag session…</span>';
+  const sys=`You are simulating a Claude Tag session inside a fictional company's Slack workspace. Claude Tag is Anthropic's multiplayer AI teammate that:
+- Lives in Slack channels and responds when @Claude is tagged
+- Maintains persistent channel memory
+- Has access to connected tools (GitHub, data warehouses, Datadog, etc.)
+- Can work asynchronously on multi-step tasks
+- Posts visible progress to the channel
+
+Given the user's scenario description, simulate a realistic Slack thread where:
+1. One or more team members @Claude in a channel
+2. Claude responds, using the tools that make sense for the scenario
+3. Show how context accumulates and is reused as the conversation continues (different team members picking up the thread)
+4. If relevant, show how Claude might trigger an async background task
+
+Format as a Slack transcript with:
+[User Name]: message content
+[@Claude]: response content (reference tools used in brackets like [querying warehouse...])
+
+Keep it realistic, specific, and show the multiplayer collaboration aspect. 3-6 messages total.`;
+  try{
+    const r=await fetch('https://api.openai.com/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+k},
+      body:JSON.stringify({model:'gpt-4o-mini',messages:[{role:'system',content:sys},{role:'user',content:'Scenario:\n'+scenario}],max_tokens:900,temperature:0.7})
+    });
+    const data=await r.json();
+    if(data.error){out.innerHTML='<span style="color:var(--red2)">API Error: '+data.error.message+'</span>';return;}
+    const text=data.choices[0].message.content;
+    out.innerHTML='<pre>'+text.replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</pre>';
+  }catch(e){
+    out.innerHTML='<span style="color:var(--red2)">Error: '+e.message+'</span>';
+  }finally{
+    btn.disabled=false;btn.textContent='▶ Simulate Claude Tag Session';
+  }
+}
+</script>
+</body>
+</html>
