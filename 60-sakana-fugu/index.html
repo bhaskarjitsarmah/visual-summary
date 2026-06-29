@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en" class="vs-post">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Sakana Fugu — When Orchestration Beats Scale</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#04080f;--surface:#070e1b;--surface2:#0b1428;--border:#102035;
+  --text:#c2e4f4;--muted:#3a6280;
+  --teal:#06b6d4;--teal2:#22d3ee;--teal3:#67e8f9;
+  --coral:#f43f5e;--coral2:#fb7185;
+  --gold:#f59e0b;--gold2:#fbbf24;
+  --emerald:#10b981;--emerald2:#34d399;
+  --violet:#8b5cf6;--violet2:#a78bfa;
+  --red:#ef4444;--red2:#f87171;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;}
+a{text-decoration:none;color:inherit;}
+code,pre{font-family:'JetBrains Mono',monospace;}
+
+/* GATE */
+#gate{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.gate-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 44px;text-align:center;max-width:380px;width:90%;}
+.gate-icon{font-size:36px;margin-bottom:12px;}
+.gate-title{font-size:20px;font-weight:800;color:var(--teal2);margin-bottom:4px;}
+.gate-sub{font-size:12px;color:var(--muted);margin-bottom:24px;}
+.gate-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;color:var(--text);font-size:14px;outline:none;margin-bottom:12px;}
+.gate-input:focus{border-color:var(--teal);}
+.gate-btn{width:100%;background:var(--teal);color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;}
+.gate-btn:hover{background:var(--teal2);}
+.gate-err{font-size:12px;color:var(--coral);margin-top:8px;display:none;}
+
+/* SIDEBAR */
+#sidebar{width:240px;min-height:100vh;background:var(--surface);border-right:1px solid var(--border);position:sticky;top:0;height:100vh;overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column;}
+.sidebar-logo{padding:20px 20px 16px;border-bottom:1px solid var(--border);}
+.sidebar-logo-main{font-size:13px;font-weight:700;color:var(--teal2);}
+.sidebar-logo-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+.sidebar-nav{padding:16px 0;flex:1;}
+.nav-sec{padding:0 12px;margin-bottom:4px;}
+.nav-sec-label{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);padding:8px 8px 4px;}
+.nav-link{display:block;padding:7px 8px;border-radius:7px;font-size:12px;color:var(--muted);cursor:pointer;transition:all 0.15s;}
+.nav-link:hover,.nav-link.active{background:rgba(6,182,212,0.12);color:var(--teal2);}
+.sidebar-footer{padding:16px 20px;border-top:1px solid var(--border);}
+.sidebar-footer-text{font-size:11px;color:var(--muted);}
+
+/* MAIN */
+#main-wrap{flex:1;min-width:0;display:flex;flex-direction:column;}
+
+/* TOP BAR */
+.top-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 48px;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:100;}
+.top-bar-left{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.top-bar-back{font-size:12px;color:var(--muted);padding:6px 12px;border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:all 0.15s;}
+.top-bar-back:hover{color:var(--text);border-color:var(--muted);}
+.tag{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+.tag-teal{background:rgba(6,182,212,0.12);color:var(--teal2);border:1px solid rgba(6,182,212,0.25);}
+.tag-coral{background:rgba(244,63,94,0.12);color:var(--coral2);border:1px solid rgba(244,63,94,0.25);}
+.reading-time{font-size:11px;color:var(--muted);}
+
+/* HERO */
+.hero{padding:64px 48px 52px;border-bottom:1px solid var(--border);position:relative;overflow:hidden;}
+.hero::before{content:'';position:absolute;top:-80px;right:-80px;width:500px;height:500px;background:radial-gradient(circle,rgba(6,182,212,0.06) 0%,transparent 70%);pointer-events:none;}
+.hero-kicker{font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--teal);font-weight:700;margin-bottom:20px;}
+.hero-title{font-size:2.4rem;font-weight:800;line-height:1.15;margin-bottom:16px;background:linear-gradient(135deg,var(--text) 40%,var(--teal2) 65%,var(--coral2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.hero-desc{font-size:1rem;color:var(--muted);max-width:640px;line-height:1.75;margin-bottom:28px;}
+.hero-stats{display:flex;gap:40px;flex-wrap:wrap;}
+.hero-stat-val{font-size:1.8rem;font-weight:800;color:var(--teal2);}
+.hero-stat-lbl{font-size:11px;color:var(--muted);margin-top:2px;}
+
+/* CONTENT */
+.content-section{padding:48px 48px 40px;border-bottom:1px solid var(--border);}
+.section-label{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--teal);font-weight:700;margin-bottom:8px;}
+.section-title{font-size:1.5rem;font-weight:800;color:var(--text);margin-bottom:12px;}
+.section-desc{font-size:0.9rem;color:var(--muted);line-height:1.7;max-width:720px;margin-bottom:28px;}
+.callout{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--teal);border-radius:8px;padding:16px 20px;margin-bottom:20px;font-size:0.875rem;color:var(--text);line-height:1.65;}
+.callout.coral{border-left-color:var(--coral);}
+.callout.gold{border-left-color:var(--gold);}
+.callout.emerald{border-left-color:var(--emerald);}
+.callout strong{color:var(--teal3);}
+.callout.coral strong{color:var(--coral2);}
+.callout.gold strong{color:var(--gold2);}
+.callout.emerald strong{color:var(--emerald2);}
+
+/* TWO COLS */
+.tw-cols{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;}
+.info-block{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;}
+.info-block-title{font-size:0.85rem;font-weight:700;color:var(--text);margin-bottom:8px;}
+.info-block-body{font-size:0.8rem;color:var(--muted);line-height:1.65;}
+
+/* SCALING AXIS DIAGRAM */
+.axis-diagram{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px;margin-bottom:24px;}
+.axis-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px;}
+.axis-node{border-radius:10px;padding:16px;text-align:center;}
+.axis-node-icon{font-size:24px;margin-bottom:8px;}
+.axis-node-title{font-size:0.85rem;font-weight:700;color:var(--text);margin-bottom:4px;}
+.axis-node-body{font-size:11px;color:var(--muted);line-height:1.5;}
+.axis-vs{display:flex;align-items:center;justify-content:center;margin-bottom:12px;}
+.axis-vs-badge{font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;background:rgba(6,182,212,0.12);color:var(--teal2);border:1px solid rgba(6,182,212,0.25);}
+
+/* SYSTEM TOGGLE */
+.sys-toggle{display:flex;gap:0;border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:0;width:fit-content;}
+.sys-btn{padding:10px 24px;background:var(--surface);border:none;color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;}
+.sys-btn.active{background:rgba(6,182,212,0.15);color:var(--teal2);}
+.sys-panel{background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 12px 12px;padding:28px;margin-bottom:24px;}
+
+/* ARCH FLOW */
+.arch-flow{display:flex;flex-direction:column;gap:0;}
+.arch-row{display:flex;align-items:center;gap:12px;margin-bottom:4px;flex-wrap:wrap;}
+.arch-node{padding:10px 16px;border-radius:8px;font-size:12px;font-weight:700;}
+.arch-node.backbone{background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.25);color:var(--violet2);}
+.arch-node.head{background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.2);color:var(--teal2);}
+.arch-node.worker{background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);color:var(--emerald2);}
+.arch-node.role{background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2);color:var(--gold2);}
+.arch-node.conductor{background:rgba(6,182,212,0.12);border:1px solid rgba(6,182,212,0.25);color:var(--teal2);}
+.arch-node.workflow{background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);color:var(--violet2);}
+.arch-node.training{background:rgba(244,63,94,0.08);border:1px solid rgba(244,63,94,0.2);color:var(--coral2);}
+.arch-arrow{color:var(--muted);font-size:18px;flex-shrink:0;}
+.arch-note{font-size:11px;color:var(--muted);background:var(--surface2);border-radius:6px;padding:8px 12px;margin-top:8px;display:inline-block;}
+
+/* BENCHMARK CHART */
+.bench-filter{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+.bench-filter-btn{padding:6px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;transition:all 0.15s;}
+.bench-filter-btn.active{background:rgba(6,182,212,0.12);border-color:var(--teal);color:var(--teal2);}
+.bench-chart{display:flex;flex-direction:column;gap:14px;}
+.bench-row{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;transition:all 0.2s;}
+.bench-row-hd{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+.bench-name{font-size:12px;font-weight:700;color:var(--text);flex:1;}
+.bench-cat{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600;}
+.bench-cat.coding{background:rgba(6,182,212,0.12);color:var(--teal2);}
+.bench-cat.science{background:rgba(139,92,246,0.12);color:var(--violet2);}
+.bench-cat.mixed{background:rgba(245,158,11,0.12);color:var(--gold2);}
+.bench-winner{font-size:10px;font-weight:700;color:var(--coral2);}
+.bench-bars-row{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;}
+.bench-bar-group{display:flex;flex-direction:column;gap:3px;align-items:center;}
+.bench-bar-bg{width:100%;height:10px;background:var(--surface2);border-radius:5px;overflow:hidden;}
+.bench-bar-fill{height:100%;border-radius:5px;transition:width 0.5s ease;}
+.bench-bar-val{font-size:10px;font-weight:700;color:var(--muted);font-family:'JetBrains Mono',monospace;}
+.bench-bar-lbl{font-size:9px;color:var(--muted);text-align:center;}
+.bench-legend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;font-size:11px;}
+.bench-legend-item{display:flex;align-items:center;gap:6px;}
+.bench-dot{width:10px;height:10px;border-radius:50%;}
+
+/* TOPOLOGY GALLERY */
+.topo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:24px;}
+.topo-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;cursor:pointer;transition:all 0.2s;}
+.topo-card:hover,.topo-card.active{border-color:var(--teal);background:rgba(6,182,212,0.04);}
+.topo-card-hd{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.topo-icon{font-size:22px;}
+.topo-title{font-size:0.9rem;font-weight:700;color:var(--text);}
+.topo-sub{font-size:11px;color:var(--muted);}
+.topo-diagram{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;font-size:11.5px;font-family:'JetBrains Mono',monospace;white-space:pre;color:var(--teal3);line-height:1.8;}
+.topo-usecase{font-size:11px;color:var(--muted);line-height:1.6;}
+.topo-detail{display:none;}
+.topo-card.active .topo-detail{display:block;}
+
+/* ROUTING HEATMAP */
+.routing-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:24px;overflow-x:auto;}
+.routing-table{width:100%;border-collapse:collapse;font-size:12px;min-width:560px;}
+.routing-table th{padding:8px 12px;color:var(--muted);font-weight:600;text-align:center;border-bottom:1px solid var(--border);}
+.routing-table th:first-child{text-align:left;}
+.routing-table td{padding:7px 12px;text-align:center;border-bottom:1px solid rgba(16,32,53,0.8);}
+.routing-table td:first-child{text-align:left;color:var(--muted);font-size:11px;}
+.heat-cell{display:inline-block;padding:2px 8px;border-radius:5px;font-weight:700;font-size:11px;font-family:'JetBrains Mono',monospace;}
+
+/* CRITICAL */
+.critical-grid{display:flex;flex-direction:column;gap:12px;margin-bottom:24px;}
+.critical-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;display:flex;gap:14px;align-items:flex-start;}
+.critical-item-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.critical-item-body{flex:1;}
+.critical-item-title{font-size:0.875rem;font-weight:700;color:var(--text);margin-bottom:4px;}
+.critical-item-desc{font-size:0.8rem;color:var(--muted);line-height:1.65;}
+.critical-severity{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-top:6px;display:inline-block;}
+
+/* EXERCISES */
+.ex-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:16px;}
+.ex-hd{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.ex-num{width:28px;height:28px;border-radius:50%;background:var(--teal);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;}
+.ex-title{font-size:0.95rem;font-weight:700;color:var(--text);}
+.ex-desc{font-size:0.85rem;color:var(--muted);margin-bottom:18px;line-height:1.65;}
+.ex-scenario{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:0.83rem;color:var(--text);margin-bottom:14px;line-height:1.65;}
+.q-options{display:grid;gap:8px;margin-bottom:12px;}
+.q-opt{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;cursor:pointer;font-size:0.83rem;transition:all 0.15s;}
+.q-opt:hover{border-color:var(--teal);color:var(--teal3);}
+.q-opt.correct{background:rgba(16,185,129,0.1);border-color:var(--emerald);color:var(--emerald2);}
+.q-opt.wrong{background:rgba(244,63,94,0.08);border-color:var(--coral);color:var(--coral2);}
+.q-fb{font-size:12px;padding:10px 14px;border-radius:6px;display:none;}
+.q-fb.show{display:block;}
+.q-fb.ok{background:rgba(16,185,129,0.1);color:var(--emerald2);}
+.q-fb.err{background:rgba(244,63,94,0.08);color:var(--coral2);}
+
+/* LIVE LAB */
+.lab-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:16px;}
+.lab-key-row{display:flex;gap:10px;margin-bottom:16px;}
+.lab-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;outline:none;}
+.lab-input:focus{border-color:var(--teal);}
+.lab-btn{background:var(--teal);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;}
+.lab-btn:hover{background:var(--teal2);}
+.lab-btn:disabled{opacity:0.5;cursor:not-allowed;}
+.lab-textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;color:var(--text);font-size:13px;outline:none;resize:vertical;min-height:90px;line-height:1.6;margin-bottom:12px;}
+.lab-textarea:focus{border-color:var(--teal);}
+.lab-run-btn{background:var(--teal);color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;}
+.lab-run-btn:disabled{opacity:0.5;cursor:not-allowed;}
+.lab-output{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:18px;font-size:12.5px;margin-top:12px;line-height:1.7;display:none;color:var(--text);}
+.lab-output pre{white-space:pre-wrap;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--teal3);}
+
+/* REFS */
+.ref-list{display:flex;flex-direction:column;gap:8px;}
+.ref-item{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 18px;display:flex;gap:14px;align-items:flex-start;}
+.ref-num{color:var(--teal2);font-weight:800;font-size:13px;flex-shrink:0;font-family:'JetBrains Mono',monospace;min-width:24px;}
+.ref-title{font-size:0.875rem;font-weight:600;color:var(--text);}
+.ref-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+.ref-link{font-size:11px;color:var(--teal2);margin-top:3px;display:block;}
+
+/* CONTINUE STRIP */
+.continue-strip{background:var(--surface);border-top:1px solid var(--border);padding:28px 48px;display:flex;justify-content:space-between;align-items:center;gap:24px;}
+.cs-link{display:flex;flex-direction:column;gap:4px;padding:16px 20px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:all 0.2s;text-decoration:none;}
+.cs-link:hover{border-color:var(--teal);background:rgba(6,182,212,0.05);}
+.cs-label{font-size:11px;color:var(--muted);}
+.cs-title{font-size:0.88rem;font-weight:700;color:var(--teal2);}
+
+/* RESPONSIVE */
+@media(max-width:900px){
+  #sidebar{display:none;}
+  .content-section,.hero{padding:36px 20px;}
+  .top-bar{padding:10px 20px;}
+  .continue-strip{padding:24px 20px;flex-direction:column;gap:16px;}
+  .tw-cols,.axis-grid,.topo-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<!-- GATE -->
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-icon">🐡</div>
+    <div class="gate-title">Sakana Fugu</div>
+    <div class="gate-sub">Post 60 &middot; Agents &amp; Systems &middot; 2026</div>
+    <input class="gate-input" type="password" id="gate-pw" placeholder="Enter access code…" onkeydown="if(event.key==='Enter')checkGate()">
+    <button class="gate-btn" onclick="checkGate()">Unlock Post</button>
+    <div class="gate-err" id="gate-err">Incorrect — try again</div>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<nav id="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-main">Visual Summary</div>
+    <div class="sidebar-logo-sub">Post 60 — Sakana Fugu</div>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-sec">
+      <div class="nav-sec-label">Navigation</div>
+      <a class="nav-link" href="../">&#8592; All Posts</a>
+    </div>
+    <div class="nav-sec">
+      <div class="nav-sec-label">Sections</div>
+      <a class="nav-link active" id="nl-intro" onclick="scrollSec('s-intro')">The New Scaling Axis</a>
+      <a class="nav-link" id="nl-arch" onclick="scrollSec('s-arch')">Two Systems</a>
+      <a class="nav-link" id="nl-trinity" onclick="scrollSec('s-trinity')">TRINITY Architecture</a>
+      <a class="nav-link" id="nl-conductor" onclick="scrollSec('s-conductor')">The Conductor</a>
+      <a class="nav-link" id="nl-results" onclick="scrollSec('s-results')">Benchmark Results</a>
+      <a class="nav-link" id="nl-routing" onclick="scrollSec('s-routing')">Domain Routing</a>
+      <a class="nav-link" id="nl-critical" onclick="scrollSec('s-critical')">Critical View</a>
+      <a class="nav-link" id="nl-ex" onclick="scrollSec('s-ex')">Practice Exercises</a>
+      <a class="nav-link" id="nl-refs" onclick="scrollSec('s-refs')">References</a>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    <div class="sidebar-footer-text">arXiv:2606.21228 &middot; June 2026<br>Sakana AI &middot; CC BY 4.0</div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div id="main-wrap">
+
+<!-- TOP BAR -->
+<div class="top-bar">
+  <div class="top-bar-left">
+    <a class="top-bar-back" href="../">&#8592; All Posts</a>
+    <span class="tag tag-teal">Post 60</span>
+    <span class="tag tag-coral">Agents</span>
+  </div>
+  <div class="reading-time">~16 min read</div>
+</div>
+
+<!-- HERO -->
+<section class="hero" id="s-hero">
+  <div class="hero-kicker">Multi-Agent Orchestration &middot; Sakana AI &middot; ICLR 2026 &middot; arXiv:2606.21228</div>
+  <h1 class="hero-title">Sakana Fugu: When<br>Orchestration Beats Scale</h1>
+  <p class="hero-desc">What if instead of training a bigger model, you trained a smarter coordinator? Sakana Fugu deploys a 0.6B parameter orchestrator that learns to combine GPT-5.5, Claude Opus 4.8, and Gemini 3.1 Pro — and outperforms every individual member of the pool on 8 of 11 benchmarks.</p>
+  <div class="hero-stats">
+    <div>
+      <div class="hero-stat-val">8/11</div>
+      <div class="hero-stat-lbl">benchmarks won vs frontier models</div>
+    </div>
+    <div>
+      <div class="hero-stat-val">0.6B</div>
+      <div class="hero-stat-lbl">coordinator params (vs 70B+ workers)</div>
+    </div>
+    <div>
+      <div class="hero-stat-val">93.2%</div>
+      <div class="hero-stat-lbl">LiveCodeBench v6 (Fugu-Ultra)</div>
+    </div>
+    <div>
+      <div class="hero-stat-val">73.7%</div>
+      <div class="hero-stat-lbl">SWE-Bench Pro (new SOTA)</div>
+    </div>
+  </div>
+</section>
+
+<!-- S1: INTRO -->
+<section class="content-section" id="s-intro">
+  <div class="section-label">Background</div>
+  <h2 class="section-title">The New Scaling Axis</h2>
+  <p class="section-desc">Traditional AI scaling has two axes: pre-training compute and parameter count. Sakana AI proposes a third: <em>orchestration quality</em>. Rather than training a bigger model, train a smarter coordinator over a pool of specialized workers.</p>
+
+  <div class="axis-diagram">
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:16px;">Three Ways to Scale AI Capability</div>
+    <div class="axis-grid">
+      <div class="axis-node" style="background:rgba(139,92,246,0.07);border:1px solid rgba(139,92,246,0.2);">
+        <div class="axis-node-icon">📊</div>
+        <div class="axis-node-title" style="color:var(--violet2)">Pre-Training Scale</div>
+        <div class="axis-node-body">Train on more tokens, more compute. GPT-4 → GPT-5.5. Costs billions, takes months, requires access to massive data.</div>
+      </div>
+      <div class="axis-node" style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.2);">
+        <div class="axis-node-icon">⚙️</div>
+        <div class="axis-node-title" style="color:var(--gold2)">Fine-Tuning / RLVR</div>
+        <div class="axis-node-body">Distill capability, GRPO training. Domain-specific improvements. Requires parameter access — impossible for closed APIs like GPT-5.5.</div>
+      </div>
+      <div class="axis-node" style="background:rgba(6,182,212,0.07);border:1px solid rgba(6,182,212,0.2);">
+        <div class="axis-node-icon">🐡</div>
+        <div class="axis-node-title" style="color:var(--teal2)">Orchestration Learning</div>
+        <div class="axis-node-body">Train a coordinator to route tasks to the right specialist. Works at the API level — no weights needed, works with any closed-source model.</div>
+      </div>
+    </div>
+    <div class="axis-vs"><span class="axis-vs-badge">Fugu's Claim: Orchestration ≈ +1 Model Generation of Capability</span></div>
+    <div style="font-size:12px;color:var(--muted);">The key insight: no single frontier model dominates all domains. GPT-5.5 leads on coding tasks; Gemini on scientific reasoning; Claude on analysis. A coordinator that correctly routes each query captures the best of all three simultaneously.</div>
+  </div>
+
+  <div class="callout">
+    <strong>Why This Matters:</strong> After the US Department of Commerce imposed export controls on Anthropic's Fable 5 and Mythos models (June 12, 2026), Sakana positioned Fugu as frontier capability without export restriction — reaching comparable performance through orchestration of already-accessible models. This framing is contested (see Critical View section), but the underlying technical approach is independent of geopolitics.
+  </div>
+
+  <div class="tw-cols">
+    <div class="info-block">
+      <div class="info-block-title">What Sakana AI Is</div>
+      <div class="info-block-body">Founded in Tokyo (2023) by David Ha (ex-Google Brain head of research) and Llion Jones (Transformer co-author). Focus: nature-inspired AI — evolution, multi-agent systems, emergent intelligence. Previous work: AI Scientist, AI CUDA Engineer, Computational Life. GitHub: github.com/SakanaAI</div>
+    </div>
+    <div class="info-block">
+      <div class="info-block-title">The Three Foundational Papers</div>
+      <div class="info-block-body">
+        &bull; <strong style="color:var(--text)">TRINITY</strong> (arXiv:2512.04695, ICLR 2026) — Evolutionary multi-agent coordinator<br>
+        &bull; <strong style="color:var(--text)">The Conductor</strong> (arXiv:2512.04388, ICLR 2026) — RL-trained workflow generator<br>
+        &bull; <strong style="color:var(--text)">Fugu</strong> (arXiv:2606.21228, June 2026) — Combined product deployment of both
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- S2: ARCH -->
+<section class="content-section" id="s-arch">
+  <div class="section-label">Architecture Overview</div>
+  <h2 class="section-title">Two Systems, One Mission</h2>
+  <p class="section-desc">Fugu ships two variants optimized for different points on the speed-quality tradeoff. Switch between them to see their architectural differences — two fundamentally different approaches to the same problem of learned orchestration.</p>
+
+  <div style="margin-bottom:0">
+    <div class="sys-toggle">
+      <button class="sys-btn active" onclick="setSys(0)">🐡 Fugu (TRINITY)</button>
+      <button class="sys-btn" onclick="setSys(1)">🎼 Fugu-Ultra (Conductor)</button>
+    </div>
+  </div>
+  <div class="sys-panel" id="sys-panel"><!-- injected --></div>
+
+  <div class="tw-cols">
+    <div class="info-block">
+      <div class="info-block-title">Shared Worker Pool</div>
+      <div class="info-block-body">Both systems route tasks to the same three frontier models:<br><br>
+        &bull; <strong style="color:var(--text)">GPT-5.5</strong> — OpenAI<br>
+        &bull; <strong style="color:var(--text)">Claude Opus 4.8</strong> — Anthropic<br>
+        &bull; <strong style="color:var(--text)">Gemini 3.1 Pro</strong> — Google<br><br>
+        No weights are accessed — all interaction is via public APIs. This means the approach works for any closed-source model.
+      </div>
+    </div>
+    <div class="info-block">
+      <div class="info-block-title">Fugu vs. Fugu-Ultra Tradeoff</div>
+      <div class="info-block-body">
+        <table style="width:100%;font-size:11px;border-collapse:collapse;">
+          <tr><td style="color:var(--muted);padding:3px 0">Latency</td><td style="color:var(--emerald2);text-align:right">Fugu: ~8s</td><td style="color:var(--gold2);text-align:right">Ultra: ~108s</td></tr>
+          <tr><td style="color:var(--muted);padding:3px 0">Training</td><td style="color:var(--emerald2);text-align:right">Evolution</td><td style="color:var(--gold2);text-align:right">GRPO RL</td></tr>
+          <tr><td style="color:var(--muted);padding:3px 0">Coordinator</td><td style="color:var(--emerald2);text-align:right">0.6B + 10K</td><td style="color:var(--gold2);text-align:right">7B GRPO</td></tr>
+          <tr><td style="color:var(--muted);padding:3px 0">Workflow</td><td style="color:var(--emerald2);text-align:right">Turn-level</td><td style="color:var(--gold2);text-align:right">Full plan</td></tr>
+          <tr><td style="color:var(--muted);padding:3px 0">Wins (11 tests)</td><td style="color:var(--emerald2);text-align:right">5/11</td><td style="color:var(--gold2);text-align:right">8/11</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- S3: TRINITY -->
+<section class="content-section" id="s-trinity">
+  <div class="section-label">Fugu — TRINITY Architecture</div>
+  <h2 class="section-title">Evolutionary Coordination</h2>
+  <p class="section-desc">TRINITY assigns Thinker / Worker / Verifier roles to frontier models, turn-by-turn, using a 0.6B backbone and a tiny 10K-parameter selection head trained by evolutionary search — not gradient descent. The choice to use evolution instead of RL is a deliberate response to the sparse, high-variance reward landscape of multi-turn tasks.</p>
+
+  <div class="callout">
+    <strong>Why Evolution, Not RL?</strong> Three reasons: (1) Rewards are sparse binary signals — success or failure only at the very end of a multi-turn chain. (2) Parameter coupling is weak — the selection head is nearly independent across layers, so gradient methods suffer high variance. (3) SFT labels for multi-turn routing are theoretically prohibitive: 8.7×10¹⁰ queries to exhaustively sample. Sep-CMA-ES (separable CMA-ES) achieves 0.615 on LiveCodeBench vs. 0.253 for REINFORCE — a 2.4× advantage.
+  </div>
+
+  <div class="tw-cols">
+    <div class="info-block">
+      <div class="info-block-title">The Three Roles</div>
+      <div class="info-block-body">
+        &bull; <strong style="color:var(--text)">Thinker</strong> — generates the plan, reasons about the problem, structures the approach. Critical for hard reasoning tasks: removing Thinker costs -1.75pp average accuracy.<br><br>
+        &bull; <strong style="color:var(--text)">Worker</strong> — implements the plan, executes code, retrieves information.<br><br>
+        &bull; <strong style="color:var(--text)">Verifier</strong> — checks the worker's output, catches errors, validates correctness. The quality-control layer.
+      </div>
+    </div>
+    <div class="info-block">
+      <div class="info-block-title">The Penultimate Token Insight</div>
+      <div class="info-block-body">
+        The backbone reads the hidden state <strong style="color:var(--text)">h ∈ ℝᵈ</strong> at the penultimate token position — not the final token. This is non-obvious: the final token intuitively seems most informative, but it actually carries less distinguishing signal for routing decisions.<br><br>
+        Using the final token instead drops performance by <strong style="color:var(--coral2)">-5.78 percentage points</strong>. The penultimate position captures more context about the task type before the model "commits" to an output.
+      </div>
+    </div>
+  </div>
+
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:24px;">
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:16px;">TRINITY Performance vs. Alternatives</div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span style="color:var(--text)">TRINITY (sep-CMA-ES)</span><span style="color:var(--teal2);font-weight:700">86.2% LiveCodeBench</span></div>
+        <div style="height:10px;background:var(--surface2);border-radius:5px;overflow:hidden;"><div style="width:86.2%;height:100%;background:var(--teal);border-radius:5px;"></div></div>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span style="color:var(--muted)">REINFORCE (gradient RL)</span><span style="color:var(--muted);font-weight:700">25.3%</span></div>
+        <div style="height:10px;background:var(--surface2);border-radius:5px;overflow:hidden;"><div style="width:25.3%;height:100%;background:var(--muted);border-radius:5px;"></div></div>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span style="color:var(--muted)">Random search (baseline)</span><span style="color:var(--muted);font-weight:700">37.4%</span></div>
+        <div style="height:10px;background:var(--surface2);border-radius:5px;overflow:hidden;"><div style="width:37.4%;height:100%;background:var(--muted);border-radius:5px;"></div></div>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span style="color:var(--muted)">Mixture-of-Agents (MoA)</span><span style="color:var(--muted);font-weight:700">39.0%</span></div>
+        <div style="height:10px;background:var(--surface2);border-radius:5px;overflow:hidden;"><div style="width:39%;height:100%;background:var(--muted);border-radius:5px;"></div></div>
+      </div>
+    </div>
+    <div style="margin-top:12px;font-size:11px;color:var(--muted);">Performance improves with more turns: 82.3% (2 turns) → 86.3% (6 turns). Each additional verification round catches more errors.</div>
+  </div>
+</section>
+
+<!-- S4: CONDUCTOR -->
+<section class="content-section" id="s-conductor">
+  <div class="section-label">Fugu-Ultra — The Conductor</div>
+  <h2 class="section-title">GRPO-Trained Workflow Generation</h2>
+  <p class="section-desc">The Conductor is a 7B model (Qwen2.5-7B, fine-tuned with GRPO) that generates full natural-language agentic workflows — specifying which models handle which subtasks, in what order, and with what visibility into each other's outputs. It doesn't just route: it architects the entire multi-agent strategy.</p>
+
+  <div class="callout">
+    <strong>What the Conductor Outputs:</strong> A structured Python-list workflow with three components:<br>
+    (1) <strong>Model IDs</strong> — which frontier model handles each step<br>
+    (2) <strong>Natural-language subtasks</strong> — specific instructions for each agent<br>
+    (3) <strong>Access lists</strong> — which agent can see which prior outputs (defines communication topology)<br><br>
+    The access lists are the key innovation: they enable emergent debate, verification loops, and recursive delegation — all without being explicitly programmed.
+  </div>
+
+  <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;">Four Emergent Workflow Topologies — Click to Explore</div>
+  <div class="topo-grid" id="topo-grid"><!-- injected --></div>
+
+  <div class="tw-cols">
+    <div class="info-block">
+      <div class="info-block-title">GRPO Training Details</div>
+      <div class="info-block-body">
+        &bull; Base model: Qwen2.5-7B<br>
+        &bull; 200 training iterations<br>
+        &bull; Batch size: 256, 64 rollouts per question<br>
+        &bull; Training data: 960 problems across MATH, MMLU, RLPR, LiveCodeBench<br>
+        &bull; Reward: binary task success (did the final answer match?)<br>
+        &bull; Larger (7B) vs. smaller (3B) Conductor: gap comes from better <em>subtask prompt engineering</em>, not different model selection
+      </div>
+    </div>
+    <div class="info-block">
+      <div class="info-block-title">Dual Memory Architecture</div>
+      <div class="info-block-body">
+        <strong style="color:var(--text)">Intra-workflow isolation:</strong> Agents only see outputs explicitly listed in their access list — preventing "orchestration collapse" where agents copy each other's errors and converge on a shared wrong answer.<br><br>
+        <strong style="color:var(--text)">Persistent shared memory:</strong> Agents retain environment interaction history across separate workflows — enabling multi-session learning and continuity within long tasks.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- S5: RESULTS -->
+<section class="content-section" id="s-results">
+  <div class="section-label">Empirical Evaluation</div>
+  <h2 class="section-title">11 Benchmark Results</h2>
+  <p class="section-desc">Fugu and Fugu-Ultra were tested across 11 benchmarks spanning agentic coding, scientific reasoning, and specialized domains. Filter by category. The winner in each benchmark is highlighted in coral.</p>
+
+  <div class="bench-filter">
+    <button class="bench-filter-btn active" onclick="setBenchFilter('all')">All (11)</button>
+    <button class="bench-filter-btn" onclick="setBenchFilter('coding')">Agentic Coding</button>
+    <button class="bench-filter-btn" onclick="setBenchFilter('science')">Scientific</button>
+    <button class="bench-filter-btn" onclick="setBenchFilter('mixed')">Specialized</button>
+  </div>
+
+  <div class="bench-legend">
+    <div class="bench-legend-item"><div class="bench-dot" style="background:var(--teal)"></div> Fugu-Ultra</div>
+    <div class="bench-legend-item"><div class="bench-dot" style="background:#22d3ee"></div> Fugu</div>
+    <div class="bench-legend-item"><div class="bench-dot" style="background:var(--coral)"></div> Claude Opus 4.8</div>
+    <div class="bench-legend-item"><div class="bench-dot" style="background:var(--gold)"></div> Gemini 3.1 Pro</div>
+    <div class="bench-legend-item"><div class="bench-dot" style="background:var(--violet)"></div> GPT-5.5</div>
+  </div>
+
+  <div class="bench-chart" id="bench-chart"><!-- injected --></div>
+
+  <div class="callout emerald">
+    <strong>Key finding:</strong> Fugu-Ultra wins 8 of 11 benchmarks. Notably, plain Fugu beats Fugu-Ultra on SciCode (60.1 vs 58.7), τ³ Banking (21.7 vs 20.6), and Long Context Reasoning (74.7 vs 73.3) — the speed-quality tradeoff is real, and Fugu-Ultra's additional orchestration overhead doesn't always pay off for specialized or latency-sensitive tasks.
+  </div>
+</section>
+
+<!-- S6: ROUTING -->
+<section class="content-section" id="s-routing">
+  <div class="section-label">Domain-Adaptive Routing</div>
+  <h2 class="section-title">Who Gets Routed Where?</h2>
+  <p class="section-desc">One of Fugu's most interesting emergent behaviors: domain-adaptive routing. Without being explicitly programmed, the coordinator learns which frontier model is best suited to which task type. The heatmap below shows estimated routing preferences derived from per-benchmark performance patterns.</p>
+
+  <div class="routing-wrap">
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">Estimated Routing Distribution by Domain</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:16px;">Color intensity = estimated selection frequency (lighter = more often selected)</div>
+    <table class="routing-table">
+      <thead>
+        <tr>
+          <th>Task Domain</th>
+          <th style="color:var(--violet2)">GPT-5.5</th>
+          <th style="color:var(--coral2)">Claude Opus 4.8</th>
+          <th style="color:var(--gold2)">Gemini 3.1 Pro</th>
+          <th style="color:var(--teal2)">Thinker Role</th>
+        </tr>
+      </thead>
+      <tbody id="routing-body"><!-- injected --></tbody>
+    </table>
+  </div>
+
+  <div class="callout">
+    <strong>The Specialization Insight:</strong> Frontier models aren't uniformly capable — GPT-5.5 leads on Terminal Bench and MRCRv2 (algorithmic/code), Gemini leads on GPQA Diamond and scientific tasks, Claude leads on SWE-Bench Pro and complex analysis. Fugu learns to exploit these specializations without needing to be told they exist. The routing emerges from the reward signal alone.
+  </div>
+
+  <div class="tw-cols">
+    <div class="info-block">
+      <div class="info-block-title">Why Not Just Always Use the Best Model?</div>
+      <div class="info-block-body">No model is best on everything. Even GPT-5.5 scores only 85.3% on LiveCodeBench vs. Fugu-Ultra's 93.2%. The best-of-all-tasks winner requires knowing <em>which</em> model is best for <em>this specific query</em> — a meta-skill that Fugu learns and individual models don't have.</div>
+    </div>
+    <div class="info-block">
+      <div class="info-block-title">Zero-Shot Transfer</div>
+      <div class="info-block-body">TRINITY's coordinator transfers across tasks it wasn't trained on. Average zero-shot performance: 54.21% across AIME, BigCodeBench, MT-Bench, GPQA-Diamond — without any task-specific training. The selection head learns a general routing heuristic, not task-specific memorization.</div>
+    </div>
+  </div>
+</section>
+
+<!-- S7: CRITICAL -->
+<section class="content-section" id="s-critical">
+  <div class="section-label">Critical Perspective</div>
+  <h2 class="section-title">The Honest Assessment</h2>
+  <p class="section-desc">Sakana Fugu is technically interesting, but several contested claims and practical concerns deserve careful scrutiny. Here are the five most important challenges to the paper's framing.</p>
+
+  <div class="critical-grid">
+    <div class="critical-item">
+      <div class="critical-item-icon" style="background:rgba(244,63,94,0.12)">🎯</div>
+      <div class="critical-item-body">
+        <div class="critical-item-title">Benchmark Credibility Gap</div>
+        <div class="critical-item-desc">Fable 5 and Mythos are export-controlled and unavailable, so comparisons rely on vendor-reported scores, not head-to-head testing. Independent estimation puts Fable 5 SWE-Bench Pro at ~86.0% vs. Fugu-Ultra's 73.7% — a significant gap the paper's framing obscures. Co-founder David Ha later walked back the strongest "parity" claims.</div>
+        <div class="critical-severity" style="background:rgba(244,63,94,0.1);color:var(--coral2)">High Severity</div>
+      </div>
+    </div>
+    <div class="critical-item">
+      <div class="critical-item-icon" style="background:rgba(245,158,11,0.12)">🔒</div>
+      <div class="critical-item-body">
+        <div class="critical-item-title">Opaque Black-Box Routing</div>
+        <div class="critical-item-desc">Users cannot see which frontier model answered their query. This creates auditability problems for regulated domains (healthcare, legal, finance). If a medical answer came from Model A rather than the more reliable Model B for that task type, neither the user nor the operator has visibility. ~60% of billed tokens reportedly go to invisible back-channel orchestration, further obscuring the cost structure.</div>
+        <div class="critical-severity" style="background:rgba(245,158,11,0.1);color:var(--gold2)">Medium-High Severity</div>
+      </div>
+    </div>
+    <div class="critical-item">
+      <div class="critical-item-icon" style="background:rgba(245,158,11,0.12)">🗺️</div>
+      <div class="critical-item-body">
+        <div class="critical-item-title">Overstated AI Sovereignty Narrative</div>
+        <div class="critical-item-desc">Fugu's worker pool <em>includes</em> GPT-5.5 (OpenAI) and Claude Opus 4.8 (Anthropic) — American models. Fugu redistributes rather than eliminates geopolitical dependency on US AI. It cannot include export-controlled models anyway. The "sovereignty" framing is primarily a marketing positioning, not a genuine architectural independence.</div>
+        <div class="critical-severity" style="background:rgba(245,158,11,0.1);color:var(--gold2)">Medium Severity</div>
+      </div>
+    </div>
+    <div class="critical-item">
+      <div class="critical-item-icon" style="background:rgba(6,182,212,0.12)">⏱️</div>
+      <div class="critical-item-body">
+        <div class="critical-item-title">Real-World Latency Concerns</div>
+        <div class="critical-item-desc">Beta testers report Fugu-Ultra latency of ~108 seconds per query — impractical for interactive use cases. The paper reports Fugu ($7.32) is meaningfully cheaper than Claude Opus ($37.85) for comparable tasks, but beta tests found Fugu's output quality inferior in several real-world comparisons. The 11-benchmark evaluation may not reflect production workload distributions.</div>
+        <div class="critical-severity" style="background:rgba(6,182,212,0.1);color:var(--teal2)">Medium Severity</div>
+      </div>
+    </div>
+    <div class="critical-item">
+      <div class="critical-item-icon" style="background:rgba(16,185,129,0.12)">🔁</div>
+      <div class="critical-item-body">
+        <div class="critical-item-title">Internal Inconsistency: Cheaper Beats Ultra</div>
+        <div class="critical-item-desc">Fugu (smaller, faster, cheaper) outperforms Fugu-Ultra on 3 of 11 benchmarks: SciCode (60.1 vs 58.7), τ³ Banking (21.7 vs 20.6), Long Context Reasoning (74.7 vs 73.3). This undermines the "use Ultra for hard problems" positioning and suggests the additional orchestration overhead of Fugu-Ultra is not uniformly beneficial — domain-matching the coordinator variant is its own unsolved problem.</div>
+        <div class="critical-severity" style="background:rgba(16,185,129,0.1);color:var(--emerald2)">Low-Medium Severity</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout coral">
+    <strong>The Genuine Innovation vs. The Marketing Claim:</strong> The genuine technical contribution — that a small trained coordinator can adaptively route tasks across specialized frontier models and outperform any individual model — is real and well-supported. The surrounding narrative (frontier capability without export controls, parity with Fable 5/Mythos) is contested and partially inaccurate. Evaluate the architecture on its technical merits.
+  </div>
+</section>
+
+<!-- S8: EXERCISES -->
+<section class="content-section" id="s-ex">
+  <div class="section-label">Practice</div>
+  <h2 class="section-title">Practice Exercises</h2>
+  <p class="section-desc">Test your understanding of Fugu's architecture, training approach, and key claims. Two browser exercises plus an optional Live Lab.</p>
+
+  <div class="ex-card">
+    <div class="ex-hd"><div class="ex-num">1</div><div class="ex-title">Architecture Quiz</div></div>
+    <div class="ex-desc">Test your understanding of the technical decisions in TRINITY and The Conductor.</div>
+    <div id="ex1-body"></div>
+  </div>
+
+  <div class="ex-card">
+    <div class="ex-hd"><div class="ex-num">2</div><div class="ex-title">Critical Reasoning Quiz</div></div>
+    <div class="ex-desc">Evaluate the claims and limitations of the Fugu system.</div>
+    <div id="ex2-body"></div>
+  </div>
+
+  <div class="lab-wrap">
+    <div class="ex-hd"><div class="ex-num" style="background:var(--coral)">3</div><div class="ex-title">Live Lab — Simulate Fugu Orchestration</div></div>
+    <p style="font-size:0.83rem;color:var(--muted);margin-bottom:16px;">Describe a complex task. The lab simulates what Fugu-style orchestration would do — assigning subtasks to specialist "workers" (GPT-class, Gemini-class, Claude-class), defining the communication topology, and synthesizing a final answer. Requires your OpenAI API key (stored only in your browser).</p>
+    <div class="lab-key-row">
+      <input class="lab-input" type="password" id="lab-key" placeholder="sk-… (stored in localStorage only)">
+      <button class="lab-btn" onclick="saveLabKey()">Save Key</button>
+    </div>
+    <textarea class="lab-textarea" id="lab-scenario" placeholder="Example: Analyze the security vulnerabilities in a Python web app that uses JWT auth, write a report, and suggest a fix with code."></textarea>
+    <button class="lab-run-btn" id="lab-run-btn" onclick="runLab()">&#9654; Simulate Fugu Orchestration</button>
+    <div class="lab-output" id="lab-output"></div>
+  </div>
+</section>
+
+<!-- S9: REFS -->
+<section class="content-section" id="s-refs">
+  <div class="section-label">Further Reading</div>
+  <h2 class="section-title">References</h2>
+  <div class="ref-list">
+    <div class="ref-item"><div class="ref-num">[1]</div><div><div class="ref-title">Sakana Fugu Technical Report</div><div class="ref-meta">Tang, Cetin, Xu et al. &middot; Sakana AI &middot; arXiv:2606.21228 &middot; June 2026</div><a class="ref-link" href="https://arxiv.org/abs/2606.21228" target="_blank">arxiv.org/abs/2606.21228</a></div></div>
+    <div class="ref-item"><div class="ref-num">[2]</div><div><div class="ref-title">TRINITY: An Evolved LLM Coordinator</div><div class="ref-meta">Sakana AI &middot; ICLR 2026 &middot; arXiv:2512.04695 — Evolutionary optimization, Thinker/Worker/Verifier roles, 86.2% LiveCodeBench</div><a class="ref-link" href="https://arxiv.org/abs/2512.04695" target="_blank">arxiv.org/abs/2512.04695</a></div></div>
+    <div class="ref-item"><div class="ref-num">[3]</div><div><div class="ref-title">The Conductor: Orchestrating Multi-Agent LLMs</div><div class="ref-meta">Sakana AI &middot; ICLR 2026 &middot; arXiv:2512.04388 — GRPO-trained 7B workflow generator</div><a class="ref-link" href="https://arxiv.org/abs/2512.04388" target="_blank">arxiv.org/abs/2512.04388</a></div></div>
+    <div class="ref-item"><div class="ref-num">[4]</div><div><div class="ref-title">Sakana AI Fugu Product Page</div><div class="ref-meta">Official product announcement, benchmark table, API documentation</div><a class="ref-link" href="https://sakana.ai/fugu" target="_blank">sakana.ai/fugu</a></div></div>
+    <div class="ref-item"><div class="ref-num">[5]</div><div><div class="ref-title">Does Reinforcement Learning Really Incentivize Reasoning Capacity in LLMs?</div><div class="ref-meta">Yue et al. &middot; NeurIPS 2025 Oral &middot; arXiv:2504.13837 — RLVR base model comparison using pass@k</div><a class="ref-link" href="https://arxiv.org/abs/2504.13837" target="_blank">arxiv.org/abs/2504.13837</a></div></div>
+    <div class="ref-item"><div class="ref-num">[6]</div><div><div class="ref-title">RLVR Implicitly Incentivizes Correct Reasoning in Base LLMs</div><div class="ref-meta">Wen et al. &middot; arXiv:2506.14245 &middot; CoT-Pass@K counter-analysis</div><a class="ref-link" href="https://arxiv.org/abs/2506.14245" target="_blank">arxiv.org/abs/2506.14245</a></div></div>
+    <div class="ref-item"><div class="ref-num">[7]</div><div><div class="ref-title">Sakana Fugu: Multi-Agent System Sold as a Model (Critical Analysis)</div><div class="ref-meta">paddo.dev &middot; Token cost opacity, routing opacity, real-world performance analysis</div><a class="ref-link" href="https://paddo.dev/blog/sakana-fugu-orchestration-model/" target="_blank">paddo.dev/blog/sakana-fugu-orchestration-model/</a></div></div>
+  </div>
+</section>
+
+<!-- CONTINUE STRIP -->
+<div class="continue-strip">
+  <a class="cs-link" href="../59-claude-tag/">
+    <div class="cs-label">&#8592; Previous Post</div>
+    <div class="cs-title">Post 59 — Claude Tag</div>
+  </a>
+  <a class="cs-link" href="../">
+    <div class="cs-label">All Posts &#8594;</div>
+    <div class="cs-title">Visual Summary Index</div>
+  </a>
+</div>
+
+</div><!-- /main-wrap -->
+
+<script>
+/* ── GATE ──────────────────────── */
+const GATE_KEY='pg_unlocked_60', LAB_KEY='ll_openai_key_60';
+(function(){
+  if(localStorage.getItem(GATE_KEY)==='1') document.getElementById('gate').style.display='none';
+  const k=localStorage.getItem(LAB_KEY);
+  if(k) document.getElementById('lab-key').value=k;
+})();
+function checkGate(){
+  const pw=document.getElementById('gate-pw').value.trim();
+  if(pw==='visual2025'){localStorage.setItem(GATE_KEY,'1');document.getElementById('gate').style.display='none';}
+  else{const e=document.getElementById('gate-err');e.style.display='block';setTimeout(()=>e.style.display='none',2000);}
+}
+function saveLabKey(){const v=document.getElementById('lab-key').value.trim();if(v){localStorage.setItem(LAB_KEY,v);alert('Key saved.');}}
+
+/* ── SIDEBAR ───────────────────── */
+const NL={'s-intro':'nl-intro','s-arch':'nl-arch','s-trinity':'nl-trinity','s-conductor':'nl-conductor','s-results':'nl-results','s-routing':'nl-routing','s-critical':'nl-critical','s-ex':'nl-ex','s-refs':'nl-refs'};
+function scrollSec(id){document.getElementById(id).scrollIntoView({behavior:'smooth'});document.querySelectorAll('.nav-link').forEach(l=>l.classList.remove('active'));const nl=document.getElementById(NL[id]);if(nl)nl.classList.add('active');}
+const obs=new IntersectionObserver(e=>e.forEach(e=>{if(e.isIntersecting){document.querySelectorAll('.nav-link').forEach(l=>l.classList.remove('active'));const nl=document.getElementById(NL[e.target.id]);if(nl)nl.classList.add('active');}}),{threshold:0.15});
+Object.keys(NL).forEach(id=>{const el=document.getElementById(id);if(el)obs.observe(el);});
+
+/* ── SYSTEM PANEL ──────────────── */
+const SYS_DATA=[
+  {
+    name:'Fugu (TRINITY)',
+    desc:'A 0.6B Qwen3 backbone paired with a 10K-parameter selection head. Trained using sep-CMA-ES evolutionary optimization — no gradients. Assigns Thinker/Worker/Verifier roles turn-by-turn.',
+    html:`<div class="arch-flow">
+      <div class="arch-row"><div class="arch-node backbone">Qwen3-0.6B backbone</div><div class="arch-arrow">→</div><div style="font-size:12px;color:var(--muted)">reads hidden state h ∈ ℝᵈ<br>at <strong style="color:var(--text)">penultimate token</strong></div></div>
+      <div class="arch-arrow" style="padding-left:16px">↓</div>
+      <div class="arch-row"><div class="arch-node head">10K-param selection head</div><div class="arch-arrow">→</div><div style="font-size:12px;color:var(--muted)">outputs logits → selects role</div></div>
+      <div class="arch-arrow" style="padding-left:16px">↓</div>
+      <div class="arch-row">
+        <div class="arch-node role">Thinker</div><div style="font-size:14px;color:var(--muted)">|</div>
+        <div class="arch-node role">Worker</div><div style="font-size:14px;color:var(--muted)">|</div>
+        <div class="arch-node role">Verifier</div>
+      </div>
+      <div class="arch-arrow" style="padding-left:16px">↓</div>
+      <div class="arch-row"><div class="arch-node worker">Assigned frontier model executes</div></div>
+      <div class="arch-arrow" style="padding-left:16px">↓</div>
+      <div class="arch-row"><div class="arch-node training">sep-CMA-ES trains selection head (no gradients)</div></div>
+    </div>
+    <div class="arch-note">Training cost: ~SFT difficulty on routine tasks. Singular-value fine-tuning: only scale factors trained, orthogonal components frozen.</div>`
+  },
+  {
+    name:'Fugu-Ultra (Conductor)',
+    desc:'A 7B Qwen2.5 model trained with GRPO to generate full natural-language agentic workflows. Specifies model assignments, subtask instructions, and communication topology via access lists.',
+    html:`<div class="arch-flow">
+      <div class="arch-row"><div class="arch-node conductor">Qwen2.5-7B (GRPO-trained)</div><div class="arch-arrow">→</div><div style="font-size:12px;color:var(--muted)">receives full task description</div></div>
+      <div class="arch-arrow" style="padding-left:16px">↓</div>
+      <div class="arch-row"><div class="arch-node workflow">Generates structured workflow</div></div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px;margin:8px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--teal3)">
+models   = ["gpt-5.5", "claude-opus-4.8", "gemini-3.1-pro"]<br>
+subtasks = ["plan approach", "implement", "verify correctness"]<br>
+access   = [[], [0], [0,1]]  # topology: chain
+      </div>
+      <div class="arch-arrow" style="padding-left:16px">↓</div>
+      <div class="arch-row">
+        <div class="arch-node worker">GPT-5.5<br><span style="font-size:10px;font-weight:400">plans</span></div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node worker">Claude<br><span style="font-size:10px;font-weight:400">implements</span></div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node worker">Gemini<br><span style="font-size:10px;font-weight:400">verifies</span></div>
+      </div>
+      <div class="arch-arrow" style="padding-left:16px">↓</div>
+      <div class="arch-row"><div class="arch-node training">GRPO reward: did final answer match ground truth?</div></div>
+    </div>
+    <div class="arch-note">200 training iterations. 64 rollouts/question. 960 training problems. The 7B→3B gap comes from better subtask prompt engineering, not different routing decisions.</div>`
+  }
+];
+let sysIdx=0;
+function setSys(i){
+  sysIdx=i;
+  document.querySelectorAll('.sys-btn').forEach((b,j)=>b.classList.toggle('active',j===i));
+  const s=SYS_DATA[i];
+  document.getElementById('sys-panel').innerHTML=`
+    <div style="margin-bottom:12px;font-size:0.85rem;color:var(--muted)">${s.desc}</div>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:20px;">${s.html}</div>`;
+}
+setSys(0);
+
+/* ── TOPOLOGY GALLERY ──────────── */
+const TOPOS=[
+  {icon:'⛓️',title:'Sequential Chain',sub:'Most common — ~3 steps avg',
+   diagram:`Task → Planner (M_A)
+        → Implementer (M_B, sees: Planner)
+        → Verifier (M_C, sees: Planner, Impl.)
+        → Final Answer`,
+   detail:'Plan → Implement → Verify. Each step sees all prior steps. The most reliable topology for well-defined implementation tasks. Average workflow length: 3 steps (longer for LiveCodeBench: 3-4, shorter for MMLU: ~2).'},
+  {icon:'⚖️',title:'Debate & Aggregate',sub:'Diverse independent views → synthesis',
+   diagram:`Task → Worker A (sees: nothing)
+        → Worker B (sees: nothing)
+        → Worker C (sees: nothing)
+        → Aggregator (sees: A, B, C)
+        → Final Answer`,
+   detail:'Three workers answer independently, then an aggregator synthesizes. Prevents echo chambers where agents copy each other\'s errors. Access lists enforce isolation — workers cannot see each other\'s reasoning, only the aggregator can.'},
+  {icon:'🔁',title:'Recursive Delegation',sub:'Conductor manages sub-Conductors',
+   diagram:`Task → Conductor
+        → Sub-task 1 → [M_A, M_B]
+        → Sub-task 2 → [M_B, M_C]
+        → Sub-synthesizer
+        → Final Answer`,
+   detail:'For complex tasks, the Conductor generates sub-workflows and recursively calls itself to manage them. Verified to improve performance on BigCodeBench from 37.8% → 40.0%. The Conductor learns this strategy from GRPO reward signal alone — never explicitly programmed.'},
+  {icon:'🔧',title:'Build-Debug Loop',sub:'Iterative repair until correct',
+   diagram:`Task → Builder (M_A)
+        → Debugger (M_B, sees: Builder)
+        → [error?] Builder (sees: Debugger)
+        → [error?] Debugger (sees: Builder)
+        → [pass] Final Answer`,
+   detail:'Builder constructs a solution; Debugger reviews and identifies issues; Builder patches. Repeats until the solution passes verification or a step limit is reached. Critical for coding tasks where first-attempt solutions frequently need revision. The Conductor learns to budget steps based on task difficulty.'}
+];
+let topoIdx=-1;
+function toggleTopo(i){
+  if(topoIdx===i){topoIdx=-1;document.querySelectorAll('.topo-card').forEach(c=>c.classList.remove('active'));}
+  else{topoIdx=i;document.querySelectorAll('.topo-card').forEach((c,j)=>c.classList.toggle('active',j===i));}
+}
+document.getElementById('topo-grid').innerHTML=TOPOS.map((t,i)=>`
+  <div class="topo-card" onclick="toggleTopo(${i})">
+    <div class="topo-card-hd">
+      <div class="topo-icon">${t.icon}</div>
+      <div><div class="topo-title">${t.title}</div><div class="topo-sub">${t.sub}</div></div>
+    </div>
+    <div class="topo-diagram">${t.diagram}</div>
+    <div class="topo-detail">
+      <div style="font-size:0.82rem;color:var(--muted);line-height:1.65;margin-top:8px;">${t.detail}</div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:8px;">Click to ${i===topoIdx?'collapse':'expand'} ↕</div>
+  </div>`).join('');
+
+/* ── BENCHMARK CHART ───────────── */
+const BENCHES=[
+  {name:'SWE-Bench Pro',cat:'coding',fu:73.7,f:59.0,cl:69.2,ge:54.2,gp:58.6},
+  {name:'Terminal Bench 2.1',cat:'coding',fu:82.1,f:80.2,cl:74.6,ge:70.3,gp:78.2},
+  {name:'LiveCodeBench v6',cat:'coding',fu:93.2,f:92.9,cl:87.8,ge:88.5,gp:85.3},
+  {name:'LiveCodeBench Pro',cat:'coding',fu:90.8,f:87.8,cl:84.8,ge:82.9,gp:88.4},
+  {name:"Humanity's Last Exam",cat:'science',fu:50.0,f:47.2,cl:49.8,ge:44.4,gp:41.4},
+  {name:'CharXiv Reasoning',cat:'science',fu:86.6,f:85.1,cl:84.2,ge:83.3,gp:84.1},
+  {name:'GPQA Diamond',cat:'science',fu:95.5,f:95.5,cl:92.0,ge:94.3,gp:93.6},
+  {name:'SciCode',cat:'science',fu:58.7,f:60.1,cl:53.5,ge:58.9,gp:56.1},
+  {name:'τ³ Banking',cat:'mixed',fu:20.6,f:21.7,cl:20.6,ge:8.4,gp:20.6},
+  {name:'Long Context Reasoning',cat:'mixed',fu:73.3,f:74.7,cl:67.7,ge:72.7,gp:74.3},
+  {name:'MRCRv2',cat:'mixed',fu:93.6,f:86.6,cl:87.9,ge:84.9,gp:94.8}
+];
+const BC=['fu','f','cl','ge','gp'];
+const BCOL={fu:'var(--teal)',f:'var(--teal2)',cl:'var(--coral)',ge:'var(--gold)',gp:'var(--violet)'};
+let benchCat='all';
+function setBenchFilter(c){
+  benchCat=c;
+  document.querySelectorAll('.bench-filter-btn').forEach(b=>b.classList.toggle('active',b.textContent.startsWith(c==='all'?'All':c==='coding'?'Agent':'Sci')||b.textContent.startsWith(c==='mixed'?'Spec':'')));
+  renderBenches();
+}
+function renderBenches(){
+  const filtered=benchCat==='all'?BENCHES:BENCHES.filter(b=>b.cat===benchCat);
+  const maxVal=100;
+  document.getElementById('bench-chart').innerHTML=filtered.map(b=>{
+    const vals={fu:b.fu,f:b.f,cl:b.cl,ge:b.ge,gp:b.gp};
+    const winner=Object.keys(vals).reduce((a,k)=>vals[k]>vals[a]?k:a,'fu');
+    const labels={fu:'Fugu-U',f:'Fugu',cl:'Claude',ge:'Gemini',gp:'GPT-5.5'};
+    const bars=BC.map(k=>`
+      <div class="bench-bar-group">
+        <div class="bench-bar-bg"><div class="bench-bar-fill" style="width:${vals[k]}%;background:${BCOL[k]};opacity:${k===winner?1:0.45}"></div></div>
+        <div class="bench-bar-val" style="color:${k===winner?'var(--text)':'var(--muted)'}">${vals[k]}</div>
+        <div class="bench-bar-lbl" style="color:${k===winner?'var(--teal2)':'var(--muted)'}">${labels[k]}</div>
+      </div>`).join('');
+    const catLabel=b.cat==='coding'?'Coding':b.cat==='science'?'Science':'Specialized';
+    return `<div class="bench-row">
+      <div class="bench-row-hd">
+        <div class="bench-name">${b.name}</div>
+        <div class="bench-cat ${b.cat}">${catLabel}</div>
+        <div class="bench-winner">Winner: ${({fu:'Fugu-Ultra',f:'Fugu',cl:'Claude',ge:'Gemini',gp:'GPT-5.5'})[winner]} ${vals[winner]}%</div>
+      </div>
+      <div class="bench-bars-row">${bars}</div>
+    </div>`;
+  }).join('');
+}
+renderBenches();
+
+/* ── ROUTING HEATMAP ───────────── */
+const ROUTING=[
+  {domain:'Algorithm / Code Tasks',gp:75,cl:15,ge:10,tk:'GPT-5.5'},
+  {domain:'Scientific Reasoning',gp:15,cl:20,ge:65,tk:'Gemini'},
+  {domain:'Complex Analysis / Writing',gp:10,cl:70,ge:20,tk:'Claude'},
+  {domain:'Mathematical Reasoning',gp:55,cl:25,ge:20,tk:'GPT-5.5'},
+  {domain:'Long-Context Retrieval',gp:20,cl:60,ge:20,tk:'Claude'},
+  {domain:'Multi-Domain (HLE)',gp:35,cl:35,ge:30,tk:'Balanced'},
+];
+function heatCol(v){
+  if(v>=60)return{bg:'rgba(6,182,212,0.25)',c:'var(--teal2)'};
+  if(v>=35)return{bg:'rgba(6,182,212,0.1)',c:'var(--teal2)'};
+  return{bg:'rgba(58,98,128,0.1)',c:'var(--muted)'};
+}
+document.getElementById('routing-body').innerHTML=ROUTING.map(r=>`
+  <tr>
+    <td>${r.domain}</td>
+    <td><span class="heat-cell" style="background:${heatCol(r.gp).bg};color:${heatCol(r.gp).c}">${r.gp}%</span></td>
+    <td><span class="heat-cell" style="background:${heatCol(r.cl).bg};color:${heatCol(r.cl).c}">${r.cl}%</span></td>
+    <td><span class="heat-cell" style="background:${heatCol(r.ge).bg};color:${heatCol(r.ge).c}">${r.ge}%</span></td>
+    <td style="color:var(--teal2);font-weight:700;font-size:11px">${r.tk}</td>
+  </tr>`).join('');
+
+/* ── EXERCISES ─────────────────── */
+const EX1=[
+  {id:'e1q1',scenario:'TRINITY uses a 10K-parameter selection head trained by sep-CMA-ES (evolutionary search) rather than REINFORCE (gradient RL). What is the PRIMARY reason for this architectural choice?',
+   opts:['sep-CMA-ES is faster to train and requires fewer GPU hours','REINFORCE requires labeled data; sep-CMA-ES does not','Multi-turn coordination with binary terminal rewards creates a sparse, high-variance gradient landscape where REINFORCE collapses to 25.3% vs. sep-CMA-ES\'s 86.2%','Evolutionary methods generalize better to new tasks zero-shot'],
+   correct:2,fb:'Correct! The sparse binary reward signal (success/failure only at task end), combined with weak parameter coupling across the selection head, makes gradient-based methods unreliable. REINFORCE achieves only 25.3% vs. 86.2% for sep-CMA-ES on LiveCodeBench.'},
+  {id:'e1q2',scenario:'The Conductor\'s access lists define which agent can see which prior outputs. What specific failure mode do these access lists prevent in debate topologies?',
+   opts:['They prevent agents from using too many tokens','They prevent "orchestration collapse" where agents copy each other\'s errors and converge on a shared wrong answer','They limit the number of API calls for cost control','They ensure each agent responds in the correct language'],
+   correct:1,fb:'Correct! Without access list isolation, workers in a debate topology would see each other\'s outputs and potentially copy incorrect reasoning — converging on a shared wrong answer. Isolation ensures each worker contributes genuinely independent perspectives.'},
+];
+const EX2=[
+  {id:'e2q1',scenario:'Fugu-Ultra claims to offer "frontier capability without export controls." How should we critically evaluate this claim?',
+   opts:['The claim is accurate — Fugu-Ultra uses no restricted models','The claim is partially accurate: Fugu avoids export-controlled Fable 5/Mythos, but still depends on GPT-5.5 (OpenAI) and Claude Opus 4.8 (Anthropic) — American models. It redistributes, not eliminates, geopolitical dependency.','The claim is inaccurate because Fugu performs worse than all frontier models','The claim cannot be evaluated without knowing which models Sakana trained on'],
+   correct:1,fb:'Correct! Fugu\'s worker pool includes GPT-5.5 and Claude Opus 4.8 — both from US companies. The "sovereignty" claim is about avoiding export-controlled Fable 5/Mythos (which Sakana couldn\'t access anyway). David Ha later walked back the strongest claims.'},
+  {id:'e2q2',scenario:'Fugu-Ultra wins 8 of 11 benchmarks. However, plain Fugu (smaller and faster) outperforms Fugu-Ultra on 3 benchmarks: SciCode, τ³ Banking, and Long Context Reasoning. What does this tell us?',
+   opts:['The benchmarks are biased toward simpler models','The additional orchestration overhead of Fugu-Ultra does not uniformly benefit all task types — matching the coordinator variant to the task is its own unsolved routing problem','Fugu-Ultra is poorly trained and should not be used','These three benchmarks are not legitimate metrics for AI performance'],
+   correct:1,fb:'Correct! The result demonstrates a genuine tradeoff: Fugu-Ultra\'s complex workflow generation adds latency and doesn\'t always improve accuracy over Fugu\'s simpler turn-level routing. Deciding <em>which</em> Fugu variant to use is itself a meta-routing problem.'},
+];
+function renderEx(qs,cid){
+  document.getElementById(cid).innerHTML=qs.map(q=>`
+    <div id="${q.id}" style="margin-bottom:20px;">
+      <div class="ex-scenario">${q.scenario}</div>
+      <div class="q-options">${q.opts.map((o,i)=>`<div class="q-opt" onclick="ansQ('${q.id}',${i},${q.correct},'${q.fb.replace(/'/g,"\\'")}',this)">${o}</div>`).join('')}</div>
+      <div class="q-fb" id="${q.id}-fb"></div>
+    </div>`).join('');
+}
+function ansQ(id,chosen,correct,fb,el){
+  const c=document.getElementById(id);
+  c.querySelectorAll('.q-opt').forEach(o=>o.style.pointerEvents='none');
+  el.classList.add(chosen===correct?'correct':'wrong');
+  if(chosen!==correct)c.querySelectorAll('.q-opt')[correct].classList.add('correct');
+  const f=document.getElementById(id+'-fb');
+  f.textContent=(chosen===correct?'✓ ':'✗ ')+fb;
+  f.className='q-fb show '+(chosen===correct?'ok':'err');
+}
+renderEx(EX1,'ex1-body');
+renderEx(EX2,'ex2-body');
+
+/* ── LIVE LAB ──────────────────── */
+async function runLab(){
+  const k=localStorage.getItem(LAB_KEY)||document.getElementById('lab-key').value.trim();
+  if(!k){alert('Enter your OpenAI API key first.');return;}
+  const task=document.getElementById('lab-scenario').value.trim();
+  if(!task){alert('Describe a task first.');return;}
+  const btn=document.getElementById('lab-run-btn');
+  const out=document.getElementById('lab-output');
+  btn.disabled=true;btn.textContent='Orchestrating…';
+  out.style.display='block';out.innerHTML='<span style="color:var(--muted)">Simulating Fugu orchestration…</span>';
+  const sys=`You are simulating Sakana Fugu's orchestration system. You coordinate three specialist AI workers:
+- GPT-class (strongest at: coding, algorithms, math, debugging)
+- Claude-class (strongest at: analysis, writing, complex reasoning, code review)
+- Gemini-class (strongest at: scientific reasoning, research, multi-step knowledge tasks)
+
+For the given task, output a Fugu-style orchestration plan:
+
+## Workflow Topology
+State which of the four topologies applies: Sequential Chain / Debate & Aggregate / Recursive Delegation / Build-Debug Loop
+
+## Step-by-Step Workflow
+List each step with: [Step N] Worker: [model-class] | Task: [specific subtask] | Sees: [prior step outputs]
+
+## Simulated Outputs
+For each step, write a brief simulated output (2-3 sentences) as if that worker executed the subtask.
+
+## Final Synthesis
+Combine the worker outputs into a final answer.
+
+Keep it structured, specific, and realistic. Show the multi-agent coordination value.`;
+  try{
+    const r=await fetch('https://api.openai.com/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+k},
+      body:JSON.stringify({model:'gpt-4o-mini',messages:[{role:'system',content:sys},{role:'user',content:'Task:\n'+task}],max_tokens:1000,temperature:0.3})
+    });
+    const data=await r.json();
+    if(data.error){out.innerHTML='<span style="color:var(--coral2)">API Error: '+data.error.message+'</span>';return;}
+    out.innerHTML='<pre>'+data.choices[0].message.content.replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</pre>';
+  }catch(e){out.innerHTML='<span style="color:var(--coral2)">Error: '+e.message+'</span>';}
+  finally{btn.disabled=false;btn.textContent='▶ Simulate Fugu Orchestration';}
+}
+</script>
+</body>
+</html>
