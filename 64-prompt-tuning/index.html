@@ -1,0 +1,1324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prompt Tuning — Post 64 | Visual Summary</title>
+<style>
+:root{
+  --bg:#050811;
+  --surface:#0a1020;
+  --surface2:#0f1830;
+  --border:#1a2a4a;
+  --teal:#14b8a6;
+  --teal2:#2dd4bf;
+  --teal3:#5eead4;
+  --rose:#fb7185;
+  --rose2:#fda4af;
+  --text:#e2e8f0;
+  --muted:#64748b;
+  --green:#10b981;
+  --amber:#f59e0b;
+  --red:#ef4444;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.6}
+a{color:var(--teal2);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* GATE */
+#gate{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center}
+.gate-box{background:var(--surface);border:1px solid var(--teal);border-radius:16px;padding:2.5rem;width:min(380px,90vw);text-align:center}
+.gate-box h2{font-size:1.4rem;color:var(--teal3);margin-bottom:.5rem}
+.gate-box p{color:var(--muted);font-size:.9rem;margin-bottom:1.5rem}
+.gate-box input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem;color:var(--text);font-size:1rem;margin-bottom:1rem;outline:none}
+.gate-box input:focus{border-color:var(--teal)}
+.gate-box button{width:100%;background:linear-gradient(135deg,var(--teal),var(--rose));color:#fff;border:none;border-radius:8px;padding:.75rem;font-size:1rem;cursor:pointer}
+.gate-box button:hover{opacity:.9}
+#gate-err{color:var(--red);font-size:.85rem;margin-top:.5rem;display:none}
+
+/* TOP BAR */
+.topbar{position:sticky;top:0;z-index:100;background:rgba(5,8,17,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:.75rem 1.5rem;display:flex;align-items:center;gap:1rem}
+.topbar .logo{color:var(--teal3);font-weight:700;font-size:.95rem;white-space:nowrap}
+.topbar .post-tag{background:rgba(20,184,166,.18);color:var(--teal3);border:1px solid var(--teal);border-radius:20px;padding:.2rem .75rem;font-size:.8rem;white-space:nowrap}
+.topbar nav{display:flex;gap:.4rem;flex-wrap:wrap;flex:1;justify-content:flex-end}
+.topbar nav a{color:var(--muted);font-size:.78rem;padding:.25rem .5rem;border-radius:4px;transition:.2s}
+.topbar nav a:hover{color:var(--teal2);background:rgba(20,184,166,.1);text-decoration:none}
+#progress{position:fixed;top:0;left:0;height:2px;background:linear-gradient(90deg,var(--teal),var(--rose));z-index:200;width:0}
+
+/* LAYOUT */
+.container{max-width:900px;margin:0 auto;padding:0 1.5rem 4rem}
+
+/* HERO */
+.hero{padding:3.5rem 0 2.5rem;text-align:center}
+.hero .category{display:inline-block;background:rgba(251,113,133,.15);color:var(--rose2);border:1px solid var(--rose);border-radius:20px;padding:.3rem .9rem;font-size:.8rem;margin-bottom:1rem;letter-spacing:.05em;text-transform:uppercase}
+.hero h1{font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;line-height:1.2;margin-bottom:1rem}
+.hero h1 span{background:linear-gradient(135deg,var(--teal3),var(--rose));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero .sub{color:var(--muted);font-size:1rem;max-width:640px;margin:0 auto 1.5rem}
+.hero .meta{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;font-size:.8rem;color:var(--muted)}
+
+/* SECTIONS */
+.section{margin:2.5rem 0;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.75rem}
+.section h2{font-size:1.2rem;color:var(--teal3);margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+.section p{color:#94a3b8;font-size:.93rem}
+.section p+p{margin-top:.75rem}
+.section h3{font-size:1rem;color:var(--rose2);margin:1.5rem 0 .6rem}
+
+/* CALLOUT */
+.callout{background:rgba(20,184,166,.08);border-left:3px solid var(--teal);border-radius:8px;padding:1rem 1.25rem;margin:1.15rem 0;font-size:.9rem;color:#94a3b8}
+.callout.rose{background:rgba(251,113,133,.08);border-color:var(--rose)}
+.callout.amber{background:rgba(245,158,11,.08);border-color:var(--amber)}
+.callout strong{color:var(--teal3)}
+.callout.rose strong{color:var(--rose2)}
+.callout.amber strong{color:#fde68a}
+
+/* FORMULA */
+.formula{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.9rem 1.25rem;font-family:'Courier New',monospace;font-size:.9rem;color:var(--teal3);text-align:center;margin:1rem 0;overflow-x:auto;white-space:nowrap}
+.formula .frozen{color:var(--muted)}
+.formula .hot{color:var(--rose2);font-weight:700}
+
+/* GENERIC PANEL */
+.panel{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:1.25rem;margin-top:1.25rem}
+.ctl-row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:.9rem}
+.ctl-row label{color:var(--muted);font-size:.82rem;white-space:nowrap}
+.btn{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.45rem .9rem;color:var(--muted);font-size:.82rem;cursor:pointer;transition:.18s;font-family:inherit}
+.btn:hover{border-color:var(--teal);color:var(--teal3)}
+.btn.active{background:rgba(20,184,166,.18);border-color:var(--teal2);color:var(--teal3)}
+.btn.primary{background:linear-gradient(135deg,var(--teal),var(--rose));border:none;color:#fff}
+.btn.primary:hover{opacity:.9;color:#fff}
+.btn.rose.active{background:rgba(251,113,133,.18);border-color:var(--rose);color:var(--rose2)}
+input[type=range]{accent-color:var(--teal2);flex:1;min-width:110px}
+select{background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:.4rem .6rem;font-size:.82rem;font-family:inherit;outline:none}
+select:focus{border-color:var(--teal)}
+.mono{font-family:'Courier New',monospace}
+.val{font-family:'Courier New',monospace;color:var(--teal2)}
+
+/* STAKES */
+.stakes-bars{display:flex;flex-direction:column;gap:.85rem;margin-top:1rem}
+.sbar{display:flex;align-items:center;gap:.75rem;font-size:.82rem}
+.sbar .slabel{width:130px;flex-shrink:0;color:var(--muted)}
+.sbar .swrap{flex:1;background:var(--surface);border-radius:5px;height:26px;overflow:hidden;border:1px solid var(--border)}
+.sbar .sfill{height:100%;transition:width .45s cubic-bezier(.4,0,.2,1);display:flex;align-items:center;padding-left:.5rem;font-size:.74rem;font-weight:700;color:#fff;white-space:nowrap}
+.sbar .sval{width:96px;text-align:right;flex-shrink:0;font-family:'Courier New',monospace;color:var(--teal2);font-size:.8rem}
+
+/* LAB */
+.lab-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem}
+.canvas-card{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:.75rem}
+.canvas-card .ctitle{font-size:.78rem;color:var(--teal2);font-weight:600;margin-bottom:.15rem;display:flex;justify-content:space-between;align-items:baseline;gap:.5rem}
+.canvas-card .csub{font-size:.7rem;color:var(--muted);margin-bottom:.5rem;line-height:1.35}
+.canvas-card canvas{width:100%;display:block;border-radius:6px;cursor:crosshair;touch-action:none}
+.readout{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:.6rem;margin-top:1rem}
+.rcell{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.6rem .7rem}
+.rcell .rk{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.rcell .rv{font-size:1.05rem;font-family:'Courier New',monospace;color:var(--teal2);font-weight:700;margin-top:.15rem}
+.rcell.hot .rv{color:var(--rose2)}
+.weights-box{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.75rem;margin-top:1rem;font-family:'Courier New',monospace;font-size:.7rem;color:var(--muted);line-height:1.7;overflow-x:auto}
+.weights-box .wrow{white-space:nowrap}
+.weights-box .lock{color:var(--muted)}
+.weights-box .fire{color:var(--rose2);font-weight:700}
+.badge{display:inline-block;border-radius:10px;padding:.1rem .5rem;font-size:.66rem;font-weight:700;letter-spacing:.03em;vertical-align:middle}
+.badge.frozen{background:rgba(100,116,139,.18);color:#94a3b8;border:1px solid #334155}
+.badge.train{background:rgba(251,113,133,.18);color:var(--rose2);border:1px solid var(--rose)}
+
+/* STACK DIAGRAM */
+.stack-wrap{display:grid;grid-template-columns:1fr 240px;gap:1.25rem;margin-top:1rem;align-items:start}
+.stack-svg{width:100%;height:auto}
+.stack-info h4{color:var(--teal2);font-size:.9rem;margin-bottom:.4rem}
+.stack-info p{font-size:.82rem;color:#94a3b8;margin-bottom:.6rem}
+.stack-info .kv{font-size:.76rem;color:var(--muted);font-family:'Courier New',monospace;border-top:1px solid var(--border);padding-top:.5rem;margin-top:.5rem}
+.stack-info .kv b{color:var(--rose2)}
+
+/* TABLE */
+.tbl{width:100%;border-collapse:collapse;margin-top:1rem;font-size:.82rem}
+.tbl th{text-align:left;color:var(--teal2);font-weight:600;padding:.55rem .6rem;border-bottom:1px solid var(--border);font-size:.76rem;text-transform:uppercase;letter-spacing:.03em}
+.tbl td{padding:.55rem .6rem;border-bottom:1px solid rgba(26,42,74,.5);color:#94a3b8}
+.tbl tr:hover td{background:rgba(20,184,166,.04)}
+.tbl td.num{font-family:'Courier New',monospace;color:var(--text)}
+.tbl td.win{color:var(--teal3);font-weight:700}
+.tbl-scroll{overflow-x:auto}
+
+/* TABS */
+.tabs{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem}
+.tabpane{display:none}
+.tabpane.on{display:block}
+
+/* DECISION HELPER */
+.dq{margin-bottom:1rem}
+.dq .qt{font-size:.85rem;color:var(--text);margin-bottom:.45rem}
+.dq .opts{display:flex;gap:.5rem;flex-wrap:wrap}
+.verdict{background:var(--bg);border:1px solid var(--teal);border-radius:10px;padding:1rem 1.25rem;margin-top:1rem}
+.verdict .vtitle{color:var(--teal3);font-weight:700;font-size:1rem;margin-bottom:.35rem}
+.verdict .vwhy{font-size:.85rem;color:#94a3b8}
+
+/* MISC LISTS */
+.lim-list,.ref-list,.ex-list{list-style:none;display:flex;flex-direction:column;gap:.6rem;margin-top:.75rem}
+.lim-list li{display:flex;gap:.7rem;align-items:flex-start;font-size:.88rem;color:#94a3b8}
+.lim-list li::before{content:'⚠';flex-shrink:0;color:var(--amber)}
+.ref-list li{font-size:.85rem;color:#94a3b8;padding-left:1.2rem;position:relative}
+.ref-list li::before{content:'→';position:absolute;left:0;color:var(--rose2)}
+.ex-list{counter-reset:ex}
+.ex-list li{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.9rem 1.1rem;font-size:.88rem;color:#94a3b8;counter-increment:ex}
+.ex-list li::before{content:counter(ex)".";color:var(--rose2);font-weight:700;margin-right:.5rem}
+
+/* CONTINUE */
+.continue-strip{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:3rem}
+.continue-strip a{background:var(--surface);padding:1rem 1.25rem;display:flex;align-items:center;gap:.5rem;font-size:.88rem;color:var(--muted);transition:.2s}
+.continue-strip a:hover{background:var(--surface2);color:var(--text);text-decoration:none}
+.continue-strip a:last-child{justify-content:flex-end;text-align:right}
+.continue-strip .arrow{color:var(--rose2);font-size:1.1rem}
+.continue-strip .label{font-size:.75rem;color:var(--muted);display:block}
+.continue-strip .title{color:var(--text)}
+
+.tag-row{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.75rem}
+.tag{background:rgba(20,184,166,.15);color:var(--teal3);border:1px solid rgba(20,184,166,.3);border-radius:12px;padding:.2rem .65rem;font-size:.75rem}
+.tag.rose{background:rgba(251,113,133,.1);color:var(--rose2);border-color:rgba(251,113,133,.3)}
+.src{font-size:.72rem;color:var(--muted);margin-top:.6rem;font-style:italic}
+
+@media(max-width:760px){
+  .lab-grid{grid-template-columns:1fr}
+  .stack-wrap{grid-template-columns:1fr}
+}
+@media(max-width:600px){
+  .topbar nav{display:none}
+  .hero h1{font-size:1.5rem}
+  .continue-strip{grid-template-columns:1fr}
+  .sbar .slabel{width:88px}
+}
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+
+<!-- GATE -->
+<div id="gate">
+  <div class="gate-box">
+    <div style="font-size:2rem;margin-bottom:.5rem">🎛️</div>
+    <h2>Visual Summary</h2>
+    <p>Post 64 — Prompt Tuning</p>
+    <input type="password" id="gate-input" placeholder="Enter password" onkeydown="if(event.key==='Enter')checkGate()">
+    <button onclick="checkGate()">Unlock</button>
+    <div id="gate-err">Incorrect password</div>
+  </div>
+</div>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <span class="logo">Visual Summary</span>
+  <span class="post-tag">Post #64</span>
+  <nav>
+    <a href="#s-problem">Problem</a>
+    <a href="#s-hard">Hard vs Soft</a>
+    <a href="#s-mechanism">Mechanism</a>
+    <a href="#s-lab">The Lab</a>
+    <a href="#s-where">Where</a>
+    <a href="#s-cost">Cost</a>
+    <a href="#s-scale">Scale</a>
+    <a href="#s-ablations">Ablations</a>
+    <a href="#s-pm">PM Lens</a>
+  </nav>
+</div>
+
+<div class="container">
+
+<!-- HERO -->
+<div class="hero">
+  <div class="category">🎛️ Training &amp; Adaptation</div>
+  <h1>Prompt Tuning —<br><span>Teaching a Frozen Model New Tricks</span></h1>
+  <p class="sub">You can't change the model. You can only change what you put in front of it. It turns out that's enough — if you stop restricting yourself to words. An interactive walkthrough of soft prompts, with a lab where you actually train one.</p>
+  <div class="meta">
+    <span>📄 Lester, Al-Rfou &amp; Constant (EMNLP 2021)</span>
+    <span>🏢 Google Research</span>
+    <span>📊 T5 v1.1 · SuperGLUE</span>
+    <span>⏱️ ~20 min + lab</span>
+  </div>
+  <div class="tag-row" style="justify-content:center;margin-top:1rem">
+    <span class="tag">Soft Prompts</span>
+    <span class="tag">PEFT</span>
+    <span class="tag">Frozen Models</span>
+    <span class="tag rose">Prefix Tuning</span>
+    <span class="tag rose">LoRA</span>
+  </div>
+</div>
+
+<!-- ============ S-PROBLEM ============ -->
+<div id="s-problem" class="section">
+  <h2><span>🗄️</span> The problem: a photocopier for 11-billion-parameter models</h2>
+  <p>Fine-tuning works. That was never in doubt. The problem is what fine-tuning <em>produces</em>: a complete, private copy of the model, one per task.</p>
+  <p>Ten tasks, ten copies. A hundred customers with a hundred custom behaviours, a hundred copies. Every copy has to be stored, versioned, loaded into GPU memory, and served on its own. Batching requests across tasks becomes impossible, because no two requests share weights.</p>
+
+  <div class="panel">
+    <div class="ctl-row">
+      <label for="task-slider">How many tasks do you need to support?</label>
+      <input type="range" id="task-slider" min="1" max="500" value="25">
+      <span class="val" id="task-count" style="width:44px;text-align:right">25</span>
+    </div>
+    <div class="stakes-bars">
+      <div class="sbar">
+        <span class="slabel">Full fine-tuning</span>
+        <span class="swrap"><span class="sfill" id="bar-ft" style="background:linear-gradient(90deg,#fb7185,#f43f5e);width:100%">one 11.1B copy per task</span></span>
+        <span class="sval" id="val-ft">1.11 TB</span>
+      </div>
+      <div class="sbar">
+        <span class="slabel">Prompt tuning</span>
+        <span class="swrap"><span class="sfill" id="bar-pt" style="background:linear-gradient(90deg,#14b8a6,#2dd4bf);width:1%">one frozen copy + tiny prompts</span></span>
+        <span class="sval" id="val-pt">44.6 GB</span>
+      </div>
+    </div>
+    <div class="readout">
+      <div class="rcell"><div class="rk">Prompt storage only</div><div class="rv" id="val-pt-only">41 MB</div></div>
+      <div class="rcell"><div class="rk">Storage ratio</div><div class="rv" id="val-ratio">25×</div></div>
+      <div class="rcell hot"><div class="rk">Models to serve</div><div class="rv" id="val-serve">1</div></div>
+    </div>
+    <div class="src">T5&#8209;XXL v1.1 = 11.14 B parameters at 4 bytes each (fp32) = 44.6 GB per copy. Prompt tuning stores <em>one</em> frozen copy plus a 100&#215;4096 matrix per task = 409,600 parameters = 1.64 MB. Parameter counts from Lester et&nbsp;al. (2021).</div>
+  </div>
+
+  <div class="callout">
+    <strong>The reframing:</strong> if the model never changes, the model is infrastructure. What varies per task is a file small enough to email. Prompt tuning is the attempt to make that file as small as it can possibly be — and the paper's headline claim is that at sufficient scale, you lose nothing for it.
+  </div>
+</div>
+
+<!-- ============ S-HARD ============ -->
+<div id="s-hard" class="section">
+  <h2><span>🔤</span> Hard prompts vs. soft prompts</h2>
+  <p>You already know how to steer a frozen model without touching its weights: write a better prompt. <em>"Classify the sentiment of the following review:"</em> That's a <strong>hard prompt</strong> — hard as in discrete, made of real tokens from a real vocabulary.</p>
+  <p>Here's the catch nobody points out. Once your words hit the embedding layer, they stop being words. Each token becomes a vector in continuous space — for T5&#8209;XXL, a point in 4096 dimensions. Prompt engineering is therefore a search problem with a brutal constraint: <strong>you may only land on the ~32,000 points that happen to correspond to tokens.</strong> Everything in between is unreachable by typing.</p>
+  <p>A soft prompt drops the constraint. Instead of choosing tokens and letting the embedding table decide the vectors, you optimise the vectors directly. They are still prepended exactly where token embeddings would go — the model can't tell the difference — but they are free parameters, and they almost never correspond to any real word.</p>
+
+  <div class="panel">
+    <div class="ctl-row">
+      <button class="btn active" id="lat-hard" onclick="setLat('hard')">🔤 Hard prompt (tokens only)</button>
+      <button class="btn rose" id="lat-soft" onclick="setLat('soft')">🌊 Soft prompt (anywhere)</button>
+      <span style="font-size:.76rem;color:var(--muted)">← click inside the box</span>
+    </div>
+    <div class="canvas-card">
+      <div class="ctitle"><span>Embedding space (2&#8209;D stand&#8209;in for 4096&#8209;D)</span><span class="mono" id="lat-status" style="color:var(--muted);font-size:.7rem">snapped to nearest token</span></div>
+      <div class="csub">Grey dots are token embeddings — the only places a typed word can put you. Click to place a prompt vector and see where it actually lands.</div>
+      <canvas id="cv-lattice" width="820" height="330"></canvas>
+    </div>
+  </div>
+
+  <div class="callout rose">
+    <strong>Why this matters more than it sounds:</strong> the vocabulary is a vanishingly thin scattering of points in a 4096&#8209;dimensional space. Prompt engineering searches that scattering by hand. Prompt tuning does gradient descent over the whole space. The reachable set isn't slightly bigger — it's a continuum versus a finite set.
+  </div>
+</div>
+
+<!-- ============ S-MECHANISM ============ -->
+<div id="s-mechanism" class="section">
+  <h2><span>⚙️</span> What actually changes (and what doesn't)</h2>
+  <p>The mechanism is almost anticlimactically simple. Take your input <span class="mono">x</span>, embed it as usual into a matrix of shape <span class="mono">n × d</span>. Now prepend a second matrix <span class="mono">P</span> of shape <span class="mono">k × d</span> — <span class="mono">k</span> learnable vectors, same width as the embeddings. Feed the concatenation to the model.</p>
+
+  <div class="formula">
+    Y = <span class="frozen">Model<sub>θ</sub></span>( [ <span class="hot">P</span> ; <span class="frozen">E(x)</span> ] )&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--muted)">where</span>&nbsp;&nbsp;<span class="hot">P ∈ ℝ<sup>k×d</sup></span>
+  </div>
+  <div class="formula">
+    <span style="color:var(--muted)">maximise</span>&nbsp; log&nbsp;p<sub>θ;<span class="hot">P</span></sub>(Y | [<span class="hot">P</span>;<span class="frozen">E(x)</span>])&nbsp;&nbsp;&nbsp;<span style="color:var(--muted)">w.r.t.</span>&nbsp;<span class="hot">P</span> only&nbsp;&nbsp;·&nbsp;&nbsp;<span class="frozen">θ frozen</span>
+  </div>
+
+  <p>Training runs normally — forward pass, loss, backward pass. Gradients flow all the way back through every frozen layer, because they have to in order to reach <span class="mono">P</span>. But when the optimiser step comes, only <span class="mono">P</span> moves. Every weight in <span class="mono">θ</span> receives a gradient and then ignores it.</p>
+
+  <div class="panel">
+    <div class="ctl-row">
+      <button class="btn primary" id="bp-btn" onclick="toggleBP()">▶ Run a training step</button>
+      <span style="font-size:.78rem;color:var(--muted)" id="bp-caption">Watch which blocks light up on the backward pass.</span>
+    </div>
+    <svg viewBox="0 0 820 210" class="stack-svg" id="bp-svg">
+      <defs>
+        <marker id="ah" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#5eead4"/></marker>
+        <marker id="ah2" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#fb7185"/></marker>
+      </defs>
+      <!-- forward row -->
+      <g id="bp-blocks"></g>
+      <!-- forward arrow -->
+      <path id="bp-fwd" d="M40,58 L780,58" stroke="#5eead4" stroke-width="2" fill="none" marker-end="url(#ah)" opacity="0.25"/>
+      <text x="410" y="46" text-anchor="middle" fill="#5eead4" font-size="12" font-family="monospace" opacity="0.7">forward</text>
+      <!-- backward arrow -->
+      <path id="bp-bwd" d="M780,168 L40,168" stroke="#fb7185" stroke-width="2" fill="none" marker-end="url(#ah2)" opacity="0.25" stroke-dasharray="8 6"/>
+      <text x="410" y="190" text-anchor="middle" fill="#fb7185" font-size="12" font-family="monospace" opacity="0.7">gradients flow back through frozen weights…</text>
+      <text x="410" y="204" text-anchor="middle" fill="#fda4af" font-size="11" font-family="monospace" id="bp-land" opacity="0">…but only P takes the step</text>
+    </svg>
+  </div>
+
+  <div class="callout amber">
+    <strong>The cost nobody mentions:</strong> backprop still traverses the entire 11-billion-parameter network. Prompt tuning saves <em>storage</em> and <em>serving</em> cost, and it saves optimiser state — but a training step is nearly as expensive as full fine-tuning. It also eats context: a 100&#8209;token soft prompt is 100 tokens of sequence length you pay for on every single inference call, forever.
+  </div>
+</div>
+
+<!-- ============ S-LAB ============ -->
+<div id="s-lab" class="section">
+  <h2><span>🔬</span> The Lab — train a soft prompt yourself</h2>
+  <p>Everything below is real. There is a small neural network in this page with fixed, randomly initialised weights that are <strong>never updated</strong>. Its input is a 4&#8209;dimensional vector: two coordinates of soft prompt, then two coordinates of data. That's a literal, miniature version of <span class="mono">[P ; E(x)]</span>.</p>
+  <p>The only trainable parameters are the two numbers of the prompt. The left panel shows the loss as a function of those two numbers — the entire optimisation landscape, computed by brute force. The right panel shows what the frozen model actually predicts.</p>
+
+  <div class="panel">
+    <div class="ctl-row">
+      <label>Task:</label>
+      <select id="lab-task" onchange="labSetTask(this.value)">
+        <option value="A">A · Two clusters ("sentiment")</option>
+        <option value="B">B · Centre stripe ("is it in-scope?")</option>
+        <option value="C">C · Inner ring ("anomaly detection")</option>
+      </select>
+      <label style="margin-left:.5rem">Prompt type:</label>
+      <button class="btn active" id="lab-soft" onclick="labSetMode('soft')">🌊 Soft</button>
+      <button class="btn rose" id="lab-hard" onclick="labSetMode('hard')">🔤 Hard</button>
+    </div>
+    <div class="ctl-row">
+      <label>Init:</label>
+      <select id="lab-init" onchange="labInit(this.value)">
+        <option value="zero">Zero vector</option>
+        <option value="rand">Random uniform (unlucky draw)</option>
+        <option value="vocab">Sampled from vocabulary</option>
+        <option value="label">Near class-label embedding</option>
+      </select>
+      <label style="margin-left:.5rem">LR:</label>
+      <input type="range" id="lab-lr" min="5" max="120" value="35" style="max-width:110px" oninput="document.getElementById('lab-lr-v').textContent=(this.value/100).toFixed(2)">
+      <span class="val" id="lab-lr-v">0.35</span>
+    </div>
+    <div class="ctl-row">
+      <button class="btn primary" id="lab-run" onclick="labToggleRun()">▶ Train</button>
+      <button class="btn" onclick="labStep()">Step ×1</button>
+      <button class="btn" onclick="labReset()">↺ Reset</button>
+      <button class="btn" id="lab-search" onclick="labSearchVocab()" style="display:none">🔎 Search all 60 tokens</button>
+    </div>
+
+    <div class="lab-grid">
+      <div class="canvas-card">
+        <div class="ctitle"><span>Loss landscape over the prompt</span><span class="mono" style="font-size:.68rem;color:var(--muted)">drag me</span></div>
+        <div class="csub">Every pixel = the frozen model's loss if the prompt were that vector. Dark teal is low loss. The white dot is your prompt; the trail is its optimisation path.</div>
+        <canvas id="cv-land" width="420" height="380"></canvas>
+      </div>
+      <div class="canvas-card">
+        <div class="ctitle"><span>What the frozen model now does</span><span class="mono" style="font-size:.68rem;color:var(--muted)" id="lab-acc-badge">—</span></div>
+        <div class="csub">The same frozen weights, the same data. Only the prompt changed — and the decision boundary bends with it.</div>
+        <canvas id="cv-data" width="420" height="380"></canvas>
+      </div>
+    </div>
+
+    <div class="readout">
+      <div class="rcell hot"><div class="rk">Prompt P</div><div class="rv" id="lab-p" style="font-size:.85rem">[0.00, 0.00]</div></div>
+      <div class="rcell"><div class="rk">Loss</div><div class="rv" id="lab-loss">—</div></div>
+      <div class="rcell"><div class="rk">Accuracy</div><div class="rv" id="lab-acc">—</div></div>
+      <div class="rcell"><div class="rk">Steps</div><div class="rv" id="lab-steps">0</div></div>
+      <div class="rcell"><div class="rk">Best possible</div><div class="rv" id="lab-best">—</div></div>
+    </div>
+
+    <div class="weights-box" id="lab-weights"></div>
+    <div class="src">Frozen network: 4 → 6 → 6 → 1, tanh activations, weights drawn once from a fixed seed and never touched. Gradients are computed by central differences on the true loss — this is genuine gradient descent through a frozen model, not a scripted animation.</div>
+  </div>
+
+  <h3>Three things to try</h3>
+  <div class="callout">
+    <strong>1 · Compare the ceilings.</strong> Train on Task A, then Task B. Task A reaches 100% accuracy; Task B barely improves on its starting point no matter where you put the prompt — you can read it straight off the landscape, which has no deep basin anywhere. <em>A prompt steers capability the model already has. It cannot add capability the model lacks.</em> This is the single most useful intuition for a PM: prompt tuning is a routing problem, not a teaching problem.
+  </div>
+  <div class="callout rose">
+    <strong>2 · Turn on Hard mode.</strong> Now the prompt can only sit on one of the 60 vocabulary dots, and "training" degenerates into searching them. On Task A, the best discrete token lands at a visibly worse loss than the continuous optimum sitting between the dots. That gap — small here, larger in 4096 dimensions — is the entire reason soft prompts exist.
+  </div>
+  <div class="callout amber">
+    <strong>3 · Pick the unlucky random init.</strong> The zero, vocabulary and class-label inits all converge to the same optimum on Task A. The random one starts elsewhere on the landscape and settles into a <em>different, worse</em> minimum — same frozen model, same task, same learning rate, worse answer purely because of where it began. This is not a quirk of the toy: the paper finds initialisation matters a great deal at small model sizes, and stops mattering at 11 B. Bigger models have friendlier landscapes.
+  </div>
+</div>
+
+<!-- ============ S-WHERE ============ -->
+<div id="s-where" class="section">
+  <h2><span>🏗️</span> Where the new parameters live</h2>
+  <p>Prompt tuning is one point in a family. The family members differ on one question: <em>where in the network do you insert the trainable bits?</em> Everything else — freeze the backbone, train something small — is shared.</p>
+
+  <div class="panel">
+    <div class="ctl-row" id="where-tabs">
+      <button class="btn active" onclick="setWhere('full')">Full fine-tuning</button>
+      <button class="btn" onclick="setWhere('prompt')">Prompt tuning</button>
+      <button class="btn" onclick="setWhere('prefix')">Prefix tuning</button>
+      <button class="btn" onclick="setWhere('ptv2')">P&#8209;tuning v2</button>
+      <button class="btn" onclick="setWhere('lora')">LoRA</button>
+    </div>
+    <div class="stack-wrap">
+      <svg viewBox="0 0 380 300" class="stack-svg" id="where-svg"></svg>
+      <div class="stack-info">
+        <h4 id="where-title">Full fine-tuning</h4>
+        <p id="where-desc"></p>
+        <div class="kv" id="where-kv"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>Prompt tuning is the strict simplification.</strong> Prefix tuning (Li &amp; Liang, 2021) inserts trainable vectors into the attention keys and values of <em>every</em> layer, and needs an MLP reparameterisation to train stably. Lester et&nbsp;al. showed that if the model is big enough you can throw all of that away — one matrix at the input, no reparameterisation — and still match full fine-tuning. Fewer moving parts, same result, but only above a certain scale.
+  </div>
+</div>
+
+<!-- ============ S-COST ============ -->
+<div id="s-cost" class="section">
+  <h2><span>🧮</span> The parameter budget, computed live</h2>
+  <p>The arithmetic is the whole pitch, so here it is with the real T5 v1.1 numbers. Trainable parameters = prompt length × <span class="mono">d_model</span>. That's it — there is no other term.</p>
+
+  <div class="panel">
+    <div class="ctl-row">
+      <label>Model:</label>
+      <select id="cost-model" onchange="updateCost()">
+        <option value="0">T5 v1.1 Small — 76.96 M</option>
+        <option value="1">T5 v1.1 Base — 247.58 M</option>
+        <option value="2">T5 v1.1 Large — 783.15 M</option>
+        <option value="3">T5 v1.1 XL — 2.85 B</option>
+        <option value="4" selected>T5 v1.1 XXL — 11.14 B</option>
+      </select>
+      <label style="margin-left:.5rem">Prompt length k:</label>
+      <input type="range" id="cost-len" min="1" max="150" value="100" oninput="updateCost()">
+      <span class="val" id="cost-len-v" style="width:34px;text-align:right">100</span>
+    </div>
+    <div class="formula" id="cost-formula" style="white-space:normal">k × d_model = 100 × 4096 = <span class="hot">409,600</span> trainable parameters</div>
+    <div class="readout">
+      <div class="rcell"><div class="rk">Trainable params</div><div class="rv" id="cost-params">409,600</div></div>
+      <div class="rcell"><div class="rk">% of model</div><div class="rv" id="cost-pct">0.0037%</div></div>
+      <div class="rcell"><div class="rk">Size per task</div><div class="rv" id="cost-mb">1.64 MB</div></div>
+      <div class="rcell hot"><div class="rk">Shrink factor</div><div class="rv" id="cost-shrink">27,197×</div></div>
+    </div>
+    <div class="src">Cross-check: the paper reports 51,200 parameters (0.0665% of the model) for Small at k=100, and 409,600 for XXL — both of which this calculator reproduces exactly, along with its stated 20,480 for XXL at k=5.</div>
+  </div>
+
+  <div class="callout rose">
+    <strong>"A reduction of over five orders of magnitude."</strong> That's the paper's own phrasing, comparing 20,480 prompt parameters (k=5, XXL) against the 11.1 billion you'd otherwise copy per task. At that point the per-task artefact is smaller than the logo on your product's marketing site.
+  </div>
+</div>
+
+<!-- ============ S-SCALE ============ -->
+<div id="s-scale" class="section">
+  <h2><span>📈</span> The power of scale — the finding the title is about</h2>
+  <p>Here's what makes this paper more than a storage trick. At small model sizes, prompt tuning is clearly worse than fine-tuning the whole model. The authors ran the same experiment across five T5 sizes and found the gap shrinks monotonically — and at 11 B parameters it closes entirely.</p>
+
+  <div class="panel">
+    <div class="ctl-row">
+      <label>Model size:</label>
+      <input type="range" id="scale-slider" min="0" max="4" value="0" oninput="updateScale()">
+      <span class="val" id="scale-name" style="min-width:150px">Small — 76.96 M</span>
+    </div>
+    <svg viewBox="0 0 800 300" class="stack-svg" id="scale-svg"></svg>
+    <div class="readout">
+      <div class="rcell"><div class="rk">Params / task (k=100)</div><div class="rv" id="scale-tp">51,200</div></div>
+      <div class="rcell"><div class="rk">% of model</div><div class="rv" id="scale-pct">0.0665%</div></div>
+      <div class="rcell hot"><div class="rk">Gap to full fine-tuning</div><div class="rv" id="scale-gap">wide</div></div>
+    </div>
+    <div class="src">The curve shape is schematic — it reproduces the trend of Figure 1 in Lester et&nbsp;al. (2021), not digitised values. Only the labelled anchors are reported numbers: fine-tuned T5&#8209;XXL scores <b>89.3</b> on SuperGLUE and prompt tuning matches it at that size; GPT&#8209;3 175B few-shot scores <b>71.8</b>; and prompt-tuned T5&#8209;Large already beats GPT&#8209;3 175B despite being over 220× smaller.</div>
+  </div>
+
+  <div class="callout">
+    <strong>Why would scale help?</strong> The paper doesn't fully answer this, and it's worth being honest that it's an empirical finding rather than a derived one. The intuition offered is that a larger frozen model already contains a richer set of behaviours, so the job of the prompt shifts from <em>teaching</em> to <em>selecting</em> — and selecting needs far fewer bits than teaching. You can feel this in the Lab: the prompt is only ever moving you around a landscape the frozen model already defines.
+  </div>
+
+  <h3>One methodological detail that matters more than it should</h3>
+  <p>None of this works on stock T5. T5's pre-training objective is span corruption, and a model trained purely on it never learns to emit natural, well-formed text — so prompt tuning on top of it is unstable, and mid-sized models produce invalid class labels outright. The authors had to continue pre-training with a language-modelling objective for 100 K steps (10% of the original T5 pre-training budget) before prompt tuning behaved. Adding a sentinel token helped little; only real LM adaptation did.</p>
+  <div class="callout amber">
+    <strong>PM translation:</strong> "parameter-efficient" is a claim about the <em>adaptation</em> step, and it can quietly depend on an expensive preparation step upstream. When you're evaluating a PEFT method for a roadmap, ask what the base checkpoint had to go through first.
+  </div>
+</div>
+
+<!-- ============ S-ABLATIONS ============ -->
+<div id="s-ablations" class="section">
+  <h2><span>🔧</span> What actually moves the needle</h2>
+  <p>Three design choices, and a consistent pattern across all of them: <strong>each one matters a lot at small scale and stops mattering at large scale.</strong></p>
+
+  <div class="panel">
+    <div class="tabs">
+      <button class="btn active" onclick="setTab('len')">Prompt length</button>
+      <button class="btn" onclick="setTab('init')">Initialisation</button>
+      <button class="btn" onclick="setTab('lm')">Pre-training objective</button>
+    </div>
+
+    <div class="tabpane on" id="tab-len">
+      <p>How many virtual tokens do you need? The authors swept 1, 5, 20, 100 and 150.</p>
+      <div class="tbl-scroll"><table class="tbl">
+        <tr><th>Length</th><th>Effect</th></tr>
+        <tr><td class="num">1</td><td>Surprisingly viable at XXL; substantially worse at every smaller size.</td></tr>
+        <tr><td class="num">5</td><td>Marginal gain over a single token.</td></tr>
+        <tr><td class="num">20</td><td>Large jump for most model sizes — the main returns land here.</td></tr>
+        <tr><td class="num">100</td><td>The paper's default configuration.</td></tr>
+        <tr><td class="num">150</td><td>Diminishing, and mildly detrimental.</td></tr>
+      </table></div>
+      <div class="callout" style="margin-bottom:0"><strong>Read this as a cost dial.</strong> Every virtual token is sequence length you pay for on every inference request. Going 100 → 20 cuts your per-task artefact and your per-call overhead 5×, and above a billion parameters the accuracy cost is small.</div>
+    </div>
+
+    <div class="tabpane" id="tab-init">
+      <p>Where do the <span class="mono">k × d</span> numbers start?</p>
+      <div class="tbl-scroll"><table class="tbl">
+        <tr><th>Strategy</th><th>How</th><th>Result</th></tr>
+        <tr><td>Random uniform</td><td>Draw each value from a uniform range</td><td>Worst at small sizes</td></tr>
+        <tr><td>Sampled vocabulary</td><td>Copy embeddings of real, common tokens</td><td>Middle</td></tr>
+        <tr><td class="win">Class label</td><td>Copy the embeddings of the output class names</td><td class="win">Best — and the labels often persist through training</td></tr>
+      </table></div>
+      <div class="callout rose" style="margin-bottom:0"><strong>The lovely detail:</strong> when initialised from class-label embeddings, the trained prompt frequently stays near them. The model was, in a sense, already told the answer format — the prompt just needed permission to say it in vectors. And at XXL the whole effect vanishes: every initialisation converges to the same quality.</div>
+    </div>
+
+    <div class="tabpane" id="tab-lm">
+      <p>What was the frozen model pre-trained to do?</p>
+      <div class="tbl-scroll"><table class="tbl">
+        <tr><th>Objective</th><th>Result for prompt tuning</th></tr>
+        <tr><td>Span corruption (stock T5)</td><td>Poor and unstable; mid-sized models emit invalid class labels</td></tr>
+        <tr><td>Span corruption + sentinel</td><td>Little benefit</td></tr>
+        <tr><td class="win">LM adaptation (100 K extra steps)</td><td class="win">Outperforms span corruption at every size</td></tr>
+      </table></div>
+      <div class="callout amber" style="margin-bottom:0"><strong>XXL is robust to everything.</strong> The largest model tolerates even very short adaptation. Scale keeps buying forgiveness for design choices — which is the through-line of the entire paper.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ S-BONUS ============ -->
+<div class="section">
+  <h2><span>🎁</span> Two properties you get for free</h2>
+
+  <h3>1 · Ensembling becomes almost costless</h3>
+  <p>Train <span class="mono">N</span> prompts for the same task, and you have <span class="mono">N</span> models — sharing one frozen backbone. You don't run <span class="mono">N</span> forward passes on <span class="mono">N</span> models; you build one <em>batch</em> where each row carries a different prompt, and a single forward pass gives you the whole ensemble.</p>
+  <div class="tbl-scroll"><table class="tbl">
+    <tr><th>Dataset (T5&#8209;XXL)</th><th>Average of 5</th><th>Best single</th><th>Ensemble of 5</th></tr>
+    <tr><td>SuperGLUE (dev)</td><td class="num">90.5</td><td class="num">91.0</td><td class="num win">91.3</td></tr>
+    <tr><td>BoolQ</td><td class="num">91.1</td><td class="num">91.3</td><td class="num win">91.7</td></tr>
+    <tr><td>CB</td><td class="num">99.3 / 99.0</td><td class="num">100.0</td><td class="num win">100.0</td></tr>
+    <tr><td>COPA</td><td class="num">98.8</td><td class="num">100.0</td><td class="num win">100.0</td></tr>
+  </table></div>
+  <div class="src">Lester et&nbsp;al. (2021), five-prompt ensemble. CB reports accuracy / F1.</div>
+
+  <h3>2 · It transfers out of domain better than fine-tuning does</h3>
+  <p>This is the result that should make you sit up. A fully fine-tuned model can bend its own weights to fit the training distribution — including its quirks. A frozen model can't, so the prompt has less room to overfit to the domain. Train on one distribution, test on another, and prompt tuning wins:</p>
+
+  <div class="panel">
+    <div id="dom-bars"></div>
+    <div class="src">Zero-shot domain transfer, F1 unless noted. QQP→MRPC accuracy: 73.1 ± 0.9 (model tuning) vs 76.3 ± 0.1 (prompt tuning). All numbers from Lester et&nbsp;al. (2021).</div>
+  </div>
+
+  <div class="callout">
+    <strong>The +12.5 F1 on TextbookQA</strong> is the standout: the target domain furthest from SQuAD is exactly where freezing the backbone pays off most. Constraint as a regulariser.
+  </div>
+</div>
+
+<!-- ============ S-PM ============ -->
+<div id="s-pm" class="section">
+  <h2><span>🧭</span> The PM lens — should you actually use this?</h2>
+  <p>Honest answer: in 2026, usually not, and it's worth understanding why a technique can be this elegant and still lose.</p>
+  <p><strong>LoRA won the practical fight.</strong> It trains faster, is less sensitive to hyperparameters, doesn't consume context window, can be merged into the base weights at inference for zero added latency, and — critically — the whole ecosystem (adapters, hubs, serving stacks) standardised on it. Prompt tuning's per-task artefact is smaller, but LoRA's is already small enough that nobody's storage budget is the binding constraint.</p>
+  <p><strong>What prompt tuning is still genuinely good for:</strong> extreme multi-tenancy where you're serving thousands of task variants off one backbone and want them batched together in a single forward pass; settings where you must not modify the served weights at all, for audit or contractual reasons; and out-of-domain robustness, where the frozen-backbone constraint is a feature. It also remains the cleanest mental model for understanding <em>why</em> every PEFT method works, which is worth the twenty minutes on its own.</p>
+
+  <div class="panel">
+    <h4 style="color:var(--teal2);font-size:.9rem;margin-bottom:.9rem">Pick your constraints →</h4>
+    <div class="dq">
+      <div class="qt">1 · How much do you need to change the model's behaviour?</div>
+      <div class="opts">
+        <button class="btn" data-q="need" data-v="format" onclick="pickD(this)">Output format / tone</button>
+        <button class="btn" data-q="need" data-v="task" onclick="pickD(this)">A new task it can nearly do</button>
+        <button class="btn" data-q="need" data-v="knowledge" onclick="pickD(this)">New domain knowledge</button>
+      </div>
+    </div>
+    <div class="dq">
+      <div class="qt">2 · How many distinct task variants will you serve?</div>
+      <div class="opts">
+        <button class="btn" data-q="n" data-v="few" onclick="pickD(this)">A handful</button>
+        <button class="btn" data-q="n" data-v="many" onclick="pickD(this)">Dozens to hundreds</button>
+        <button class="btn" data-q="n" data-v="huge" onclick="pickD(this)">Thousands (per-customer)</button>
+      </div>
+    </div>
+    <div class="dq">
+      <div class="qt">3 · What's your labelled data situation?</div>
+      <div class="opts">
+        <button class="btn" data-q="data" data-v="none" onclick="pickD(this)">Almost none</button>
+        <button class="btn" data-q="data" data-v="some" onclick="pickD(this)">Hundreds to thousands of examples</button>
+        <button class="btn" data-q="data" data-v="lots" onclick="pickD(this)">Plenty</button>
+      </div>
+    </div>
+    <div class="verdict" id="verdict">
+      <div class="vtitle">Answer the three questions above</div>
+      <div class="vwhy">This isn't a lookup table — it's the reasoning I'd walk through in a design review, made clickable.</div>
+    </div>
+  </div>
+
+  <h3>Limitations worth writing on the roadmap</h3>
+  <ul class="lim-list">
+    <li><strong>Training isn't cheap.</strong> Backprop traverses the full frozen model. You save optimiser state and storage, not compute.</li>
+    <li><strong>Convergence is slow.</strong> 30,000 steps at a learning rate of 0.3 with batch size 32 — an aggressive LR precisely because the gradient signal reaching a handful of input vectors is weak.</li>
+    <li><strong>It costs context forever.</strong> A 100-token prompt is 100 tokens of every request's sequence budget and attention cost, for the life of the deployment.</li>
+    <li><strong>Interpretability is gone.</strong> A hard prompt can be read, reviewed, and shipped through a content-review process. A soft prompt is a matrix of floats that corresponds to no words — you cannot review it, and you cannot explain it to a regulator.</li>
+    <li><strong>It cannot add knowledge.</strong> The Lab's Task B is the demonstration: if the frozen model can't do it, no prompt vector will make it. Confirm capability exists before budgeting for adaptation.</li>
+    <li><strong>Small models need not apply.</strong> Below roughly a billion parameters the gap to fine-tuning is real and the design choices become finicky.</li>
+  </ul>
+</div>
+
+<!-- ============ S-EX ============ -->
+<div id="s-ex" class="section">
+  <h2><span>✍️</span> Exercises</h2>
+  <ol class="ex-list">
+    <li>In the Lab, train Task A from the zero init, note the final loss, then switch to Hard mode and search all 60 tokens. Write down the gap. Now argue why that gap would grow rather than shrink in 4096 dimensions.</li>
+    <li>Task B's landscape has no deep basin. Before running anything, predict what accuracy it converges to — then check. What would you actually have to change to solve Task B, and which of the five methods in "Where the new parameters live" would you reach for?</li>
+    <li>Use the cost calculator: at what prompt length does T5&#8209;Small's per-task artefact exceed T5&#8209;XXL's at k=5? What does that tell you about comparing PEFT methods across model scales?</li>
+    <li>The paper's domain-transfer result shows the biggest win on the most distant domain. Design an evaluation for your own product that would detect this effect — and explain why an in-distribution holdout set would miss it entirely.</li>
+    <li>Write the one-paragraph case <em>against</em> prompt tuning that you'd expect from an infra lead. Then write the rebuttal for the extreme-multi-tenancy scenario.</li>
+  </ol>
+</div>
+
+<!-- ============ REFS ============ -->
+<div class="section">
+  <h2><span>📚</span> References</h2>
+  <ul class="ref-list">
+    <li><a href="https://arxiv.org/abs/2104.08691" target="_blank">Lester, Al-Rfou &amp; Constant (2021) — "The Power of Scale for Parameter-Efficient Prompt Tuning"</a> (EMNLP 2021). The primary source for every number on this page.</li>
+    <li><a href="https://arxiv.org/abs/2101.00190" target="_blank">Li &amp; Liang (2021) — "Prefix-Tuning: Optimizing Continuous Prompts for Generation"</a>. Trains ~0.1% of parameters; prefixes at every layer; GPT-2 table-to-text and BART summarisation.</li>
+    <li><a href="https://arxiv.org/abs/2103.10385" target="_blank">Liu et al. (2021) — "GPT Understands, Too" (P-tuning)</a>. Continuous prompts with an LSTM/MLP encoder.</li>
+    <li><a href="https://arxiv.org/abs/2110.07602" target="_blank">Liu et al. (2021) — "P-Tuning v2"</a>. Deep prompts across layers, made to work across scales and NLU tasks.</li>
+    <li><a href="https://arxiv.org/abs/2106.09685" target="_blank">Hu et al. (2021) — "LoRA: Low-Rank Adaptation of Large Language Models"</a>. The method that won in practice.</li>
+    <li><a href="https://arxiv.org/abs/2005.14165" target="_blank">Brown et al. (2020) — "Language Models are Few-Shot Learners" (GPT-3)</a>. The 71.8 SuperGLUE few-shot baseline.</li>
+    <li><a href="https://huggingface.co/docs/peft" target="_blank">Hugging Face PEFT documentation</a> — working implementations of prompt tuning, prefix tuning, P-tuning and LoRA.</li>
+    <li><a href="https://magazine.sebastianraschka.com/p/understanding-parameter-efficient" target="_blank">Raschka — "Understanding Parameter-Efficient LLM Finetuning"</a>. The clearest static diagrams of prompt vs. prefix tuning.</li>
+  </ul>
+</div>
+
+<!-- CONTINUE -->
+<div class="continue-strip">
+  <a href="../63-global-workspace/">
+    <span class="arrow">←</span>
+    <div>
+      <span class="label">Previous Post</span>
+      <span class="title">Post 63 — The Global Workspace</span>
+    </div>
+  </a>
+  <a href="../">
+    <div>
+      <span class="label">Back to</span>
+      <span class="title">All Visual Summaries</span>
+    </div>
+    <span class="arrow">→</span>
+  </a>
+</div>
+
+</div><!-- end container -->
+
+<script>
+/* ================= GATE ================= */
+(function(){ if(localStorage.getItem('pg_unlocked_64')==='1') document.getElementById('gate').style.display='none'; })();
+function checkGate(){
+  if(document.getElementById('gate-input').value==='visual2025'){
+    localStorage.setItem('pg_unlocked_64','1');
+    document.getElementById('gate').style.display='none';
+    setTimeout(fitCanvases,50);
+  } else document.getElementById('gate-err').style.display='block';
+}
+
+/* ================= PROGRESS BAR ================= */
+window.addEventListener('scroll',function(){
+  var h=document.documentElement.scrollHeight-window.innerHeight;
+  document.getElementById('progress').style.width=(h>0?(window.scrollY/h*100):0)+'%';
+});
+
+/* ================= SHARED RNG ================= */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+/* ================= 1. STAKES SLIDER ================= */
+var XXL_PARAMS=11.14e9, XXL_D=4096, BYTES=4;
+var ONE_COPY_GB=XXL_PARAMS*BYTES/1e9;               // 44.56 GB
+var PROMPT_MB=100*XXL_D*BYTES/1e6;                  // 1.6384 MB
+function fmtStore(gb){ return gb>=1000 ? (gb/1000).toFixed(2)+' TB' : gb.toFixed(1)+' GB'; }
+function updateStakes(){
+  var n=+document.getElementById('task-slider').value;
+  document.getElementById('task-count').textContent=n;
+  var ft=n*ONE_COPY_GB;
+  var pt=ONE_COPY_GB+n*PROMPT_MB/1000;
+  document.getElementById('val-ft').textContent=fmtStore(ft);
+  document.getElementById('val-pt').textContent=fmtStore(pt);
+  document.getElementById('bar-pt').style.width=Math.max(1,pt/ft*100)+'%';
+  var mb=n*PROMPT_MB;
+  document.getElementById('val-pt-only').textContent = mb>=1000 ? (mb/1000).toFixed(2)+' GB' : Math.round(mb)+' MB';
+  document.getElementById('val-ratio').textContent=(ft/pt).toFixed(ft/pt<10?1:0)+'×';
+  document.getElementById('val-serve').textContent='1';
+}
+document.getElementById('task-slider').addEventListener('input',updateStakes);
+updateStakes();
+
+/* ================= 2. LATTICE CANVAS ================= */
+var VOCAB=(function(){ var r=mulberry32(909),v=[]; for(var i=0;i<60;i++) v.push([(r()*2-1)*2.8,(r()*2-1)*2.8]); return v; })();
+var latMode='hard', latP=[0.9,-0.4], latSnapped=null;
+var cvL=document.getElementById('cv-lattice');
+function latX(x,w){ return (x+3.4)/6.8*w; }
+function latY(y,h){ return h-(y+3.4)/6.8*h; }
+function drawLattice(){
+  var c=cvL.getContext('2d'), w=cvL.width, h=cvL.height;
+  c.fillStyle='#050811'; c.fillRect(0,0,w,h);
+  // continuous field shading when soft
+  if(latMode==='soft'){
+    var g=c.createRadialGradient(latX(latP[0],w),latY(latP[1],h),4,latX(latP[0],w),latY(latP[1],h),Math.min(w,h)*0.5);
+    g.addColorStop(0,'rgba(251,113,133,0.16)'); g.addColorStop(1,'rgba(251,113,133,0)');
+    c.fillStyle=g; c.fillRect(0,0,w,h);
+  }
+  // grid
+  c.strokeStyle='rgba(26,42,74,0.6)'; c.lineWidth=1;
+  for(var i=0;i<=8;i++){ var xx=i/8*w, yy=i/8*h;
+    c.beginPath(); c.moveTo(xx,0); c.lineTo(xx,h); c.stroke();
+    c.beginPath(); c.moveTo(0,yy); c.lineTo(w,yy); c.stroke(); }
+  // vocab dots
+  VOCAB.forEach(function(v){
+    var px=latX(v[0],w), py=latY(v[1],h);
+    c.beginPath(); c.arc(px,py,3.4,0,7);
+    c.fillStyle = (latMode==='hard'&&latSnapped&&latSnapped===v) ? '#5eead4' : 'rgba(148,163,184,0.55)';
+    c.fill();
+  });
+  // prompt marker
+  var target = (latMode==='hard'&&latSnapped) ? latSnapped : latP;
+  var tx=latX(target[0],w), ty=latY(target[1],h);
+  if(latMode==='hard'&&latSnapped){
+    c.strokeStyle='rgba(251,113,133,0.5)'; c.setLineDash([4,4]); c.lineWidth=1.4;
+    c.beginPath(); c.moveTo(latX(latP[0],w),latY(latP[1],h)); c.lineTo(tx,ty); c.stroke(); c.setLineDash([]);
+    c.beginPath(); c.arc(latX(latP[0],w),latY(latP[1],h),4,0,7); c.strokeStyle='rgba(251,113,133,0.5)'; c.stroke();
+  }
+  c.beginPath(); c.arc(tx,ty,8,0,7);
+  c.fillStyle= latMode==='hard' ? 'rgba(94,234,212,0.25)' : 'rgba(251,113,133,0.25)'; c.fill();
+  c.beginPath(); c.arc(tx,ty,4.5,0,7);
+  c.fillStyle= latMode==='hard' ? '#5eead4' : '#fb7185'; c.fill();
+  c.font='11px monospace'; c.fillStyle= latMode==='hard' ? '#5eead4' : '#fda4af';
+  c.fillText('['+target[0].toFixed(2)+', '+target[1].toFixed(2)+']', tx+11, ty-9);
+}
+function nearestVocab(p){
+  var best=null,bd=1e9;
+  VOCAB.forEach(function(v){ var d=(v[0]-p[0])*(v[0]-p[0])+(v[1]-p[1])*(v[1]-p[1]); if(d<bd){bd=d;best=v;} });
+  return best;
+}
+function setLat(m){
+  latMode=m;
+  document.getElementById('lat-hard').classList.toggle('active',m==='hard');
+  document.getElementById('lat-soft').classList.toggle('active',m==='soft');
+  latSnapped = m==='hard' ? nearestVocab(latP) : null;
+  document.getElementById('lat-status').textContent = m==='hard' ? 'snapped to nearest token — 60 reachable points' : 'free — every point reachable';
+  drawLattice();
+}
+cvL.addEventListener('pointerdown',function(e){
+  var r=cvL.getBoundingClientRect();
+  var x=(e.clientX-r.left)/r.width*6.8-3.4;
+  var y=3.4-(e.clientY-r.top)/r.height*6.8;
+  latP=[x,y];
+  latSnapped = latMode==='hard' ? nearestVocab(latP) : null;
+  drawLattice();
+});
+setLat('hard');
+
+/* ================= 3. BACKPROP ANIMATION ================= */
+var BP_BLOCKS=[
+  {x:26,label:'P',trainable:true},
+  {x:126,label:'E(x)',trainable:false},
+  {x:226,label:'Layer 1',trainable:false},
+  {x:326,label:'Layer 2',trainable:false},
+  {x:426,label:'…',trainable:false},
+  {x:526,label:'Layer N',trainable:false},
+  {x:626,label:'Head',trainable:false},
+  {x:726,label:'Loss',trainable:false}
+];
+(function(){
+  var g=document.getElementById('bp-blocks'), s='';
+  BP_BLOCKS.forEach(function(b,i){
+    var fill=b.trainable?'rgba(251,113,133,0.14)':'rgba(15,24,48,1)';
+    var stroke=b.trainable?'#fb7185':'#1a2a4a';
+    s+='<rect id="bpb-'+i+'" x="'+b.x+'" y="78" width="70" height="52" rx="9" fill="'+fill+'" stroke="'+stroke+'" stroke-width="1.5"/>';
+    s+='<text x="'+(b.x+35)+'" y="100" text-anchor="middle" font-size="12" font-family="monospace" fill="'+(b.trainable?'#fda4af':'#94a3b8')+'">'+b.label+'</text>';
+    s+='<text x="'+(b.x+35)+'" y="118" text-anchor="middle" font-size="13">'+(b.trainable?'🔥':'🔒')+'</text>';
+  });
+  g.innerHTML=s;
+})();
+var bpRunning=false;
+function toggleBP(){
+  if(bpRunning) return;
+  bpRunning=true;
+  document.getElementById('bp-btn').textContent='running…';
+  var fwd=document.getElementById('bp-fwd'), bwd=document.getElementById('bp-bwd');
+  fwd.setAttribute('opacity','1'); bwd.setAttribute('opacity','0.25');
+  document.getElementById('bp-land').setAttribute('opacity','0');
+  document.getElementById('bp-caption').textContent='Forward pass: the prompt is just more input.';
+  var i=0;
+  var fi=setInterval(function(){
+    if(i>0) document.getElementById('bpb-'+(i-1)).setAttribute('stroke-width','1.5');
+    if(i<BP_BLOCKS.length){ var el=document.getElementById('bpb-'+i); el.setAttribute('stroke','#5eead4'); el.setAttribute('stroke-width','2.6'); i++; return; }
+    clearInterval(fi);
+    // backward
+    fwd.setAttribute('opacity','0.25'); bwd.setAttribute('opacity','1');
+    document.getElementById('bp-caption').textContent='Backward pass: every frozen block computes a gradient it will never use.';
+    var j=BP_BLOCKS.length-1;
+    var bi=setInterval(function(){
+      if(j<BP_BLOCKS.length-1) document.getElementById('bpb-'+(j+1)).setAttribute('stroke-width','1.5');
+      if(j>=0){
+        var el=document.getElementById('bpb-'+j);
+        el.setAttribute('stroke', BP_BLOCKS[j].trainable?'#fb7185':'#fb7185');
+        el.setAttribute('stroke-width','2.6'); j--; return;
+      }
+      clearInterval(bi);
+      BP_BLOCKS.forEach(function(b,k){
+        var el=document.getElementById('bpb-'+k);
+        el.setAttribute('stroke', b.trainable?'#fb7185':'#1a2a4a');
+        el.setAttribute('stroke-width', b.trainable?'2.6':'1.5');
+      });
+      document.getElementById('bp-land').setAttribute('opacity','1');
+      document.getElementById('bp-caption').textContent='Optimiser step: only P moves. θ discards its gradients.';
+      document.getElementById('bp-btn').textContent='▶ Run a training step';
+      bpRunning=false;
+    },110);
+  },110);
+}
+
+/* ================= 4. THE LAB ================= */
+var H=6, LAB_SEED=17, TASK_SEED=22;
+var NET=(function(){
+  var r=mulberry32(LAB_SEED), S=1.6, rnd=function(){return (r()*2-1)*S;};
+  var W1=[],b1=[],W2=[],b2=[],w3=[],i,j;
+  for(i=0;i<H;i++){ var row=[]; for(j=0;j<4;j++) row.push(rnd()); W1.push(row); }
+  for(i=0;i<H;i++) b1.push(rnd());
+  for(i=0;i<H;i++){ var row2=[]; for(j=0;j<H;j++) row2.push(rnd()); W2.push(row2); }
+  for(i=0;i<H;i++) b2.push(rnd());
+  for(i=0;i<H;i++) w3.push(rnd());
+  return {W1:W1,b1:b1,W2:W2,b2:b2,w3:w3,b3:rnd()};
+})();
+function netFwd(p,x){
+  var inp=[p[0],p[1],x[0],x[1]], h1=[], h2=[], i, j, s;
+  for(i=0;i<H;i++){ s=NET.b1[i]; for(j=0;j<4;j++) s+=NET.W1[i][j]*inp[j]; h1.push(Math.tanh(s)); }
+  for(i=0;i<H;i++){ s=NET.b2[i]; for(j=0;j<H;j++) s+=NET.W2[i][j]*h1[j]; h2.push(Math.tanh(s)); }
+  s=NET.b3; for(i=0;i<H;i++) s+=NET.w3[i]*h2[i];
+  return s;
+}
+function softplus(v){ return v>30?v:Math.log(1+Math.exp(v)); }
+function taskLoss(p,d){ var s=0; for(var i=0;i<d.length;i++) s+=softplus(-(2*d[i].y-1)*netFwd(p,d[i].x)); return s/d.length; }
+function taskAcc(p,d){ var c=0; for(var i=0;i<d.length;i++) if((netFwd(p,d[i].x)>0?1:0)===d[i].y) c++; return c/d.length; }
+
+var TASKS=(function(){
+  var r=mulberry32(TASK_SEED);
+  function g(){ var u=0,v=0; while(u===0)u=r(); while(v===0)v=r(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+  var N=44, A=[],B=[],C=[],i;
+  for(i=0;i<N;i++){ var y=i%2; A.push({x:[(y?1.1:-1.1)+g()*0.42,(y?0.85:-0.85)+g()*0.42],y:y}); }
+  for(i=0;i<N;i++){ var x0=(r()*2-1)*2.0,x1=(r()*2-1)*2.0; B.push({x:[x0,x1],y:Math.abs(x0)<0.85?1:0}); }
+  for(i=0;i<N;i++){ var an=r()*Math.PI*2, inner=i%2===0, rad=inner?r()*0.75:1.35+r()*0.6;
+    C.push({x:[Math.cos(an)*rad,Math.sin(an)*rad],y:inner?1:0}); }
+  return {A:A,B:B,C:C};
+})();
+var INITS={ zero:[0,0], rand:[2.4,-2.1], vocab:VOCAB[3].slice(), label:[0.6,0.6] };
+
+var lab={task:'A',mode:'soft',p:[0,0],path:[[0,0]],steps:0,running:false,land:null,landMin:0,landMax:1,best:null,hardBest:null};
+var cvLand=document.getElementById('cv-land'), cvData=document.getElementById('cv-data');
+var LAND_N=84, RANGE=3;
+function pToPx(v,size){ return (v+RANGE)/(2*RANGE)*size; }
+function pToPy(v,size){ return size-(v+RANGE)/(2*RANGE)*size; }
+function pxToP(px,size){ return px/size*(2*RANGE)-RANGE; }
+
+function computeLandscape(){
+  var d=TASKS[lab.task], grid=new Float32Array(LAND_N*LAND_N), mn=1e9, mx=-1e9, bi=0;
+  for(var i=0;i<LAND_N;i++) for(var j=0;j<LAND_N;j++){
+    var px=-RANGE+2*RANGE*i/(LAND_N-1), py=-RANGE+2*RANGE*j/(LAND_N-1);
+    // read back through the Float32Array so mn/mx match the values we later colour by
+    grid[j*LAND_N+i]=taskLoss([px,py],d);
+    var l=grid[j*LAND_N+i];
+    if(l<mn){ mn=l; bi=j*LAND_N+i; } if(l>mx) mx=l;
+  }
+  lab.land=grid; lab.landMin=mn; lab.landMax=mx;
+  var bj=Math.floor(bi/LAND_N), bii=bi%LAND_N;
+  lab.best={p:[-RANGE+2*RANGE*bii/(LAND_N-1),-RANGE+2*RANGE*bj/(LAND_N-1)],loss:mn};
+  var hb={loss:1e9,p:null};
+  VOCAB.forEach(function(v){ var l=taskLoss(v,d); if(l<hb.loss){ hb={loss:l,p:v.slice()}; } });
+  lab.hardBest=hb;
+}
+function lerpColor(t){
+  // dark navy -> teal -> pale rose (high loss)
+  var stops=[[5,8,17],[13,60,72],[20,184,166],[148,163,184],[251,113,133]];
+  if(!(t>=0)) t=0;                    // also catches NaN
+  var s=Math.min(0.999,t)*(stops.length-1), i=Math.floor(s), f=s-i;
+  var a=stops[i], b=stops[i+1];
+  return 'rgb('+Math.round(a[0]+(b[0]-a[0])*f)+','+Math.round(a[1]+(b[1]-a[1])*f)+','+Math.round(a[2]+(b[2]-a[2])*f)+')';
+}
+/* The heatmap only changes when the task or mode changes, so it is rendered once to an
+   offscreen canvas and blitted each frame. Without this, every optimiser step repainted
+   ~56k rectangles and the training animation stuttered. */
+var landCache=null, landKey='';
+function renderLandCache(){
+  var W=cvLand.width, Hh=cvLand.height;
+  if(!landCache) landCache=document.createElement('canvas');
+  landCache.width=W; landCache.height=Hh;
+  var c=landCache.getContext('2d');
+  var cell=W/LAND_N, cellY=Hh/LAND_N, span=lab.landMax-lab.landMin||1;
+  for(var i=0;i<LAND_N;i++) for(var j=0;j<LAND_N;j++){
+    var t=(lab.land[j*LAND_N+i]-lab.landMin)/span;
+    c.fillStyle=lerpColor(Math.pow(t,0.75));
+    c.fillRect(Math.floor(i*cell),Math.floor(Hh-(j+1)*cellY),Math.ceil(cell)+1,Math.ceil(cellY)+1);
+  }
+  // contour lines
+  c.strokeStyle='rgba(255,255,255,0.10)'; c.lineWidth=1;
+  for(var lv=1;lv<8;lv++){
+    var target=lab.landMin+span*lv/8;
+    for(i=0;i<LAND_N-1;i++) for(j=0;j<LAND_N-1;j++){
+      var a=lab.land[j*LAND_N+i], b=lab.land[j*LAND_N+i+1];
+      if((a-target)*(b-target)<0){ c.fillStyle='rgba(255,255,255,0.13)'; c.fillRect(i*cell,Hh-(j+1)*cellY,1.2,cellY); }
+    }
+  }
+  // vocab dots in hard mode
+  if(lab.mode==='hard'){
+    VOCAB.forEach(function(v){
+      if(Math.abs(v[0])>RANGE||Math.abs(v[1])>RANGE) return;
+      c.beginPath(); c.arc(pToPx(v[0],W),pToPy(v[1],Hh),3,0,7);
+      c.fillStyle='rgba(226,232,240,0.55)'; c.fill();
+    });
+    if(lab.hardBest&&lab.hardBest.p){
+      c.beginPath(); c.arc(pToPx(lab.hardBest.p[0],W),pToPy(lab.hardBest.p[1],Hh),7,0,7);
+      c.strokeStyle='#5eead4'; c.lineWidth=2; c.stroke();
+    }
+  }
+  // global optimum marker
+  if(lab.best){
+    var ox=pToPx(lab.best.p[0],W), oy=pToPy(lab.best.p[1],Hh);
+    c.strokeStyle='rgba(94,234,212,0.85)'; c.lineWidth=1.5;
+    c.beginPath(); c.moveTo(ox-7,oy); c.lineTo(ox+7,oy); c.moveTo(ox,oy-7); c.lineTo(ox,oy+7); c.stroke();
+  }
+  // axes labels
+  c.font='10px monospace'; c.fillStyle='rgba(226,232,240,0.5)';
+  c.fillText('P₁ →',W-46,Hh-8); c.save(); c.translate(10,34); c.rotate(-Math.PI/2); c.fillText('← P₂',0,0); c.restore();
+  landKey=lab.task+'|'+lab.mode+'|'+W+'x'+Hh;
+}
+function drawLandscape(){
+  var W=cvLand.width, Hh=cvLand.height;
+  if(landKey!==lab.task+'|'+lab.mode+'|'+W+'x'+Hh) renderLandCache();
+  var c=cvLand.getContext('2d');
+  c.drawImage(landCache,0,0);
+  // path
+  if(lab.path.length>1){
+    c.beginPath();
+    c.moveTo(pToPx(lab.path[0][0],W),pToPy(lab.path[0][1],Hh));
+    for(var k=1;k<lab.path.length;k++) c.lineTo(pToPx(lab.path[k][0],W),pToPy(lab.path[k][1],Hh));
+    c.strokeStyle='rgba(255,255,255,0.75)'; c.lineWidth=1.6; c.stroke();
+  }
+  // current point
+  var cx=pToPx(lab.p[0],W), cy=pToPy(lab.p[1],Hh);
+  c.beginPath(); c.arc(cx,cy,9,0,7); c.fillStyle='rgba(255,255,255,0.22)'; c.fill();
+  c.beginPath(); c.arc(cx,cy,5,0,7); c.fillStyle='#fff'; c.fill();
+}
+function drawData(){
+  var c=cvData.getContext('2d'), W=cvData.width, Hh=cvData.height, d=TASKS[lab.task];
+  var G=54, cell=W/G, cellY=Hh/G;
+  for(var i=0;i<G;i++) for(var j=0;j<G;j++){
+    var x=-RANGE+2*RANGE*i/(G-1), y=-RANGE+2*RANGE*j/(G-1);
+    var z=netFwd(lab.p,[x,y]);
+    var s=1/(1+Math.exp(-z));
+    var a=Math.min(0.42,Math.abs(s-0.5)*0.8);
+    c.fillStyle = s>0.5 ? 'rgba(20,184,166,'+a+')' : 'rgba(251,113,133,'+a+')';
+    c.fillRect(Math.floor(i*cell),Math.floor(Hh-(j+1)*cellY),Math.ceil(cell)+1,Math.ceil(cellY)+1);
+  }
+  // boundary
+  c.strokeStyle='rgba(255,255,255,0.55)'; c.lineWidth=1;
+  for(i=0;i<G-1;i++) for(j=0;j<G;j++){
+    var x1=-RANGE+2*RANGE*i/(G-1), x2=-RANGE+2*RANGE*(i+1)/(G-1), yy=-RANGE+2*RANGE*j/(G-1);
+    if(netFwd(lab.p,[x1,yy])*netFwd(lab.p,[x2,yy])<0){ c.fillStyle='rgba(255,255,255,0.55)'; c.fillRect(i*cell,Hh-(j+1)*cellY,1.5,cellY+1); }
+  }
+  // points
+  d.forEach(function(q){
+    var px=pToPx(q.x[0],W), py=pToPy(q.x[1],Hh);
+    var correct=(netFwd(lab.p,q.x)>0?1:0)===q.y;
+    c.beginPath(); c.arc(px,py,4.6,0,7);
+    c.fillStyle = q.y===1 ? '#2dd4bf' : '#fb7185'; c.fill();
+    c.lineWidth=1.4; c.strokeStyle = correct ? 'rgba(255,255,255,0.35)' : '#fff';
+    if(!correct){ c.beginPath(); c.arc(px,py,7.5,0,7); c.strokeStyle='rgba(255,255,255,0.9)'; c.stroke(); }
+  });
+  c.font='10px monospace'; c.fillStyle='rgba(226,232,240,0.5)';
+  c.fillText('white ring = misclassified',10,16);
+}
+function labGrad(){
+  var d=TASKS[lab.task], e=1e-4;
+  var g0=(taskLoss([lab.p[0]+e,lab.p[1]],d)-taskLoss([lab.p[0]-e,lab.p[1]],d))/(2*e);
+  var g1=(taskLoss([lab.p[0],lab.p[1]+e],d)-taskLoss([lab.p[0],lab.p[1]-e],d))/(2*e);
+  return [g0,g1];
+}
+function labStepCore(){
+  var lr=+document.getElementById('lab-lr').value/100, g=labGrad();
+  lab.p[0]=Math.max(-RANGE,Math.min(RANGE,lab.p[0]-lr*g[0]));
+  lab.p[1]=Math.max(-RANGE,Math.min(RANGE,lab.p[1]-lr*g[1]));
+  lab.path.push([lab.p[0],lab.p[1]]);
+  if(lab.path.length>400) lab.path.shift();
+  lab.steps++;
+}
+function labStep(){
+  if(lab.mode==='hard'){ labSearchVocab(); return; }
+  labStepCore();
+  labRender();
+}
+function labSearchVocab(){
+  if(!lab.hardBest) return;
+  lab.p=[lab.hardBest.p[0],lab.hardBest.p[1]];
+  lab.path.push([lab.p[0],lab.p[1]]);
+  lab.steps++;
+  labRender();
+}
+function labToggleRun(){
+  if(lab.mode==='hard'){ labSearchVocab(); return; }
+  lab.running=!lab.running;
+  document.getElementById('lab-run').textContent=lab.running?'⏸ Pause':'▶ Train';
+  if(lab.running) labLoop();
+}
+function labLoop(){
+  if(!lab.running) return;
+  labStepCore(); labStepCore();   // two optimiser steps, one repaint
+  labRender();
+  requestAnimationFrame(labLoop);
+}
+function labRender(){
+  drawLandscape(); drawData();
+  var d=TASKS[lab.task], l=taskLoss(lab.p,d), a=taskAcc(lab.p,d);
+  document.getElementById('lab-p').textContent='['+lab.p[0].toFixed(2)+', '+lab.p[1].toFixed(2)+']';
+  document.getElementById('lab-loss').textContent=l.toFixed(3);
+  document.getElementById('lab-acc').textContent=(a*100).toFixed(0)+'%';
+  document.getElementById('lab-steps').textContent=lab.steps;
+  document.getElementById('lab-acc-badge').textContent=(a*100).toFixed(0)+'% correct';
+  var bestTxt = lab.mode==='hard'
+    ? lab.hardBest.loss.toFixed(3)+' (best token)'
+    : lab.best.loss.toFixed(3)+' (continuous)';
+  document.getElementById('lab-best').textContent=bestTxt;
+  document.getElementById('lab-best').style.fontSize='.8rem';
+  renderWeights();
+}
+function renderWeights(){
+  var s='';
+  s+='<div class="wrow"><span class="fire">P&nbsp;&nbsp;&nbsp;(trainable)</span> <span class="badge train">🔥 2 params</span> &nbsp;['+lab.p[0].toFixed(4)+', '+lab.p[1].toFixed(4)+']</div>';
+  s+='<div class="wrow"><span class="lock">W1  (frozen)</span> <span class="badge frozen">🔒 24 params</span> &nbsp;['+NET.W1[0].map(function(v){return v.toFixed(2);}).join(', ')+', …]</div>';
+  s+='<div class="wrow"><span class="lock">W2  (frozen)</span> <span class="badge frozen">🔒 36 params</span> &nbsp;['+NET.W2[0].slice(0,4).map(function(v){return v.toFixed(2);}).join(', ')+', …]</div>';
+  s+='<div class="wrow"><span class="lock">w3  (frozen)</span> <span class="badge frozen">🔒 6 params</span>  &nbsp;['+NET.w3.map(function(v){return v.toFixed(2);}).join(', ')+']</div>';
+  s+='<div class="wrow" style="color:#5eead4;margin-top:.35rem">2 of 74 parameters are training — 2.7%. In T5-XXL the same ratio is 0.0037%.</div>';
+  document.getElementById('lab-weights').innerHTML=s;
+}
+function labInit(kind){
+  var v=INITS[kind]||INITS.zero;
+  lab.p=[v[0],v[1]]; lab.path=[[v[0],v[1]]]; lab.steps=0;
+  labRender();
+}
+function labReset(){
+  lab.running=false; document.getElementById('lab-run').textContent='▶ Train';
+  labInit(document.getElementById('lab-init').value);
+}
+function labSetTask(t){
+  lab.task=t; lab.running=false; document.getElementById('lab-run').textContent='▶ Train';
+  computeLandscape(); labInit(document.getElementById('lab-init').value);
+}
+function labSetMode(m){
+  lab.mode=m; lab.running=false; document.getElementById('lab-run').textContent='▶ Train';
+  document.getElementById('lab-soft').classList.toggle('active',m==='soft');
+  document.getElementById('lab-hard').classList.toggle('active',m==='hard');
+  document.getElementById('lab-search').style.display = m==='hard'?'':'none';
+  document.getElementById('lab-run').textContent = m==='hard' ? '▶ Search' : '▶ Train';
+  labRender();
+}
+cvLand.addEventListener('pointerdown',function(e){ labDrag(e); cvLand.setPointerCapture(e.pointerId); lab.dragging=true; });
+cvLand.addEventListener('pointermove',function(e){ if(lab.dragging) labDrag(e); });
+cvLand.addEventListener('pointerup',function(){ lab.dragging=false; });
+function labDrag(e){
+  lab.running=false; document.getElementById('lab-run').textContent = lab.mode==='hard'?'▶ Search':'▶ Train';
+  var r=cvLand.getBoundingClientRect();
+  var px=pxToP((e.clientX-r.left)/r.width*cvLand.width,cvLand.width);
+  var py=-pxToP((e.clientY-r.top)/r.height*cvLand.height,cvLand.height);
+  if(lab.mode==='hard'){
+    var best=null,bd=1e9;
+    VOCAB.forEach(function(v){ var dd=(v[0]-px)*(v[0]-px)+(v[1]-py)*(v[1]-py); if(dd<bd){bd=dd;best=v;} });
+    lab.p=[best[0],best[1]];
+  } else lab.p=[Math.max(-RANGE,Math.min(RANGE,px)),Math.max(-RANGE,Math.min(RANGE,py))];
+  lab.path.push([lab.p[0],lab.p[1]]);
+  labRender();
+}
+computeLandscape(); labInit('zero');
+
+/* ================= 5. WHERE THE PARAMS LIVE ================= */
+var WHERE={
+  full:{title:'Full fine-tuning',
+    desc:'Every weight in the network is updated. Maximum flexibility, maximum cost: one complete model copy per task.',
+    kv:'trainable: <b>100%</b><br>artefact/task: <b>full model</b><br>added latency: none<br>context cost: none',
+    hl:{blocks:true,prefix:false,inputPrompt:false,lora:false}},
+  prompt:{title:'Prompt tuning (Lester et al., 2021)',
+    desc:'One matrix of k learnable vectors, prepended at the input embedding layer only. Nothing else in the network is touched — not even a reparameterisation network.',
+    kv:'trainable: <b>k × d_model</b><br>artefact/task: <b>&lt;0.01% (&gt;1B models)</b><br>added latency: none<br>context cost: <b>k tokens, always</b>',
+    hl:{blocks:false,prefix:false,inputPrompt:true,lora:false}},
+  prefix:{title:'Prefix tuning (Li & Liang, 2021)',
+    desc:'Trainable vectors are inserted into the attention keys and values of every layer, not just the input. Needs an MLP reparameterisation during training to stay stable.',
+    kv:'trainable: <b>~0.1%</b><br>artefact/task: <b>L × 2 × k × d</b><br>added latency: none<br>context cost: <b>k positions per layer</b>',
+    hl:{blocks:false,prefix:true,inputPrompt:false,lora:false}},
+  ptv2:{title:'P-tuning v2 (Liu et al., 2021)',
+    desc:'Deep prompts at every layer, tuned to work across model scales and NLU tasks — essentially prefix tuning, generalised and made to hold up below the billion-parameter mark where plain prompt tuning struggles.',
+    kv:'trainable: <b>0.1% – 3%</b><br>artefact/task: <b>per-layer prompts</b><br>added latency: none<br>context cost: <b>k positions per layer</b>',
+    hl:{blocks:false,prefix:true,inputPrompt:true,lora:false}},
+  lora:{title:'LoRA (Hu et al., 2021)',
+    desc:'Leaves the input alone entirely. Instead, each weight matrix gets a trainable low-rank correction BA added alongside it — which can be folded into the frozen weights after training, costing nothing at inference.',
+    kv:'trainable: <b>~0.1% – 1%</b><br>artefact/task: <b>rank-r matrices</b><br>added latency: <b>none (mergeable)</b><br>context cost: <b>none</b>',
+    hl:{blocks:false,prefix:false,inputPrompt:false,lora:true}}
+};
+function setWhere(k){
+  var d=WHERE[k];
+  var tabs=document.querySelectorAll('#where-tabs .btn'), ki=['full','prompt','prefix','ptv2','lora'].indexOf(k);
+  tabs.forEach(function(b){ b.classList.remove('active'); });
+  if(tabs[ki]) tabs[ki].classList.add('active');
+  document.getElementById('where-title').textContent=d.title;
+  document.getElementById('where-desc').textContent=d.desc;
+  document.getElementById('where-kv').innerHTML=d.kv;
+  var s='', y, L=4, hot='#fb7185', cold='#1a2a4a';
+  // input row
+  var inpStroke=d.hl.inputPrompt?hot:cold, inpFill=d.hl.inputPrompt?'rgba(251,113,133,0.16)':'rgba(15,24,48,1)';
+  s+='<rect x="26" y="248" width="56" height="34" rx="8" fill="'+inpFill+'" stroke="'+inpStroke+'" stroke-width="'+(d.hl.inputPrompt?2.4:1.2)+'"/>';
+  s+='<text x="54" y="269" text-anchor="middle" font-size="11" font-family="monospace" fill="'+(d.hl.inputPrompt?'#fda4af':'#64748b')+'">P</text>';
+  s+='<rect x="92" y="248" width="120" height="34" rx="8" fill="rgba(15,24,48,1)" stroke="'+cold+'" stroke-width="1.2"/>';
+  s+='<text x="152" y="269" text-anchor="middle" font-size="11" font-family="monospace" fill="#64748b">E(x)  🔒</text>';
+  s+='<text x="240" y="269" font-size="10" font-family="monospace" fill="#475569">input</text>';
+  for(var i=0;i<L;i++){
+    y=196-i*56;
+    var bs=d.hl.blocks?hot:cold, bf=d.hl.blocks?'rgba(251,113,133,0.12)':'rgba(15,24,48,1)';
+    s+='<rect x="26" y="'+y+'" width="186" height="44" rx="9" fill="'+bf+'" stroke="'+bs+'" stroke-width="'+(d.hl.blocks?2.2:1.2)+'"/>';
+    s+='<text x="46" y="'+(y+27)+'" font-size="11" font-family="monospace" fill="'+(d.hl.blocks?'#fda4af':'#94a3b8')+'">Layer '+(i+1)+(d.hl.blocks?' 🔥':' 🔒')+'</text>';
+    if(d.hl.prefix){
+      s+='<rect x="152" y="'+(y+9)+'" width="50" height="26" rx="6" fill="rgba(251,113,133,0.2)" stroke="'+hot+'" stroke-width="1.6"/>';
+      s+='<text x="177" y="'+(y+27)+'" text-anchor="middle" font-size="9.5" font-family="monospace" fill="#fda4af">K,V+</text>';
+    }
+    if(d.hl.lora){
+      s+='<rect x="228" y="'+(y+9)+'" width="52" height="26" rx="6" fill="rgba(251,113,133,0.2)" stroke="'+hot+'" stroke-width="1.6"/>';
+      s+='<text x="254" y="'+(y+27)+'" text-anchor="middle" font-size="9.5" font-family="monospace" fill="#fda4af">+BA</text>';
+      s+='<path d="M212,'+(y+22)+' L228,'+(y+22)+'" stroke="'+hot+'" stroke-width="1.4"/>';
+    }
+    s+='<path d="M119,'+(y+44)+' L119,'+(y+56)+'" stroke="#334155" stroke-width="1.4"/>';
+  }
+  s+='<text x="240" y="'+(196-3*56+27)+'" font-size="10" font-family="monospace" fill="#475569">'+(d.hl.lora?'':'output')+'</text>';
+  s+='<text x="26" y="16" font-size="10" font-family="monospace" fill="#5eead4">🔥 trainable   🔒 frozen</text>';
+  document.getElementById('where-svg').innerHTML=s;
+}
+setWhere('full');
+
+/* ================= 6. COST CALCULATOR ================= */
+var MODELS=[
+  {name:'T5 v1.1 Small',d:512,p:76.96e6},
+  {name:'T5 v1.1 Base',d:768,p:247.58e6},
+  {name:'T5 v1.1 Large',d:1024,p:783.15e6},
+  {name:'T5 v1.1 XL',d:2048,p:2.85e9},
+  {name:'T5 v1.1 XXL',d:4096,p:11.14e9}
+];
+function commas(n){ return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g,','); }
+function updateCost(){
+  var m=MODELS[+document.getElementById('cost-model').value];
+  var k=+document.getElementById('cost-len').value;
+  document.getElementById('cost-len-v').textContent=k;
+  var tp=k*m.d, pct=tp/m.p*100, mb=tp*4/1e6;
+  document.getElementById('cost-formula').innerHTML='k × d_model = '+k+' × '+m.d+' = <span class="hot">'+commas(tp)+'</span> trainable parameters';
+  document.getElementById('cost-params').textContent=commas(tp);
+  document.getElementById('cost-pct').textContent=(pct<0.001?pct.toFixed(5):pct.toFixed(4))+'%';
+  document.getElementById('cost-mb').textContent= mb<1 ? (mb*1000).toFixed(0)+' KB' : mb.toFixed(2)+' MB';
+  document.getElementById('cost-shrink').textContent=commas(Math.round(m.p/tp))+'×';
+}
+updateCost();
+
+/* ================= 7. SCALE ================= */
+function updateScale(){
+  var idx=+document.getElementById('scale-slider').value, m=MODELS[idx];
+  var pretty=[ 'Small — 76.96 M','Base — 247.58 M','Large — 783.15 M','XL — 2.85 B','XXL — 11.14 B' ];
+  document.getElementById('scale-name').textContent=pretty[idx];
+  var tp=100*m.d;
+  document.getElementById('scale-tp').textContent=commas(tp);
+  document.getElementById('scale-pct').textContent=(tp/m.p*100).toFixed(4)+'%';
+  var gaps=['wide','wide','narrowing','small','closed'];
+  document.getElementById('scale-gap').textContent=gaps[idx];
+  document.getElementById('scale-gap').style.color = idx===4?'#5eead4':(idx>=3?'#f59e0b':'#fb7185');
+  drawScale(idx);
+}
+function drawScale(idx){
+  var W=800,Hh=300,L=78,R=756,T=34,B=246;
+  // schematic y positions (score axis 60..95)
+  var mt=[86.0,88.0,88.8,89.1,89.3];       // model tuning: flat-ish, anchored at 89.3 for XXL
+  var pt=[62.5,71.5,79.5,85.5,89.3];       // prompt tuning: rises to meet it
+  function sx(i){ return L+(R-L)*i/4; }
+  function sy(v){ return B-(v-60)/(95-60)*(B-T); }
+  var s='';
+  s+='<rect x="'+L+'" y="'+T+'" width="'+(R-L)+'" height="'+(B-T)+'" fill="rgba(15,24,48,0.5)" stroke="#1a2a4a"/>';
+  for(var g=60;g<=95;g+=5){
+    s+='<line x1="'+L+'" y1="'+sy(g)+'" x2="'+R+'" y2="'+sy(g)+'" stroke="#1a2a4a" stroke-width="1"/>';
+    s+='<text x="'+(L-8)+'" y="'+(sy(g)+4)+'" text-anchor="end" font-size="10" font-family="monospace" fill="#475569">'+g+'</text>';
+  }
+  // GPT-3 few-shot reference
+  s+='<line x1="'+L+'" y1="'+sy(71.8)+'" x2="'+R+'" y2="'+sy(71.8)+'" stroke="#f59e0b" stroke-width="1.4" stroke-dasharray="6 5"/>';
+  s+='<text x="'+(R-4)+'" y="'+(sy(71.8)-7)+'" text-anchor="end" font-size="10.5" font-family="monospace" fill="#f59e0b">GPT-3 175B few-shot · 71.8</text>';
+  var names=['Small','Base','Large','XL','XXL'];
+  names.forEach(function(n,i){
+    s+='<text x="'+sx(i)+'" y="'+(B+18)+'" text-anchor="middle" font-size="10.5" font-family="monospace" fill="'+(i===idx?'#5eead4':'#475569')+'">'+n+'</text>';
+  });
+  function poly(arr){ return arr.map(function(v,i){ return sx(i)+','+sy(v); }).join(' '); }
+  s+='<polyline points="'+poly(mt)+'" fill="none" stroke="#64748b" stroke-width="2.2"/>';
+  s+='<polyline points="'+poly(pt)+'" fill="none" stroke="#2dd4bf" stroke-width="2.6"/>';
+  // gap shading up to idx
+  s+='<line x1="'+sx(idx)+'" y1="'+T+'" x2="'+sx(idx)+'" y2="'+B+'" stroke="rgba(94,234,212,0.25)" stroke-width="1.4"/>';
+  s+='<line x1="'+sx(idx)+'" y1="'+sy(pt[idx])+'" x2="'+sx(idx)+'" y2="'+sy(mt[idx])+'" stroke="#fb7185" stroke-width="3"/>';
+  var gapv=(mt[idx]-pt[idx]);
+  s+='<text x="'+(sx(idx)+9)+'" y="'+((sy(pt[idx])+sy(mt[idx]))/2)+'" font-size="11" font-family="monospace" fill="#fb7185">'+(gapv<0.15?'gap closed':'gap')+'</text>';
+  mt.forEach(function(v,i){ s+='<circle cx="'+sx(i)+'" cy="'+sy(v)+'" r="'+(i===idx?5:3.4)+'" fill="#64748b"/>'; });
+  pt.forEach(function(v,i){ s+='<circle cx="'+sx(i)+'" cy="'+sy(v)+'" r="'+(i===idx?5:3.4)+'" fill="#2dd4bf"/>'; });
+  s+='<text x="'+(L+6)+'" y="'+(T+16)+'" font-size="11" font-family="monospace" fill="#94a3b8">■ full model tuning</text>';
+  s+='<text x="'+(L+6)+'" y="'+(T+32)+'" font-size="11" font-family="monospace" fill="#2dd4bf">■ prompt tuning</text>';
+  s+='<text x="'+sx(4)+'" y="'+(sy(89.3)-12)+'" text-anchor="end" font-size="10.5" font-family="monospace" fill="#5eead4">89.3 ✓ reported</text>';
+  s+='<text x="'+(L-58)+'" y="'+((T+B)/2)+'" font-size="10.5" font-family="monospace" fill="#475569" transform="rotate(-90 '+(L-58)+' '+((T+B)/2)+')">SuperGLUE score</text>';
+  document.getElementById('scale-svg').innerHTML=s;
+}
+updateScale();
+
+/* ================= 8. TABS ================= */
+function setTab(k){
+  var order=['len','init','lm'];
+  document.querySelectorAll('#s-ablations .tabs .btn').forEach(function(b,i){ b.classList.toggle('active',order[i]===k); });
+  order.forEach(function(o){ document.getElementById('tab-'+o).classList.toggle('on',o===k); });
+}
+
+/* ================= 9. DOMAIN TRANSFER BARS ================= */
+var DOMAIN=[
+  {name:'SQuAD → TextbookQA',mt:54.3,pt:66.8,mtsd:'±3.7',ptsd:'±2.9'},
+  {name:'SQuAD → BioASQ',mt:77.9,pt:79.1,mtsd:'±0.4',ptsd:'±0.3'},
+  {name:'SQuAD → RACE',mt:59.8,pt:60.7,mtsd:'±0.6',ptsd:'±0.5'},
+  {name:'QQP → MRPC (F1)',mt:81.2,pt:84.3,mtsd:'±2.1',ptsd:'±0.3'}
+];
+(function(){
+  var s='';
+  DOMAIN.forEach(function(d){
+    var delta=(d.pt-d.mt).toFixed(1);
+    s+='<div style="margin-bottom:1.05rem">';
+    s+='<div style="display:flex;justify-content:space-between;font-size:.8rem;color:#94a3b8;margin-bottom:.35rem"><span>'+d.name+'</span><span style="color:#5eead4;font-family:monospace">+'+delta+'</span></div>';
+    s+='<div class="sbar" style="margin-bottom:.3rem"><span class="slabel" style="width:104px;font-size:.74rem">model tuning</span><span class="swrap" style="height:20px"><span class="sfill" style="background:linear-gradient(90deg,#475569,#64748b);width:'+(d.mt)+'%"></span></span><span class="sval" style="width:74px;font-size:.75rem">'+d.mt+' '+d.mtsd+'</span></div>';
+    s+='<div class="sbar"><span class="slabel" style="width:104px;font-size:.74rem">prompt tuning</span><span class="swrap" style="height:20px"><span class="sfill" style="background:linear-gradient(90deg,#14b8a6,#2dd4bf);width:'+(d.pt)+'%"></span></span><span class="sval" style="width:74px;font-size:.75rem">'+d.pt+' '+d.ptsd+'</span></div>';
+    s+='</div>';
+  });
+  document.getElementById('dom-bars').innerHTML=s;
+})();
+
+/* ================= 10. DECISION HELPER ================= */
+var D={};
+function pickD(btn){
+  var q=btn.dataset.q;
+  document.querySelectorAll('[data-q="'+q+'"]').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  D[q]=btn.dataset.v;
+  renderVerdict();
+}
+function renderVerdict(){
+  if(!D.need||!D.n||!D.data) return;
+  var title, why;
+  if(D.need==='knowledge'){
+    title='Not a PEFT problem — try RAG first, then full fine-tuning';
+    why='No amount of prompt or adapter tuning inserts knowledge the frozen backbone never had. This is the Lab\'s Task B: the landscape has no basin because the capability isn\'t there. Retrieval puts the knowledge in the context where the model can use it; if you truly need it in the weights, budget for continued pre-training or full fine-tuning.';
+  } else if(D.data==='none'){
+    title='Prompt engineering (hard prompts) + few-shot examples';
+    why='Every method on this page learns from labelled data by gradient descent. With almost none, you are still in the discrete-search regime — write the prompt, add examples, and measure. Revisit soft prompts once you have a few hundred labelled examples per task.';
+  } else if(D.n==='huge'){
+    title='Prompt tuning is genuinely the right tool';
+    why='Thousands of per-customer variants off one frozen backbone is the scenario prompt tuning was designed for: a ~1.6 MB artefact per tenant, one model in GPU memory, and — the part that actually matters — mixed-tenant requests batched into a single forward pass because every row shares the same weights. Budget for the per-request context cost of k virtual tokens.';
+  } else if(D.need==='format'&&D.n==='few'){
+    title='Prompt engineering, and stop there';
+    why='Output format and tone are what hard prompts are good at, and a handful of tasks doesn\'t justify a training pipeline. Keep the prompt reviewable — a soft prompt would trade away readability and auditability for gains you probably can\'t measure here.';
+  } else if(D.n==='many'||D.need==='task'){
+    title='LoRA — with prompt tuning as the fallback if serving cost dominates';
+    why='For dozens to hundreds of variants with real labelled data, LoRA trains faster, is far less hyperparameter-sensitive, merges into the base weights for zero inference latency, and costs you no context window. Reach for prompt tuning instead only if you need many variants live in one batch simultaneously, or if contractual/audit constraints forbid touching served weights at all.';
+  } else {
+    title='LoRA';
+    why='The default for most adaptation work in 2026: small artefact, fast training, mergeable at inference, and an ecosystem that already supports it end to end.';
+  }
+  var v=document.getElementById('verdict');
+  v.querySelector('.vtitle').textContent=title;
+  v.querySelector('.vwhy').textContent=why;
+}
+
+/* ================= CANVAS HiDPI FIT ================= */
+function fitCanvases(){
+  [cvL,cvLand,cvData].forEach(function(cv){
+    var r=cv.getBoundingClientRect();
+    if(r.width>0 && Math.abs(cv.width-r.width*(window.devicePixelRatio>1?1:1))>500){ /* no-op guard */ }
+  });
+  drawLattice(); labRender();
+}
+window.addEventListener('resize',function(){ drawLattice(); labRender(); });
+setTimeout(fitCanvases,60);
+</script>
+</body>
+</html>
