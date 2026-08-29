@@ -71,6 +71,45 @@ harness actually printed.
 
 ---
 
+## 2026-08-29 - Post 65 (NDCG)
+
+### 1. `setupCanvas` re-read `cv.height` after mutating it - canvas doubled every redraw
+**Caught by:** my test (asserting the backing height is stable across three `drawDiscount()` calls).
+
+**What happened.** The DPR helper did `var h = cv.height; cv.height = h * dpr;`. On the first call
+that is correct. On every subsequent call `cv.height` is the *already scaled* value, so the design
+height doubled each time - 240 -> 480 -> 960. The bug is invisible on a page that draws once, and
+this page redraws on every interaction.
+
+**Fix.** Cache the design height in a `data-base-h` attribute on first use and always read the
+design height from there, never from the live `cv.height`.
+
+**Prevention.** A helper that both reads and writes the same property needs a separate source of
+truth for the input. Test idempotence explicitly: call the draw function three times and assert the
+geometry is unchanged.
+
+### 2. A "same documents, same precision" example that did not actually have the same precision
+**Caught by:** my test (asserting `precisionAt(A,5) === precisionAt(B,5)`).
+
+**What happened.** The opening hook claimed two rankings of the same 8 documents have identical
+Precision@5 while NDCG separates them. The two orderings I wrote by hand gave P@5 of 0.80 and 0.60 -
+the headline claim of section 1 was simply false, and the page displayed both numbers.
+
+**Fix.** Reordered list B so the top 5 contains the same *count* of relevant documents by
+construction, then asserted it. Now 0.80 / 0.80 with NDCG@5 of 0.911 / 0.294.
+
+**Prevention.** When a section's argument is "metric X is blind here, metric Y is not", that is a
+testable claim about the example data, not just prose. Assert it - hand-built examples that
+"obviously" have a property frequently do not.
+
+### 3. Standalone-first, then port
+Post 65 was written as a self-contained file in `Downloads/` first, verified there, and only then
+transformed into the post (gate, topbar, `s-*` section ids, PM Lens) by a script. Re-running the
+same 37-check harness against the *generated* post caught nothing new, which is the point - the
+transform is mechanical and re-verifiable. Worth repeating when a post starts life as a one-off.
+
+---
+
 ## Standing practice for this repo
 
 - Each post is a single self-contained `index.html` in an `NN-slug/` directory; register

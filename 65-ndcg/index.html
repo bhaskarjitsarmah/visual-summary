@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NDCG — Post 65 | Visual Summary</title>
+<style>
+:root{
+  --bg:#050811;
+  --surface:#0a1020;
+  --surface2:#0f1830;
+  --border:#1a2a4a;
+  --teal:#14b8a6;
+  --teal2:#2dd4bf;
+  --teal3:#5eead4;
+  --rose:#fb7185;
+  --rose2:#fda4af;
+  --text:#e2e8f0;
+  --muted:#64748b;
+  --dim:#94a3b8;
+  --green:#10b981;
+  --amber:#f59e0b;
+  --red:#ef4444;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.6}
+a{color:var(--teal2);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* GATE */
+#gate{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center}
+.gate-box{background:var(--surface);border:1px solid var(--teal);border-radius:16px;padding:2.5rem;width:min(380px,90vw);text-align:center}
+.gate-box h2{font-size:1.4rem;color:var(--teal3);margin-bottom:.5rem}
+.gate-box p{color:var(--muted);font-size:.9rem;margin-bottom:1.5rem}
+.gate-box input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem;color:var(--text);font-size:1rem;margin-bottom:1rem;outline:none}
+.gate-box input:focus{border-color:var(--teal)}
+.gate-box button{width:100%;background:linear-gradient(135deg,var(--teal),var(--rose));color:#fff;border:none;border-radius:8px;padding:.75rem;font-size:1rem;cursor:pointer}
+.gate-box button:hover{opacity:.9}
+#gate-err{color:var(--red);font-size:.85rem;margin-top:.5rem;display:none}
+
+.topbar{position:sticky;top:0;z-index:100;background:rgba(5,8,17,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:.75rem 1.5rem;display:flex;align-items:center;gap:1rem}
+.topbar .logo{color:var(--teal3);font-weight:700;font-size:.95rem;white-space:nowrap}
+.topbar .post-tag{background:rgba(20,184,166,.18);color:var(--teal3);border:1px solid var(--teal);border-radius:20px;padding:.2rem .75rem;font-size:.8rem;white-space:nowrap}
+.topbar nav{display:flex;gap:.4rem;flex-wrap:wrap;flex:1;justify-content:flex-end}
+.topbar nav a{color:var(--muted);font-size:.78rem;padding:.25rem .5rem;border-radius:4px;transition:.2s}
+.topbar nav a:hover{color:var(--teal2);background:rgba(20,184,166,.1);text-decoration:none}
+#progress{position:fixed;top:0;left:0;height:2px;background:linear-gradient(90deg,var(--teal),var(--rose));z-index:200;width:0}
+
+.container{max-width:900px;margin:0 auto;padding:0 1.5rem 5rem}
+
+.hero{padding:3.5rem 0 2rem;text-align:center}
+.hero .category{display:inline-block;background:rgba(251,113,133,.15);color:var(--rose2);border:1px solid var(--rose);border-radius:20px;padding:.3rem .9rem;font-size:.8rem;margin-bottom:1rem;letter-spacing:.05em;text-transform:uppercase}
+.hero h1{font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;line-height:1.2;margin-bottom:1rem}
+.hero h1 span{background:linear-gradient(135deg,var(--teal3),var(--rose));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero .sub{color:var(--muted);font-size:1rem;max-width:660px;margin:0 auto 1.5rem}
+.hero .meta{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;font-size:.8rem;color:var(--muted)}
+
+.section{margin:2.5rem 0;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.75rem;scroll-margin-top:70px}
+.section h2{font-size:1.2rem;color:var(--teal3);margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+.section p{color:var(--dim);font-size:.93rem}
+.section p+p{margin-top:.75rem}
+.section h3{font-size:1rem;color:var(--rose2);margin:1.5rem 0 .6rem}
+.section ul{color:var(--dim);font-size:.93rem;margin:.6rem 0 0 1.1rem}
+.section li{margin-bottom:.45rem}
+
+.callout{background:rgba(20,184,166,.08);border-left:3px solid var(--teal);border-radius:8px;padding:1rem 1.25rem;margin:1.15rem 0;font-size:.9rem;color:var(--dim)}
+.callout.rose{background:rgba(251,113,133,.08);border-color:var(--rose)}
+.callout.amber{background:rgba(245,158,11,.08);border-color:var(--amber)}
+.callout strong{color:var(--teal3)}
+.callout.rose strong{color:var(--rose2)}
+.callout.amber strong{color:#fde68a}
+
+.formula{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.9rem 1.25rem;font-family:'Courier New',monospace;font-size:.9rem;color:var(--teal3);text-align:center;margin:1rem 0;overflow-x:auto;white-space:nowrap}
+.formula .hot{color:var(--rose2);font-weight:700}
+.formula .dimd{color:var(--muted)}
+
+.panel{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:1.25rem;margin-top:1.25rem}
+.panel-title{font-size:.8rem;color:var(--teal2);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.9rem}
+.ctl-row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:.9rem}
+.ctl-row label{color:var(--muted);font-size:.82rem;white-space:nowrap}
+.btn{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.45rem .9rem;color:var(--muted);font-size:.82rem;cursor:pointer;transition:.18s;font-family:inherit}
+.btn:hover{border-color:var(--teal);color:var(--teal3)}
+.btn.active{background:rgba(20,184,166,.18);border-color:var(--teal2);color:var(--teal3)}
+.btn.rose.active{background:rgba(251,113,133,.18);border-color:var(--rose);color:var(--rose2)}
+.btn.sm{padding:.3rem .6rem;font-size:.75rem}
+input[type=range]{accent-color:var(--teal2);flex:1;min-width:120px;max-width:220px}
+.mono{font-family:'Courier New',monospace}
+.val{font-family:'Courier New',monospace;color:var(--teal2)}
+.divider{height:1px;background:var(--border);margin:1.5rem 0}
+
+/* ── ranking list ─────────────────────────────── */
+.query-line{font-size:.82rem;color:var(--muted);margin-bottom:.75rem}
+.query-line b{color:var(--teal3);font-family:'Courier New',monospace}
+#ranklist{position:relative;display:flex;flex-direction:column;gap:6px;user-select:none}
+.row{display:grid;grid-template-columns:34px 1fr 116px 62px 62px 78px;gap:.5rem;align-items:center;
+     background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:.5rem .6rem;
+     transition:transform .18s cubic-bezier(.4,0,.2,1),border-color .18s,opacity .18s;touch-action:none;cursor:grab}
+.row.dragging{cursor:grabbing;border-color:var(--teal2);box-shadow:0 8px 26px rgba(0,0,0,.6);transition:none;opacity:.96}
+.row.below-k{opacity:.42}
+.row .rank{display:flex;align-items:center;justify-content:center;gap:.15rem;font-family:'Courier New',monospace;
+     font-size:.85rem;color:var(--teal2);font-weight:700;background:var(--surface2);border-radius:6px;height:30px}
+.row.below-k .rank{color:var(--muted)}
+.row .title{font-size:.8rem;color:var(--text);line-height:1.3;overflow:hidden}
+.row .title small{display:block;color:var(--muted);font-size:.68rem}
+.grades{display:flex;gap:3px}
+.gradebtn{width:26px;height:26px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);
+     color:var(--muted);font-size:.72rem;font-family:'Courier New',monospace;cursor:pointer;transition:.15s;padding:0}
+.gradebtn:hover{border-color:var(--teal)}
+.gradebtn.on{color:#04121a;font-weight:800;border-color:transparent}
+.cellnum{font-family:'Courier New',monospace;font-size:.76rem;color:var(--dim);text-align:right}
+.cellnum.muted{color:var(--muted)}
+.contrib{position:relative;height:22px;background:var(--surface2);border-radius:5px;overflow:hidden}
+.contrib .fill{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,var(--teal),var(--teal2));
+     transition:width .35s cubic-bezier(.4,0,.2,1)}
+.contrib span{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-end;padding-right:.35rem;
+     font-family:'Courier New',monospace;font-size:.7rem;color:var(--text);text-shadow:0 0 4px #000}
+.col-head{display:grid;grid-template-columns:34px 1fr 116px 62px 62px 78px;gap:.5rem;padding:0 .6rem .4rem;
+     font-size:.66rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.col-head span{text-align:right}
+.col-head span:nth-child(2),.col-head span:nth-child(3){text-align:left}
+.col-dim{opacity:.28}
+.col-lit{color:var(--rose2)!important}
+.kline{border-top:1px dashed var(--rose);margin:2px 0;position:relative;height:0}
+.kline em{position:absolute;right:0;top:-8px;background:var(--surface2);color:var(--rose2);font-size:.62rem;
+     font-style:normal;padding:0 .4rem;border-radius:4px;font-family:'Courier New',monospace}
+
+/* ── scoreboard ───────────────────────────────── */
+.readout{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:.6rem;margin-top:1rem}
+.rcell{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.6rem .7rem}
+.rcell .rk{font-size:.66rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.rcell .rv{font-size:1.1rem;font-family:'Courier New',monospace;color:var(--teal2);font-weight:700;margin-top:.15rem}
+.rcell.hot{border-color:var(--rose)}
+.rcell.hot .rv{color:var(--rose2)}
+
+.stack{margin-top:1rem}
+.stackrow{margin-bottom:.7rem}
+.stackrow .slabel{font-size:.72rem;color:var(--muted);margin-bottom:.25rem;display:flex;justify-content:space-between}
+.stackrow .slabel b{font-family:'Courier New',monospace;color:var(--teal2);font-weight:700}
+.segbar{display:flex;height:26px;background:var(--bg);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.segbar i{display:block;height:100%;transition:width .4s cubic-bezier(.4,0,.2,1);border-right:1px solid rgba(5,8,17,.65)}
+.ratio{text-align:center;font-family:'Courier New',monospace;font-size:.8rem;color:var(--muted);margin-top:.4rem}
+.ratio b{color:var(--rose2);font-size:1rem}
+
+canvas{width:100%;display:block;border-radius:8px;background:var(--bg);touch-action:none}
+.canvas-card{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:.75rem}
+.canvas-card .ctitle{font-size:.76rem;color:var(--teal2);font-weight:600;margin-bottom:.4rem}
+.hint{font-size:.72rem;color:var(--muted);margin-top:.5rem;text-align:center}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media(max-width:760px){
+  .grid2{grid-template-columns:1fr}
+  .row,.col-head{grid-template-columns:28px 1fr 104px 54px 66px}
+  .row .disc-cell,.col-head .disc-cell{display:none}
+}
+
+table.cmp{width:100%;border-collapse:collapse;font-size:.8rem;margin-top:.9rem}
+table.cmp th,table.cmp td{border:1px solid var(--border);padding:.5rem .6rem;text-align:left}
+table.cmp th{background:var(--surface2);color:var(--teal3);font-weight:600;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em}
+table.cmp td{color:var(--dim)}
+table.cmp td.num{font-family:'Courier New',monospace;color:var(--teal2);text-align:right}
+
+.metricbars{display:flex;flex-direction:column;gap:.7rem;margin-top:1rem}
+.mbar{display:flex;align-items:center;gap:.7rem;font-size:.78rem}
+.mbar .ml{width:96px;flex-shrink:0;color:var(--muted)}
+.mbar .mw{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:5px;height:24px;overflow:hidden}
+.mbar .mf{height:100%;transition:width .4s cubic-bezier(.4,0,.2,1)}
+.mbar .mv{width:56px;text-align:right;font-family:'Courier New',monospace;color:var(--teal2);font-size:.78rem}
+
+.footer{text-align:center;color:var(--muted);font-size:.78rem;padding-top:2rem;border-top:1px solid var(--border);margin-top:3rem}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+
+<!-- GATE -->
+<div id="gate">
+  <div class="gate-box">
+    <div style="font-size:2rem;margin-bottom:.5rem">🎯</div>
+    <h2>Visual Summary</h2>
+    <p>Post 65 &mdash; NDCG</p>
+    <input type="password" id="gate-input" placeholder="Enter password" onkeydown="if(event.key==='Enter')checkGate()">
+    <button onclick="checkGate()">Unlock</button>
+    <div id="gate-err">Incorrect password</div>
+  </div>
+</div>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <span class="logo">Visual Summary</span>
+  <span class="post-tag">Post #65</span>
+  <nav>
+    <a href="#s-why">Why Order</a>
+    <a href="#s-build">Build It</a>
+    <a href="#s-lab">The Lab</a>
+    <a href="#s-discount">Discount</a>
+    <a href="#s-gain">Gain</a>
+    <a href="#s-swap">Sensitivity</a>
+    <a href="#s-break">Failure Modes</a>
+    <a href="#s-vs">Vs Others</a>
+    <a href="#s-pm">PM Lens</a>
+  </nav>
+</div>
+
+<div class="container">
+
+  <div class="hero">
+    <div class="category">Information Retrieval</div>
+    <h1>What does <span>NDCG</span> actually measure?</h1>
+    <p class="sub">Every ranking metric answers one question: <em>how much did the order cost you?</em>
+       NDCG answers it by giving each result a gain, shrinking that gain by how far down the page it sits,
+       and dividing by the best you could possibly have done. Drag the results below and watch the number move.</p>
+    <div class="meta"><span>Post 65</span><span>&middot;</span><span>~12 min</span><span>&middot;</span><span>6 interactive panels</span><span>&middot;</span><span>Every number on this page is computed live</span></div>
+  </div>
+
+  <!-- ══════════════════ WHY ORDER ══════════════════ -->
+  <div class="section" id="s-why">
+    <h2>1 &middot; The problem no set-based metric can see</h2>
+    <p>Here are two result lists for the same query. They contain <strong>exactly the same eight documents</strong> &mdash;
+       same relevant ones, same junk. Only the order differs.</p>
+
+    <div class="panel">
+      <div class="grid2" id="twolists"></div>
+      <div class="readout" id="twolists-read"></div>
+      <p class="hint">Precision@5 and Recall are identical. Only the order-aware metric separates them.</p>
+    </div>
+
+    <p>Precision, recall, F1 and hit-rate all treat a result list as a <em>set</em>. Shuffle the set and they never
+       flinch. But a user reads top-down and stops early, so ranking A and ranking B are not remotely
+       equally useful. NDCG exists to price that difference.</p>
+
+    <div class="callout">
+      <strong>Two ideas, one metric.</strong> NDCG bakes in exactly two beliefs:
+      (1) a <em>very</em> relevant document is worth more than a marginally relevant one &mdash; that's the <b>gain</b>;
+      (2) a document buried at rank 9 is worth less than the same document at rank 1 &mdash; that's the <b>discount</b>.
+      Everything else in the formula is bookkeeping.
+    </div>
+  </div>
+
+  <!-- ══════════════════ BUILD IT ══════════════════ -->
+  <div class="section" id="s-build">
+    <h2>2 &middot; Building the formula, one piece at a time</h2>
+    <p>Rather than dropping the whole equation on you, step through it. Each step lights up one column of the
+       live table in the next section &mdash; and the caption tells you what just got added.</p>
+
+    <div class="panel">
+      <div class="ctl-row">
+        <label>Walkthrough</label>
+        <button class="btn sm step-btn" data-step="1">1 &middot; Relevance</button>
+        <button class="btn sm step-btn" data-step="2">2 &middot; Gain</button>
+        <button class="btn sm step-btn" data-step="3">3 &middot; Discount</button>
+        <button class="btn sm step-btn" data-step="4">4 &middot; Cumulate (DCG)</button>
+        <button class="btn sm step-btn" data-step="5">5 &middot; Normalize (NDCG)</button>
+        <button class="btn sm step-btn active" data-step="0">Show all</button>
+      </div>
+      <div class="formula" id="step-formula"></div>
+      <p id="step-caption" style="font-size:.87rem"></p>
+    </div>
+  </div>
+
+  <!-- ══════════════════ THE LAB ══════════════════ -->
+  <div class="section" id="s-lab">
+    <h2>3 &middot; The ranking lab</h2>
+    <p class="query-line">Query: <b>"wireless noise cancelling headphones"</b> &mdash;
+       <strong style="color:var(--teal3)">drag any row</strong> to re-rank it, or click a relevance grade
+       (0 = irrelevant, 3 = perfect) to change how a judge scored it.</p>
+
+    <div class="ctl-row">
+      <label>Cutoff k = <span class="val" id="klabel">5</span></label>
+      <input type="range" id="kslider" min="1" max="8" value="5" step="1">
+      <button class="btn sm" data-preset="typical">Typical</button>
+      <button class="btn sm" data-preset="perfect">Perfect</button>
+      <button class="btn sm" data-preset="reversed">Reversed</button>
+      <button class="btn sm" data-preset="buried">Buried gem</button>
+    </div>
+
+    <div class="col-head">
+      <span style="text-align:center">#</span>
+      <span>Result</span>
+      <span>Relevance (rel<sub>i</sub>)</span>
+      <span class="c-gain">gain</span>
+      <span class="c-disc disc-cell">disc</span>
+      <span class="c-contrib">contribution</span>
+    </div>
+    <div id="ranklist"></div>
+
+    <div class="readout">
+      <div class="rcell"><div class="rk">DCG@k</div><div class="rv" id="r-dcg">&mdash;</div></div>
+      <div class="rcell"><div class="rk">IDCG@k</div><div class="rv" id="r-idcg">&mdash;</div></div>
+      <div class="rcell hot"><div class="rk">NDCG@k</div><div class="rv" id="r-ndcg">&mdash;</div></div>
+      <div class="rcell"><div class="rk">Gap to ideal</div><div class="rv" id="r-gap">&mdash;</div></div>
+    </div>
+
+    <div class="stack">
+      <div class="stackrow">
+        <div class="slabel"><span>Your ranking &mdash; each segment is one position's contribution</span><b id="s-dcg"></b></div>
+        <div class="segbar" id="bar-actual"></div>
+      </div>
+      <div class="stackrow">
+        <div class="slabel"><span>Ideal ranking &mdash; same documents, sorted by relevance</span><b id="s-idcg"></b></div>
+        <div class="segbar" id="bar-ideal"></div>
+      </div>
+      <div class="ratio">NDCG@<span id="ratio-k">5</span> = DCG / IDCG = <b id="ratio-val"></b></div>
+    </div>
+
+    <div class="callout amber" id="lab-insight"></div>
+  </div>
+
+  <!-- ══════════════════ DISCOUNT ══════════════════ -->
+  <div class="section" id="s-discount">
+    <h2>4 &middot; Why <span class="mono">log&#8322;</span>, and what happens if you change it</h2>
+    <p>The discount is the whole reason NDCG is a <em>ranking</em> metric. The standard choice is
+       <span class="mono">1 / log&#8322;(i + 1)</span>: position 1 keeps 100% of its gain, position 2 keeps 63%,
+       position 10 keeps 29%. It decays &mdash; but gently, so results at rank 20 still count for something.</p>
+
+    <div class="panel">
+      <div class="ctl-row">
+        <label>Discount function</label>
+        <button class="btn sm disc-btn active" data-disc="log">1 / log&#8322;(i+1) &nbsp;<span style="color:var(--muted)">standard</span></button>
+        <button class="btn sm disc-btn" data-disc="linear">1 / i &nbsp;<span style="color:var(--muted)">harsh</span></button>
+        <button class="btn sm disc-btn" data-disc="none">1 &nbsp;<span style="color:var(--muted)">none</span></button>
+      </div>
+      <div class="canvas-card">
+        <div class="ctitle">Weight retained at each position</div>
+        <canvas id="disc-canvas" height="240"></canvas>
+      </div>
+      <p class="hint">Changing this rewires the lab above &mdash; scroll back and watch NDCG move.</p>
+    </div>
+
+    <p>Pick <span class="mono">1</span> and you have destroyed the metric: with no discount, DCG is just a sum
+       over the top-k, so <em>every permutation of the same k documents scores identically</em>. Pick
+       <span class="mono">1/i</span> and rank 10 retains only 10% instead of 29% &mdash; the metric now cares
+       almost exclusively about the first three slots.</p>
+
+    <div class="callout">
+      <strong>The honest answer.</strong> The log discount is not derived from user behaviour data; Järvelin and
+       Kekäläinen chose it in 2002 because it decays smoothly and its exact base cancels out during normalization.
+       If your users genuinely never scroll past rank 3, a harsher discount models them better &mdash; just say so
+       explicitly rather than quietly reporting "NDCG".
+    </div>
+  </div>
+
+  <!-- ══════════════════ GAIN ══════════════════ -->
+  <div class="section" id="s-gain">
+    <h2>5 &middot; Linear gain vs. exponential gain</h2>
+    <p>The second dial is how much a grade-3 document is worth relative to a grade-1. Two conventions are in
+       common use, and papers frequently fail to say which one they used.</p>
+
+    <div class="panel">
+      <div class="ctl-row">
+        <label>Gain function</label>
+        <button class="btn sm gain-btn active" data-gain="exp">2<sup>rel</sup> &minus; 1 &nbsp;<span style="color:var(--muted)">industry default</span></button>
+        <button class="btn sm gain-btn" data-gain="linear">rel &nbsp;<span style="color:var(--muted)">original paper</span></button>
+      </div>
+      <div id="gain-bars" class="metricbars"></div>
+      <p class="hint">Under the exponential form one grade-3 hit outweighs seven grade-1 hits. Under the linear form it outweighs three.</p>
+    </div>
+
+    <div class="callout rose">
+      <strong>This is a reproducibility trap.</strong> The same ranking, same judgments and same k can yield
+      materially different NDCG under the two gain functions &mdash; and the two are rarely labelled.
+      <span class="mono">sklearn.metrics.ndcg_score</span> defaults to <em>linear</em>; TREC tooling, LightGBM and
+      most learning-to-rank literature use <em>exponential</em>. Before you compare your number to a published
+      one, confirm you are computing the same metric.
+    </div>
+  </div>
+
+  <!-- ══════════════════ SENSITIVITY ══════════════════ -->
+  <div class="section" id="s-swap">
+    <h2>6 &middot; Not all mistakes cost the same</h2>
+    <p>Take your current ranking and swap any two positions. The grid below shows what that swap does to
+       NDCG@k &mdash; <span style="color:var(--rose2)">rose</span> means the swap makes things worse,
+       <span style="color:var(--teal2)">teal</span> means it makes things better, and
+       grey means NDCG cannot tell the difference.</p>
+
+    <div class="panel">
+      <div class="canvas-card">
+        <div class="ctitle">&Delta;NDCG@k from swapping position i with position j</div>
+        <canvas id="swap-canvas" height="330"></canvas>
+      </div>
+      <p class="hint" id="swap-hint">Hover (or tap) a cell to read the exact change.</p>
+    </div>
+
+    <p>Two structural facts fall straight out of this picture. First, the top-left corner is loud and the
+       bottom-right is quiet: an error between ranks 1 and 2 costs far more than the same error between ranks
+       7 and 8, because the discount curve is steepest at the top. Second, entire regions are flat grey &mdash;
+       swapping two documents with equal relevance grades, or two documents both sitting below the cutoff k,
+       changes nothing at all.</p>
+
+    <div class="callout">
+      <strong>Why this matters for model training.</strong> This asymmetry is precisely what LambdaRank and
+      LambdaMART exploit: instead of a differentiable loss, they weight each pairwise swap by the |&Delta;NDCG|
+      it would cause. The grid you are hovering over <em>is</em> the gradient signal.
+    </div>
+  </div>
+
+  <!-- ══════════════════ FAILURE MODES ══════════════════ -->
+  <div class="section" id="s-break">
+    <h2>7 &middot; Four ways NDCG lies to you</h2>
+    <p>Press each button. It reconfigures the lab into a state where the number stops meaning what you think
+       it means, and the explanation updates to say why.</p>
+
+    <div class="panel">
+      <div class="ctl-row">
+        <button class="btn sm break-btn" data-break="zero">No relevant documents</button>
+        <button class="btn sm break-btn" data-break="fewer">k exceeds relevant count</button>
+        <button class="btn sm break-btn" data-break="tail">Perfect head, garbage tail</button>
+        <button class="btn sm break-btn" data-break="missing">Unjudged documents</button>
+      </div>
+      <div id="break-body"></div>
+    </div>
+
+    <div class="callout rose">
+      <strong>The averaging trap.</strong> NDCG is normalized <em>per query</em>, which is what makes queries
+      comparable &mdash; but it also means an easy query with one relevant document and a hard query with forty
+      both max out at 1.0. A mean NDCG of 0.82 across a query set tells you nothing about which queries are
+      broken. Always report the distribution, not just the mean.
+    </div>
+  </div>
+
+  <!-- ══════════════════ VS OTHERS ══════════════════ -->
+  <div class="section" id="s-vs">
+    <h2>8 &middot; NDCG against the alternatives, live</h2>
+    <p>Computed on whatever ranking is currently in the lab. For the binary metrics, a document counts as
+       relevant when its grade is 1 or above.</p>
+
+    <div class="panel">
+      <div id="vs-bars" class="metricbars"></div>
+    </div>
+
+    <table class="cmp">
+      <tr><th>Metric</th><th>Graded relevance?</th><th>Position-aware?</th><th>Use it when</th></tr>
+      <tr><td class="mono">Precision@k</td><td>No</td><td>No</td><td>You only care whether good results are on page one at all</td></tr>
+      <tr><td class="mono">MRR</td><td>No</td><td>First hit only</td><td>One right answer exists &mdash; navigational search, QA</td></tr>
+      <tr><td class="mono">MAP</td><td>No</td><td>Yes</td><td>Binary judgments, and recall across the whole list matters</td></tr>
+      <tr><td class="mono">NDCG@k</td><td>Yes</td><td>Yes</td><td>Graded judgments exist and the top of the list is what ships</td></tr>
+    </table>
+
+    <div class="callout amber">
+      <strong>Choosing between them is a product decision, not a math one.</strong> If your judges only ever say
+      yes/no, NDCG's graded machinery is doing nothing for you and MAP is easier to explain. If your users see
+      exactly one answer, MRR is a truer model of their experience. NDCG earns its complexity when you have real
+      graded labels <em>and</em> users who scan several results.
+    </div>
+  </div>
+
+  <!-- ══════ PM LENS ══════ -->
+  <div class="section" id="s-pm">
+    <h2>9 &middot; PM lens &mdash; what to actually ask for</h2>
+    <p>You will meet NDCG in three places: a retrieval vendor's benchmark table, your own RAG evaluation
+       dashboard, and a model card. In all three it is quoted as a single number, and a single number is
+       exactly the thing this metric cannot honestly be reduced to.</p>
+
+    <h3>Five questions that expose a bad NDCG claim</h3>
+    <ul>
+      <li><strong>"What is k, and why?"</strong> &mdash; k should come from how many results a user actually sees.
+          A vendor quoting NDCG@100 for a UI that shows three results is measuring something nobody experiences.</li>
+      <li><strong>"Linear or exponential gain?"</strong> &mdash; section 5. If they cannot answer, their number is
+          not comparable to anyone else's, including yours.</li>
+      <li><strong>"Show me the distribution, not the mean."</strong> &mdash; a mean of 0.82 is consistent with
+          "uniformly decent" and with "excellent on 80% of queries, catastrophic on the 20% that matter most."
+          Ask for the 10th percentile.</li>
+      <li><strong>"How were the judgments produced, and how complete is the pool?"</strong> &mdash; unjudged documents
+          score as irrelevant (section 7), so a benchmark whose pool was built from an incumbent system's
+          candidates is structurally biased against any challenger that retrieves differently.</li>
+      <li><strong>"How many queries had zero relevant documents, and what did you do with them?"</strong> &mdash;
+          the IDCG = 0 case has no agreed answer, and the choice moves the headline number.</li>
+    </ul>
+
+    <h3>When NDCG is the wrong instrument</h3>
+    <p>NDCG earns its complexity only when you have <em>graded</em> judgments and users who scan multiple results.
+       Two common situations where it is the wrong choice:</p>
+    <ul>
+      <li><strong>RAG retrieval feeding a fixed context window.</strong> If you always pass the top 8 chunks to the
+          model, ordering within those 8 barely matters &mdash; the model reads all of them. What matters is whether
+          the necessary chunk is in the set at all. Recall@8 is the honest metric; NDCG@8 will flatter you.</li>
+      <li><strong>One-right-answer lookup.</strong> Navigational search, entity lookup, "which policy covers this" &mdash;
+          the user wants one document. MRR models that experience directly and is far easier to explain to a
+          stakeholder than a discounted, normalized, exponentially-gained sum.</li>
+    </ul>
+
+    <div class="callout amber">
+      <strong>The offline/online gap is the real risk.</strong> NDCG is an offline proxy built on judgments from
+      raters who are not your users, guessing at intent they cannot see. Ranking changes that move NDCG by a
+      point routinely fail to move click-through, and vice versa. Treat NDCG as a fast, cheap regression detector
+      for the ranking pipeline &mdash; the thing that tells you a deploy broke something &mdash; and let online
+      experiments decide what actually ships.
+    </div>
+  </div>
+
+  <!-- ══════════════════ CHEAT SHEET ══════════════════ -->
+  <div class="section">
+    <h2>10 &middot; The whole thing on one card</h2>
+    <div class="formula">gain<span class="dimd">(rel)</span> = 2<sup>rel</sup> &minus; 1 &nbsp;&nbsp; <span class="dimd">or just</span> &nbsp;&nbsp; rel</div>
+    <div class="formula">disc<span class="dimd">(i)</span> = 1 / log&#8322;(i + 1) &nbsp;&nbsp;<span class="dimd">i is 1-indexed</span></div>
+    <div class="formula">DCG@k = &Sigma;<sub>i=1..k</sub> gain(rel<sub>i</sub>) &middot; disc(i)</div>
+    <div class="formula">IDCG@k = DCG@k <span class="dimd">of the same documents sorted by relevance, descending</span></div>
+    <div class="formula"><span class="hot">NDCG@k = DCG@k / IDCG@k</span> &nbsp;&nbsp;<span class="dimd">&#8712; [0, 1]; define as 0 when IDCG = 0</span></div>
+    <ul>
+      <li><strong>1.0</strong> does not mean "good results" &mdash; it means "no achievable reordering of the judged pool would have been better."</li>
+      <li>NDCG@k only sees the top k. Documents at k+1 and beyond are invisible, however relevant.</li>
+      <li>Two implementations disagreeing usually differ on the gain function, or on how they handle an empty relevant set.</li>
+      <li>Report the per-query distribution alongside the mean, and always state k and the gain convention.</li>
+    </ul>
+    <p style="margin-top:1rem;font-size:.85rem;color:var(--muted)">
+      Original formulation: Järvelin &amp; Kekäläinen, <em>Cumulated Gain-Based Evaluation of IR Techniques</em>, ACM TOIS 2002.
+      Exponential gain and the &Delta;NDCG-weighted training objective come from the LambdaRank / LambdaMART line of work at Microsoft Research.
+    </p>
+  </div>
+
+  <div class="footer">Visual Summary &middot; Post 65 &mdash; NDCG in Information Retrieval<br><span style="font-size:.72rem">Every figure on this page is computed in-browser from the ranking you build.</span></div>
+</div>
+
+<script>
+"use strict";
+
+/* ═══════════════ GATE ═══════════════ */
+(function(){ if(localStorage.getItem('pg_unlocked_65')==='1') document.getElementById('gate').style.display='none'; })();
+function checkGate(){
+  if(document.getElementById('gate-input').value==='visual2025'){
+    localStorage.setItem('pg_unlocked_65','1');
+    document.getElementById('gate').style.display='none';
+    // canvases size from clientWidth; redraw once the overlay is gone
+    setTimeout(function(){ drawDiscount(); drawSwap(); }, 50);
+  } else document.getElementById('gate-err').style.display='block';
+}
+
+/* ═══════════════ CORE MATH ═══════════════ */
+function gainOf(rel, mode){ return mode === "linear" ? rel : Math.pow(2, rel) - 1; }
+function discOf(pos, mode){            // pos is 1-indexed
+  if(mode === "none")   return 1;
+  if(mode === "linear") return 1 / pos;
+  return 1 / (Math.log(pos + 1) / Math.LN2);   // 1 / log2(pos+1)
+}
+function dcgOf(rels, k, gm, dm){
+  var s = 0, n = Math.min(k, rels.length);
+  for(var i = 0; i < n; i++) s += gainOf(rels[i], gm) * discOf(i + 1, dm);
+  return s;
+}
+function idcgOf(rels, k, gm, dm){
+  return dcgOf(rels.slice().sort(function(a,b){ return b - a; }), k, gm, dm);
+}
+function ndcgOf(rels, k, gm, dm){
+  var ideal = idcgOf(rels, k, gm, dm);
+  return ideal > 0 ? dcgOf(rels, k, gm, dm) / ideal : 0;
+}
+function precisionAt(rels, k){
+  var n = Math.min(k, rels.length), hit = 0;
+  for(var i = 0; i < n; i++) if(rels[i] >= 1) hit++;
+  return n ? hit / n : 0;
+}
+function rrOf(rels){
+  for(var i = 0; i < rels.length; i++) if(rels[i] >= 1) return 1 / (i + 1);
+  return 0;
+}
+function apAt(rels, k){
+  var n = Math.min(k, rels.length), hit = 0, sum = 0;
+  for(var i = 0; i < n; i++){
+    if(rels[i] >= 1){ hit++; sum += hit / (i + 1); }
+  }
+  var total = rels.filter(function(r){ return r >= 1; }).length;
+  var denom = Math.min(k, total);
+  return denom ? sum / denom : 0;
+}
+
+/* ═══════════════ STATE ═══════════════ */
+var CORPUS = [
+  { id:"xm5",   t:"Sony WH-1000XM5 &mdash; Wireless Noise Cancelling", s:"exact product match, in stock",     rel:3 },
+  { id:"bose",  t:"Bose QuietComfort Ultra Headphones",                s:"exact product match, competitor",   rel:3 },
+  { id:"xm4",   t:"Sony WH-1000XM4 (previous generation)",             s:"right category, superseded model",  rel:2 },
+  { id:"anker", t:"Soundcore Q30 &mdash; budget ANC over-ear",         s:"right category, budget tier",       rel:2 },
+  { id:"blog",  t:"How active noise cancellation works",               s:"editorial, not shoppable",          rel:1 },
+  { id:"buds",  t:"Wireless earbuds, assorted 6-pack",                 s:"wireless, but wrong form factor",   rel:1 },
+  { id:"stand", t:"Walnut headphone stand",                            s:"accessory, not a headphone",        rel:0 },
+  { id:"case",  t:"Clear phone case, universal fit",                   s:"unrelated",                         rel:0 }
+];
+var PRESETS = {
+  typical:  ["anker","blog","xm5","case","bose","stand","xm4","buds"],
+  perfect:  ["xm5","bose","xm4","anker","blog","buds","stand","case"],
+  reversed: ["case","stand","buds","blog","anker","xm4","bose","xm5"],
+  buried:   ["stand","case","buds","blog","anker","xm4","bose","xm5"]
+};
+var GRADE_COLOR = ["#475569", "#f59e0b", "#2dd4bf", "#fb7185"];
+
+var state = {
+  docs: null,          // array of {id,t,s,rel} in current ranked order
+  k: 5,
+  gain: "exp",
+  disc: "log",
+  step: 0
+};
+function loadPreset(name){
+  var order = PRESETS[name];
+  state.docs = order.map(function(id){
+    var src = CORPUS.filter(function(d){ return d.id === id; })[0];
+    return { id:src.id, t:src.t, s:src.s, rel:src.rel };
+  });
+}
+loadPreset("typical");
+
+var $ = function(sel){ return document.querySelector(sel); };
+var $$ = function(sel){ return Array.prototype.slice.call(document.querySelectorAll(sel)); };
+var fmt = function(x, d){ return x.toFixed(d === undefined ? 3 : d); };
+function rels(){ return state.docs.map(function(d){ return d.rel; }); }
+
+/* ═══════════════ SECTION 1 — TWO LISTS ═══════════════ */
+function renderTwoLists(){
+  // Both lists hold the same 8 documents AND the same count of relevant docs in the
+  // top 5, so Precision@5 is identical by construction. Only the ordering differs.
+  var A = ["xm5","bose","xm4","stand","buds","anker","blog","case"];
+  var B = ["buds","blog","anker","stand","xm4","xm5","bose","case"];
+  function relOf(id){ return CORPUS.filter(function(d){ return d.id === id; })[0]; }
+  function card(order, label, tone){
+    var html = '<div class="canvas-card"><div class="ctitle" style="color:' + tone + '">' + label + '</div>';
+    order.forEach(function(id, i){
+      var d = relOf(id);
+      html += '<div style="display:flex;gap:.5rem;align-items:center;padding:.28rem 0;font-size:.74rem;' +
+              (i === 4 ? 'border-bottom:1px dashed var(--rose);padding-bottom:.5rem;margin-bottom:.2rem;' : '') +
+              (i > 4 ? 'opacity:.4;' : '') + '">' +
+              '<span class="mono" style="color:var(--muted);width:14px">' + (i + 1) + '</span>' +
+              '<span style="width:20px;height:18px;border-radius:4px;flex-shrink:0;background:' + GRADE_COLOR[d.rel] +
+              ';color:#04121a;font-weight:800;font-size:.65rem;display:flex;align-items:center;justify-content:center" class="mono">' + d.rel + '</span>' +
+              '<span style="color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + d.t + '</span></div>';
+    });
+    return html + '<div style="font-size:.66rem;color:var(--muted);margin-top:.4rem">dashed line = cutoff at k=5</div></div>';
+  }
+  $("#twolists").innerHTML = card(A, "Ranking A", "var(--teal2)") + card(B, "Ranking B", "var(--rose2)");
+
+  var ra = A.map(function(id){ return relOf(id).rel; });
+  var rb = B.map(function(id){ return relOf(id).rel; });
+  var cells = [
+    ["Precision@5 &mdash; A", fmt(precisionAt(ra, 5), 2), false],
+    ["Precision@5 &mdash; B", fmt(precisionAt(rb, 5), 2), false],
+    ["NDCG@5 &mdash; A",      fmt(ndcgOf(ra, 5, "exp", "log")), true],
+    ["NDCG@5 &mdash; B",      fmt(ndcgOf(rb, 5, "exp", "log")), true]
+  ];
+  $("#twolists-read").innerHTML = cells.map(function(c){
+    return '<div class="rcell' + (c[2] ? ' hot' : '') + '"><div class="rk">' + c[0] + '</div><div class="rv">' + c[1] + '</div></div>';
+  }).join("");
+}
+
+/* ═══════════════ SECTION 2 — WALKTHROUGH ═══════════════ */
+var STEPS = [
+  { f:'<span class="hot">NDCG@k = DCG@k / IDCG@k</span>',
+    c:'The complete metric. Every column in the lab below is visible. Step through 1&ndash;5 to see how it is assembled.' },
+  { f:'rel<span class="dimd">&#8321;</span>, rel<span class="dimd">&#8322;</span>, rel<span class="dimd">&#8323;</span>, &hellip; &nbsp;<span class="dimd">&#8712; {0, 1, 2, 3}</span>',
+    c:'<strong>Start with human judgments.</strong> A rater scores each result against the query on a graded scale &mdash; here 0 (irrelevant) through 3 (perfect). This is the raw input, and everything downstream inherits its noise. Note what is <em>not</em> here: no notion of position yet.' },
+  { f:'gain<span class="dimd">(rel)</span> = <span class="hot">2<sup>rel</sup> &minus; 1</span> &nbsp;&rarr;&nbsp; <span class="dimd">0, 1, 3, 7</span>',
+    c:'<strong>Convert grades to value.</strong> A grade is an ordinal label, not a quantity &mdash; "3" is not literally three times as useful as "1". The gain function makes the conversion explicit. The exponential form says a perfect result is worth seven marginal ones; the linear form says three.' },
+  { f:'disc<span class="dimd">(i)</span> = <span class="hot">1 / log&#8322;(i + 1)</span> &nbsp;&rarr;&nbsp; <span class="dimd">1.00, 0.63, 0.50, 0.43, &hellip;</span>',
+    c:'<strong>Charge rent for depth.</strong> The same document is worth less further down the page, because fewer users reach it. Multiply each gain by its positional discount and you finally have a number that changes when you reorder the list.' },
+  { f:'DCG@k = <span class="hot">&Sigma;<sub>i=1..k</sub></span> gain(rel<sub>i</sub>) &middot; disc(i)',
+    c:'<strong>Add up the top k.</strong> Discounted Cumulative Gain. It is order-sensitive and grade-sensitive &mdash; but it is also unbounded and query-dependent. A query with ten perfect documents scores far higher than one with a single perfect document, even if both systems ranked perfectly. You cannot average DCG across queries.' },
+  { f:'NDCG@k = DCG@k / <span class="hot">IDCG@k</span>',
+    c:'<strong>Divide by the best you could have done.</strong> Re-sort the same judged documents by relevance, compute DCG on that, and you have the ideal. The ratio lands in [0, 1] and answers a query-independent question: <em>what fraction of the achievable value did this ranking actually deliver?</em>' }
+];
+function renderStep(){
+  $("#step-formula").innerHTML = STEPS[state.step].f;
+  $("#step-caption").innerHTML = STEPS[state.step].c;
+  $$(".step-btn").forEach(function(b){ b.classList.toggle("active", +b.dataset.step === state.step); });
+  var map = { 2:"c-gain", 3:"c-disc", 4:"c-contrib" };
+  ["c-gain","c-disc","c-contrib"].forEach(function(cls){
+    var lit = map[state.step] === cls;
+    var dim = state.step >= 1 && state.step <= 4 && !lit;
+    $$("." + cls).forEach(function(el){
+      el.classList.toggle("col-dim", dim);
+      el.classList.toggle("col-lit", lit);
+    });
+  });
+}
+
+/* ═══════════════ SECTION 3 — THE LAB ═══════════════ */
+function renderLab(){
+  var list = $("#ranklist");
+  var rr = rels();
+  var k = state.k;
+  var contribs = state.docs.map(function(d, i){ return gainOf(d.rel, state.gain) * discOf(i + 1, state.disc); });
+  var maxContrib = Math.max.apply(null, contribs.concat([1e-9]));
+
+  list.innerHTML = state.docs.map(function(d, i){
+    var below = i >= k;
+    var g = gainOf(d.rel, state.gain), dc = discOf(i + 1, state.disc), c = contribs[i];
+    var grades = [0,1,2,3].map(function(v){
+      return '<button class="gradebtn' + (d.rel === v ? " on" : "") + '" data-idx="' + i + '" data-rel="' + v + '"' +
+             (d.rel === v ? ' style="background:' + GRADE_COLOR[v] + '"' : '') + '>' + v + '</button>';
+    }).join("");
+    return '<div class="row' + (below ? " below-k" : "") + '" data-idx="' + i + '">' +
+      '<div class="rank">' + (i + 1) + '</div>' +
+      '<div class="title">' + d.t + '<small>' + d.s + '</small></div>' +
+      '<div class="grades">' + grades + '</div>' +
+      '<div class="cellnum c-gain' + (below ? " muted" : "") + '">' + fmt(g, 2) + '</div>' +
+      '<div class="cellnum c-disc disc-cell' + (below ? " muted" : "") + '">' + fmt(dc, 2) + '</div>' +
+      '<div class="contrib c-contrib"><div class="fill" style="width:' + (below ? 0 : (c / maxContrib) * 100) + '%"></div>' +
+        '<span>' + (below ? "&mdash;" : fmt(c, 2)) + '</span></div>' +
+    '</div>';
+  }).join("");
+
+  // cutoff marker
+  if(k < state.docs.length){
+    var marker = document.createElement("div");
+    marker.className = "kline";
+    marker.innerHTML = "<em>cutoff k = " + k + "</em>";
+    list.insertBefore(marker, list.children[k]);
+  }
+
+  var dcg  = dcgOf(rr, k, state.gain, state.disc);
+  var idcg = idcgOf(rr, k, state.gain, state.disc);
+  var nd   = idcg > 0 ? dcg / idcg : 0;
+
+  $("#r-dcg").textContent  = fmt(dcg);
+  $("#r-idcg").textContent = fmt(idcg);
+  $("#r-ndcg").textContent = idcg > 0 ? fmt(nd) : "0 *";
+  $("#r-gap").textContent  = fmt(idcg - dcg);
+  $("#klabel").textContent = k;
+  $("#ratio-k").textContent = k;
+  $("#ratio-val").textContent = fmt(dcg) + " / " + fmt(idcg) + " = " + (idcg > 0 ? fmt(nd) : "undefined");
+
+  // stacked contribution bars
+  var idealRels = rr.slice().sort(function(a,b){ return b - a; });
+  var scale = Math.max(idcg, 1e-9);
+  function seg(relArr){
+    var out = "";
+    for(var i = 0; i < Math.min(k, relArr.length); i++){
+      var v = gainOf(relArr[i], state.gain) * discOf(i + 1, state.disc);
+      var w = (v / scale) * 100;
+      out += '<i style="width:' + w + '%;background:' + GRADE_COLOR[relArr[i]] + '" title="pos ' + (i+1) +
+             ' &middot; rel ' + relArr[i] + ' &middot; ' + fmt(v, 2) + '"></i>';
+    }
+    return out;
+  }
+  $("#bar-actual").innerHTML = seg(rr);
+  $("#bar-ideal").innerHTML  = seg(idealRels);
+  $("#s-dcg").textContent  = "DCG = "  + fmt(dcg);
+  $("#s-idcg").textContent = "IDCG = " + fmt(idcg);
+
+  $("#lab-insight").innerHTML = insightFor(rr, k, nd, idcg);
+  renderStep();
+  renderGainBars();
+  renderVsBars();
+  drawSwap();
+  drawDiscount();
+}
+
+function insightFor(rr, k, nd, idcg){
+  var topk = rr.slice(0, k);
+  var nRel = rr.filter(function(r){ return r >= 1; }).length;
+  if(idcg === 0)
+    return "<strong>IDCG is zero.</strong> Not one document in this pool was judged relevant, so there is no achievable value to divide by. NDCG is mathematically undefined here; implementations silently substitute 0 (most) or 1 (a few). This is a real source of cross-library disagreement &mdash; see section 7.";
+  if(nd >= 0.999)
+    return "<strong>NDCG@" + k + " = 1.0.</strong> Careful how you read that. It does not mean the results are good &mdash; it means no reordering of <em>these particular judged documents</em> would have been better. If the truly ideal document was never retrieved at all, it is not in the pool, and NDCG cannot see its absence.";
+  if(nRel <= k && topk.filter(function(r){ return r >= 1; }).length === nRel && nd > 0.9)
+    return "<strong>Nearly saturated.</strong> Every relevant document is already inside the cutoff, so the only remaining headroom is ordering within the top " + k + ". Metrics behave this way when k is generous relative to how many relevant documents exist &mdash; the score compresses toward 1 and stops discriminating between systems.";
+  if(topk.filter(function(r){ return r >= 1; }).length === 0)
+    return "<strong>Nothing relevant above the fold.</strong> DCG@" + k + " is 0, so NDCG@" + k + " is 0 &mdash; and it will stay at 0 no matter how you shuffle the buried relevant documents. NDCG@k is genuinely blind past position " + k + "; the tail only becomes visible if you raise the cutoff.";
+  if(rr[0] === Math.max.apply(null, rr))
+    return "<strong>The best document is at rank 1</strong>, which is where most of the score lives &mdash; position 1 is the only slot that keeps 100% of its gain. Everything below is fighting over the remaining " + fmt((1 - gainOf(rr[0], state.gain) * discOf(1, state.disc) / Math.max(dcgOf(rr, k, state.gain, state.disc), 1e-9)) * 100, 0) + "% of the achieved score.";
+  var best = rr.indexOf(Math.max.apply(null, rr));
+  return "<strong>Your best document sits at rank " + (best + 1) + ".</strong> Drag it to the top and watch the number jump &mdash; that single move is worth more than any rearrangement further down, because the discount curve is steepest between positions 1 and 3.";
+}
+
+/* ── drag-to-reorder ── */
+var drag = null;
+$("#ranklist").addEventListener("pointerdown", function(e){
+  if(e.target.closest(".gradebtn")) return;
+  var row = e.target.closest(".row");
+  if(!row) return;
+  var rows = $$("#ranklist .row");
+  var idx = rows.indexOf(row);
+  if(idx < 0) return;
+  var r0 = rows[0].getBoundingClientRect();
+  var stride = rows.length > 1 ? (rows[1].getBoundingClientRect().top - r0.top) : (r0.height + 6);
+  if(!stride) stride = r0.height + 6;
+  drag = { idx:idx, cur:idx, startY:e.clientY, rows:rows, stride:stride };
+  row.classList.add("dragging");
+  row.style.zIndex = "20";
+  if(row.setPointerCapture) row.setPointerCapture(e.pointerId);
+  e.preventDefault();
+});
+window.addEventListener("pointermove", function(e){
+  if(!drag) return;
+  var dy = e.clientY - drag.startY;
+  drag.rows[drag.idx].style.transform = "translateY(" + dy + "px)";
+  var target = Math.max(0, Math.min(drag.rows.length - 1, drag.idx + Math.round(dy / drag.stride)));
+  drag.cur = target;
+  drag.rows.forEach(function(r, i){
+    if(i === drag.idx) return;
+    var off = 0;
+    if(drag.idx < drag.cur && i > drag.idx && i <= drag.cur) off = -drag.stride;
+    else if(drag.idx > drag.cur && i < drag.idx && i >= drag.cur) off = drag.stride;
+    r.style.transform = "translateY(" + off + "px)";
+  });
+});
+window.addEventListener("pointerup", function(){
+  if(!drag) return;
+  var from = drag.idx, to = drag.cur;
+  drag.rows.forEach(function(r){ r.style.transform = ""; r.style.zIndex = ""; r.classList.remove("dragging"); });
+  drag = null;
+  if(from !== to){
+    var moved = state.docs.splice(from, 1)[0];
+    state.docs.splice(to, 0, moved);
+  }
+  renderLab();
+});
+
+$("#ranklist").addEventListener("click", function(e){
+  var b = e.target.closest(".gradebtn");
+  if(!b) return;
+  state.docs[+b.dataset.idx].rel = +b.dataset.rel;
+  renderLab();
+});
+$("#kslider").addEventListener("input", function(e){ state.k = +e.target.value; renderLab(); });
+$$("[data-preset]").forEach(function(b){
+  b.addEventListener("click", function(){ loadPreset(b.dataset.preset); renderLab(); });
+});
+$$(".step-btn").forEach(function(b){
+  b.addEventListener("click", function(){ state.step = +b.dataset.step; renderStep(); });
+});
+$$(".disc-btn").forEach(function(b){
+  b.addEventListener("click", function(){
+    state.disc = b.dataset.disc;
+    $$(".disc-btn").forEach(function(x){ x.classList.toggle("active", x === b); });
+    renderLab();
+  });
+});
+$$(".gain-btn").forEach(function(b){
+  b.addEventListener("click", function(){
+    state.gain = b.dataset.gain;
+    $$(".gain-btn").forEach(function(x){ x.classList.toggle("active", x === b); });
+    renderLab();
+  });
+});
+
+/* ═══════════════ SECTION 4 — DISCOUNT CURVE ═══════════════ */
+function setupCanvas(cv){
+  // NOTE: read the design height from a cached attribute, never from cv.height --
+  // cv.height is mutated below, so re-reading it would grow the canvas every redraw.
+  var dpr = window.devicePixelRatio || 1;
+  if(!cv.getAttribute("data-base-h")) cv.setAttribute("data-base-h", cv.getAttribute("height"));
+  var h = +cv.getAttribute("data-base-h");
+  var w = cv.clientWidth || 600;
+  cv.style.height = h + "px";
+  cv.width  = Math.round(w * dpr);
+  cv.height = Math.round(h * dpr);
+  var ctx = cv.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx:ctx, w:w, h:h };
+}
+function drawDiscount(){
+  var cv = $("#disc-canvas");
+  if(!cv) return;
+  var c = setupCanvas(cv), ctx = c.ctx, W = c.w, H = c.h;
+  var pad = { l:44, r:14, t:14, b:30 };
+  var N = 20;
+  var x = function(i){ return pad.l + ((i - 1) / (N - 1)) * (W - pad.l - pad.r); };
+  var y = function(v){ return pad.t + (1 - v) * (H - pad.t - pad.b); };
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.strokeStyle = "#1a2a4a"; ctx.lineWidth = 1;
+  ctx.font = "10px 'Courier New',monospace"; ctx.fillStyle = "#64748b";
+  [0, .25, .5, .75, 1].forEach(function(v){
+    ctx.beginPath(); ctx.moveTo(pad.l, y(v)); ctx.lineTo(W - pad.r, y(v)); ctx.stroke();
+    ctx.textAlign = "right"; ctx.fillText(v.toFixed(2), pad.l - 6, y(v) + 3);
+  });
+  ctx.textAlign = "center";
+  [1, 5, 10, 15, 20].forEach(function(i){ ctx.fillText(i, x(i), H - 10); });
+  ctx.fillText("position i", (pad.l + W - pad.r) / 2, H - 1);
+
+  // cutoff band
+  if(state.k <= N){
+    ctx.fillStyle = "rgba(251,113,133,.07)";
+    ctx.fillRect(pad.l, pad.t, x(state.k) - pad.l, H - pad.t - pad.b);
+    ctx.strokeStyle = "rgba(251,113,133,.55)"; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(x(state.k), pad.t); ctx.lineTo(x(state.k), H - pad.b); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#fda4af"; ctx.textAlign = "left";
+    ctx.fillText("k=" + state.k, x(state.k) + 4, pad.t + 10);
+  }
+
+  var curves = [
+    { mode:"none",   color:"#475569", label:"1 (none)" },
+    { mode:"linear", color:"#f59e0b", label:"1 / i" },
+    { mode:"log",    color:"#2dd4bf", label:"1 / log2(i+1)" }
+  ];
+  curves.forEach(function(cu){
+    var active = cu.mode === state.disc;
+    ctx.strokeStyle = cu.color;
+    ctx.globalAlpha = active ? 1 : .3;
+    ctx.lineWidth = active ? 2.5 : 1.4;
+    ctx.beginPath();
+    for(var i = 1; i <= N; i++){
+      var px = x(i), py = y(discOf(i, cu.mode));
+      if(i === 1) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    if(active){
+      for(var j = 1; j <= N; j++){
+        ctx.fillStyle = cu.color;
+        ctx.beginPath(); ctx.arc(x(j), y(discOf(j, cu.mode)), 2.6, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.fillStyle = cu.color; ctx.textAlign = "left"; ctx.font = "11px 'Courier New',monospace";
+      ctx.fillText(cu.label, pad.l + 8, pad.t + 24);
+      ctx.fillStyle = "#64748b"; ctx.font = "10px 'Courier New',monospace";
+      ctx.fillText("pos 1: " + fmt(discOf(1, cu.mode), 2) +
+                   "   pos 5: " + fmt(discOf(5, cu.mode), 2) +
+                   "   pos 10: " + fmt(discOf(10, cu.mode), 2), pad.l + 8, pad.t + 40);
+    }
+    ctx.globalAlpha = 1;
+  });
+}
+
+/* ═══════════════ SECTION 5 — GAIN BARS ═══════════════ */
+function renderGainBars(){
+  var maxG = gainOf(3, state.gain);
+  var html = [0,1,2,3].map(function(r){
+    var g = gainOf(r, state.gain);
+    return '<div class="mbar"><div class="ml">rel = ' + r + '</div>' +
+      '<div class="mw"><div class="mf" style="width:' + (g / maxG) * 100 + '%;background:' + GRADE_COLOR[r] + '"></div></div>' +
+      '<div class="mv">' + fmt(g, 2) + '</div></div>';
+  }).join("");
+  var ratio = gainOf(1, state.gain) > 0 ? gainOf(3, state.gain) / gainOf(1, state.gain) : 0;
+  html += '<div style="font-size:.76rem;color:var(--muted);text-align:center;margin-top:.3rem">' +
+          'one grade-3 result = <span class="val">' + fmt(ratio, 0) + '</span>&times; a grade-1 result</div>';
+  $("#gain-bars").innerHTML = html;
+}
+
+/* ═══════════════ SECTION 6 — SWAP SENSITIVITY ═══════════════ */
+var swapGeom = null;
+function drawSwap(){
+  var cv = $("#swap-canvas");
+  if(!cv) return;
+  var c = setupCanvas(cv), ctx = c.ctx, W = c.w, H = c.h;
+  var n = state.docs.length;
+  var pad = { l:34, t:28, r:12, b:12 };
+  var cell = Math.min((W - pad.l - pad.r) / n, (H - pad.t - pad.b) / n);
+  var ox = pad.l, oy = pad.t;
+  swapGeom = { ox:ox, oy:oy, cell:cell, n:n };
+
+  var base = ndcgOf(rels(), state.k, state.gain, state.disc);
+  var deltas = [], maxAbs = 1e-9;
+  for(var i = 0; i < n; i++){
+    deltas[i] = [];
+    for(var j = 0; j < n; j++){
+      var r = rels();
+      var tmp = r[i]; r[i] = r[j]; r[j] = tmp;
+      var d = ndcgOf(r, state.k, state.gain, state.disc) - base;
+      deltas[i][j] = d;
+      if(Math.abs(d) > maxAbs) maxAbs = Math.abs(d);
+    }
+  }
+  swapGeom.deltas = deltas;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.font = "9px 'Courier New',monospace";
+  for(var a = 0; a < n; a++){
+    for(var b = 0; b < n; b++){
+      var v = deltas[a][b];
+      var t = Math.min(1, Math.abs(v) / maxAbs);
+      var col;
+      if(Math.abs(v) < 1e-9) col = "rgba(71,85,105,.28)";
+      else if(v < 0) col = "rgba(251,113,133," + (0.16 + 0.8 * t) + ")";
+      else col = "rgba(45,212,191," + (0.16 + 0.8 * t) + ")";
+      ctx.fillStyle = col;
+      ctx.fillRect(ox + b * cell + 1, oy + a * cell + 1, cell - 2, cell - 2);
+      if(a === b){
+        ctx.strokeStyle = "#1a2a4a"; ctx.lineWidth = 1;
+        ctx.strokeRect(ox + b * cell + 1, oy + a * cell + 1, cell - 2, cell - 2);
+      }
+    }
+    ctx.fillStyle = "#64748b"; ctx.textAlign = "right";
+    ctx.fillText(a + 1, ox - 6, oy + a * cell + cell / 2 + 3);
+    ctx.textAlign = "center";
+    ctx.fillText(a + 1, ox + a * cell + cell / 2, oy - 8);
+  }
+  ctx.fillStyle = "#64748b"; ctx.textAlign = "left";
+  ctx.fillText("j →", ox + n * cell + 2, oy - 8);
+  ctx.fillText("largest |Δ| = " + fmt(maxAbs), ox, oy + n * cell + 14);
+}
+(function(){
+  var cv = $("#swap-canvas");
+  function report(e){
+    if(!swapGeom) return;
+    var r = cv.getBoundingClientRect();
+    var i = Math.floor((e.clientY - r.top - swapGeom.oy) / swapGeom.cell);
+    var j = Math.floor((e.clientX - r.left - swapGeom.ox) / swapGeom.cell);
+    if(i < 0 || j < 0 || i >= swapGeom.n || j >= swapGeom.n){
+      $("#swap-hint").textContent = "Hover (or tap) a cell to read the exact change.";
+      return;
+    }
+    var d = swapGeom.deltas[i][j];
+    var a = state.docs[i], b = state.docs[j];
+    var msg;
+    if(i === j) msg = "Swapping a position with itself changes nothing.";
+    else if(Math.abs(d) < 1e-9)
+      msg = "Δ = 0.000 — " + (a.rel === b.rel
+            ? "both documents share relevance grade " + a.rel + ", so the metric cannot distinguish them."
+            : "both positions sit below the cutoff k=" + state.k + ", so NDCG never looks at them.");
+    else msg = "Swap rank " + (i+1) + " ↔ rank " + (j+1) + " (rel " + a.rel + " ↔ rel " + b.rel + "):  ΔNDCG@" +
+               state.k + " = " + (d > 0 ? "+" : "") + fmt(d) + (d > 0 ? "  — an improvement." : "  — a regression.");
+    $("#swap-hint").textContent = msg;
+  }
+  cv.addEventListener("pointermove", report);
+  cv.addEventListener("pointerdown", report);
+  cv.addEventListener("pointerleave", function(){
+    $("#swap-hint").textContent = "Hover (or tap) a cell to read the exact change.";
+  });
+})();
+
+/* ═══════════════ SECTION 7 — FAILURE MODES ═══════════════ */
+var BREAKS = {
+  zero: {
+    apply: function(){ loadPreset("typical"); state.docs.forEach(function(d){ d.rel = 0; }); state.k = 5; },
+    title: "IDCG = 0 &mdash; the metric is undefined, and libraries disagree",
+    body: "With no relevant document anywhere in the pool, the ideal DCG is 0 and NDCG is a division by zero. " +
+          "There is no correct answer, only conventions: most libraries return 0, a few return 1 (reasoning that " +
+          "the system did as well as was possible), and some raise. If your evaluation set contains queries with " +
+          "no relevant judgments, your mean NDCG depends on which library you happened to import. Filter those " +
+          "queries out explicitly and say so."
+  },
+  fewer: {
+    apply: function(){
+      loadPreset("typical");
+      state.docs.forEach(function(d){ d.rel = 0; });
+      state.docs[0].rel = 3;
+      state.k = 8;
+    },
+    title: "k = 8 but only one relevant document exists &mdash; NDCG = 1.0",
+    body: "The ideal ranking puts that single document at rank 1, and so did the system, so the score is a perfect " +
+          "1.0. But a system that returned it at rank 1 alongside seven pieces of junk gets exactly the same score " +
+          "as a system that returned it at rank 1 alongside seven near-misses. When k is large relative to the number " +
+          "of relevant documents, NDCG saturates and stops discriminating. Choose k from what users actually see, " +
+          "not from what is convenient."
+  },
+  tail: {
+    apply: function(){
+      loadPreset("perfect");
+      state.k = 3;
+    },
+    title: "NDCG@3 is blind to everything below rank 3",
+    body: "Set the cutoff to 3 and the bottom five results become literally invisible &mdash; you can drag a grade-0 " +
+          "document to rank 4 or a grade-3 document to rank 8 and the number will not move by a thousandth. That is " +
+          "the intended behaviour, not a bug, but it means NDCG@k is a statement about the top of the list only. " +
+          "Never use a small k to argue that a system's recall is fine."
+  },
+  missing: {
+    apply: function(){
+      loadPreset("typical");
+      state.docs[2].rel = 0;
+      state.docs[6].rel = 0;
+      state.k = 5;
+    },
+    title: "Unjudged documents are silently treated as irrelevant",
+    body: "In any real evaluation the judgment pool is incomplete &mdash; nobody rates every document for every " +
+          "query. Standard NDCG implementations treat an unjudged document as grade 0. So a new system that surfaces " +
+          "genuinely excellent documents nobody thought to judge is <em>penalised</em> for it, both in its DCG and " +
+          "in the IDCG it is measured against. This is why TREC-style pooling matters, and why comparing a new " +
+          "retrieval model against a benchmark built on an old model's candidates is systematically unfair to the new one."
+  }
+};
+$$(".break-btn").forEach(function(b){
+  b.addEventListener("click", function(){
+    var br = BREAKS[b.dataset.break];
+    br.apply();
+    $$(".break-btn").forEach(function(x){ x.classList.toggle("active", x === b); });
+    $("#kslider").value = state.k;
+    renderLab();
+    var rr = rels();
+    var idcg = idcgOf(rr, state.k, state.gain, state.disc);
+    var nd = idcg > 0 ? dcgOf(rr, state.k, state.gain, state.disc) / idcg : NaN;
+    $("#break-body").innerHTML =
+      '<div style="font-size:.9rem;color:var(--rose2);font-weight:600;margin-bottom:.4rem">' + br.title + '</div>' +
+      '<p style="font-size:.88rem;color:var(--dim)">' + br.body + '</p>' +
+      '<div class="readout" style="margin-top:.9rem">' +
+        '<div class="rcell"><div class="rk">DCG@' + state.k + '</div><div class="rv">' + fmt(dcgOf(rr, state.k, state.gain, state.disc)) + '</div></div>' +
+        '<div class="rcell"><div class="rk">IDCG@' + state.k + '</div><div class="rv">' + fmt(idcg) + '</div></div>' +
+        '<div class="rcell hot"><div class="rk">NDCG@' + state.k + '</div><div class="rv">' + (idcg > 0 ? fmt(nd) : "undefined") + '</div></div>' +
+      '</div>' +
+      '<p class="hint">The lab in section 3 has been reconfigured to this state &mdash; scroll up to poke at it.</p>';
+  });
+});
+$("#break-body").innerHTML = '<p style="font-size:.88rem;color:var(--muted)">Pick a failure mode above.</p>';
+
+/* ═══════════════ SECTION 8 — METRIC COMPARISON ═══════════════ */
+function renderVsBars(){
+  var rr = rels(), k = state.k;
+  var items = [
+    { l:"Precision@" + k, v:precisionAt(rr, k),                          c:"#f59e0b" },
+    { l:"MRR",            v:rrOf(rr),                                    c:"#8b5cf6" },
+    { l:"MAP@" + k,       v:apAt(rr, k),                                 c:"#38bdf8" },
+    { l:"NDCG@" + k,      v:ndcgOf(rr, k, state.gain, state.disc),       c:"#2dd4bf" }
+  ];
+  $("#vs-bars").innerHTML = items.map(function(m){
+    return '<div class="mbar"><div class="ml">' + m.l + '</div>' +
+      '<div class="mw"><div class="mf" style="width:' + (m.v * 100) + '%;background:' + m.c + '"></div></div>' +
+      '<div class="mv">' + fmt(m.v) + '</div></div>';
+  }).join("");
+}
+
+/* ═══════════════ CHROME ═══════════════ */
+window.addEventListener("scroll", function(){
+  var h = document.documentElement;
+  var pct = h.scrollTop / Math.max(1, h.scrollHeight - h.clientHeight);
+  $("#progress").style.width = (pct * 100) + "%";
+});
+window.addEventListener("resize", function(){ drawDiscount(); drawSwap(); });
+
+renderTwoLists();
+renderLab();
+</script>
+</body>
+</html>
