@@ -1,0 +1,2106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CLIP Under the Hood — Post 66 | Visual Summary</title>
+<style>
+:root{
+  --bg:#050811;
+  --surface:#0a1020;
+  --surface2:#0f1830;
+  --border:#1a2a4a;
+  --teal:#14b8a6;
+  --teal2:#2dd4bf;
+  --teal3:#5eead4;
+  --rose:#fb7185;
+  --rose2:#fda4af;
+  --violet:#a78bfa;
+  --violet2:#c4b5fd;
+  --text:#e2e8f0;
+  --muted:#64748b;
+  --dim:#94a3b8;
+  --green:#10b981;
+  --amber:#f59e0b;
+  --red:#ef4444;
+  --img:#2dd4bf;   /* image modality */
+  --txt:#fb7185;   /* text modality */
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.6}
+a{color:var(--teal2);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* GATE */
+#gate{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center}
+.gate-box{background:var(--surface);border:1px solid var(--teal);border-radius:16px;padding:2.5rem;width:min(380px,90vw);text-align:center}
+.gate-box h2{font-size:1.4rem;color:var(--teal3);margin-bottom:.5rem}
+.gate-box p{color:var(--muted);font-size:.9rem;margin-bottom:1.5rem}
+.gate-box input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem;color:var(--text);font-size:1rem;margin-bottom:1rem;outline:none}
+.gate-box input:focus{border-color:var(--teal)}
+.gate-box button{width:100%;background:linear-gradient(135deg,var(--teal),var(--rose));color:#fff;border:none;border-radius:8px;padding:.75rem;font-size:1rem;cursor:pointer}
+.gate-box button:hover{opacity:.9}
+#gate-err{color:var(--red);font-size:.85rem;margin-top:.5rem;display:none}
+
+.topbar{position:sticky;top:0;z-index:100;background:rgba(5,8,17,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:.75rem 1.5rem;display:flex;align-items:center;gap:1rem}
+.topbar .logo{color:var(--teal3);font-weight:700;font-size:.95rem;white-space:nowrap}
+.topbar .post-tag{background:rgba(20,184,166,.18);color:var(--teal3);border:1px solid var(--teal);border-radius:20px;padding:.2rem .75rem;font-size:.8rem;white-space:nowrap}
+.topbar nav{display:flex;gap:.4rem;flex-wrap:wrap;flex:1;justify-content:flex-end}
+.topbar nav a{color:var(--muted);font-size:.78rem;padding:.25rem .5rem;border-radius:4px;transition:.2s}
+.topbar nav a:hover{color:var(--teal2);background:rgba(20,184,166,.1);text-decoration:none}
+#progress{position:fixed;top:0;left:0;height:2px;background:linear-gradient(90deg,var(--teal),var(--rose));z-index:200;width:0}
+
+.container{max-width:920px;margin:0 auto;padding:0 1.5rem 5rem}
+
+.hero{padding:3.5rem 0 2rem;text-align:center}
+.hero .category{display:inline-block;background:rgba(167,139,250,.15);color:var(--violet2);border:1px solid var(--violet);border-radius:20px;padding:.3rem .9rem;font-size:.8rem;margin-bottom:1rem;letter-spacing:.05em;text-transform:uppercase}
+.hero h1{font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;line-height:1.2;margin-bottom:1rem}
+.hero h1 span{background:linear-gradient(135deg,var(--teal3),var(--rose));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero .sub{color:var(--muted);font-size:1rem;max-width:680px;margin:0 auto 1.5rem}
+.hero .meta{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;font-size:.8rem;color:var(--muted)}
+
+.section{margin:2.5rem 0;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.75rem;scroll-margin-top:70px}
+.section h2{font-size:1.2rem;color:var(--teal3);margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+.section p{color:var(--dim);font-size:.93rem}
+.section p+p{margin-top:.75rem}
+.section h3{font-size:1rem;color:var(--rose2);margin:1.5rem 0 .6rem}
+.section ul,.section ol{color:var(--dim);font-size:.93rem;margin:.6rem 0 0 1.1rem}
+.section li{margin-bottom:.45rem}
+.section em{color:var(--text)}
+.i-img{color:var(--img);font-weight:600}
+.i-txt{color:var(--txt);font-weight:600}
+
+.callout{background:rgba(20,184,166,.08);border-left:3px solid var(--teal);border-radius:8px;padding:1rem 1.25rem;margin:1.15rem 0;font-size:.9rem;color:var(--dim)}
+.callout.rose{background:rgba(251,113,133,.08);border-color:var(--rose)}
+.callout.amber{background:rgba(245,158,11,.08);border-color:var(--amber)}
+.callout.violet{background:rgba(167,139,250,.08);border-color:var(--violet)}
+.callout strong{color:var(--teal3)}
+.callout.rose strong{color:var(--rose2)}
+.callout.amber strong{color:#fde68a}
+.callout.violet strong{color:var(--violet2)}
+
+.formula{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.9rem 1.25rem;font-family:'Courier New',monospace;font-size:.9rem;color:var(--teal3);text-align:center;margin:1rem 0;overflow-x:auto;white-space:nowrap}
+.formula .hot{color:var(--rose2);font-weight:700}
+.formula .dimd{color:var(--muted)}
+
+.panel{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:1.25rem;margin-top:1.25rem}
+.panel-title{font-size:.8rem;color:var(--teal2);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.9rem}
+.ctl-row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:.9rem}
+.ctl-row label{color:var(--muted);font-size:.82rem;white-space:nowrap}
+.ctl-group{display:flex;gap:.3rem;flex-wrap:wrap;align-items:center;background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:.3rem .4rem}
+.ctl-group label{padding-left:.3rem;padding-right:.2rem}
+.btn{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.45rem .9rem;color:var(--muted);font-size:.82rem;cursor:pointer;transition:.18s;font-family:inherit}
+.btn:hover{border-color:var(--teal);color:var(--teal3)}
+.btn.active{background:rgba(20,184,166,.18);border-color:var(--teal2);color:var(--teal3)}
+.btn.rose.active{background:rgba(251,113,133,.18);border-color:var(--rose);color:var(--rose2)}
+.btn.sm{padding:.3rem .6rem;font-size:.75rem}
+.btn.primary{background:linear-gradient(135deg,var(--teal),var(--rose));color:#fff;border-color:transparent;font-weight:600}
+.btn.primary:hover{opacity:.9}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+input[type=range]{accent-color:var(--teal2);flex:1;min-width:120px;max-width:220px}
+select,input[type=text]{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.4rem .6rem;color:var(--text);font-size:.85rem;font-family:inherit;outline:none}
+select:focus,input[type=text]:focus{border-color:var(--teal)}
+.mono{font-family:'Courier New',monospace}
+.val{font-family:'Courier New',monospace;color:var(--teal2)}
+.divider{height:1px;background:var(--border);margin:1.5rem 0}
+
+.readout{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:.6rem;margin-top:1rem}
+.rcell{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.6rem .7rem}
+.rcell .rk{font-size:.66rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.rcell .rv{font-size:1.1rem;font-family:'Courier New',monospace;color:var(--teal2);font-weight:700;margin-top:.15rem}
+.rcell.hot{border-color:var(--rose)}
+.rcell.hot .rv{color:var(--rose2)}
+.rcell.vio{border-color:var(--violet)}
+.rcell.vio .rv{color:var(--violet2)}
+
+canvas{width:100%;display:block;border-radius:8px;background:var(--bg);touch-action:none}
+.canvas-card{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:.75rem}
+.canvas-card .ctitle{font-size:.76rem;color:var(--teal2);font-weight:600;margin-bottom:.4rem;display:flex;justify-content:space-between;gap:.5rem}
+.canvas-card .ctitle span{color:var(--muted);font-weight:400}
+.hint{font-size:.72rem;color:var(--muted);margin-top:.5rem;text-align:center}
+.note{font-size:.8rem;color:var(--muted);margin-top:.6rem}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem}
+.grid-lab{display:grid;grid-template-columns:1.15fr 1fr;gap:1rem}
+@media(max-width:760px){
+  .grid2,.grid3,.grid-lab{grid-template-columns:1fr}
+}
+
+table.cmp{width:100%;border-collapse:collapse;font-size:.8rem;margin-top:.9rem}
+table.cmp th,table.cmp td{border:1px solid var(--border);padding:.5rem .6rem;text-align:left}
+table.cmp th{background:var(--surface2);color:var(--teal3);font-weight:600;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em}
+table.cmp td{color:var(--dim)}
+table.cmp td.num{font-family:'Courier New',monospace;color:var(--teal2);text-align:right}
+.tblwrap{overflow-x:auto}
+
+/* ── matching game ─────────────────────────────── */
+.game{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:0 3rem;user-select:none}
+.game .col{display:flex;flex-direction:column;gap:.55rem}
+.gitem{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:.5rem .7rem;cursor:pointer;transition:.15s;display:flex;align-items:center;gap:.6rem;min-height:56px;position:relative}
+.gitem:hover{border-color:var(--teal)}
+.gitem.sel{border-color:var(--teal2);box-shadow:0 0 0 2px rgba(45,212,191,.25)}
+.gitem.linked{border-color:var(--violet)}
+.gitem.right{border-color:var(--green)}
+.gitem.wrong{border-color:var(--red)}
+.gitem .emoji{font-size:1.9rem;line-height:1;width:44px;text-align:center;flex-shrink:0}
+.gitem .cap{font-size:.84rem;color:var(--text);line-height:1.3}
+.gitem .cap small{display:block;color:var(--muted);font-size:.68rem}
+.gitem .idx{position:absolute;top:-7px;left:-7px;width:18px;height:18px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-size:.62rem;display:flex;align-items:center;justify-content:center;font-family:'Courier New',monospace}
+.game svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.game svg line{stroke:var(--violet);stroke-width:2;opacity:.8}
+.game svg line.right{stroke:var(--green)}
+.game svg line.wrong{stroke:var(--red);stroke-dasharray:5 4}
+@media(max-width:600px){ .game{gap:0 1.2rem} .gitem .emoji{font-size:1.5rem;width:34px} .gitem .cap{font-size:.75rem} }
+
+/* ── similarity matrix (div grid) ───────────────── */
+.mx-wrap{display:grid;grid-template-columns:auto 1fr;gap:.35rem;align-items:start}
+.mx-corner{width:52px;height:52px}
+.mx-cols{display:grid;gap:3px;align-items:end;height:52px}
+.mx-cols div{font-size:.6rem;color:var(--txt);text-align:center;line-height:1.05;overflow:hidden;font-family:'Courier New',monospace;word-break:break-word}
+.mx-rows{display:grid;gap:3px;width:52px}
+.mx-rows div{height:100%;display:flex;align-items:center;justify-content:flex-end;padding-right:.25rem}
+.mx-rows canvas{width:30px;height:30px;border-radius:4px}
+.mx{display:grid;gap:3px}
+.mx .cell{aspect-ratio:1;min-width:0;overflow:hidden;border-radius:4px;display:flex;align-items:center;justify-content:center;font-family:'Courier New',monospace;font-size:.62rem;color:rgba(255,255,255,.85);position:relative;cursor:crosshair;transition:transform .1s;border:1px solid transparent}
+@media(max-width:600px){ .mx .cell{font-size:.5rem} .mx-cols div{font-size:.5rem} }
+body{overflow-x:hidden}
+.mx .cell.diag{border-color:rgba(255,255,255,.55)}
+.mx .cell:hover{transform:scale(1.12);z-index:2;border-color:#fff}
+.mx .cell.dimmed{opacity:.18}
+.mx .cell.lit{box-shadow:0 0 0 2px var(--amber);z-index:1}
+.mx-tip{margin-top:.6rem;font-size:.8rem;color:var(--dim);min-height:1.4em;font-family:'Courier New',monospace}
+.mx-tip b{color:var(--teal3)}
+.mx-side{display:grid;gap:3px;margin-left:.4rem}
+.mx-side div{display:flex;align-items:center;font-family:'Courier New',monospace;font-size:.66rem;color:var(--rose2);white-space:nowrap}
+.mx-bottom{display:grid;gap:3px;margin-top:.3rem}
+.mx-bottom div{font-family:'Courier New',monospace;font-size:.6rem;color:var(--rose2);text-align:center}
+.legend{display:flex;gap:1rem;flex-wrap:wrap;font-size:.72rem;color:var(--muted);margin-top:.6rem;align-items:center}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:.3rem;vertical-align:middle}
+.legend .grad{width:90px;height:10px;border-radius:5px;background:linear-gradient(90deg,#1d4ed8,#0f1830 50%,#f43f5e);display:inline-block;vertical-align:middle;margin:0 .3rem}
+
+/* ── pseudocode stepper ─────────────────────────── */
+.code{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:.9rem 0;font-family:'Courier New',monospace;font-size:.78rem;line-height:1.55;overflow-x:auto}
+.code .ln{padding:0 1rem;white-space:pre;color:var(--dim);border-left:3px solid transparent;transition:.15s}
+.code .ln.cm{color:var(--muted)}
+.code .ln.hi{background:rgba(245,158,11,.12);border-left-color:var(--amber);color:var(--text)}
+.code .ln.hi2{background:rgba(45,212,191,.08);color:var(--text)}
+.stepper{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;margin-bottom:.8rem}
+.step-note{font-size:.88rem;color:var(--dim);background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.25);border-radius:8px;padding:.7rem .9rem;margin-top:.8rem;min-height:3.2em}
+.step-note b{color:#fde68a}
+
+/* ── architecture diagram ───────────────────────── */
+.arch{display:grid;grid-template-columns:1fr auto 1fr;gap:.6rem;align-items:center;margin-top:1rem}
+.tower{display:flex;flex-direction:column;gap:.45rem}
+.abox{background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:.55rem .7rem;font-size:.78rem;color:var(--dim);position:relative;cursor:help;transition:.15s}
+.abox b{display:block;font-size:.8rem;color:var(--text)}
+.abox:hover{border-color:var(--amber)}
+.tower.img .abox b{color:var(--img)} .tower.txt .abox b{color:var(--txt)}
+.abox .arrow{position:absolute;left:50%;bottom:-13px;color:var(--muted);font-size:.8rem;transform:translateX(-50%);z-index:1}
+.arch-mid{display:flex;flex-direction:column;align-items:center;gap:.3rem;color:var(--muted);font-size:.72rem;text-align:center;padding:0 .3rem}
+.arch-mid .bigx{font-size:1.6rem;color:var(--amber);font-weight:700}
+.arch-note{font-size:.85rem;color:var(--dim);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.7rem .9rem;margin-top:.8rem;min-height:3.4em}
+.arch-note b{color:#fde68a}
+@media(max-width:600px){ .arch{grid-template-columns:1fr} .arch-mid{flex-direction:row;justify-content:center} }
+
+/* ── temperature bars ───────────────────────────── */
+.tbars{display:flex;flex-direction:column;gap:.35rem;margin-top:.8rem}
+.tbar{display:grid;grid-template-columns:118px 1fr 64px 64px;gap:.5rem;align-items:center;font-size:.74rem}
+.tbar .tl{color:var(--muted);font-family:'Courier New',monospace;white-space:nowrap}
+.tbar .tl.pos{color:var(--teal3);font-weight:700}
+.tbar .tw{height:18px;background:var(--bg);border:1px solid var(--border);border-radius:4px;overflow:hidden}
+.tbar .tf{height:100%;background:var(--rose);transition:width .12s}
+.tbar.pos .tf{background:var(--teal2)}
+.tbar .tv{font-family:'Courier New',monospace;color:var(--dim);text-align:right}
+.tbar .tg{font-family:'Courier New',monospace;color:var(--amber);text-align:right}
+.tbar-head{display:grid;grid-template-columns:118px 1fr 64px 64px;gap:.5rem;font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.tbar-head span:nth-child(3),.tbar-head span:nth-child(4){text-align:right}
+.marks{position:relative;height:16px;font-size:.62rem;color:var(--muted);margin-top:-.2rem}
+.marks span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+@media(max-width:600px){ .tbar,.tbar-head{grid-template-columns:78px 1fr 52px 52px} }
+
+/* ── lab ────────────────────────────────────────── */
+.lab-status{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;font-size:.78rem;color:var(--muted);margin-bottom:.6rem}
+.lab-status .pill{background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:.15rem .6rem;font-family:'Courier New',monospace;color:var(--teal2)}
+.lab-note{font-size:.86rem;color:var(--dim);background:rgba(167,139,250,.07);border:1px solid rgba(167,139,250,.3);border-radius:8px;padding:.7rem .9rem;margin-top:.9rem;min-height:3.2em}
+.lab-note b{color:var(--violet2)}
+.acc-row{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.6rem}
+.acc{flex:1;min-width:120px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.45rem .6rem}
+.acc .ak{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;display:flex;justify-content:space-between}
+.acc .ak b{color:var(--teal2);font-family:'Courier New',monospace}
+.acc .aw{height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;margin-top:.3rem}
+.acc .af{height:100%;background:var(--teal);transition:width .2s}
+
+/* ── zero-shot ──────────────────────────────────── */
+.zs-imgs{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.6rem}
+.zs-imgs canvas{width:46px;height:46px;border:2px solid var(--border);border-radius:8px;cursor:pointer;background:var(--bg)}
+.zs-imgs canvas.sel{border-color:var(--teal2)}
+.zs-bars{display:flex;flex-direction:column;gap:.3rem}
+.zs-bar{display:grid;grid-template-columns:200px 1fr 58px;gap:.5rem;align-items:center;font-size:.76rem}
+.zs-bar .zl{font-family:'Courier New',monospace;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.zs-bar .zl.win{color:var(--teal3);font-weight:700}
+.zs-bar .zw{height:16px;background:var(--bg);border:1px solid var(--border);border-radius:4px;overflow:hidden}
+.zs-bar .zf{height:100%;background:var(--violet);transition:width .15s}
+.zs-bar.win .zf{background:var(--teal2)}
+.zs-bar .zv{font-family:'Courier New',monospace;color:var(--dim);text-align:right}
+.chips{display:flex;gap:.3rem;flex-wrap:wrap;margin:.4rem 0}
+.chip{font-family:'Courier New',monospace;font-size:.72rem;padding:.15rem .5rem;border-radius:12px;border:1px solid var(--border);color:var(--dim);background:var(--bg)}
+.chip.ok{border-color:var(--rose);color:var(--rose2)}
+.chip.bad{border-color:var(--red);color:var(--red);text-decoration:line-through}
+@media(max-width:600px){ .zs-bar{grid-template-columns:100px 1fr 50px} }
+
+/* ── scale ──────────────────────────────────────── */
+.eff{display:flex;flex-direction:column;gap:.5rem;margin-top:.8rem}
+.eff .er{display:grid;grid-template-columns:190px 1fr 50px;gap:.6rem;align-items:center;font-size:.78rem}
+.eff .el{color:var(--dim)}
+.eff .ew{height:20px;background:var(--bg);border:1px solid var(--border);border-radius:5px;overflow:hidden}
+.eff .ef{height:100%}
+.eff .ev{font-family:'Courier New',monospace;color:var(--teal2);text-align:right}
+@media(max-width:600px){ .eff .er{grid-template-columns:120px 1fr 44px} }
+
+/* ── limits cards ───────────────────────────────── */
+.lim{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:.9rem 1rem}
+.lim h4{font-size:.86rem;color:var(--rose2);margin-bottom:.35rem}
+.lim p{font-size:.82rem}
+.lim .m{font-family:'Courier New',monospace;color:var(--teal2)}
+
+/* ── related strip ──────────────────────────────── */
+.related-strip{padding:28px 0 0;border-top:2px solid var(--border);margin-top:3rem}
+.related-strip-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.related-strip-label::after{content:'';flex:1;height:1px;background:var(--border)}
+.related-strip-grid{display:flex;gap:12px;flex-wrap:wrap}
+.rc{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px 15px;text-decoration:none;color:inherit;transition:all .15s;min-width:160px;flex:1;max-width:230px}
+.rc:hover{border-color:#555;transform:translateY(-1px);text-decoration:none}
+.rc-type{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px}
+.rc-num{font-size:10px;color:var(--muted);margin-bottom:2px;font-family:'Courier New',monospace}
+.rc-title{font-size:12px;font-weight:700;color:var(--text);line-height:1.35;margin-bottom:3px}
+.rc-why{font-size:10px;color:var(--muted);line-height:1.5}
+.map-link-btn{display:inline-flex;align-items:center;gap:6px;margin-top:14px;font-size:11px;color:#a5b4fc;font-weight:600;border:1px solid rgba(99,102,241,.3);border-radius:6px;padding:5px 12px;transition:all .15s;text-decoration:none}
+.map-link-btn:hover{border-color:#6366f1;background:rgba(99,102,241,.08);text-decoration:none}
+
+.footer{text-align:center;color:var(--muted);font-size:.78rem;padding-top:2rem;border-top:1px solid var(--border);margin-top:2rem}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+
+<!-- GATE -->
+<div id="gate">
+  <div class="gate-box">
+    <div style="font-size:2rem;margin-bottom:.5rem">🧩</div>
+    <h2>Visual Summary</h2>
+    <p>Post 66 &mdash; CLIP Under the Hood</p>
+    <input type="password" id="gate-input" placeholder="Enter password" onkeydown="if(event.key==='Enter')checkGate()">
+    <button onclick="checkGate()">Unlock</button>
+    <div id="gate-err">Incorrect password</div>
+  </div>
+</div>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <span class="logo">Visual Summary</span>
+  <span class="post-tag">Post #66</span>
+  <nav>
+    <a href="#s-game">The Game</a>
+    <a href="#s-towers">Two Towers</a>
+    <a href="#s-matrix">The Batch</a>
+    <a href="#s-loss">The Loss</a>
+    <a href="#s-temp">Temperature</a>
+    <a href="#s-lab">The Lab</a>
+    <a href="#s-zeroshot">Zero-Shot</a>
+    <a href="#s-scale">Scale</a>
+    <a href="#s-limits">Limits</a>
+    <a href="#s-pm">PM Lens</a>
+  </nav>
+</div>
+
+<div class="container">
+
+  <div class="hero">
+    <div class="category">Representations &middot; Multimodal</div>
+    <h1>How <span>CLIP</span> is trained: a matching game, played 32,768 wide</h1>
+    <p class="sub">CLIP never sees a label. It sees a batch of images and a batch of captions and is asked one question:
+       <em>which goes with which?</em> This post takes that question apart &mdash; the two encoders, the similarity matrix,
+       the symmetric loss, the temperature knob &mdash; and then lets you train a miniature CLIP in your browser and
+       watch the embedding space organise itself.</p>
+    <div class="meta"><span>Post 66</span><span>&middot;</span><span>~18 min</span><span>&middot;</span><span>8 interactive panels</span><span>&middot;</span><span>A real contrastive model trains live on this page</span></div>
+  </div>
+
+  <!-- ══════════════════ 1 · THE GAME ══════════════════ -->
+  <div class="section" id="s-game">
+    <h2>1 &middot; You are the model. Play one training step.</h2>
+    <p>Here are five images and five captions, shuffled. Click an image, then click the caption you think belongs to it.
+       Match all five, then check your answer. This is <em>exactly</em> the task CLIP is trained on &mdash; no class names,
+       no bounding boxes, just <em>which text came with which image</em>.</p>
+
+    <div class="panel">
+      <div class="game" id="game">
+        <div class="col" id="game-imgs"></div>
+        <div class="col" id="game-caps"></div>
+        <svg id="game-svg"></svg>
+      </div>
+      <div class="ctl-row" style="margin-top:1rem;justify-content:center">
+        <button class="btn primary" id="game-check" disabled>Check my matches</button>
+        <button class="btn" id="game-reset">Shuffle again</button>
+        <button class="btn" id="game-matrix" style="display:none">Show it as a matrix &rarr;</button>
+        <button class="btn" id="game-scale" style="display:none">Now scale it to CLIP &rarr;</button>
+      </div>
+      <div class="step-note" id="game-note">Pick an image on the left, then its caption on the right. Lines will appear as you go.</div>
+      <div id="game-scalebox" style="display:none;margin-top:.8rem" class="canvas-card">
+        <div class="ctitle">The same grid at CLIP's batch size <span>32,768 &times; 32,768</span></div>
+        <canvas id="game-scale-cv" height="220"></canvas>
+        <div class="readout" style="grid-template-columns:repeat(3,1fr)">
+          <div class="rcell"><div class="rk">positives (the diagonal)</div><div class="rv">32,768</div></div>
+          <div class="rcell hot"><div class="rk">negatives (everything else)</div><div class="rv">1,073,709,056</div></div>
+          <div class="rcell vio"><div class="rk">share of cells that are positives</div><div class="rv">0.003%</div></div>
+        </div>
+      </div>
+    </div>
+
+    <p>Notice what made it hard. Two of the images share a subject, so the only way to tell their captions apart was the
+       <em>detail</em> &mdash; the beach, the harness. Those near-misses are called <em>hard negatives</em>, and they are where
+       almost all the learning signal comes from. Now imagine the same game with 32,768 images and 32,768 captions at once.
+       That single round is one training step of CLIP.</p>
+
+    <div class="callout violet">
+      <strong>The whole idea in one sentence.</strong> Train an image encoder and a text encoder so that, inside a batch,
+      every image scores highest against its own caption and every caption scores highest against its own image.
+      Everything else on this page is the machinery that turns that sentence into gradients.
+    </div>
+  </div>
+
+  <!-- ══════════════════ 2 · TWO TOWERS ══════════════════ -->
+  <div class="section" id="s-towers">
+    <h2>2 &middot; Two encoders, one space</h2>
+    <p>CLIP is two separate networks that never talk to each other until the very end. The <span class="i-img">image tower</span>
+       turns pixels into a vector; the <span class="i-txt">text tower</span> turns a caption into a vector of the <em>same length</em>.
+       Each vector is then pushed onto the unit sphere. Hover a box for what CLIP actually used.</p>
+
+    <div class="panel">
+      <div class="arch">
+        <div class="tower img">
+          <div class="abox" data-note="A 224&times;224 image (336 for the final model), random-square-cropped from the resized original. That crop is the <b>only</b> augmentation CLIP uses."><b>Image</b>224&times;224 pixels, one random square crop<span class="arrow">&#8595;</span></div>
+          <div class="abox" data-note="Either a modified ResNet (attention pooling instead of global average pooling) or a Vision Transformer. The headline model is ViT-L/14: 24 layers, 1024 wide, 16 heads, 14-pixel patches. Trained <b>from scratch</b> &mdash; no ImageNet weights."><b>image_encoder</b>ResNet or ViT &mdash; ViT-L/14: 24 layers, 1024 wide<span class="arrow">&#8595;</span></div>
+          <div class="abox" data-note="A plain matrix W<sub>i</sub> of shape [d<sub>i</sub>, d<sub>e</sub>]. The paper tried the SimCLR-style non-linear head and saw no efficiency difference, so it kept the linear one."><b>W_i &middot; I_f</b>linear projection to d<sub>e</sub> = 768<span class="arrow">&#8595;</span></div>
+          <div class="abox" data-note="Divide by the vector's length so it has norm 1. After this, a dot product between an image vector and a text vector <b>is</b> their cosine similarity."><b>l2_normalize</b>I<sub>e</sub> on the unit sphere</div>
+        </div>
+        <div class="arch-mid">
+          <div>joint space</div>
+          <div class="bigx">&times;</div>
+          <div>I<sub>e</sub> &middot; T<sub>e</sub><sup>T</sup><br>cosine</div>
+        </div>
+        <div class="tower txt">
+          <div class="abox" data-note="Lower-cased byte-pair encoding with a 49,152-entry vocabulary (Appendix F lists 49,408 tokens), capped at <b>76</b> tokens plus [SOS]/[EOS]. Long captions are simply truncated."><b>Caption</b>BPE tokens, max 76, wrapped in [SOS] &hellip; [EOS]<span class="arrow">&#8595;</span></div>
+          <div class="abox" data-note="A GPT-2-style Transformer with <b>masked</b> (causal) self-attention. Base size: 63M parameters, 12 layers, 512 wide, 8 heads &mdash; the ViT-L/14 model uses a 768-wide version. Only width is scaled; depth never is."><b>text_encoder</b>Transformer &mdash; 12 layers, 512&ndash;768 wide<span class="arrow">&#8595;</span></div>
+          <div class="abox" data-note="The activation at the [EOS] position of the top layer is taken as the whole caption's feature. Because attention is causal, [EOS] is the only token that has seen every other token. It is layer-normed, then multiplied by W<sub>t</sub>."><b>[EOS] &rarr; W_t &middot; T_f</b>take the [EOS] activation, project<span class="arrow">&#8595;</span></div>
+          <div class="abox" data-note="Same normalisation as the image side. The two towers share <b>nothing</b> &mdash; not weights, not architecture &mdash; only this final space and the loss."><b>l2_normalize</b>T<sub>e</sub> on the unit sphere</div>
+        </div>
+      </div>
+      <div class="arch-note" id="arch-note"><b>Hover any box.</b> Numbers are from the paper's Section 2.4 and Appendix F (Tables 18&ndash;20).</div>
+    </div>
+
+    <h3>Why normalise? Because length is a cheat code.</h3>
+    <p>Without normalisation the loss could be gamed by just making vectors longer &mdash; a huge vector dotted with anything
+       gives a huge score. Projecting onto the sphere leaves only <em>direction</em>, so the only way to score well is to
+       point the same way as your partner. Toggle it below.</p>
+
+    <div class="panel">
+      <div class="ctl-row">
+        <label>Vectors</label>
+        <button class="btn sm active" id="norm-off">raw projections</button>
+        <button class="btn sm" id="norm-on">after l2_normalize</button>
+        <button class="btn sm" id="norm-stretch">stretch T2 &times;4</button>
+        <span class="note" style="margin:0 0 0 auto" id="norm-read"></span>
+      </div>
+      <div class="canvas-card">
+        <div class="ctitle">Three image vectors (teal) and three text vectors (rose) in a 2-D joint space <span>drag any point</span></div>
+        <canvas id="norm-canvas" height="260"></canvas>
+      </div>
+      <p class="hint">Raw dot products are dominated by whichever vector is longest: I1 points almost exactly along the short T2, yet the long T1
+         wins the raw score. Stretch T2 and the raw winner flips without any change of direction. On the sphere, only the angle survives.</p>
+    </div>
+  </div>
+
+  <!-- ══════════════════ 3 · THE BATCH MATRIX ══════════════════ -->
+  <div class="section" id="s-matrix">
+    <h2>3 &middot; The batch is the whole dataset, for one step</h2>
+    <p>Take N image&ndash;caption pairs, embed them all, and dot every image against every caption. You get an N&times;N grid of
+       cosine similarities. The N cells on the diagonal are the true pairs &mdash; the <em>positives</em>. The other N&sup2;&minus;N
+       cells are <em>negatives</em>, and CLIP never has to go looking for them: the batch supplies them for free.</p>
+
+    <p>The grid below is real. A miniature CLIP &mdash; two tiny encoders over a toy world of coloured shapes and short
+       captions &mdash; was trained in this tab when the page loaded. Hover any cell. Switch to the <em>untrained</em> model to
+       see what the same grid looks like before a single gradient step.</p>
+
+    <div class="panel">
+      <div class="ctl-row">
+        <label>Batch size N = <span class="val" id="mx-n">8</span></label>
+        <input type="range" id="mx-slider" min="2" max="16" value="8" step="1">
+        <div class="ctl-group">
+          <label>Model</label>
+          <button class="btn sm active" id="mx-trained">trained</button>
+          <button class="btn sm" id="mx-untrained">untrained</button>
+        </div>
+        <button class="btn sm" id="mx-resample">new batch</button>
+      </div>
+      <div class="mx-wrap">
+        <div class="mx-corner"></div>
+        <div class="mx-cols" id="mx-cols"></div>
+        <div class="mx-rows" id="mx-rows"></div>
+        <div class="mx" id="mx"></div>
+      </div>
+      <div class="mx-tip" id="mx-tip">hover or tap a cell</div>
+      <div class="legend"><span><i style="background:#1d4ed8"></i>cos = &minus;1</span><span class="grad"></span><span><i style="background:#f43f5e"></i>cos = +1</span><span style="margin-left:auto"><i style="border:1px solid #fff;background:transparent"></i>diagonal = the N true pairs</span></div>
+      <div class="readout">
+        <div class="rcell"><div class="rk">positives</div><div class="rv" id="mx-pos">8</div></div>
+        <div class="rcell hot"><div class="rk">negatives (N&sup2;&minus;N)</div><div class="rv" id="mx-neg">56</div></div>
+        <div class="rcell"><div class="rk">mean diagonal cos</div><div class="rv" id="mx-dmean">&mdash;</div></div>
+        <div class="rcell"><div class="rk">mean off-diag cos</div><div class="rv" id="mx-omean">&mdash;</div></div>
+        <div class="rcell vio"><div class="rk">chance loss = ln N</div><div class="rv" id="mx-lnn">2.079</div></div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <strong>Why the batch size is the hyper-parameter that matters.</strong> Two encoder passes per pair buy N&sup2;&minus;N
+      comparisons. At N = 8 there are 56 negatives; at CLIP's N = 32,768 there are about 1.07 <em>billion</em> per step.
+      More negatives means a harder game per step and, crucially, a much better chance that the batch contains a
+      <em>near-miss</em> &mdash; another photo of a dog, another caption about a beach. Section 6 lets you measure this.
+      Look also for cells marked as <em>false negatives</em>: two pairs of the same concept in one batch are still scored as
+      non-matches. CLIP does nothing about those; with 400M pairs it simply does not care.
+    </div>
+  </div>
+
+  <!-- ══════════════════ 4 · THE LOSS ══════════════════ -->
+  <div class="section" id="s-loss">
+    <h2>4 &middot; The loss, one line at a time</h2>
+    <p>The entire training objective fits in the fourteen lines of pseudocode the paper gives in Figure 3. Step through it.
+       Each step highlights the line, and the 4&times;4 grid on the right shows what that line does to the batch.</p>
+
+    <div class="panel">
+      <div class="stepper" id="loss-steps">
+        <button class="btn sm step-btn active" data-step="0">0 &middot; Start</button>
+        <button class="btn sm step-btn" data-step="1">1 &middot; Encode</button>
+        <button class="btn sm step-btn" data-step="2">2 &middot; Project + normalise</button>
+        <button class="btn sm step-btn" data-step="3">3 &middot; Logits</button>
+        <button class="btn sm step-btn" data-step="4">4 &middot; Labels</button>
+        <button class="btn sm step-btn" data-step="5">5 &middot; Image &rarr; text loss</button>
+        <button class="btn sm step-btn" data-step="6">6 &middot; Text &rarr; image loss</button>
+        <button class="btn sm step-btn" data-step="7">7 &middot; Average</button>
+        <button class="btn sm step-btn rose" data-step="8">8 &middot; Gradient</button>
+      </div>
+      <div class="grid2">
+        <div>
+          <div class="code" id="pseudo"></div>
+        </div>
+        <div>
+          <div class="ctl-row" style="margin-bottom:.4rem"><label id="loss-mx-title">Cosine similarities I<sub>e</sub> &middot; T<sub>e</sub><sup>T</sup></label></div>
+          <div class="mx-wrap">
+            <div class="mx-corner"></div>
+            <div class="mx-cols" id="lmx-cols"></div>
+            <div class="mx-rows" id="lmx-rows"></div>
+            <div style="display:flex;align-items:start"><div class="mx" id="lmx" style="flex:1"></div><div class="mx-side" id="lmx-side"></div></div>
+          </div>
+          <div class="mx-bottom" id="lmx-bottom"></div>
+          <div class="readout" style="grid-template-columns:1fr 1fr 1fr">
+            <div class="rcell"><div class="rk">loss_i</div><div class="rv" id="l-li">&mdash;</div></div>
+            <div class="rcell"><div class="rk">loss_t</div><div class="rv" id="l-lt">&mdash;</div></div>
+            <div class="rcell hot"><div class="rk">loss</div><div class="rv" id="l-l">&mdash;</div></div>
+          </div>
+          <div class="ctl-row" style="margin-top:.7rem;margin-bottom:0">
+            <span class="note" style="margin:0" id="lmx-pin">Tap a cell, then push its cosine up or down:</span>
+            <button class="btn sm" id="lmx-up" disabled>+0.15</button>
+            <button class="btn sm" id="lmx-down" disabled>&minus;0.15</button>
+            <button class="btn sm" id="lmx-restore" disabled>restore</button>
+          </div>
+        </div>
+      </div>
+      <div class="step-note" id="loss-note"></div>
+    </div>
+
+    <h3>The formula behind the code</h3>
+    <div class="formula">L<sub>ij</sub> = exp(t) &middot; cos(I<sub>i</sub>, T<sub>j</sub>) &nbsp;&nbsp;<span class="dimd">scaled similarity matrix, N &times; N</span></div>
+    <div class="formula">loss<sub>i&rarr;t</sub> = &minus;(1/N) &Sigma;<sub>i</sub> log <span class="hot">exp(L<sub>ii</sub>)</span> / &Sigma;<sub>j</sub> exp(L<sub>ij</sub>) &nbsp;&nbsp;<span class="dimd">each image picks its caption</span></div>
+    <div class="formula">loss<sub>t&rarr;i</sub> = &minus;(1/N) &Sigma;<sub>j</sub> log <span class="hot">exp(L<sub>jj</sub>)</span> / &Sigma;<sub>i</sub> exp(L<sub>ij</sub>) &nbsp;&nbsp;<span class="dimd">each caption picks its image</span></div>
+    <div class="formula"><span class="hot">loss = &frac12; (loss<sub>i&rarr;t</sub> + loss<sub>t&rarr;i</sub>)</span></div>
+    <div class="formula">&part;loss / &part;L<sub>ij</sub> = &frac12; (P<sup>row</sup><sub>ij</sub> &minus; &delta;<sub>ij</sub>) / N + &frac12; (P<sup>col</sup><sub>ij</sub> &minus; &delta;<sub>ij</sub>) / N &nbsp;&nbsp;<span class="dimd">step 8: the gradient matrix, P &minus; I</span></div>
+    <p>This is the InfoNCE loss of van den Oord et al., applied twice and averaged. Two things are worth keeping. First, it is
+       a plain N-way classification: for image <em>i</em>, the "classes" are the N captions in the batch and the answer is
+       caption <em>i</em>. Second, the gradient on every logit is simply <em>probability minus label</em>: each negative is
+       pushed down in proportion to the probability the model gave it, and the positive is pulled up by 1 &minus; p. Negatives
+       the model already dismisses contribute almost nothing. The hard negatives carry the step &mdash; push one up in the
+       grid above and watch both its row and its column pay for it.</p>
+    <div class="callout amber">
+      <strong>Where the numbers come from.</strong> The paper traces the objective from Sohn's multi-class N-pair loss (2016)
+      through InfoNCE (2018) to ConVIRT (2020), which applied it to medical image&ndash;report pairs. CLIP's contribution was
+      not the loss. It was the discovery that this loss, at web scale, produces a general-purpose visual model.
+    </div>
+  </div>
+
+  <!-- ══════════════════ 5 · TEMPERATURE ══════════════════ -->
+  <div class="section" id="s-temp">
+    <h2>5 &middot; Temperature: the knob CLIP learns for itself</h2>
+    <p>Cosines live in [&minus;1, 1], and in a trained CLIP they live in a much narrower band than that: matching pairs score
+       around 0.3, unrelated pairs around 0.1 to 0.2. Feed numbers like that straight into a softmax over 32,768 candidates and
+       the probabilities are almost uniform, so the loss barely moves however good the geometry is. CLIP multiplies every
+       cosine by a scale <span class="mono">exp(t)</span> before the softmax &mdash; equivalently, divides by a temperature
+       &tau; = 1/exp(t). The paper initialises &tau; at <span class="mono">0.07</span> (borrowed from Wu et al. 2018),
+       <em>learns</em> it by gradient descent, and clips the scale at 100 because larger values made training unstable.</p>
+
+    <div class="panel">
+      <div class="ctl-row">
+        <label>&tau; = <span class="val" id="temp-val">0.07</span> &nbsp; scale = <span class="val" id="temp-scale">14.3</span></label>
+        <input type="range" id="temp-slider" min="0" max="1000" value="580" step="1" style="max-width:340px">
+        <button class="btn sm" data-tau="1">&tau; = 1</button>
+        <button class="btn sm" data-tau="0.07">init 0.07</button>
+        <button class="btn sm" data-tau="0.01">clip 0.01</button>
+        <button class="btn sm rose" id="temp-swap">hardest negative &rarr; 0.36</button>
+      </div>
+      <div class="marks" id="temp-marks"></div>
+      <div class="tbar-head"><span>candidate</span><span>softmax probability</span><span>cos</span><span>&part;loss/&part;logit</span></div>
+      <div class="tbars" id="tbars"></div>
+      <div class="readout" style="grid-template-columns:repeat(4,1fr)">
+        <div class="rcell hot"><div class="rk">&minus;log p(positive)</div><div class="rv" id="temp-loss">&mdash;</div></div>
+        <div class="rcell"><div class="rk">gradient on the hardest negative</div><div class="rv" id="temp-hard">&mdash;</div></div>
+        <div class="rcell"><div class="rk">share of push on top-2 negatives</div><div class="rv" id="temp-share">&mdash;</div></div>
+        <div class="rcell vio"><div class="rk">best possible loss at this &tau; (N = 8)</div><div class="rv" id="temp-floor">&mdash;</div></div>
+      </div>
+      <div class="step-note" id="temp-note"></div>
+      <p class="hint">One image's row of eight cosines, in the narrow band a trained CLIP actually produces: the true pair at 0.31, the closest
+         non-match at 0.24, the rest down to 0.08. Every number above is computed from these eight values.</p>
+    </div>
+
+    <p>Three regimes. At &tau; = 1 the softmax is nearly flat: the positive gets barely more probability than anything else and
+       the gradient is spread thinly across every negative. Worse, because cosines cannot exceed 1, even a <em>perfect</em>
+       geometry cannot get the loss below ln(1 + (N&minus;1)e<sup>&minus;2/&tau;</sup>) &mdash; at &tau; = 1 and N = 32,768 that
+       floor is 8.4. Around 0.07 the hardest negatives dominate the gradient, which is what you want. Push towards 0.01 and the
+       loss becomes a contest between the positive and the single closest negative, with everything else ignored &mdash; and a
+       single negative that overtakes the positive sends the loss past 10, which is why the scale is clipped. The released CLIP
+       checkpoints sit exactly at that clip: their logits are cosine &times; 100, i.e. &tau; = 0.01. The miniature model in the
+       next section drifts the same way, and you can watch it happen.</p>
+  </div>
+
+  <!-- ══════════════════ 6 · THE LAB ══════════════════ -->
+  <div class="section" id="s-lab">
+    <h2>6 &middot; The lab: train CLIP in your browser</h2>
+    <p>Everything above, running for real. The world is nine concepts: three colours &times; three shapes. An "image" is a
+       12-number feature vector (colour, shape, size, position, noise) drawn as an icon. A "caption" is a bag of words from
+       a 14-word vocabulary, generated from templates like <em>"a photo of a red circle"</em> or <em>"the square is blue"</em>.
+       Two small MLP encoders map both into a <em>2-dimensional</em> space, so after normalisation every embedding is a point
+       on a circle and you can see the whole space at once. The loss is the symmetric cross-entropy from Section 4, the
+       temperature is learnable and clipped at a scale of 100, and the gradients are computed by hand-written backprop
+       &mdash; checked against finite differences to 10<sup>&minus;8</sup>.</p>
+
+    <div class="panel">
+      <div class="panel-title">Guided experiments &mdash; each one resets to the same seed and trains automatically</div>
+      <div class="ctl-row">
+        <button class="btn sm lab-preset active" data-preset="default">1 &middot; Default run</button>
+        <button class="btn sm lab-preset" data-preset="tau1">2 &middot; &tau; frozen at 1</button>
+        <button class="btn sm lab-preset" data-preset="tiny">3 &middot; Tiny batch (N = 4)</button>
+        <button class="btn sm lab-preset" data-preset="siglip">4 &middot; SigLIP sigmoid</button>
+        <button class="btn sm lab-preset" data-preset="collide">5 &middot; Collisions (N = 32)</button>
+      </div>
+      <div class="ctl-row">
+        <div class="ctl-group">
+          <label>Batch N</label>
+          <button class="btn sm lab-n" data-n="4">4</button>
+          <button class="btn sm lab-n active" data-n="16">16</button>
+          <button class="btn sm lab-n" data-n="32">32</button>
+        </div>
+        <div class="ctl-group">
+          <label>&tau;</label>
+          <button class="btn sm lab-t active" data-t="learn">learnable</button>
+          <button class="btn sm lab-t" data-t="1">fixed 1.0</button>
+          <button class="btn sm lab-t" data-t="0.07">fixed 0.07</button>
+        </div>
+        <div class="ctl-group">
+          <label>Loss</label>
+          <button class="btn sm lab-l active" data-l="softmax">softmax (CLIP)</button>
+          <button class="btn sm lab-l rose" data-l="sigmoid">sigmoid (SigLIP)</button>
+        </div>
+        <div class="ctl-group">
+          <label>Speed</label>
+          <button class="btn sm lab-sp" data-sp="1">slow</button>
+          <button class="btn sm lab-sp active" data-sp="3">normal</button>
+          <button class="btn sm lab-sp" data-sp="15">fast</button>
+        </div>
+        <button class="btn sm active" id="lab-forces">forces on</button>
+      </div>
+      <div class="ctl-row">
+        <button class="btn primary" id="lab-play">&#9654; Train</button>
+        <button class="btn" id="lab-step">Step &times;1</button>
+        <button class="btn" id="lab-step50">Step &times;50</button>
+        <button class="btn" id="lab-reset">&#8635; Reset (new seed)</button>
+        <div class="lab-status" style="margin:0 0 0 auto">
+          <span>step <span class="pill" id="lab-stepc">0</span></span>
+          <span>loss <span class="pill" id="lab-loss">&mdash;</span></span>
+          <span>&tau; <span class="pill" id="lab-tau">&mdash;</span></span>
+          <span id="lab-biaswrap" style="display:none">b <span class="pill" id="lab-bias">&mdash;</span></span>
+        </div>
+      </div>
+
+      <div class="grid-lab">
+        <div class="canvas-card">
+          <div class="ctitle">The joint embedding space <span>90 held-out images (icons) &middot; 9 captions (labels) &middot; arrows = this batch's gradient</span></div>
+          <canvas id="lab-circle" height="400"></canvas>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.8rem">
+          <div class="canvas-card">
+            <div class="ctitle">This step's batch: cosine matrix <span id="lab-hm-sub">rows = images, cols = captions, amber = false negative</span></div>
+            <canvas id="lab-heat" height="150"></canvas>
+          </div>
+          <div class="canvas-card">
+            <div class="ctitle">Loss per step <span id="lab-loss-sub">violet = chance ln N &middot; amber = floor at current &tau;</span></div>
+            <canvas id="lab-curve" height="120"></canvas>
+          </div>
+          <div class="canvas-card">
+            <div class="ctitle">Learned temperature &tau; <span>log scale, dashed = clip at 0.01</span></div>
+            <canvas id="lab-tcurve" height="80"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="acc-row">
+        <div class="acc"><div class="ak"><span>image &rarr; caption top-1</span><b id="acc-i2t">0%</b></div><div class="aw"><div class="af" id="accf-i2t" style="width:0"></div></div></div>
+        <div class="acc"><div class="ak"><span>colour correct</span><b id="acc-col">0%</b></div><div class="aw"><div class="af" id="accf-col" style="width:0"></div></div></div>
+        <div class="acc"><div class="ak"><span>shape correct</span><b id="acc-shp">0%</b></div><div class="aw"><div class="af" id="accf-shp" style="width:0"></div></div></div>
+        <div class="acc"><div class="ak"><span>positive-pair cosine</span><b id="acc-pc">&mdash;</b></div><div class="aw"><div class="af" id="accf-pc" style="width:0;background:var(--rose)"></div></div></div>
+        <div class="acc"><div class="ak"><span>false negatives in this batch</span><b id="acc-fn">&mdash;</b></div><div class="aw"><div class="af" id="accf-fn" style="width:0;background:var(--amber)"></div></div></div>
+      </div>
+      <div class="lab-note" id="lab-note"></div>
+    </div>
+
+    <h3>What each experiment shows</h3>
+    <ul>
+      <li><strong>1 &middot; Default run.</strong> At step 0 the nine captions sit almost on top of each other and the images
+          occupy their own arc: two random networks map their inputs into two narrow cones (the dashed arrows are the mean
+          embedding of each modality &mdash; long means concentrated). Watch the captions fan out first, then the image clusters
+          drift to meet them, then &tau; fall as the softmax sharpens. The loss never reaches the amber floor because a batch of 16
+          drawn from 9 concepts almost always contains two pairs of the <em>same</em> concept &mdash; false negatives, marked amber
+          in the heatmap.</li>
+      <li><strong>2 &middot; &tau; frozen at 1.</strong> The clusters still form, but the loss stalls high: with cosines capped at
+          1, a flat softmax cannot get below the floor shown in amber. This is the reason CLIP learns &tau; instead of fixing it.</li>
+      <li><strong>3 &middot; Tiny batch.</strong> With N = 4 a batch usually contains no same-colour or same-shape near-miss,
+          so separating one attribute already wins most rounds. Watch the <em>colour</em> and <em>shape</em> bars separate, and
+          notice how long it takes for the second attribute to be learned at all.</li>
+      <li><strong>4 &middot; SigLIP.</strong> Every cell becomes its own yes/no question with a learned bias b initialised at
+          &minus;10, so the 240 negatives start out already "correct". No chance line is drawn because there is no softmax to be
+          uniform over. The clusters form just the same; the difference is memory, not geometry.</li>
+      <li><strong>5 &middot; Collisions.</strong> N = 32 over 9 concepts means every batch has several duplicates. Count the amber
+          cells: those are pairs the objective insists on pushing apart even though they are the same concept. CLIP never masks
+          them; at 400 million captions the collision rate is simply low enough not to matter.</li>
+    </ul>
+    <div class="callout rose">
+      <strong>What the toy cannot tell you.</strong> Real CLIP embeds into 768 dimensions, not 2; its text encoder is a
+      Transformer that can see word order; and its two modalities stay in separate cones after training &mdash; Liang et al.
+      (2022) measure the distance between the image and text centres of a trained CLIP at 0.82, and show that the low temperature
+      is what keeps them apart. On a circle there is no room for two cones once nine clusters have to spread out, so here they
+      dissolve. Occasionally a run also gets stuck with two clusters in the wrong order &mdash; on a one-dimensional ring, clusters
+      cannot pass through each other. That trap does not exist in 768 dimensions; press Reset.
+    </div>
+  </div>
+
+  <!-- ══════════════════ 7 · ZERO-SHOT ══════════════════ -->
+  <div class="section" id="s-zeroshot">
+    <h2>7 &middot; The classifier that writes itself</h2>
+    <p>After training, the text encoder has become something strange: a machine that turns a sentence into a
+       <em>classifier weight vector</em>. To classify an image into K classes, embed K prompts, embed the image, take K cosines,
+       scale by exp(t), softmax. No fine-tuning, no labels. The paper found the wording of the prompt matters &mdash;
+       <em>"A photo of a {label}."</em> beat the bare label by 1.3 points on ImageNet, and ensembling 80 such templates added
+       another 3.5 &mdash; because a full sentence looks more like the captions the model was trained on. The toy reproduces the
+       mechanism: its training captions were always sentences, so a bare "red circle" is out of distribution for it too.</p>
+
+    <div class="panel">
+      <div class="ctl-row">
+        <label>Model</label>
+        <span class="note" style="margin:0" id="zs-which"></span>
+      </div>
+      <div class="grid2">
+        <div>
+          <div class="panel-title">1 &middot; pick a held-out image</div>
+          <div class="zs-imgs" id="zs-imgs"></div>
+          <div class="panel-title" style="margin-top:.8rem">2 &middot; write the prompt template</div>
+          <div class="ctl-row">
+            <select id="zs-tmpl">
+              <option value="a photo of a {C} {S}">a photo of a {C} {S}</option>
+              <option value="{C} {S}">{C} {S}  (bare label)</option>
+              <option value="the {S} is {C}">the {S} is {C}</option>
+              <option value="a large {C} {S}">a large {C} {S}</option>
+              <option value="photo photo photo {C} {S}">photo photo photo {C} {S}  (never seen in training)</option>
+              <option value="ensemble">ensemble: average of 4 templates</option>
+              <option value="custom">custom&hellip;</option>
+            </select>
+            <input type="text" id="zs-custom" placeholder="use {C} and {S}, vocab only" style="display:none;flex:1;min-width:160px">
+          </div>
+          <div class="chips" id="zs-chips"></div>
+          <p class="note">Words outside the 14-word vocabulary are dropped &mdash; the toy has no tokenizer fallback.</p>
+        </div>
+        <div>
+          <div class="panel-title">3 &middot; nine prompts become nine classifier weights</div>
+          <div class="zs-bars" id="zs-bars"></div>
+          <div class="readout" style="grid-template-columns:1fr 1fr">
+            <div class="rcell hot"><div class="rk">prediction</div><div class="rv" id="zs-pred">&mdash;</div></div>
+            <div class="rcell"><div class="rk">accuracy of this template over 90 images</div><div class="rv" id="zs-acc">&mdash;</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="step-note" id="zs-note"></div>
+    </div>
+
+    <p>The trick generalises far beyond classification. Retrieval is the same computation with the roles swapped: embed a query
+       sentence, rank a million image embeddings by cosine. Stable Diffusion conditions its denoiser on CLIP text embeddings;
+       LLaVA feeds CLIP's ViT-L/14 patch features into a language model. In every case the asset is the shared space, not the
+       classifier.</p>
+  </div>
+
+  <!-- ══════════════════ 8 · SCALE ══════════════════ -->
+  <div class="section" id="s-scale">
+    <h2>8 &middot; What 400 million pairs actually costs</h2>
+    <p>CLIP's dataset, WIT, was built by searching for 500,000 queries (every word appearing at least 100 times in English
+       Wikipedia, plus bigrams, article titles and WordNet synsets) and keeping up to 20,000 pairs per query. Every model was
+       trained for 32 epochs at a batch of 32,768. Move the sliders to see what those choices imply.</p>
+
+    <div class="panel">
+      <div class="ctl-row">
+        <label>Batch N = <span class="val" id="sc-n">32,768</span></label>
+        <input type="range" id="sc-nslider" min="8" max="16" value="15" step="1">
+        <span class="note" style="margin:0">400M pairs &times; 32 epochs, as in the paper</span>
+      </div>
+      <div class="readout">
+        <div class="rcell"><div class="rk">steps per epoch</div><div class="rv" id="sc-spe">&mdash;</div></div>
+        <div class="rcell"><div class="rk">total steps</div><div class="rv" id="sc-steps">&mdash;</div></div>
+        <div class="rcell"><div class="rk">pairs seen</div><div class="rv" id="sc-seen">&mdash;</div></div>
+        <div class="rcell hot"><div class="rk">negatives per step</div><div class="rv" id="sc-negs">&mdash;</div></div>
+        <div class="rcell"><div class="rk">logit matrix, fp16</div><div class="rv" id="sc-mem">&mdash;</div></div>
+        <div class="rcell vio"><div class="rk">chance loss ln N</div><div class="rv" id="sc-lnn">&mdash;</div></div>
+      </div>
+      <p class="note" id="sc-note"></p>
+    </div>
+
+    <h3>The engineering that made a 32,768 batch fit</h3>
+    <ul>
+      <li><strong>Sharded similarity.</strong> No GPU ever holds the full N&times;N matrix &mdash; the pseudocode's single
+          <span class="mono">np.dot</span> hides this. Each GPU computes only the pairwise similarities its local slice of the batch
+          needs, against the gathered embeddings from every other GPU.</li>
+      <li><strong>Mixed precision, gradient checkpointing, half-precision Adam statistics</strong>, and text-encoder weights
+          stored in half precision with stochastic rounding.</li>
+      <li><strong>Adam with decoupled weight decay</strong> (0.2), 2,000 warm-up iterations, cosine decay. &beta;&#8322; = 0.98
+          for the ViTs rather than the usual 0.999.</li>
+      <li><strong>Compute.</strong> The largest ResNet (RN50x64) took 18 days on 592 V100s; ViT-L/14 took 12 days on 256 V100s
+          &mdash; about <span class="mono" id="sc-gpudays-r"></span> and <span class="mono" id="sc-gpudays-v"></span> V100-days respectively.
+          The similarity matrix is not where that time goes: over the whole run it is about 4.2 &times; 10<sup>14</sup>
+          dot products of 768 numbers, while the two encoders process 12.8 billion images and captions. The encoders dominate.</li>
+    </ul>
+
+    <h3>Why contrastive at all? The efficiency argument</h3>
+    <p>OpenAI's first attempt predicted captions word by word, like an image-captioning model. It worked, but slowly. The paper
+       reports two efficiency ratios measured by the rate at which zero-shot ImageNet accuracy improved with data:</p>
+    <div class="eff" id="eff"></div>
+    <p class="note">Relative efficiency as stated in Section 2.3 and Figure 2 of the paper: a bag-of-words predictor learns
+       3&times; faster than the transformer language model, and the contrastive objective a further 4&times; faster than
+       bag-of-words. The curves themselves are not reproduced here.</p>
+    <div class="callout">
+      <strong>The reason it is faster.</strong> Predicting the exact words of a caption forces the model to spend capacity on
+      everything that is unpredictable about web text &mdash; phrasing, typos, usernames. Predicting only <em>which caption</em>
+      goes with the image lets the model ignore all of that and keep what is shared between the picture and the words.
+    </div>
+  </div>
+
+  <!-- ══════════════════ 9 · LIMITS ══════════════════ -->
+  <div class="section" id="s-limits">
+    <h2>9 &middot; What the objective never asks for</h2>
+    <p>A model learns exactly what the loss rewards and nothing more. Every well-known CLIP failure is a feature the matching
+       game did not require.</p>
+
+    <div class="grid2">
+      <div class="lim">
+        <h4>Word order</h4>
+        <p>If no caption in the batch is a re-ordering of another, the model is never punished for treating text as a bag of
+           words. Yuksekgonul et al. (2023) built the ARO benchmark from exactly such pairs: asked to pick the right caption out
+           of two that differ only in a relation or attribute, CLIP scored <span class="m">59%</span> and <span class="m">62%</span>
+           against a chance level of 50%. Adding word-order-shuffled captions to each batch as hard negatives (NegCLIP) lifted
+           the relation score to 81%. Our toy's text encoder is a bag of words <em>by construction</em> &mdash; try it:</p>
+        <div class="ctl-row" style="margin-top:.6rem">
+          <input type="text" id="bow-a" value="a red circle" style="flex:1;min-width:120px">
+          <input type="text" id="bow-b" value="circle red a" style="flex:1;min-width:120px">
+        </div>
+        <div class="note">cosine between the two captions: <span class="val" id="bow-cos">&mdash;</span></div>
+      </div>
+      <div class="lim">
+        <h4>The modality gap</h4>
+        <p>In a trained CLIP, image and text embeddings occupy two separate regions of the sphere. Liang et al. (2022) trace it
+           to the cone effect: a random deep network maps all its inputs into a narrow cone, the two towers start in two
+           different cones, and the contrastive loss at a low temperature has a <em>repulsive</em> structure that keeps them
+           apart &mdash; the measured gap of 0.82 is a loss minimum, and closing it raises the loss.</p>
+        <div class="note">In the lab right now: cone concentration at init &mdash; images <span class="val" id="cone-i">&mdash;</span>, captions <span class="val" id="cone-t">&mdash;</span> (1 = a single point); positive-pair cosine <span class="val" id="pc-init">&mdash;</span> at init &rarr; <span class="val" id="pc-now">&mdash;</span> now.</div>
+      </div>
+      <div class="lim">
+        <h4>Whatever the captions never mention</h4>
+        <p>The image tower keeps only what helps pick the right caption. The paper lists the casualties: counting objects,
+           fine-grained classes (car models, aircraft variants, flower species), and handwritten digits &mdash; zero-shot CLIP
+           reached only 88% on MNIST, below a logistic regression on raw pixels, because almost nothing in web captions looks
+           like a handwritten "7".</p>
+        <div class="note">The lab measures the same mechanism: changing only an image's <em>size</em>, a feature no caption
+           mentions, moved its embedding by <span class="val" id="nuis-init">&mdash;</span> at init and moves it by
+           <span class="val" id="nuis-now">&mdash;</span> now.</div>
+      </div>
+      <div class="lim">
+        <h4>Typographic attacks</h4>
+        <p>Because the text tower learned to read words in images (rendered text is cheap contrastive signal), Goh et al. (2021)
+           found that a Granny Smith apple with a paper label reading <span class="m">"iPod"</span> is classified as an iPod.
+           The objective rewarded reading the label exactly as much as recognising the fruit.</p>
+      </div>
+    </div>
+
+    <h3>What changed after CLIP</h3>
+    <div class="tblwrap">
+    <table class="cmp">
+      <tr><th>Model</th><th>What it changed</th><th>Why</th></tr>
+      <tr><td>ALIGN (Google, 2021)</td><td>1.8 billion <em>noisier</em> pairs, no curation</td><td>Scale beats cleaning under the contrastive objective.</td></tr>
+      <tr><td>OpenCLIP / LAION (2022&ndash;23)</td><td>Open reproduction on LAION-400M and LAION-2B</td><td>Showed the recipe is reproducible and follows clean scaling laws.</td></tr>
+      <tr><td>SigLIP (Google, 2023)</td><td>Sigmoid loss per pair instead of softmax over the batch</td><td>No global normalisation, so no need to gather the whole batch's similarities; clearly better below a 16k batch, and both losses saturate around 32k. Try it in the lab.</td></tr>
+      <tr><td>LLaVA, Flamingo, &hellip;</td><td>Use CLIP's image tower as the eyes of a language model</td><td>The contrastive objective produced the most reusable vision features available.</td></tr>
+    </table>
+    </div>
+  </div>
+
+  <!-- ══════════════════ 10 · PM LENS ══════════════════ -->
+  <div class="section" id="s-pm">
+    <h2>10 &middot; PM lens &mdash; what to ask before you ship a CLIP-like model</h2>
+    <p>You will meet CLIP-style models as an image-search feature, a content-moderation classifier, an embedding API, or the
+       vision half of a multimodal assistant. The questions below follow directly from how it is trained.</p>
+    <h3>Six questions</h3>
+    <ul>
+      <li><strong>"What was it trained on, and can we say so?"</strong> &mdash; The objective needs hundreds of millions of
+          <em>web-scraped</em> pairs. WIT was never released; LAION was built from Common Crawl and has been withdrawn and
+          re-issued over content concerns. Provenance is a product risk, not a research footnote.</li>
+      <li><strong>"Zero-shot on <em>whose</em> prompts?"</strong> &mdash; Section 7 showed a template change moves accuracy. Any
+          zero-shot number you are quoted is a number for one prompt set; ask for the ensemble, and for the prompts.</li>
+      <li><strong>"Is the task a matching task?"</strong> &mdash; Retrieval, tagging, de-duplication and coarse classification
+          are matching tasks and CLIP excels. Counting, reading small text, relational questions ("left of", "holding") are
+          not, and a captioning or VLM model will do better.</li>
+      <li><strong>"What is the recall at the k we actually show?"</strong> &mdash; For search, evaluate with Recall@k and NDCG
+          on your own queries (Post 65), not with ImageNet accuracy from the model card.</li>
+      <li><strong>"Softmax or sigmoid, and what batch?"</strong> &mdash; If you are training or fine-tuning, the batch size
+          <em>is</em> the negative set. Small-batch fine-tuning of a CLIP model with the softmax loss is a common way to quietly
+          degrade it; SigLIP's loss is the safer default at small scale.</li>
+      <li><strong>"Has anyone tried the typographic attack?"</strong> &mdash; A moderation classifier that reads text in images
+          can be steered by text in images. Red-team it with labels before someone else does.</li>
+    </ul>
+    <div class="callout amber">
+      <strong>The single most useful mental model.</strong> A CLIP embedding answers "what caption would the web have put under
+      this?" &mdash; not "what is in this image?" The two overlap enough to be useful and diverge enough to bite. Every failure
+      mode in Section 9 is a place where the web's captions and the truth disagree.
+    </div>
+  </div>
+
+  <!-- ══════════════════ 11 · CHEAT SHEET ══════════════════ -->
+  <div class="section" id="s-card">
+    <h2>11 &middot; The whole thing on one card</h2>
+    <div class="formula">I<sub>e</sub> = normalize(W<sub>i</sub> &middot; image_encoder(I)) &nbsp;&nbsp; T<sub>e</sub> = normalize(W<sub>t</sub> &middot; text_encoder(T)<sub>[EOS]</sub>)</div>
+    <div class="formula">logits = exp(t) &middot; I<sub>e</sub> T<sub>e</sub><sup>T</sup> &nbsp;&nbsp;<span class="dimd">N &times; N, diagonal = true pairs</span></div>
+    <div class="formula"><span class="hot">loss = &frac12; [ CE(logits, arange(N)) + CE(logits<sup>T</sup>, arange(N)) ]</span></div>
+    <div class="tblwrap">
+    <table class="cmp">
+      <tr><th>Hyper-parameter</th><th>CLIP value</th><th>Why it matters</th></tr>
+      <tr><td>Batch size</td><td class="num">32,768</td><td>Sets the number of negatives, N&sup2;&minus;N &asymp; 1.07B per step.</td></tr>
+      <tr><td>Temperature &tau;</td><td class="num">t init ln(1/0.07) = 2.659, learned, clipped at ln 100 = 4.605</td><td>Controls how sharply the hardest negatives dominate the gradient. Released checkpoints sit at the clip.</td></tr>
+      <tr><td>Gradient on logits</td><td class="num">(P<sup>row</sup> &minus; I)/2N + (P<sup>col</sup> &minus; I)/2N</td><td>Probability minus label: negatives pushed in proportion to p, the positive pulled by 1 &minus; p.</td></tr>
+      <tr><td>Loss floors</td><td class="num">ln(1 + (N&minus;1)e<sup>&minus;2/&tau;</sup>) &nbsp;&middot;&nbsp; (1/N) &Sigma; ln k<sub>i</sub></td><td>Bounded cosines at temperature &tau;; k<sub>i</sub> items of the same concept in one batch. Chance is ln N.</td></tr>
+      <tr><td>SigLIP alternative</td><td class="num">&minus;(1/N) &Sigma; log &sigma;(z<sub>ij</sub>(s&middot;cos + b)), s init 10, b init &minus;10</td><td>Per-pair binary loss; no softmax over the batch, no ln N.</td></tr>
+      <tr><td>Epochs</td><td class="num">32</td><td>&asymp; 12.8 billion pairs seen; &asymp; 390,000 steps.</td></tr>
+      <tr><td>Optimizer</td><td class="num">Adam, wd 0.2, cosine, 2k warm-up</td><td>&beta;&#8322; = 0.98 for ViTs; 0.999 for ResNets.</td></tr>
+      <tr><td>Embedding dim</td><td class="num">512 (ViT-B) / 768 (ViT-L)</td><td>The joint space. Linear projection, no non-linear head.</td></tr>
+      <tr><td>Text context</td><td class="num">76 tokens + [SOS]/[EOS]</td><td>The [EOS] activation is the caption's feature.</td></tr>
+      <tr><td>Augmentation</td><td class="num">random square crop only</td><td>At 400M pairs, overfitting is not the problem.</td></tr>
+      <tr><td>Init</td><td class="num">from scratch</td><td>No ImageNet weights, no pre-trained text model.</td></tr>
+    </table>
+    </div>
+    <ul style="margin-top:1rem">
+      <li>The loss is InfoNCE, applied image&rarr;text and text&rarr;image and averaged. It is an N-way classification with the batch as the label set.</li>
+      <li>A uniform guess scores ln N. With N = 32,768 that is 10.4; and with cosines bounded, the best possible loss at temperature &tau; is ln(1 + (N&minus;1)e<sup>&minus;2/&tau;</sup>) &mdash; 8.4 at &tau; = 1, essentially 0 at 0.07. That is why &tau; is learned.</li>
+      <li>Zero-shot classification = embed K prompts, take K cosines, softmax. The text encoder is a hypernetwork for linear classifiers.</li>
+      <li>Everything CLIP is bad at &mdash; order, counting, reading small text correctly &mdash; is something the matching game never demanded.</li>
+    </ul>
+    <p style="margin-top:1rem;font-size:.85rem;color:var(--muted)">
+      Source: Radford et al., <em>Learning Transferable Visual Models From Natural Language Supervision</em>, ICML 2021 (arXiv:2103.00020),
+      Sections 2.3&ndash;2.5, 3.1.4, Figure 3 and Appendix F. Follow-ups: Zhai et al. 2023 (SigLIP, arXiv:2303.15343); Liang et al. 2022
+      (modality gap, arXiv:2203.02053); Yuksekgonul et al. 2023 (ARO, arXiv:2210.01936); Wu et al. 2018 (&tau; = 0.07); van den Oord et al. 2018 (InfoNCE).
+    </p>
+  </div>
+
+  <!-- RELATED POSTS -->
+  <div class="related-strip">
+    <div class="related-strip-label">Continue Learning</div>
+    <div class="related-strip-grid">
+      <a class="rc" href="../16-contrastive-loss/">
+        <div class="rc-type" style="color:#f7b731;">Prerequisite</div>
+        <div class="rc-num">Post 16 · Representations</div>
+        <div class="rc-title">Contrastive Loss</div>
+        <div class="rc-why">Siamese networks, margins and NT-Xent — the lineage CLIP's symmetric InfoNCE loss comes from.</div>
+      </a>
+      <a class="rc" href="../08-sbert/">
+        <div class="rc-type" style="color:#f7b731;">Prerequisite</div>
+        <div class="rc-num">Post 08 · Representations</div>
+        <div class="rc-title">Sentence-BERT</div>
+        <div class="rc-why">A two-tower text encoder trained for cosine similarity — CLIP's text side, one modality earlier.</div>
+      </a>
+      <a class="rc" href="../30-semantic-collapse/">
+        <div class="rc-type" style="color:#a78bfa;">Related</div>
+        <div class="rc-num">Post 30 · Representations</div>
+        <div class="rc-title">Semantic Collapse</div>
+        <div class="rc-why">Contrastive training erases whatever the negatives never test — CLIP's bag-of-words behaviour is the multimodal case.</div>
+      </a>
+      <a class="rc" href="../65-ndcg/">
+        <div class="rc-type" style="color:#a78bfa;">Related</div>
+        <div class="rc-num">Post 65 · Evaluation</div>
+        <div class="rc-title">NDCG</div>
+        <div class="rc-why">How to evaluate the retrieval systems that CLIP embeddings power, at the k your users actually see.</div>
+      </a>
+    </div>
+    <a class="map-link-btn" href="../learning-map/">&#x1F5FA; See Post 66 in the Learning Map &#x2192;</a>
+  </div>
+
+  <div class="footer">Visual Summary &middot; Post 66 &mdash; CLIP Under the Hood<br><span style="font-size:.72rem">Every figure in Sections 3, 4, 6, 7 and 9 is computed in your browser by the miniature model on this page.</span></div>
+</div>
+
+<script>
+"use strict";
+
+/* ═══════════════ GATE ═══════════════ */
+(function(){ if(localStorage.getItem('pg_unlocked_66')==='1') document.getElementById('gate').style.display='none'; })();
+function checkGate(){
+  if(document.getElementById('gate-input').value==='visual2025'){
+    localStorage.setItem('pg_unlocked_66','1');
+    document.getElementById('gate').style.display='none';
+    setTimeout(redrawAll, 50);          // canvases size from clientWidth; redraw once the overlay is gone
+  } else document.getElementById('gate-err').style.display='block';
+}
+
+/* ═══════════════ SMALL HELPERS ═══════════════ */
+function $(id){ return document.getElementById(id); }
+function clamp(x, a, b){ return x < a ? a : (x > b ? b : x); }
+function fmtInt(n){ return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+function fmtBig(n){
+  if(n >= 1e12) return (n / 1e12).toFixed(2) + ' T';
+  if(n >= 1e9)  return (n / 1e9).toFixed(2) + ' B';
+  if(n >= 1e6)  return (n / 1e6).toFixed(1) + ' M';
+  if(n >= 1e3)  return (n / 1e3).toFixed(1) + ' k';
+  return String(Math.round(n));
+}
+/* DPR-aware canvas sizing; the design height is cached on first use so repeated calls are idempotent */
+function setupCanvas(cv){
+  var dpr = window.devicePixelRatio || 1;
+  if(!cv.dataset.baseH) cv.dataset.baseH = cv.getAttribute('height') || 240;
+  var h = +cv.dataset.baseH, w = cv.clientWidth || 600;
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  cv.style.height = h + 'px';
+  var ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx: ctx, w: w, h: h };
+}
+var SHAPE_COLORS = ['#ef4444', '#22c55e', '#3b82f6'];
+function drawShape(ctx, x, y, r, c, s, alpha){
+  ctx.save();
+  ctx.globalAlpha = alpha == null ? 1 : alpha;
+  ctx.fillStyle = SHAPE_COLORS[c];
+  ctx.beginPath();
+  if(s === 0){ ctx.arc(x, y, r, 0, Math.PI * 2); }
+  else if(s === 1){ ctx.rect(x - r, y - r, 2 * r, 2 * r); }
+  else { ctx.moveTo(x, y - r * 1.15); ctx.lineTo(x + r * 1.1, y + r * 0.85); ctx.lineTo(x - r * 1.1, y + r * 0.85); ctx.closePath(); }
+  ctx.fill();
+  ctx.restore();
+}
+/* diverging colour for a cosine in [-1, 1]: blue → dark → rose */
+function cosColor(c){
+  c = clamp(c, -1, 1);
+  if(!(c === c)) c = 0;
+  if(c >= 0){ var t = c; return 'rgb(' + Math.round(15 + (244 - 15) * t) + ',' + Math.round(24 + (63 - 24) * t) + ',' + Math.round(48 + (94 - 48) * t) + ')'; }
+  var u = -c; return 'rgb(' + Math.round(15 + (29 - 15) * u) + ',' + Math.round(24 + (78 - 24) * u) + ',' + Math.round(48 + (216 - 48) * u) + ')';
+}
+function shapeIcon(size, c, s, img){
+  var cv = document.createElement('canvas'); cv.width = size * 2; cv.height = size * 2; cv.style.width = size + 'px'; cv.style.height = size + 'px';
+  var ctx = cv.getContext('2d'); ctx.scale(2, 2);
+  ctx.fillStyle = '#050811'; ctx.fillRect(0, 0, size, size);
+  var r = size * 0.22 * (img ? img.size : 0.85), cx = size / 2 + (img ? img.px * size * 0.18 : 0);
+  drawShape(ctx, cx, size / 2, r, c, s);
+  return cv;
+}
+
+/* ═══════════════ CLIP-IN-MINIATURE ENGINE ═══════════════ */
+/* seeded RNG (mulberry32) so a reset is reproducible */
+function makeRng(seed){
+  var a = seed >>> 0;
+  var r = function(){
+    a = (a + 0x6D2B79F5) >>> 0;
+    var t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  r.gauss = function(){ var u = 1 - r(), v = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+  r.int = function(n){ return Math.floor(r() * n); };
+  return r;
+}
+
+/* ── the toy world: 3 colours × 3 shapes = 9 concepts ── */
+var COLORS = ['red', 'green', 'blue'];
+var SHAPES = ['circle', 'square', 'triangle'];
+var VOCAB  = ['a', 'an', 'photo', 'picture', 'image', 'of', 'the', 'is', 'small', 'large',
+              'red', 'green', 'blue', 'circle', 'square', 'triangle'];   // 16 tokens
+var IMG_DIM = 3 + 3 + 2 + 4;   // colour one-hot, shape one-hot, size, x-position, 4 noise dims
+var TXT_DIM = VOCAB.length;
+var EMB_DIM = 2;               // so every embedding lives on the unit circle
+var HID     = 16;
+
+/* every training caption is a sentence around the concept — a bare "red circle" never occurs,
+   so at zero-shot time the bare label is genuinely out of distribution (as in web captions) */
+var TEMPLATES = [
+  ['a', 'photo', 'of', 'a', 'C', 'S'],
+  ['a', 'photo', 'of', 'a', 'C', 'S'],
+  ['a', 'photo', 'of', 'the', 'C', 'S'],
+  ['a', 'picture', 'of', 'a', 'C', 'S'],
+  ['an', 'image', 'of', 'a', 'C', 'S'],
+  ['the', 'S', 'is', 'C'],
+  ['a', 'picture', 'of', 'a', 'small', 'C', 'S'],
+  ['a', 'photo', 'of', 'a', 'large', 'C', 'S'],
+];
+/* the best loss any geometry can reach when cosines are bounded in [-1, 1]:
+   positive at +1, every negative at -1, N candidates, temperature tau */
+function floorLoss(N, tau){ return Math.log(1 + (N - 1) * Math.exp(-2 / tau)); }
+/* the floor set by duplicate concepts in a batch: if k_i items share item i's concept, the best any
+   model can do for that row is spread probability evenly over the k_i, costing ln k_i */
+function dupFloor(pairs){
+  var N = pairs.length, s = 0, counts = {};
+  for(var i = 0; i < N; i++) counts[pairs[i].img.id] = (counts[pairs[i].img.id] || 0) + 1;
+  for(i = 0; i < N; i++) s += Math.log(counts[pairs[i].img.id]);
+  return s / N;
+}
+
+function conceptId(c, s){ return c * 3 + s; }
+
+/* an "image": a feature vector plus the metadata we render it from */
+function makeImage(rng, c, s){
+  var x = new Float64Array(IMG_DIM);
+  x[c] = 1; x[3 + s] = 1;
+  var size = 0.6 + 0.4 * rng();          // 0.6 .. 1.0
+  var px   = rng() * 2 - 1;              // -1 .. 1
+  x[6] = size; x[7] = px;
+  for(var k = 8; k < IMG_DIM; k++) x[k] = 0.5 * rng.gauss();
+  return { x: x, c: c, s: s, id: conceptId(c, s), size: size, px: px };
+}
+
+/* a "caption": a bag-of-tokens vector plus the words */
+function tokensToVec(words){
+  var v = new Float64Array(TXT_DIM);
+  for(var i = 0; i < words.length; i++){
+    var k = VOCAB.indexOf(words[i]);
+    if(k < 0) throw new Error('unknown token ' + words[i]);
+    v[k] += 1;
+  }
+  return v;
+}
+function captionWords(c, s, tmpl){
+  return tmpl.map(function(w){ return w === 'C' ? COLORS[c] : (w === 'S' ? SHAPES[s] : w); });
+}
+function makeCaption(rng, c, s, tmplIndex){
+  var t = TEMPLATES[tmplIndex == null ? rng.int(TEMPLATES.length) : tmplIndex];
+  var words = captionWords(c, s, t);
+  return { y: tokensToVec(words), words: words, c: c, s: s, id: conceptId(c, s) };
+}
+function makePair(rng, noise){
+  var c = rng.int(3), s = rng.int(3);
+  var img = makeImage(rng, c, s), cap;
+  if(noise && rng() < noise){                     // a mislabelled web pair: the caption describes some other concept
+    cap = makeCaption(rng, rng.int(3), rng.int(3)); cap.noisy = true;
+  } else cap = makeCaption(rng, c, s);
+  return { img: img, cap: cap };
+}
+
+/* ── a 2-layer MLP encoder: in → HID (tanh) → EMB_DIM ── */
+function makeMLP(rng, inDim){
+  var W1 = new Float64Array(HID * inDim), b1 = new Float64Array(HID);
+  var W2 = new Float64Array(EMB_DIM * HID), b2 = new Float64Array(EMB_DIM);
+  var s1 = 1 / Math.sqrt(inDim), s2 = 1 / Math.sqrt(HID);
+  for(var i = 0; i < W1.length; i++) W1[i] = rng.gauss() * s1;
+  for(var j = 0; j < W2.length; j++) W2[j] = rng.gauss() * s2;
+  return { inDim: inDim, W1: W1, b1: b1, W2: W2, b2: b2 };
+}
+/* forward one input; returns {h, z, u, nz} — u is the L2-normalised embedding */
+function mlpForward(m, x){
+  var h = new Float64Array(HID), z = new Float64Array(EMB_DIM);
+  for(var i = 0; i < HID; i++){
+    var a = m.b1[i], row = i * m.inDim;
+    for(var k = 0; k < m.inDim; k++) a += m.W1[row + k] * x[k];
+    h[i] = Math.tanh(a);
+  }
+  for(var o = 0; o < EMB_DIM; o++){
+    var zz = m.b2[o], r2 = o * HID;
+    for(var q = 0; q < HID; q++) zz += m.W2[r2 + q] * h[q];
+    z[o] = zz;
+  }
+  var nz = 0; for(var d = 0; d < EMB_DIM; d++) nz += z[d] * z[d];
+  nz = Math.sqrt(nz) + 1e-12;
+  var u = new Float64Array(EMB_DIM); for(d = 0; d < EMB_DIM; d++) u[d] = z[d] / nz;
+  return { h: h, z: z, u: u, nz: nz };
+}
+/* backward: gu = dLoss/du; accumulates into grads g (same shapes as m) */
+function mlpBackward(m, x, fw, gu, g){
+  var d, q, k;
+  /* through L2 normalisation: gz = (gu - u (u·gu)) / |z| */
+  var dot = 0; for(d = 0; d < EMB_DIM; d++) dot += fw.u[d] * gu[d];
+  var gz = new Float64Array(EMB_DIM);
+  for(d = 0; d < EMB_DIM; d++) gz[d] = (gu[d] - fw.u[d] * dot) / fw.nz;
+  /* through W2 */
+  var gh = new Float64Array(HID);
+  for(d = 0; d < EMB_DIM; d++){
+    var r2 = d * HID;
+    g.b2[d] += gz[d];
+    for(q = 0; q < HID; q++){ g.W2[r2 + q] += gz[d] * fw.h[q]; gh[q] += m.W2[r2 + q] * gz[d]; }
+  }
+  /* through tanh and W1 */
+  for(q = 0; q < HID; q++){
+    var ga = gh[q] * (1 - fw.h[q] * fw.h[q]);
+    g.b1[q] += ga;
+    var row = q * m.inDim;
+    for(k = 0; k < m.inDim; k++) g.W1[row + k] += ga * x[k];
+  }
+}
+function zeroLike(m){
+  return { W1: new Float64Array(m.W1.length), b1: new Float64Array(m.b1.length),
+           W2: new Float64Array(m.W2.length), b2: new Float64Array(m.b2.length) };
+}
+
+/* ── the model: two towers + logit scale (+ bias for sigmoid) ── */
+/* opts.loss: 'softmax' | 'sigmoid'; opts.temp: 'learn' | number (fixed tau) */
+function makeModel(seed, opts){
+  var rng = makeRng(seed);
+  var m = {
+    img: makeMLP(rng, IMG_DIM),
+    txt: makeMLP(rng, TXT_DIM),
+    loss: opts.loss || 'softmax',
+    tempMode: opts.temp == null ? 'learn' : opts.temp,
+    logT: 0, bias: 0, step: 0, rng: rng,
+  };
+  if(m.loss === 'sigmoid'){ m.logT = Math.log(10); m.bias = -10; }      // SigLIP init: t' = log 10, b = -10
+  else m.logT = Math.log(1 / 0.07);                                        // CLIP init: tau = 0.07
+  if(typeof m.tempMode === 'number') m.logT = Math.log(1 / m.tempMode);
+  m.adam = { i: zeroLike(m.img), t: zeroLike(m.txt), i2: zeroLike(m.img), t2: zeroLike(m.txt),
+             logT: [0, 0], bias: [0, 0] };
+  return m;
+}
+function scaleOf(m){ return Math.exp(m.logT); }
+
+/* forward a batch of pairs; returns everything needed for the loss and for drawing */
+function forwardBatch(m, pairs){
+  var N = pairs.length, fi = [], ft = [], U = [], V = [];
+  for(var i = 0; i < N; i++){
+    fi.push(mlpForward(m.img, pairs[i].img.x)); U.push(fi[i].u);
+    ft.push(mlpForward(m.txt, pairs[i].cap.y)); V.push(ft[i].u);
+  }
+  var C = new Float64Array(N * N);                       // cosine similarities
+  for(i = 0; i < N; i++) for(var j = 0; j < N; j++){
+    var d = 0; for(var k = 0; k < EMB_DIM; k++) d += U[i][k] * V[j][k];
+    C[i * N + j] = d;
+  }
+  return { N: N, fi: fi, ft: ft, U: U, V: V, C: C };
+}
+
+/* loss value + dLoss/dLogit for the symmetric softmax (CLIP) objective.
+   logits L_ij = s * C_ij.  loss = ½(CE over rows + CE over columns), CE averaged over N. */
+function softmaxLoss(N, C, s){
+  var L = new Float64Array(N * N), G = new Float64Array(N * N), i, j;
+  for(i = 0; i < N * N; i++) L[i] = s * C[i];
+  var lossRow = 0, lossCol = 0;
+  var Prow = new Float64Array(N * N), Pcol = new Float64Array(N * N);
+  for(i = 0; i < N; i++){                                  // image i → which text?
+    var mx = -Infinity; for(j = 0; j < N; j++) mx = Math.max(mx, L[i * N + j]);
+    var Z = 0; for(j = 0; j < N; j++) Z += Math.exp(L[i * N + j] - mx);
+    for(j = 0; j < N; j++) Prow[i * N + j] = Math.exp(L[i * N + j] - mx) / Z;
+    lossRow += -Math.log(Prow[i * N + i]);
+  }
+  for(j = 0; j < N; j++){                                  // text j → which image?
+    var mx2 = -Infinity; for(i = 0; i < N; i++) mx2 = Math.max(mx2, L[i * N + j]);
+    var Z2 = 0; for(i = 0; i < N; i++) Z2 += Math.exp(L[i * N + j] - mx2);
+    for(i = 0; i < N; i++) Pcol[i * N + j] = Math.exp(L[i * N + j] - mx2) / Z2;
+    lossCol += -Math.log(Pcol[j * N + j]);
+  }
+  for(i = 0; i < N; i++) for(j = 0; j < N; j++){
+    var dij = i === j ? 1 : 0;
+    G[i * N + j] = 0.5 * ((Prow[i * N + j] - dij) + (Pcol[i * N + j] - dij)) / N;
+  }
+  return { loss: 0.5 * (lossRow + lossCol) / N, lossRow: lossRow / N, lossCol: lossCol / N,
+           L: L, G: G, Prow: Prow, Pcol: Pcol };
+}
+/* SigLIP: l_ij = s*C_ij + b ; z_ij = +1 on the diagonal, -1 elsewhere ;
+   loss = -(1/N) Σ_ij log σ(z_ij l_ij) */
+function sigmoidLoss(N, C, s, b){
+  var L = new Float64Array(N * N), G = new Float64Array(N * N), P = new Float64Array(N * N), loss = 0;
+  for(var i = 0; i < N; i++) for(var j = 0; j < N; j++){
+    var l = s * C[i * N + j] + b, z = i === j ? 1 : -1;
+    L[i * N + j] = l;
+    var sig = 1 / (1 + Math.exp(-z * l));                 // σ(z l) = probability the pair is labelled correctly
+    P[i * N + j] = 1 / (1 + Math.exp(-l));                // σ(l)   = model's "is a match" probability
+    loss += -Math.log(Math.max(sig, 1e-300));
+    G[i * N + j] = -z * (1 - sig) / N;
+  }
+  return { loss: loss / N, L: L, G: G, P: P };
+}
+
+/* one full training step on a batch; returns the forward + loss for drawing */
+function computeLossAndGrads(m, pairs){
+  var fw = forwardBatch(m, pairs), N = fw.N, s = scaleOf(m);
+  var lo = m.loss === 'sigmoid' ? sigmoidLoss(N, fw.C, s, m.bias) : softmaxLoss(N, fw.C, s);
+  var gi = zeroLike(m.img), gt = zeroLike(m.txt), gS = 0, gB = 0, i, j, k;
+  var gU = [], gV = [];
+  for(i = 0; i < N; i++){ gU.push(new Float64Array(EMB_DIM)); gV.push(new Float64Array(EMB_DIM)); }
+  for(i = 0; i < N; i++) for(j = 0; j < N; j++){
+    var g = lo.G[i * N + j];
+    for(k = 0; k < EMB_DIM; k++){ gU[i][k] += s * g * fw.V[j][k]; gV[j][k] += s * g * fw.U[i][k]; }
+    gS += g * fw.C[i * N + j];
+    gB += g;
+  }
+  for(i = 0; i < N; i++){
+    mlpBackward(m.img, pairs[i].img.x, fw.fi[i], gU[i], gi);
+    mlpBackward(m.txt, pairs[i].cap.y, fw.ft[i], gV[i], gt);
+  }
+  return { fw: fw, lo: lo, gi: gi, gt: gt, gLogT: gS * s, gBias: gB, gU: gU, gV: gV };
+}
+
+/* Adam update (β1=.9, β2=.999) with bias correction; m1/m2 are the moment arrays, t the step */
+function adamArr(p, g, m1, m2, lr, t){
+  var b1 = 0.9, b2 = 0.999, eps = 1e-8;
+  var c1 = 1 - Math.pow(b1, t), c2 = 1 - Math.pow(b2, t);
+  for(var i = 0; i < p.length; i++){
+    m1[i] = b1 * m1[i] + (1 - b1) * g[i];
+    m2[i] = b2 * m2[i] + (1 - b2) * g[i] * g[i];
+    p[i] -= lr * (m1[i] / c1) / (Math.sqrt(m2[i] / c2) + eps);
+  }
+}
+function trainStep(m, pairs, lr){
+  var r = computeLossAndGrads(m, pairs);
+  m.step++;
+  var t = m.step, A = m.adam;
+  ['W1', 'b1', 'W2', 'b2'].forEach(function(key){
+    adamArr(m.img[key], r.gi[key], A.i[key], A.i2[key], lr, t);
+    adamArr(m.txt[key], r.gt[key], A.t[key], A.t2[key], lr, t);
+  });
+  if(m.tempMode === 'learn'){
+    var p = [m.logT], m1 = [A.logT[0]], m2 = [A.logT[1]];
+    adamArr(p, [r.gLogT], m1, m2, lr, t);
+    A.logT[0] = m1[0]; A.logT[1] = m2[0];
+    m.logT = p[0];
+    if(m.logT > Math.log(100)) m.logT = Math.log(100);          // CLIP: never scale logits by more than 100
+  }
+  if(m.loss === 'sigmoid'){
+    var pb = [m.bias], n1 = [A.bias[0]], n2 = [A.bias[1]];
+    adamArr(pb, [r.gBias], n1, n2, lr, t);
+    A.bias[0] = n1[0]; A.bias[1] = n2[0];
+    m.bias = pb[0];
+  }
+  return r;
+}
+
+/* ── evaluation helpers ── */
+function embedImage(m, img){ return mlpForward(m.img, img.x).u; }
+function embedText(m, cap){ return mlpForward(m.txt, cap.y).u; }
+function cos2(a, b){ var d = 0; for(var k = 0; k < EMB_DIM; k++) d += a[k] * b[k]; return d; }
+
+/* held-out set: nPer images per concept + one canonical caption per concept */
+function makeEvalSet(seed, nPer, tmplIndex){
+  var rng = makeRng(seed), imgs = [], caps = [];
+  for(var c = 0; c < 3; c++) for(var s = 0; s < 3; s++){
+    caps.push(makeCaption(rng, c, s, tmplIndex == null ? 0 : tmplIndex));
+    for(var n = 0; n < nPer; n++) imgs.push(makeImage(rng, c, s));
+  }
+  return { imgs: imgs, caps: caps };
+}
+/* image→text top-1 over the 9 canonical captions; text→image top-1 over all images */
+function evaluate(m, ev){
+  var U = ev.imgs.map(function(im){ return embedImage(m, im); });
+  var V = ev.caps.map(function(cp){ return embedText(m, cp); });
+  var hit = 0, i, j;
+  for(i = 0; i < U.length; i++){
+    var best = -1, bj = -1;
+    for(j = 0; j < V.length; j++){ var d = cos2(U[i], V[j]); if(d > best){ best = d; bj = j; } }
+    if(ev.caps[bj].id === ev.imgs[i].id) hit++;
+  }
+  var hit2 = 0;
+  for(j = 0; j < V.length; j++){
+    var best2 = -1, bi = -1;
+    for(i = 0; i < U.length; i++){ var d2 = cos2(U[i], V[j]); if(d2 > best2){ best2 = d2; bi = i; } }
+    if(ev.imgs[bi].id === ev.caps[j].id) hit2++;
+  }
+  /* how concentrated is each modality? mean resultant length: 1 = one narrow cone, 0 = spread evenly */
+  var mu = [0, 0], mv = [0, 0];
+  for(i = 0; i < U.length; i++){ mu[0] += U[i][0] / U.length; mu[1] += U[i][1] / U.length; }
+  for(j = 0; j < V.length; j++){ mv[0] += V[j][0] / V.length; mv[1] += V[j][1] / V.length; }
+  var gap = Math.sqrt((mu[0] - mv[0]) * (mu[0] - mv[0]) + (mu[1] - mv[1]) * (mu[1] - mv[1]));
+  var coneI = Math.sqrt(mu[0] * mu[0] + mu[1] * mu[1]), coneT = Math.sqrt(mv[0] * mv[0] + mv[1] * mv[1]);
+  /* positive-pair cosine: each image against the canonical caption of its own concept (honest on a circle) */
+  var pc = 0, byId = {};
+  for(j = 0; j < V.length; j++) byId[ev.caps[j].id] = V[j];
+  for(i = 0; i < U.length; i++) pc += cos2(U[i], byId[ev.imgs[i].id]);
+  return { i2t: hit / U.length, t2i: hit2 / V.length, gap: gap, coneI: coneI, coneT: coneT, posCos: pc / U.length, U: U, V: V, mu: mu, mv: mv };
+}
+/* nuisance probe: change only the size of an image (a feature no caption ever mentions) and
+   measure how far its embedding moves, in degrees, averaged over concepts and noise draws */
+function nuisanceProbe(m, seed){
+  var rng = makeRng(seed || 31), tot = 0, n = 0;
+  for(var c = 0; c < 3; c++) for(var s = 0; s < 3; s++) for(var k = 0; k < 4; k++){
+    var a = makeImage(rng, c, s), b = { x: new Float64Array(a.x) };
+    a.x[6] = 0.6; b.x[6] = 1.0;
+    var ua = mlpForward(m.img, a.x).u, ub = mlpForward(m.img, b.x).u;
+    var d = Math.acos(Math.max(-1, Math.min(1, cos2(ua, ub)))) * 180 / Math.PI;
+    tot += d; n++;
+  }
+  return tot / n;
+}
+
+/* ═══════════════ MODELS TRAINED AT PAGE LOAD ═══════════════ */
+var PRE_SEED = 1;
+var UNTRAINED = makeModel(PRE_SEED, { loss: 'softmax', temp: 'learn' });
+var PRE = makeModel(PRE_SEED, { loss: 'softmax', temp: 'learn' });
+var MID = makeModel(PRE_SEED, { loss: 'softmax', temp: 'learn' });   // a snapshot part-way through training, for the loss stepper
+(function trainPre(){
+  var rng = makeRng(PRE_SEED * 7919), rng2 = makeRng(PRE_SEED * 7919);
+  for(var s = 0; s < 400; s++){
+    var pairs = []; for(var i = 0; i < 16; i++) pairs.push(makePair(rng));
+    trainStep(PRE, pairs, 0.02);
+    if(s < 90){ var p2 = []; for(i = 0; i < 16; i++) p2.push(makePair(rng2)); trainStep(MID, p2, 0.02); }
+  }
+})();
+var HELDOUT = makeEvalSet(999, 10);          // 90 images + 9 canonical captions
+var PRE_EVAL = evaluate(PRE, HELDOUT);
+
+/* ═══════════════ 1 · THE GAME ═══════════════ */
+var GAME_ITEMS = [
+  { e: '🐕', cap: 'a dog running on a beach' },
+  { e: '🦮', cap: 'a guide dog wearing a harness' },
+  { e: '🐈', cap: 'a cat asleep on a sofa' },
+  { e: '🌅', cap: 'sunset over the ocean' },
+  { e: '🚲', cap: 'a bicycle leaning on a wall' },
+];
+var game = { order: [], sel: -1, links: {}, checked: false, rng: makeRng(42) };
+function gameShuffle(){
+  game.order = [0, 1, 2, 3, 4];
+  for(var i = 4; i > 0; i--){ var j = game.rng.int(i + 1); var t = game.order[i]; game.order[i] = game.order[j]; game.order[j] = t; }
+  game.sel = 0; game.links = {}; game.checked = false;
+  $('game-check').disabled = true; $('game-matrix').style.display = 'none'; $('game-scale').style.display = 'none'; $('game-scalebox').style.display = 'none';
+  $('game-note').innerHTML = 'Image 1 is selected. Tap the caption you think belongs to it; the next image is selected for you. Tap any image to re-select it.';
+  gameRender();
+}
+function gameNextUnlinked(){ for(var i = 0; i < 5; i++) if(game.links[i] == null) return i; return -1; }
+function gameRender(){
+  var imgs = $('game-imgs'), caps = $('game-caps');
+  imgs.innerHTML = ''; caps.innerHTML = '';
+  GAME_ITEMS.forEach(function(it, i){
+    var d = document.createElement('div'); d.className = 'gitem' + (game.sel === i ? ' sel' : '') + (game.links[i] != null ? ' linked' : '');
+    if(game.checked) d.className += (game.order[game.links[i]] === i ? ' right' : ' wrong');
+    d.innerHTML = '<span class="idx">I' + (i + 1) + '</span><span class="emoji">' + it.e + '</span><span class="cap">image ' + (i + 1) + '<small>which caption?</small></span>';
+    d.onclick = function(){ if(game.checked) return; game.sel = (game.sel === i ? -1 : i); gameRender(); };
+    imgs.appendChild(d);
+  });
+  game.order.forEach(function(orig, pos){
+    var linkedBy = -1; Object.keys(game.links).forEach(function(k){ if(game.links[k] === pos) linkedBy = +k; });
+    var d = document.createElement('div'); d.className = 'gitem' + (linkedBy >= 0 ? ' linked' : '');
+    if(game.checked && linkedBy >= 0) d.className += (orig === linkedBy ? ' right' : ' wrong');
+    d.innerHTML = '<span class="idx">T' + (pos + 1) + '</span><span class="cap">' + GAME_ITEMS[orig].cap + '</span>';
+    d.onclick = function(){
+      if(game.checked || game.sel < 0) return;
+      Object.keys(game.links).forEach(function(k){ if(game.links[k] === pos) delete game.links[k]; });
+      game.links[game.sel] = pos; game.sel = gameNextUnlinked();
+      $('game-check').disabled = Object.keys(game.links).length < 5;
+      gameRender();
+    };
+    caps.appendChild(d);
+  });
+  requestAnimationFrame(gameLines);
+}
+function gameLines(){
+  var svg = $('game-svg'), box = $('game').getBoundingClientRect();
+  var imgs = $('game-imgs').children, caps = $('game-caps').children;
+  var html = '';
+  Object.keys(game.links).forEach(function(k){
+    var a = imgs[+k].getBoundingClientRect(), b = caps[game.links[k]].getBoundingClientRect();
+    var cls = game.checked ? (game.order[game.links[k]] === +k ? 'right' : 'wrong') : '';
+    html += '<line class="' + cls + '" x1="' + (a.right - box.left) + '" y1="' + (a.top + a.height / 2 - box.top) + '" x2="' + (b.left - box.left) + '" y2="' + (b.top + b.height / 2 - box.top) + '"></line>';
+  });
+  svg.innerHTML = html;
+}
+function gameCheck(){
+  game.checked = true;
+  var right = 0; Object.keys(game.links).forEach(function(k){ if(game.order[game.links[k]] === +k) right++; });
+  var note = '<b>' + right + ' of 5 correct.</b> ';
+  if(right === 5) note += 'You solved the batch. CLIP\'s loss for this batch would be near zero &mdash; every image put all its probability on its own caption. ';
+  else note += 'The wrong lines are where the loss lives: each one is a caption the model (you) ranked above the true one, and the gradient pushes those pairs apart. ';
+  note += 'Now look at it the way the model does: as a 5&times;5 grid.';
+  $('game-note').innerHTML = note;
+  $('game-matrix').style.display = '';
+  gameRender();
+}
+function gameMatrix(){
+  var html = '<div style="display:grid;grid-template-columns:auto repeat(5,34px);gap:3px;justify-content:center;margin-top:.6rem;font-family:Courier New,monospace;font-size:.62rem">';
+  html += '<div></div>'; for(var j = 0; j < 5; j++) html += '<div style="text-align:center;color:var(--txt)">T' + (j + 1) + '</div>';
+  for(var i = 0; i < 5; i++){
+    html += '<div style="color:var(--img);padding-right:.3rem;line-height:34px">I' + (i + 1) + '</div>';
+    for(j = 0; j < 5; j++){
+      var truth = game.order[j] === i, picked = game.links[i] === j;
+      var bg = picked ? (truth ? 'rgba(16,185,129,.55)' : 'rgba(239,68,68,.55)') : 'var(--surface2)';
+      html += '<div style="height:34px;border-radius:5px;background:' + bg + ';border:1px solid ' + (truth ? '#fff' : 'transparent') + ';display:flex;align-items:center;justify-content:center;color:#fff">' + (picked ? '&#10003;' : '') + '</div>';
+    }
+  }
+  html += '</div><div class="hint">white outline = the true pairs (the "labels"). Filled = your picks. The captions were shuffled, so the truth is a permutation &mdash; CLIP orders its batch so the truth is exactly the diagonal.</div>';
+  $('game-note').innerHTML += html;
+  $('game-matrix').style.display = 'none'; $('game-scale').style.display = '';
+}
+function gameScale(){
+  $('game-scale').style.display = 'none'; $('game-scalebox').style.display = '';
+  var cv = $('game-scale-cv'); if(!cv || !cv.clientWidth) return;
+  var c = setupCanvas(cv), ctx = c.ctx, w = c.w, h = c.h, S = h - 30, ox = (w - S) / 2, oy = 12;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#0f1830'; ctx.fillRect(ox, oy, S, S);
+  ctx.strokeStyle = '#1a2a4a'; ctx.strokeRect(ox + 0.5, oy + 0.5, S - 1, S - 1);
+  ctx.strokeStyle = '#2dd4bf'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(ox + S, oy + S); ctx.stroke();
+  ctx.fillStyle = '#94a3b8'; ctx.font = '11px Segoe UI'; ctx.textAlign = 'center';
+  ctx.fillText('32,768 captions →', ox + S / 2, oy + S + 14);
+  ctx.save(); ctx.translate(ox - 8, oy + S / 2); ctx.rotate(-Math.PI / 2); ctx.fillText('32,768 images →', 0, 0); ctx.restore();
+  ctx.textAlign = 'left'; ctx.fillStyle = '#5eead4'; ctx.fillText('the diagonal: one pixel wide', ox + S * 0.55, oy + S * 0.4);
+  ctx.fillStyle = '#fda4af'; ctx.fillText('everything else: negatives', ox + S * 0.08, oy + S * 0.8);
+}
+
+/* ═══════════════ 2 · ARCHITECTURE + NORMALISATION ═══════════════ */
+function initArch(){
+  var boxes = document.querySelectorAll('.abox'), note = $('arch-note');
+  boxes.forEach(function(b){
+    b.addEventListener('mouseenter', function(){ note.innerHTML = b.dataset.note; });
+    b.addEventListener('click', function(){ note.innerHTML = b.dataset.note; });
+  });
+}
+var norm = { on: false, pts: [], drag: -1, anim: 0 };
+(function(){
+  /* I1 is best aligned with the SHORT text vector T2; the LONG text vector T1 sits 45° off but wins the raw dot product */
+  var P = [[0.90, 0.35], [-0.40, 0.80], [0.20, -0.85], [0.55 * 2.4, 0.83 * 2.4], [0.93 * 0.5, 0.36 * 0.5], [-0.60, -0.50]];
+  for(var i = 0; i < 6; i++) norm.pts.push({ x: P[i][0], y: P[i][1], img: i < 3 });
+})();
+function drawNorm(){
+  var cv = $('norm-canvas'); if(!cv || !cv.clientWidth) return;
+  var c = setupCanvas(cv), ctx = c.ctx, w = c.w, h = c.h;
+  var cx = w * 0.5, cy = h * 0.5, R = Math.min(w, h) * 0.42;
+  ctx.clearRect(0, 0, w, h);
+  ctx.strokeStyle = '#1a2a4a'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(w, cy); ctx.moveTo(cx, 0); ctx.lineTo(cx, h); ctx.stroke();
+  ctx.setLineDash([4, 4]); ctx.strokeStyle = norm.on ? '#2dd4bf' : '#1a2a4a'; ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+  var t = norm.anim;
+  var pos = norm.pts.map(function(p){
+    var len = Math.sqrt(p.x * p.x + p.y * p.y) || 1e-9;
+    var f = (1 - t) + t / len;                 // interpolate raw → unit
+    return { x: cx + p.x * f * R, y: cy - p.y * f * R, len: len };
+  });
+  pos.forEach(function(q, i){
+    var col = norm.pts[i].img ? '#2dd4bf' : '#fb7185';
+    ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(q.x, q.y); ctx.stroke();
+    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(q.x, q.y, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#e2e8f0'; ctx.font = '11px Courier New'; ctx.fillText((norm.pts[i].img ? 'I' : 'T') + ((i % 3) + 1), q.x + 8, q.y - 6);
+  });
+  /* readout: for I1, who wins under raw dot vs cosine? */
+  var I1 = norm.pts[0], best = -1, bi = -1, bestc = -2, bic = -1;
+  for(var j = 3; j < 6; j++){
+    var T = norm.pts[j], d = I1.x * T.x + I1.y * T.y;
+    var cs = d / ((Math.sqrt(I1.x * I1.x + I1.y * I1.y) || 1e-9) * (Math.sqrt(T.x * T.x + T.y * T.y) || 1e-9));
+    if(d > best){ best = d; bi = j; } if(cs > bestc){ bestc = cs; bic = j; }
+  }
+  $('norm-read').innerHTML = 'For I1 &mdash; raw dot picks <b style="color:var(--txt)">T' + (bi - 2) + '</b> (' + best.toFixed(2) + '), cosine picks <b style="color:var(--txt)">T' + (bic - 2) + '</b> (' + bestc.toFixed(2) + ')' + (bi !== bic ? ' &nbsp;&larr; different winners' : '');
+}
+function normTick(){
+  var target = norm.on ? 1 : 0;
+  if(Math.abs(norm.anim - target) > 0.005){ norm.anim += (target - norm.anim) * 0.18; drawNorm(); requestAnimationFrame(normTick); }
+  else { norm.anim = target; drawNorm(); }
+}
+function initNorm(){
+  $('norm-off').onclick = function(){ norm.on = false; $('norm-off').classList.add('active'); $('norm-on').classList.remove('active'); normTick(); };
+  $('norm-on').onclick = function(){ norm.on = true; $('norm-on').classList.add('active'); $('norm-off').classList.remove('active'); normTick(); };
+  $('norm-stretch').onclick = function(){ var p = norm.pts[4], l = Math.hypot(p.x, p.y); var f = l > 1 ? 0.25 : 4; p.x *= f; p.y *= f; this.textContent = l > 1 ? 'stretch T2 ×4' : 'shrink T2 ÷4'; drawNorm(); };
+  var cv = $('norm-canvas');
+  function toWorld(ev){
+    var b = cv.getBoundingClientRect(), R = Math.min(b.width, b.height) * 0.42;
+    return { x: (ev.clientX - b.left - b.width / 2) / R, y: -(ev.clientY - b.top - b.height / 2) / R };
+  }
+  cv.addEventListener('pointerdown', function(ev){
+    var p = toWorld(ev), best = 1e9, bi = -1;
+    norm.pts.forEach(function(q, i){
+      var len = Math.sqrt(q.x * q.x + q.y * q.y) || 1e-9, f = (1 - norm.anim) + norm.anim / len;
+      var d = Math.hypot(q.x * f - p.x, q.y * f - p.y); if(d < best){ best = d; bi = i; }
+    });
+    if(best < 0.18){ norm.drag = bi; cv.setPointerCapture(ev.pointerId); }
+  });
+  cv.addEventListener('pointermove', function(ev){
+    if(norm.drag < 0) return;
+    var p = toWorld(ev), q = norm.pts[norm.drag];
+    if(norm.on){ var l = Math.sqrt(p.x * p.x + p.y * p.y) || 1e-9, old = Math.sqrt(q.x * q.x + q.y * q.y) || 1e-9; q.x = p.x / l * old; q.y = p.y / l * old; }
+    else { q.x = clamp(p.x, -1.15, 1.15); q.y = clamp(p.y, -1.15, 1.15); }
+    drawNorm();
+  });
+  cv.addEventListener('pointerup', function(){ norm.drag = -1; });
+  cv.addEventListener('pointercancel', function(){ norm.drag = -1; });
+}
+
+/* ═══════════════ 3 · THE BATCH MATRIX ═══════════════ */
+var mx = { N: 8, trained: true, seed: 11, batch: [] };
+function mxSample(){
+  var rng = makeRng(mx.seed);
+  mx.batch = []; for(var i = 0; i < 16; i++) mx.batch.push(makePair(rng));
+}
+function renderMatrix(opts){
+  /* generic N×N matrix renderer used by sections 3 and 4.
+     opts: {N, batch, model, gridEl, colsEl, rowsEl, values(N,fw)->{vals,text,color,cls}, tip, delta} */
+  var N = opts.N, pairs = opts.batch.slice(0, N), fw = forwardBatch(opts.model, pairs);
+  if(opts.delta){ var C2 = new Float64Array(fw.C); for(var q = 0; q < N * N; q++) C2[q] = clamp(C2[q] + (opts.delta[q] || 0), -1, 1); fw.C = C2; }
+  var grid = opts.gridEl, cols = opts.colsEl, rows = opts.rowsEl;
+  grid.style.gridTemplateColumns = 'repeat(' + N + ',minmax(0,1fr))';   // minmax(0,…) so the grid can shrink below the cells' text on phones
+  cols.style.gridTemplateColumns = 'repeat(' + N + ',minmax(0,1fr))';
+  cols.innerHTML = ''; rows.innerHTML = ''; grid.innerHTML = '';
+  rows.style.gridTemplateRows = 'repeat(' + N + ',1fr)';
+  pairs.forEach(function(p){
+    var d = document.createElement('div'); d.textContent = N > 10 ? COLORS[p.cap.c][0] + ' ' + SHAPES[p.cap.s][0] : COLORS[p.cap.c] + '\n' + SHAPES[p.cap.s];
+    d.title = p.cap.words.join(' '); d.style.whiteSpace = 'pre'; cols.appendChild(d);
+    var r = document.createElement('div'); r.appendChild(shapeIcon(30, p.img.c, p.img.s, p.img)); rows.appendChild(r);
+  });
+  var v = opts.values(N, fw);
+  for(var i = 0; i < N; i++) for(var j = 0; j < N; j++){
+    (function(i, j){
+      var cell = document.createElement('div'); cell.className = 'cell' + (i === j ? ' diag' : '');
+      var val = v.vals[i * N + j];
+      cell.style.background = v.color ? v.color(val, i, j) : cosColor(val);
+      if(v.text) cell.textContent = v.text(val, i, j);
+      if(v.cls) cell.className += ' ' + v.cls(i, j);
+      if(i !== j && pairs[i].img.id === pairs[j].cap.id) cell.style.borderColor = 'rgba(245,158,11,.85)';   // a false negative
+      cell.onmouseenter = function(){ if(opts.tip) opts.tip(i, j, fw, val, pairs); };
+      cell.onclick = function(){ if(opts.tip) opts.tip(i, j, fw, val, pairs); if(opts.pin) opts.pin(i, j); };
+      grid.appendChild(cell);
+    })(i, j);
+  }
+  return fw;
+}
+function drawMx(){
+  var model = mx.trained ? PRE : UNTRAINED, N = mx.N;
+  var fw = renderMatrix({
+    N: N, batch: mx.batch, model: model, gridEl: $('mx'), colsEl: $('mx-cols'), rowsEl: $('mx-rows'),
+    values: function(N, fw){ return { vals: fw.C, text: N <= 8 ? function(v){ return v.toFixed(2); } : null }; },
+    tip: function(i, j, fw, val, pairs){
+      var p = pairs[i], q = pairs[j];
+      $('mx-tip').innerHTML = 'image ' + (i + 1) + ' (<b>' + COLORS[p.img.c] + ' ' + SHAPES[p.img.s] + '</b>) &middot; caption ' + (j + 1) + ' "<b>' + q.cap.words.join(' ') + '</b>" &rarr; cos = <b>' + val.toFixed(3) + '</b>' + (i === j ? ' &nbsp;(a positive)' : (p.img.id === q.cap.id ? ' &nbsp;(same concept, but scored as a negative &mdash; a <span style="color:#fde68a">false negative</span>)' : ' &nbsp;(a negative)'));
+    }
+  });
+  var fn = 0; for(var a = 0; a < N; a++) for(var b = 0; b < N; b++) if(a !== b && mx.batch[a].img.id === mx.batch[b].cap.id) fn++;
+  var dsum = 0, osum = 0;
+  for(var i = 0; i < N; i++) for(var j = 0; j < N; j++){ if(i === j) dsum += fw.C[i * N + j]; else osum += fw.C[i * N + j]; }
+  $('mx-n').textContent = N; $('mx-pos').textContent = N; $('mx-neg').textContent = (N * N - N) + (fn ? ' (' + fn + ' false)' : '');
+  $('mx-dmean').textContent = (dsum / N).toFixed(3); $('mx-omean').textContent = N > 1 ? (osum / (N * N - N)).toFixed(3) : '—';
+  $('mx-lnn').textContent = Math.log(N).toFixed(3);
+}
+function initMx(){
+  mxSample();
+  $('mx-slider').oninput = function(){ mx.N = +this.value; drawMx(); };
+  $('mx-trained').onclick = function(){ mx.trained = true; this.classList.add('active'); $('mx-untrained').classList.remove('active'); drawMx(); };
+  $('mx-untrained').onclick = function(){ mx.trained = false; this.classList.add('active'); $('mx-trained').classList.remove('active'); drawMx(); };
+  $('mx-resample').onclick = function(){ mx.seed++; mxSample(); drawMx(); };
+  drawMx();
+}
+
+/* ═══════════════ 4 · THE LOSS STEPPER ═══════════════ */
+var PSEUDO = [
+  ['cm', '# image_encoder - ResNet or Vision Transformer'],
+  ['cm', '# text_encoder  - CBOW or Text Transformer'],
+  ['cm', '# I[n, h, w, c] - minibatch of aligned images'],
+  ['cm', '# T[n, l]       - minibatch of aligned texts'],
+  ['cm', '# W_i[d_i, d_e] - learned proj of image to embed'],
+  ['cm', '# W_t[d_t, d_e] - learned proj of text to embed'],
+  ['cm', '# t             - learned temperature parameter'],
+  ['', ''],
+  ['cm', '# extract feature representations of each modality'],
+  ['', 'I_f = image_encoder(I) #[n, d_i]'],
+  ['', 'T_f = text_encoder(T)  #[n, d_t]'],
+  ['', ''],
+  ['cm', '# joint multimodal embedding [n, d_e]'],
+  ['', 'I_e = l2_normalize(np.dot(I_f, W_i), axis=1)'],
+  ['', 'T_e = l2_normalize(np.dot(T_f, W_t), axis=1)'],
+  ['', ''],
+  ['cm', '# scaled pairwise cosine similarities [n, n]'],
+  ['', 'logits = np.dot(I_e, T_e.T) * np.exp(t)'],
+  ['', ''],
+  ['cm', '# symmetric loss function'],
+  ['', 'labels = np.arange(n)'],
+  ['', 'loss_i = cross_entropy_loss(logits, labels, axis=0)'],
+  ['', 'loss_t = cross_entropy_loss(logits, labels, axis=1)'],
+  ['', 'loss   = (loss_i + loss_t)/2'],
+];
+var STEP_LINES = { 0: [0, 1, 2, 3, 4, 5, 6], 1: [9, 10], 2: [13, 14], 3: [17], 4: [20], 5: [21], 6: [22], 7: [23], 8: [21, 22, 23] };
+var lossLab = { step: 0, batch: [], delta: new Float64Array(16), pin: -1, base: null };
+(function(){ var rng = makeRng(23); for(var i = 0; i < 4; i++) lossLab.batch.push(makePair(rng)); })();
+function lossPin(i, j){
+  lossLab.pin = i * 4 + j;
+  var p = lossLab.batch[i], q = lossLab.batch[j];
+  $('lmx-pin').innerHTML = 'Pinned: image ' + (i + 1) + ' (' + COLORS[p.img.c] + ' ' + SHAPES[p.img.s] + ') &times; caption ' + (j + 1) + ' "' + q.cap.words.join(' ') + '"' + (i === j ? ' &mdash; a positive' : ' &mdash; a negative');
+  $('lmx-up').disabled = false; $('lmx-down').disabled = false; $('lmx-restore').disabled = false;
+  drawLoss();
+}
+function lossNudge(d){
+  if(lossLab.pin < 0) return;
+  if(d === 0) lossLab.delta = new Float64Array(16); else lossLab.delta[lossLab.pin] += d;
+  drawLoss();
+}
+function renderPseudo(){
+  var el = $('pseudo'); el.innerHTML = '';
+  PSEUDO.forEach(function(l, i){
+    var d = document.createElement('div'); d.className = 'ln ' + l[0] + (STEP_LINES[lossLab.step].indexOf(i) >= 0 ? ' hi' : ''); d.textContent = l[1] || ' '; el.appendChild(d);
+  });
+}
+function drawLoss(){
+  var step = lossLab.step, N = 4, s = scaleOf(MID);
+  renderPseudo();
+  var fw0 = forwardBatch(MID, lossLab.batch);
+  var C = new Float64Array(fw0.C); for(var q = 0; q < 16; q++) C[q] = clamp(C[q] + lossLab.delta[q], -1, 1);
+  var lo = softmaxLoss(N, C, s);
+  if(!lossLab.base) lossLab.base = softmaxLoss(N, fw0.C, s).loss;
+  var edited = false; for(q = 0; q < 16; q++) if(lossLab.delta[q] !== 0) edited = true;
+  var title = { 0: 'The batch: 4 images, 4 captions', 1: 'Encoded: I_f and T_f (not yet comparable)', 2: 'Cosine similarities I<sub>e</sub> &middot; T<sub>e</sub><sup>T</sup>', 3: 'logits = cos &times; exp(t) = cos &times; ' + s.toFixed(1), 4: 'labels = [0, 1, 2, 3] &mdash; the diagonal', 5: 'softmax across each row: which caption?', 6: 'softmax down each column: which image?', 7: 'loss = (loss_i + loss_t) / 2', 8: '&part;loss / &part;logits = P &minus; I, averaged over both directions' }[step];
+  $('loss-mx-title').innerHTML = title;
+  var side = $('lmx-side'), bottom = $('lmx-bottom'); side.innerHTML = ''; bottom.innerHTML = '';
+  side.style.gridTemplateRows = 'repeat(4,1fr)'; bottom.style.gridTemplateColumns = 'repeat(4,minmax(0,1fr))';
+  renderMatrix({
+    N: N, batch: lossLab.batch, model: MID, gridEl: $('lmx'), colsEl: $('lmx-cols'), rowsEl: $('lmx-rows'), delta: lossLab.delta, pin: lossPin,
+    values: function(N, fw){
+      if(step === 8) return { vals: lo.G, color: function(v){ var a = clamp(Math.abs(v) * N * 2.2, 0, 1); return v < 0 ? 'rgba(45,212,191,' + (0.1 + 0.85 * a) + ')' : 'rgba(251,113,133,' + (0.1 + 0.85 * a) + ')'; }, text: function(v){ var g = v * N; if(Math.abs(g) < 0.005) return '0.00'; return (g > 0 ? '+' : '') + g.toFixed(2); }, cls: function(i, j){ return lossLab.pin === i * N + j ? 'lit' : ''; } };
+      if(step <= 1) return { vals: fw.C, color: function(){ return step === 0 ? 'var(--surface2)' : 'rgba(167,139,250,.18)'; }, text: function(v, i, j){ return step === 0 ? '?' : ''; } };
+      var pinCls = function(i, j){ return lossLab.pin === i * N + j ? 'lit' : ''; };
+      if(step === 2) return { vals: fw.C, text: function(v){ return v.toFixed(2); }, cls: pinCls };
+      if(step === 3) return { vals: lo.L, color: function(v){ return cosColor(v / s); }, text: function(v){ return v.toFixed(1); }, cls: pinCls };
+      if(step === 4) return { vals: fw.C, text: function(v, i, j){ return i === j ? '1' : '0'; }, color: function(v, i, j){ return i === j ? 'rgba(16,185,129,.6)' : 'var(--surface2)'; }, cls: pinCls };
+      if(step === 5) return { vals: lo.Prow, color: function(v){ return 'rgba(45,212,191,' + (0.08 + 0.85 * v) + ')'; }, text: function(v){ return v.toFixed(2); }, cls: pinCls };
+      if(step === 6) return { vals: lo.Pcol, color: function(v){ return 'rgba(251,113,133,' + (0.08 + 0.85 * v) + ')'; }, text: function(v){ return v.toFixed(2); }, cls: pinCls };
+      return { vals: fw.C, text: function(v){ return v.toFixed(2); }, cls: function(i, j){ return i === j ? 'lit' : 'dimmed'; } };
+    }
+  });
+  if(step >= 5){
+    for(var i = 0; i < N; i++){ var d = document.createElement('div'); d.innerHTML = step === 5 || step === 7 ? '&minus;log ' + lo.Prow[i * N + i].toFixed(2) + ' = ' + (-Math.log(lo.Prow[i * N + i])).toFixed(2) : ''; side.appendChild(d); }
+    if(step >= 6 && step < 8) for(var j = 0; j < N; j++){ var b = document.createElement('div'); b.innerHTML = '&minus;log ' + lo.Pcol[j * N + j].toFixed(2) + '<br>= ' + (-Math.log(lo.Pcol[j * N + j])).toFixed(2); bottom.appendChild(b); }
+  }
+  $('l-li').textContent = step >= 5 ? lo.lossRow.toFixed(3) : '—';
+  $('l-lt').textContent = step >= 6 ? lo.lossCol.toFixed(3) : '—';
+  $('l-l').textContent = step >= 7 ? lo.loss.toFixed(3) + (edited ? ' (was ' + lossLab.base.toFixed(3) + ')' : '') : '—';
+  var notes = [
+    '<b>Start.</b> A batch of n = 4 pairs enters. W_i, W_t and the temperature t are parameters that will be learned along with both encoders. The numbers come from the toy model on this page caught <em>part-way</em> through training (step ' + MID.step + '), so its probabilities are neither uniform nor saturated.',
+    '<b>Encode.</b> The image tower and the text tower run independently &mdash; on different GPUs if you like. Their outputs have different sizes (d_i vs d_t) and cannot be compared yet.',
+    '<b>Project and normalise.</b> Two linear maps bring both sides to d_e dimensions, and l2_normalize puts every vector on the unit sphere. From here on a dot product is a cosine.',
+    '<b>Logits.</b> One matrix multiply computes all n&sup2; cosines at once, then multiplies by exp(t). The toy\'s learned scale is ' + s.toFixed(1) + ' (&tau; = ' + (1 / s).toFixed(3) + '); CLIP\'s started at 14.3 and was capped at 100.',
+    '<b>Labels.</b> Because the batch was assembled as pairs, the correct answer for image i is caption i. The label vector is just 0, 1, 2, &hellip;, n&minus;1 &mdash; no annotation anywhere.',
+    '<b>Image &rarr; text.</b> Softmax along each row turns the logits into "which caption is mine?" probabilities. Cross-entropy takes &minus;log of the diagonal entry in each row and averages: loss_i = ' + lo.lossRow.toFixed(3) + '.',
+    '<b>Text &rarr; image.</b> The same thing down each column: each caption picks an image. loss_t = ' + lo.lossCol.toFixed(3) + '. The two are not equal &mdash; a caption can be confident while its image is still ambiguous.',
+    '<b>Average.</b> loss = ' + lo.loss.toFixed(3) + '. For comparison, a uniform guess scores ln 4 = ' + Math.log(4).toFixed(3) + ', and a perfect geometry with an infinite scale scores 0. Backprop pushes both towers <em>and</em> t.',
+    '<b>The gradient.</b> Every cell is <em>probability minus label</em>, averaged over the row view and the column view (numbers shown &times; N). Rose cells are pushed <em>down</em> (negatives that took probability), teal cells are pulled <em>up</em> (the diagonal, by 1 &minus; p). In the row view each row sums to zero and in the column view each column does: whatever the positive gains, the negatives around it lose. A negative the model already ignores gets almost no gradient.',
+  ];
+  if(edited && step >= 5){
+    var pi = Math.floor(lossLab.pin / 4), pj = lossLab.pin % 4;
+    notes[step] += ' <span style="color:#fde68a">You changed image ' + (pi + 1) + ' &times; caption ' + (pj + 1) + ' by ' + (lossLab.delta[lossLab.pin] >= 0 ? '+' : '') + lossLab.delta[lossLab.pin].toFixed(2) + ': loss ' + lossLab.base.toFixed(3) + ' &rarr; ' + lo.loss.toFixed(3) + '.' + (pi !== pj ? ' Both row ' + (pi + 1) + ' (loss_i) and column ' + (pj + 1) + ' (loss_t) paid for it &mdash; that is what "symmetric" buys.' : ' A better positive helps its row and its column at once.') + '</span>';
+  }
+  $('loss-note').innerHTML = notes[step];
+}
+function initLoss(){
+  document.querySelectorAll('#loss-steps .step-btn').forEach(function(b){
+    b.onclick = function(){ document.querySelectorAll('#loss-steps .step-btn').forEach(function(x){ x.classList.remove('active'); }); b.classList.add('active'); lossLab.step = +b.dataset.step; drawLoss(); };
+  });
+  $('lmx-up').onclick = function(){ lossNudge(0.15); }; $('lmx-down').onclick = function(){ lossNudge(-0.15); }; $('lmx-restore').onclick = function(){ lossNudge(0); };
+  drawLoss();
+}
+
+/* ═══════════════ 5 · TEMPERATURE ═══════════════ */
+/* one image's row of cosines, in the narrow band a trained CLIP actually produces: index 0 is the positive */
+var TEMP_COS = [0.31, 0.24, 0.21, 0.18, 0.15, 0.12, 0.10, 0.08];
+var tempSwapped = false;
+function tauFromSlider(v){ return Math.pow(10, -2 * v / 1000); }
+function drawTemp(){
+  var v = +$('temp-slider').value, tau = tauFromSlider(v), s = 1 / tau;
+  TEMP_COS[1] = tempSwapped ? 0.36 : 0.24;
+  var L = TEMP_COS.map(function(c){ return c * s; }), mx = Math.max.apply(null, L);
+  var Z = 0; L.forEach(function(l){ Z += Math.exp(l - mx); });
+  var P = L.map(function(l){ return Math.exp(l - mx) / Z; });
+  $('temp-val').textContent = tau.toFixed(tau < 0.1 ? 3 : 2); $('temp-scale').textContent = s.toFixed(1);
+  $('temp-floor').textContent = floorLoss(8, tau).toFixed(3);
+  var bars = $('tbars'); bars.innerHTML = '';
+  TEMP_COS.forEach(function(c, i){
+    var g = P[i] - (i === 0 ? 1 : 0);
+    var row = document.createElement('div'); row.className = 'tbar' + (i === 0 ? ' pos' : '');
+    row.innerHTML = '<span class="tl' + (i === 0 ? ' pos' : '') + '">' + (i === 0 ? 'true caption' : 'negative ' + i) + '</span><div class="tw"><div class="tf" style="width:' + (P[i] * 100).toFixed(2) + '%"></div></div><span class="tv">' + c.toFixed(2) + '</span><span class="tg">' + (g >= 0 ? '+' : '') + g.toFixed(3) + '</span>';
+    bars.appendChild(row);
+  });
+  var negMass = 1 - P[0], share = negMass > 1e-12 ? (P[1] + P[2]) / negMass : 0;
+  $('temp-loss').textContent = (-Math.log(P[0])).toFixed(3);
+  $('temp-hard').textContent = '+' + P[1].toFixed(3);
+  $('temp-share').textContent = (share * 100).toFixed(0) + '%';
+  var note;
+  if(tempSwapped) note = '<b>A negative above the positive.</b> The hardest negative now scores 0.36 against the positive\'s 0.31. At &tau; = ' + tau.toFixed(3) + ' that costs a loss of ' + (-Math.log(P[0])).toFixed(2) + (tau < 0.03 ? ' &mdash; one bad cell and the loss is large, and its gradient is a full-strength push on that one pair. A few such rows per batch and fp16 training destabilises, which is why the scale is clipped at 100.' : '. Lower &tau; and watch this number grow.');
+  else if(tau > 0.4) note = '<b>Flat.</b> The eight cosines span only ' + ((0.31 - 0.08) * s).toFixed(2) + ' logits, so the softmax is close to uniform: the positive gets ' + (P[0] * 100).toFixed(0) + '% against a chance level of 12.5%, and the gradient is smeared over every negative almost equally. Even a perfect geometry could not get below ' + floorLoss(8, tau).toFixed(2) + ' here.';
+  else if(tau > 0.03) note = '<b>Working range.</b> Scale ' + s.toFixed(0) + ' stretches the 0.07 gap between positive and hardest negative into ' + ((0.31 - 0.24) * s).toFixed(1) + ' logits. The positive gets ' + (P[0] * 100).toFixed(0) + '% and the hardest negative carries ' + (P[1] / negMass * 100).toFixed(0) + '% of the push. This is where CLIP starts (&tau; = 0.07) &mdash; and notice the positive is still far from confident, which is why the learned scale keeps rising.';
+  else note = '<b>Sharp.</b> At &tau; = ' + tau.toFixed(3) + ' the positive gets ' + (P[0] * 100).toFixed(0) + '% and the contest is essentially against the single closest negative: the two hardest negatives hold ' + (share * 100).toFixed(0) + '% of the push, the rest are ignored. Released CLIP checkpoints sit here (scale 100).';
+  $('temp-note').innerHTML = note;
+}
+function initTemp(){
+  var sl = $('temp-slider'); sl.oninput = drawTemp;
+  document.querySelectorAll('[data-tau]').forEach(function(b){ b.onclick = function(){ sl.value = Math.round(-1000 * Math.log10(+b.dataset.tau) / 2); drawTemp(); }; });
+  $('temp-swap').onclick = function(){ tempSwapped = !tempSwapped; this.classList.toggle('active', tempSwapped); this.innerHTML = tempSwapped ? 'hardest negative &rarr; 0.24' : 'hardest negative &rarr; 0.36'; drawTemp(); };
+  var marks = $('temp-marks'), W = sl.offsetWidth || 340;
+  marks.style.width = W + 'px'; marks.style.marginLeft = ($('temp-slider').offsetLeft || 0) + 'px';
+  marks.innerHTML = '<span style="left:0">&tau;=1</span><span style="left:' + (57.8) + '%">0.07 init</span><span style="left:100%">0.01 clip</span>';
+  drawTemp();
+}
+
+/* ═══════════════ 6 · THE LAB ═══════════════ */
+var lab = { N: 16, tempMode: 'learn', loss: 'softmax', lr: 0.02, seed: 3, speed: 3, forces: true, model: null, rng: null, playing: false,
+            hist: [], tauHist: [], floorHist: [], lastFw: null, ev: null, ev0: null, nuis0: 0, frame: 0, heat: null };
+function labReset(newSeed){
+  if(newSeed) lab.seed++;
+  var opts = { loss: lab.loss, temp: lab.tempMode === 'learn' ? 'learn' : +lab.tempMode };
+  lab.model = makeModel(lab.seed, opts);
+  lab.rng = makeRng(lab.seed * 7919);
+  lab.hist = []; lab.tauHist = []; lab.floorHist = []; lab.lastFw = null; lab.heat = null;
+  lab.ev = evaluateFull(lab.model); lab.ev0 = lab.ev; lab.nuis0 = nuisanceProbe(lab.model);
+  $('lab-biaswrap').style.display = lab.loss === 'sigmoid' ? '' : 'none';
+  labDraw();
+}
+var LAB_PRESETS = {
+  default: { N: 16, t: 'learn', l: 'softmax' },
+  tau1:    { N: 16, t: '1',     l: 'softmax' },
+  tiny:    { N: 4,  t: 'learn', l: 'softmax' },
+  siglip:  { N: 16, t: 'learn', l: 'sigmoid' },
+  collide: { N: 32, t: 'learn', l: 'softmax' },
+};
+function labPreset(name){
+  var p = LAB_PRESETS[name]; if(!p) return;
+  lab.N = p.N; lab.tempMode = p.t; lab.loss = p.l; lab.seed = 3;
+  document.querySelectorAll('.lab-preset').forEach(function(b){ b.classList.toggle('active', b.dataset.preset === name); });
+  document.querySelectorAll('.lab-n').forEach(function(b){ b.classList.toggle('active', +b.dataset.n === p.N); });
+  document.querySelectorAll('.lab-t').forEach(function(b){ b.classList.toggle('active', b.dataset.t === p.t); });
+  document.querySelectorAll('.lab-l').forEach(function(b){ b.classList.toggle('active', b.dataset.l === p.l); });
+  labReset(false);
+  if(!lab.playing){ lab.playing = true; $('lab-play').innerHTML = '&#10074;&#10074; Pause'; requestAnimationFrame(labLoop); }
+}
+function evaluateFull(m){
+  var e = evaluate(m, HELDOUT), U = e.U, V = e.V, hitC = 0, hitS = 0;
+  for(var i = 0; i < U.length; i++){
+    var best = -2, bj = 0;
+    for(var j = 0; j < V.length; j++){ var d = cos2(U[i], V[j]); if(d > best){ best = d; bj = j; } }
+    if(HELDOUT.caps[bj].c === HELDOUT.imgs[i].c) hitC++;
+    if(HELDOUT.caps[bj].s === HELDOUT.imgs[i].s) hitS++;
+  }
+  e.colAcc = hitC / U.length; e.shpAcc = hitS / U.length;
+  return e;
+}
+function labStepCore(k){
+  for(var s = 0; s < k; s++){
+    var pairs = []; for(var i = 0; i < lab.N; i++) pairs.push(makePair(lab.rng));
+    var r = trainStep(lab.model, pairs, lab.lr);
+    r.fw.pairs = pairs;
+    lab.hist.push(r.lo.loss); lab.tauHist.push(1 / scaleOf(lab.model));
+    lab.floorHist.push(Math.max(dupFloor(pairs), floorLoss(lab.N, 1 / scaleOf(lab.model))));
+    if(lab.hist.length > 1200){ lab.hist.shift(); lab.tauHist.shift(); lab.floorHist.shift(); }
+    lab.lastFw = r;
+  }
+}
+function labStep(k){ labStepCore(k); lab.ev = evaluateFull(lab.model); labDraw(); }
+function labLoop(){
+  if(!lab.playing) return;
+  labStepCore(lab.speed);
+  lab.frame++;
+  lab.ev = evaluateFull(lab.model);
+  labDraw();
+  if(lab.model.step >= 3000){ lab.playing = false; $('lab-play').innerHTML = '&#9654; Train'; }
+  requestAnimationFrame(labLoop);
+}
+function batchFalseNegatives(fw){
+  if(!fw) return 0;
+  var pairs = fw.pairs, N = fw.N, k = 0;
+  for(var i = 0; i < N; i++) for(var j = 0; j < N; j++) if(i !== j && pairs[i].img.id === pairs[j].cap.id) k++;
+  return k;
+}
+function labDraw(){
+  var m = lab.model, e = lab.ev;
+  $('lab-stepc').textContent = m.step;
+  $('lab-loss').textContent = lab.hist.length ? lab.hist[lab.hist.length - 1].toFixed(3) : '—';
+  $('lab-tau').textContent = (1 / scaleOf(m)).toFixed(4);
+  $('lab-bias').textContent = m.bias.toFixed(2);
+  $('acc-i2t').textContent = (e.i2t * 100).toFixed(0) + '%'; $('accf-i2t').style.width = (e.i2t * 100) + '%';
+  $('acc-col').textContent = (e.colAcc * 100).toFixed(0) + '%'; $('accf-col').style.width = (e.colAcc * 100) + '%';
+  $('acc-shp').textContent = (e.shpAcc * 100).toFixed(0) + '%'; $('accf-shp').style.width = (e.shpAcc * 100) + '%';
+  $('acc-pc').textContent = e.posCos.toFixed(3); $('accf-pc').style.width = clamp((e.posCos + 1) / 2 * 100, 0, 100) + '%';
+  var fn = batchFalseNegatives(lab.lastFw && lab.lastFw.fw), negs = lab.N * lab.N - lab.N;
+  $('acc-fn').textContent = lab.lastFw ? fn + ' of ' + negs : '—'; $('accf-fn').style.width = (negs ? fn / negs * 100 * 4 : 0) + '%';
+  $('cone-i').textContent = lab.ev0.coneI.toFixed(2); $('cone-t').textContent = lab.ev0.coneT.toFixed(2);
+  $('pc-init').textContent = lab.ev0.posCos.toFixed(2); $('pc-now').textContent = e.posCos.toFixed(2);
+  $('nuis-init').textContent = lab.nuis0.toFixed(1) + '°'; $('nuis-now').textContent = nuisanceProbe(m).toFixed(1) + '°';
+  drawCircle(); drawHeat(); drawCurve(); drawTauCurve();
+  labNote();
+  if(lab.frame % 20 === 0) zsRefresh();
+}
+function drawCircle(){
+  var cv = $('lab-circle'); if(!cv || !cv.clientWidth) return;
+  var c = setupCanvas(cv), ctx = c.ctx, w = c.w, h = c.h, cx = w / 2, cy = h / 2, R = Math.min(w, h) * 0.36;
+  ctx.clearRect(0, 0, w, h);
+  ctx.strokeStyle = '#1a2a4a'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx - R - 10, cy); ctx.lineTo(cx + R + 10, cy); ctx.moveTo(cx, cy - R - 10); ctx.lineTo(cx, cy + R + 10); ctx.stroke();
+  var e = lab.ev;
+  /* mean vectors (the modality gap) */
+  var mu = [0, 0], mv = [0, 0];
+  e.U.forEach(function(u){ mu[0] += u[0] / e.U.length; mu[1] += u[1] / e.U.length; });
+  e.V.forEach(function(v){ mv[0] += v[0] / e.V.length; mv[1] += v[1] / e.V.length; });
+  ctx.lineWidth = 2; ctx.setLineDash([3, 3]);
+  ctx.strokeStyle = 'rgba(45,212,191,.7)'; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + mu[0] * R, cy - mu[1] * R); ctx.stroke();
+  ctx.strokeStyle = 'rgba(251,113,133,.7)'; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + mv[0] * R, cy - mv[1] * R); ctx.stroke();
+  ctx.setLineDash([]);
+  /* images: little shapes on the circle, jittered radially so overlaps stay visible */
+  e.U.forEach(function(u, i){
+    var im = HELDOUT.imgs[i], rr = R + ((i % 5) - 2) * 4;
+    drawShape(ctx, cx + u[0] * rr, cy - u[1] * rr, 4.2, im.c, im.s, 0.9);
+  });
+  /* forces: the current batch's points with their gradient (negated, tangent to the circle) */
+  if(lab.forces && lab.lastFw){
+    var r = lab.lastFw, fw = r.fw, N = fw.N, gmax = 1e-9, k;
+    for(k = 0; k < N; k++){ gmax = Math.max(gmax, Math.hypot(r.gU[k][0], r.gU[k][1]), Math.hypot(r.gV[k][0], r.gV[k][1])); }
+    var scaleA = 34 / gmax;
+    function arrow(p, g, col){
+      var x = cx + p[0] * (R + 14), y = cy - p[1] * (R + 14);
+      var tg = g[0] * (-p[1]) + g[1] * p[0];                 // tangential component (the only one that survives normalisation)
+      var len = clamp(-tg * scaleA, -40, 40), tx = -p[1], ty = p[0];
+      ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + tx * len, y - ty * len); ctx.stroke();
+      ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x, y, 2.4, 0, Math.PI * 2); ctx.fill();
+    }
+    for(k = 0; k < N; k++){ arrow(fw.U[k], r.gU[k], 'rgba(45,212,191,.75)'); arrow(fw.V[k], r.gV[k], 'rgba(251,113,133,.75)'); }
+  }
+  /* captions: rose markers on the circle + labels outside */
+  ctx.font = '10px Courier New'; ctx.textBaseline = 'middle';
+  e.V.forEach(function(v, j){
+    var cp = HELDOUT.caps[j], x = cx + v[0] * R, y = cy - v[1] * R;
+    ctx.fillStyle = '#fb7185'; ctx.beginPath(); ctx.arc(x, y, 3.2, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#fb7185'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(cx + v[0] * (R + 22), cy - v[1] * (R + 22)); ctx.stroke();
+    var lx = cx + v[0] * (R + 26), ly = cy - v[1] * (R + 26), label = COLORS[cp.c] + ' ' + SHAPES[cp.s];
+    ctx.textAlign = v[0] < -0.2 ? 'right' : (v[0] > 0.2 ? 'left' : 'center');
+    var tw = ctx.measureText(label).width;                    // keep the label inside the canvas
+    if(ctx.textAlign === 'right' && lx - tw < 4){ ctx.textAlign = 'left'; lx = 4; }
+    if(ctx.textAlign === 'left' && lx + tw > w - 4){ ctx.textAlign = 'right'; lx = w - 4; }
+    if(ctx.textAlign === 'center'){ lx = clamp(lx, tw / 2 + 4, w - tw / 2 - 4); }
+    ly = clamp(ly, 10, h - 20);
+    ctx.fillStyle = '#fda4af'; ctx.fillText(label, lx, ly);
+  });
+  ctx.textAlign = 'left'; ctx.fillStyle = '#64748b'; ctx.font = '10px Segoe UI';
+  ctx.fillText('dashed arrows: mean image (teal) and mean caption (rose) embedding', 8, h - 8);
+}
+function drawHeat(){
+  var cv = $('lab-heat'); if(!cv || !cv.clientWidth) return;
+  var c = setupCanvas(cv), ctx = c.ctx, w = c.w, h = c.h;
+  ctx.clearRect(0, 0, w, h);
+  if(!lab.lastFw){ ctx.fillStyle = '#64748b'; ctx.font = '11px Segoe UI'; ctx.fillText('press Train or Step to see a batch', 10, h / 2); return; }
+  var fw = lab.lastFw.fw, N = fw.N, size = Math.min((w - 8) / N, (h - 8) / N), ox = (w - size * N) / 2, oy = (h - size * N) / 2;
+  for(var i = 0; i < N; i++) for(var j = 0; j < N; j++){
+    ctx.fillStyle = cosColor(fw.C[i * N + j]); ctx.fillRect(ox + j * size, oy + i * size, size - 1, size - 1);
+    if(i === j){ ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1; ctx.strokeRect(ox + j * size + 0.5, oy + i * size + 0.5, size - 2, size - 2); }
+    else if(fw.pairs && fw.pairs[i].img.id === fw.pairs[j].cap.id){ ctx.strokeStyle = 'rgba(245,158,11,.9)'; ctx.lineWidth = 1; ctx.strokeRect(ox + j * size + 0.5, oy + i * size + 0.5, size - 2, size - 2); }
+  }
+}
+function drawCurve(){
+  var cv = $('lab-curve'); if(!cv || !cv.clientWidth) return;
+  var c = setupCanvas(cv), ctx = c.ctx, w = c.w, h = c.h, pad = 26;
+  ctx.clearRect(0, 0, w, h);
+  var H = lab.hist; if(!H.length) return;
+  var lnN = Math.log(lab.N), ymax = 0;
+  for(var i = 0; i < H.length; i++) if(H[i] > ymax) ymax = H[i];
+  if(lab.loss === 'softmax') ymax = Math.max(ymax, lnN * 1.15);
+  ymax = ymax * 1.05 || 1;
+  function X(i){ return pad + (w - pad - 6) * i / Math.max(1, H.length - 1); }
+  function Y(v){ return h - 14 - (h - 22) * clamp(v / ymax, 0, 1); }
+  ctx.strokeStyle = '#1a2a4a'; ctx.beginPath(); ctx.moveTo(pad, h - 14); ctx.lineTo(w - 6, h - 14); ctx.moveTo(pad, 6); ctx.lineTo(pad, h - 14); ctx.stroke();
+  if(lab.loss === 'softmax'){
+    ctx.setLineDash([4, 4]); ctx.strokeStyle = '#a78bfa'; ctx.beginPath(); ctx.moveTo(pad, Y(lnN)); ctx.lineTo(w - 6, Y(lnN)); ctx.stroke();
+    ctx.fillStyle = '#c4b5fd'; ctx.font = '9px Courier New'; ctx.fillText('chance ln ' + lab.N + ' = ' + lnN.toFixed(2), pad + 4, Y(lnN) - 3);
+    /* the floor: whichever is higher of the duplicate-concept floor for that step's batch and the bounded-cosine floor at that step's tau */
+    ctx.strokeStyle = '#f59e0b'; ctx.beginPath();
+    for(i = 0; i < H.length; i++){ var fy = Y(lab.floorHist[i]); if(i === 0) ctx.moveTo(X(i), fy); else ctx.lineTo(X(i), fy); }
+    ctx.stroke(); ctx.setLineDash([]);
+    var fl = lab.floorHist[lab.floorHist.length - 1];
+    ctx.fillStyle = '#fde68a'; ctx.fillText('floor ' + fl.toFixed(2), w - 70, Y(fl) - 3);
+  }
+  ctx.strokeStyle = '#2dd4bf'; ctx.lineWidth = 1.5; ctx.beginPath();
+  for(i = 0; i < H.length; i++){ var y = Y(H[i]); if(i === 0) ctx.moveTo(X(i), y); else ctx.lineTo(X(i), y); }
+  ctx.stroke();
+  ctx.fillStyle = '#64748b'; ctx.font = '9px Courier New'; ctx.fillText(ymax.toFixed(1), 2, 12); ctx.fillText('0', 14, h - 12);
+  ctx.fillText('last ' + H.length + ' steps', w - 80, h - 3);
+}
+function drawTauCurve(){
+  var cv = $('lab-tcurve'); if(!cv || !cv.clientWidth) return;
+  var c = setupCanvas(cv), ctx = c.ctx, w = c.w, h = c.h, pad = 26;
+  ctx.clearRect(0, 0, w, h);
+  var T = lab.tauHist; if(!T.length) return;
+  function X(i){ return pad + (w - pad - 6) * i / Math.max(1, T.length - 1); }
+  function Y(t){ var lt = Math.log10(clamp(t, 0.005, 2)); return 6 + (h - 16) * (Math.log10(2) - lt) / (Math.log10(2) - Math.log10(0.005)); }
+  ctx.strokeStyle = '#1a2a4a'; ctx.beginPath(); ctx.moveTo(pad, h - 10); ctx.lineTo(w - 6, h - 10); ctx.moveTo(pad, 6); ctx.lineTo(pad, h - 10); ctx.stroke();
+  ctx.setLineDash([4, 4]); ctx.strokeStyle = '#fb7185'; ctx.beginPath(); ctx.moveTo(pad, Y(0.01)); ctx.lineTo(w - 6, Y(0.01)); ctx.stroke(); ctx.setLineDash([]);
+  ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 1.5; ctx.beginPath();
+  for(var i = 0; i < T.length; i++){ var y = Y(T[i]); if(i === 0) ctx.moveTo(X(i), y); else ctx.lineTo(X(i), y); }
+  ctx.stroke();
+  ctx.fillStyle = '#64748b'; ctx.font = '9px Courier New'; ctx.fillText('1.0', 6, Y(1) + 3); ctx.fillText('0.07', 2, Y(0.07) + 3); ctx.fillText('0.01', 2, Y(0.01) + 3);
+}
+function labNote(){
+  var m = lab.model, e = lab.ev, n, last = lab.hist.length ? lab.hist[lab.hist.length - 1] : 0;
+  var recent = lab.hist.slice(-200), stalled = recent.length === 200 && (Math.max.apply(null, recent) - Math.min.apply(null, recent)) < 0.35;
+  if(m.step === 0) n = '<b>Step 0.</b> Two random encoders. Concentration: captions ' + e.coneT.toFixed(2) + ', images ' + e.coneI.toFixed(2) + ' (1.0 would be a single point) &mdash; each modality sits in its own cone, the cone effect that Liang et al. found in every real encoder. Accuracy ' + (e.i2t * 100).toFixed(0) + '% against a chance level of 11%.';
+  else if(e.i2t >= 0.97){
+    var df = lab.lastFw ? dupFloor(lab.lastFw.fw.pairs) : 0, fnk = batchFalseNegatives(lab.lastFw && lab.lastFw.fw);
+    n = '<b>Solved.</b> Nine clusters, each caption sitting inside its image cluster; positive-pair cosine ' + e.posCos.toFixed(2) + '. The loss is ' + last.toFixed(2) + ' rather than 0 because this batch of ' + lab.N + ' drawn from 9 concepts contains ' + fnk + ' false-negative cells (amber): pairs of the <em>same</em> concept that the objective still insists on telling apart. The best any model could score on this batch is (1/N) &Sigma; ln k<sub>i</sub> = ' + df.toFixed(2) + ', the amber line.' + (lab.tempMode === 'learn' ? ' &tau; has fallen to ' + (1 / scaleOf(m)).toFixed(3) + ' and keeps drifting toward the clip, as in the paper.' : '');
+  }
+  else if(m.step >= 600 && e.i2t < 0.6 && stalled) n = '<b>Stuck.</b> Accuracy ' + (e.i2t * 100).toFixed(0) + '% and the loss has stopped moving. On a one-dimensional ring two clusters cannot pass through each other, so this seed has locked in the wrong order. It is an artefact of the 2-D toy &mdash; 768 dimensions leave room to route around &mdash; press <em>Reset</em> for a new seed.';
+  else if(e.colAcc > 0.85 && e.shpAcc < 0.6) n = '<b>Colour learned, shape ignored.</b> Colour accuracy ' + (e.colAcc * 100).toFixed(0) + '%, shape ' + (e.shpAcc * 100).toFixed(0) + '%. The batches have been easy enough that separating colours already wins most of the game. Larger batches make same-colour negatives unavoidable.';
+  else if(e.shpAcc > 0.85 && e.colAcc < 0.6) n = '<b>Shape learned, colour ignored.</b> Shape accuracy ' + (e.shpAcc * 100).toFixed(0) + '%, colour ' + (e.colAcc * 100).toFixed(0) + '%. The batches have been easy enough that separating shapes already wins most of the game.';
+  else if(lab.tempMode !== 'learn' && +lab.tempMode >= 1 && m.step > 150) n = '<b>&tau; pinned at 1.</b> Loss ' + last.toFixed(2) + ' against a floor of ' + floorLoss(lab.N, 1).toFixed(2) + ' for N = ' + lab.N + ': with cosines capped at 1 the softmax stays soft, so even a perfect ring cannot score well. Retrieval accuracy is ' + (e.i2t * 100).toFixed(0) + '% anyway &mdash; the geometry is fine, the loss just cannot say so.';
+  else if(lab.loss === 'sigmoid') n = '<b>Sigmoid.</b> Every cell is its own yes/no question. The bias b = ' + m.bias.toFixed(2) + ' keeps the ' + (lab.N * lab.N - lab.N) + ' negatives near "no" from the start, so early steps are not dominated by pushing negatives apart. Accuracy ' + (e.i2t * 100).toFixed(0) + '%.';
+  else n = '<b>Training.</b> Step ' + m.step + ': the captions are spreading around the circle first &mdash; they are the easier side, since every caption of a concept is nearly the same bag of words &mdash; and the image clusters are drifting to meet them. Accuracy ' + (e.i2t * 100).toFixed(0) + '%, positive-pair cosine ' + e.posCos.toFixed(2) + '.';
+  $('lab-note').innerHTML = n;
+}
+function initLab(){
+  document.querySelectorAll('.lab-n').forEach(function(b){ b.onclick = function(){ document.querySelectorAll('.lab-n').forEach(function(x){ x.classList.remove('active'); }); b.classList.add('active'); lab.N = +b.dataset.n; labDraw(); }; });
+  document.querySelectorAll('.lab-sp').forEach(function(b){ b.onclick = function(){ document.querySelectorAll('.lab-sp').forEach(function(x){ x.classList.remove('active'); }); b.classList.add('active'); lab.speed = +b.dataset.sp; }; });
+  document.querySelectorAll('.lab-preset').forEach(function(b){ b.onclick = function(){ labPreset(b.dataset.preset); }; });
+  $('lab-forces').onclick = function(){ lab.forces = !lab.forces; this.classList.toggle('active', lab.forces); this.textContent = lab.forces ? 'forces on' : 'forces off'; drawCircle(); };
+  document.querySelectorAll('.lab-t').forEach(function(b){ b.onclick = function(){ document.querySelectorAll('.lab-t').forEach(function(x){ x.classList.remove('active'); }); b.classList.add('active'); lab.tempMode = b.dataset.t; labReset(false); }; });
+  document.querySelectorAll('.lab-l').forEach(function(b){ b.onclick = function(){ document.querySelectorAll('.lab-l').forEach(function(x){ x.classList.remove('active'); }); b.classList.add('active'); lab.loss = b.dataset.l; labReset(false); }; });
+  $('lab-play').onclick = function(){ lab.playing = !lab.playing; this.innerHTML = lab.playing ? '&#10074;&#10074; Pause' : '&#9654; Train'; if(lab.playing) requestAnimationFrame(labLoop); };
+  $('lab-step').onclick = function(){ labStep(1); };
+  $('lab-step50').onclick = function(){ labStep(50); };
+  $('lab-reset').onclick = function(){ lab.playing = false; $('lab-play').innerHTML = '&#9654; Train'; labReset(true); };
+  labReset(false);
+}
+
+/* ═══════════════ 7 · ZERO-SHOT ═══════════════ */
+var zs = { imgIdx: 0, tmpl: 'a photo of a {C} {S}', imgs: [] };
+function zsModel(){
+  if(lab.model && lab.ev && lab.ev.i2t >= 0.9) return { m: lab.model, name: 'your lab model (step ' + lab.model.step + ', ' + (lab.ev.i2t * 100).toFixed(0) + '% on held-out images)' };
+  return { m: PRE, name: 'the model trained when the page loaded (' + (PRE_EVAL.i2t * 100).toFixed(0) + '% on held-out images) &mdash; train the lab past 90% to use yours' };
+}
+function zsTokens(tmpl, c, s){
+  var words = tmpl.toLowerCase().replace('{c}', COLORS[c]).replace('{s}', SHAPES[s]).split(/[^a-z]+/).filter(Boolean);
+  return words;
+}
+function zsRefresh(){
+  if(!zs.imgs.length) return;                      // the lab draws before the zero-shot panel exists
+  var M = zsModel(), m = M.m; $('zs-which').innerHTML = M.name;
+  var tmpl = zs.tmpl, s = scaleOf(m);
+  /* chips: show which words survive the vocabulary */
+  var raw = tmpl.toLowerCase().split(/[^a-z{}]+/).filter(Boolean), chips = '';
+  raw.forEach(function(w){ var ok = w === '{c}' || w === '{s}' || VOCAB.indexOf(w) >= 0; chips += '<span class="chip ' + (ok ? 'ok' : 'bad') + '">' + w + '</span>'; });
+  $('zs-chips').innerHTML = chips || '<span class="chip">empty prompt</span>';
+  /* nine classifier weights (an ensemble averages the four template vectors, then renormalises) */
+  var ENS = ['a photo of a {C} {S}', 'a picture of a {C} {S}', 'an image of a {C} {S}', 'the {S} is {C}'];
+  var W = [], names = [];
+  for(var c = 0; c < 3; c++) for(var sh = 0; sh < 3; sh++){
+    if(tmpl === 'ensemble'){
+      var v = [0, 0];
+      ENS.forEach(function(t){ var u = embedText(m, { y: tokensToVec(zsTokens(t, c, sh)) }); v[0] += u[0]; v[1] += u[1]; });
+      var nn = Math.hypot(v[0], v[1]) || 1e-9; W.push([v[0] / nn, v[1] / nn]);
+    } else {
+      var words = zsTokens(tmpl, c, sh).filter(function(w){ return VOCAB.indexOf(w) >= 0; });
+      W.push(embedText(m, { y: tokensToVec(words) }));
+    }
+    names.push(COLORS[c] + ' ' + SHAPES[sh]);
+  }
+  if(tmpl === 'ensemble') $('zs-chips').innerHTML = ENS.map(function(t){ return '<span class="chip ok">' + t + '</span>'; }).join('');
+  var img = zs.imgs[zs.imgIdx], u = embedImage(m, img);
+  var L = W.map(function(wv){ return s * cos2(u, wv); }), mx = Math.max.apply(null, L), Z = 0;
+  L.forEach(function(l){ Z += Math.exp(l - mx); });
+  var P = L.map(function(l){ return Math.exp(l - mx) / Z; }), win = 0;
+  P.forEach(function(p, i){ if(p > P[win]) win = i; });
+  var bars = $('zs-bars'); bars.innerHTML = '';
+  names.forEach(function(n, i){
+    var d = document.createElement('div'); d.className = 'zs-bar' + (i === win ? ' win' : '');
+    d.innerHTML = '<span class="zl' + (i === win ? ' win' : '') + '">' + (tmpl === 'ensemble' ? 'avg{' + n + '}' : zsTokens(tmpl, Math.floor(i / 3), i % 3).join(' ')) + '</span><div class="zw"><div class="zf" style="width:' + (P[i] * 100).toFixed(1) + '%"></div></div><span class="zv">' + (P[i] * 100).toFixed(1) + '%</span>';
+    bars.appendChild(d);
+  });
+  $('zs-pred').textContent = names[win] + (win === img.id ? ' ✓' : ' ✗');
+  /* accuracy of this template over all 90 held-out images */
+  var hit = 0;
+  HELDOUT.imgs.forEach(function(im){
+    var uu = embedImage(m, im), best = -2, bi = 0;
+    W.forEach(function(wv, i){ var d = cos2(uu, wv); if(d > best){ best = d; bi = i; } });
+    if(bi === im.id) hit++;
+  });
+  var acc = hit / HELDOUT.imgs.length;
+  $('zs-acc').textContent = (acc * 100).toFixed(1) + '%';
+  var note = '<b>' + names[win] + '</b> wins with ' + (P[win] * 100).toFixed(1) + '% (scale exp(t) = ' + s.toFixed(1) + '). ';
+  if(tmpl === 'ensemble') note += 'Averaging four templates gives ' + (acc * 100).toFixed(0) + '% over the held-out set &mdash; the toy version of the paper\'s 80-prompt ensemble, which added 3.5 points on ImageNet.';
+  else if(acc >= 0.99) note += 'This template classifies every held-out image correctly. It looks like the sentences the model was trained on.';
+  else if(acc >= 0.8) note += 'This template gets ' + (acc * 100).toFixed(0) + '%. The unfamiliar words shift every class vector by a similar direction, which is enough to flip a few borderline images &mdash; the toy version of the paper\'s 1.3-point template effect.';
+  else note += 'This template gets only ' + (acc * 100).toFixed(0) + '%. A prompt that looks nothing like a training caption produces classifier weights that point nowhere useful &mdash; and the model never saw a bare label, just as CLIP rarely saw one on the web.';
+  $('zs-note').innerHTML = note;
+}
+function initZs(){
+  var rng = makeRng(777);
+  for(var c = 0; c < 3; c++) for(var s = 0; s < 3; s++) zs.imgs.push(makeImage(rng, c, s));
+  var wrap = $('zs-imgs');
+  zs.imgs.forEach(function(im, i){
+    var cv = shapeIcon(46, im.c, im.s, im); if(i === 0) cv.className = 'sel';
+    cv.onclick = function(){ zs.imgIdx = i; wrap.querySelectorAll('canvas').forEach(function(x){ x.className = ''; }); cv.className = 'sel'; zsRefresh(); };
+    wrap.appendChild(cv);
+  });
+  $('zs-tmpl').onchange = function(){
+    if(this.value === 'custom'){ $('zs-custom').style.display = ''; zs.tmpl = $('zs-custom').value || '{C} {S}'; }
+    else { $('zs-custom').style.display = 'none'; zs.tmpl = this.value; }
+    zsRefresh();
+  };
+  $('zs-custom').value = 'a small {C} {S}';
+  $('zs-custom').oninput = function(){ zs.tmpl = this.value || '{C} {S}'; zsRefresh(); };
+  zsRefresh();
+}
+
+/* ═══════════════ 8 · SCALE ═══════════════ */
+var SC_PAIRS = [100e6, 200e6, 300e6, 400e6, 500e6, 600e6, 700e6, 800e6, 900e6, 1e9, 1.1e9, 1.2e9, 1.3e9, 1.4e9, 1.5e9, 1.6e9, 1.7e9, 1.8e9, 1.9e9, 2e9];
+function scaleCalc(N, D, E){
+  var spe = D / N, steps = spe * E, seen = D * E, negs = N * N - N, entries = N * N, bytes16 = entries * 2;
+  return { spe: spe, steps: steps, seen: seen, negs: negs, entries: entries, gb16: bytes16 / 1e9, lnN: Math.log(N) };
+}
+function drawScale(){
+  var N = Math.pow(2, +$('sc-nslider').value), D = 400e6, E = 32;
+  var r = scaleCalc(N, D, E);
+  $('sc-n').textContent = fmtInt(N);
+  $('sc-spe').textContent = fmtInt(r.spe); $('sc-steps').textContent = fmtInt(r.steps); $('sc-seen').textContent = fmtBig(r.seen);
+  $('sc-negs').textContent = fmtBig(r.negs); $('sc-mem').textContent = r.gb16 >= 1 ? r.gb16.toFixed(2) + ' GB' : (r.gb16 * 1000).toFixed(0) + ' MB';
+  $('sc-lnn').textContent = r.lnN.toFixed(2);
+  $('sc-note').innerHTML = (N === 32768 ? 'These are the paper\'s settings: ' : 'For comparison, at the paper\'s N = 32,768: ') + fmtInt(400e6 / 32768) + ' steps per epoch, ' + fmtInt(400e6 / 32768 * 32) + ' steps in total, 12.8 B pairs seen, and a logit matrix of ' + fmtBig(32768 * 32768) + ' entries per step &mdash; which is why no single GPU ever materialises it. Halving the batch doubles the number of steps but quarters the negatives each step sees.';
+}
+function initScale(){
+  $('sc-nslider').oninput = drawScale;
+  $('sc-gpudays-r').textContent = fmtInt(592 * 18); $('sc-gpudays-v').textContent = fmtInt(256 * 12);
+  var eff = $('eff'), rows = [['Transformer LM (predict the caption)', 1, '#64748b'], ['Bag-of-words prediction', 3, '#a78bfa'], ['Contrastive (CLIP)', 12, '#2dd4bf']];
+  rows.forEach(function(r){ var d = document.createElement('div'); d.className = 'er'; d.innerHTML = '<span class="el">' + r[0] + '</span><div class="ew"><div class="ef" style="width:' + (r[1] / 12 * 100) + '%;background:' + r[2] + '"></div></div><span class="ev">' + r[1] + '&times;</span>'; eff.appendChild(d); });
+  drawScale();
+}
+
+/* ═══════════════ 9 · LIMITS ═══════════════ */
+function bowUpdate(){
+  var wa = $('bow-a').value.toLowerCase().split(/[^a-z]+/).filter(function(w){ return VOCAB.indexOf(w) >= 0; });
+  var wb = $('bow-b').value.toLowerCase().split(/[^a-z]+/).filter(function(w){ return VOCAB.indexOf(w) >= 0; });
+  if(!wa.length || !wb.length){ $('bow-cos').textContent = '— (no vocabulary words)'; return; }
+  var a = embedText(PRE, { y: tokensToVec(wa) }), b = embedText(PRE, { y: tokensToVec(wb) });
+  $('bow-cos').textContent = cos2(a, b).toFixed(4) + '  (' + wa.join(' ') + ' | ' + wb.join(' ') + ')';
+}
+function initLimits(){ $('bow-a').oninput = bowUpdate; $('bow-b').oninput = bowUpdate; bowUpdate(); }
+
+/* ═══════════════ PROGRESS + INIT ═══════════════ */
+window.addEventListener('scroll', function(){
+  var h = document.documentElement, p = h.scrollTop / Math.max(1, h.scrollHeight - h.clientHeight);
+  $('progress').style.width = (p * 100) + '%';
+});
+function redrawAll(){ drawNorm(); labDraw(); }
+window.addEventListener('resize', function(){ drawNorm(); labDraw(); gameLines(); });
+gameShuffle();
+$('game-check').onclick = gameCheck; $('game-reset').onclick = gameShuffle; $('game-matrix').onclick = gameMatrix; $('game-scale').onclick = gameScale;
+initArch(); initNorm(); initMx(); initLoss(); initTemp(); initLab(); initZs(); initScale(); initLimits();
+
+</script>
+</body>
+</html>

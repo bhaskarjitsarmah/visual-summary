@@ -122,3 +122,67 @@ transform is mechanical and re-verifiable. Worth repeating when a post starts li
   that eyeballing the source cannot.
 - Any number quoted from a paper should be reproducible by the page's own arithmetic, and
   that reproduction should be an assertion in the test harness.
+
+---
+
+## 2026-09-12 - Post 66 (CLIP Under the Hood)
+
+### 1. A reviewer's arithmetic was wrong, and the page would have printed it
+**Caught by:** my test (asserting `32768*32768 - 32768` against the literal in the HTML).
+
+A design critique supplied "negatives = 1,073,708,032" for N = 32,768 and I pasted it into the
+scale-up panel. The correct value is 1,073,709,056. Same lesson as Post 64's Table 4, one level up:
+a number that arrives *from a reviewer* is still a transcribed number. The harness now asserts every
+literal the prose quotes (390,625 steps; 12.8 B pairs; 2.15 GB; 10,656 / 3,072 V100-days; 4.2e14
+comparisons; the tau = 1 floor of 8.40) against its own arithmetic.
+
+### 2. "ln N is the floor" is false; ln N is chance
+**Caught by:** design review (three critics independently), then confirmed by the engine.
+
+I had labelled the dashed ln N line on the lab's loss chart a "floor". A uniform guess scores ln N;
+the loss can and does go below it. The real floors are (a) the bounded-cosine floor
+ln(1 + (N-1)e^(-2/tau)) - 8.4 at tau = 1 for CLIP's batch, which is the reason tau is learned - and
+(b) the duplicate-concept floor (1/N) sum ln k_i when a batch contains k_i items of one concept.
+Both are now drawn; the closed form (b) reproduces the plateau the lab actually reaches (1.109 at
+N = 16 on the harness seed, mean 1.40 at N = 32 over 300 batches).
+
+**Prevention.** Any line drawn on a live chart needs a name that says what it *is* (chance, bound,
+target), and a harness assertion that the live curve respects it.
+
+### 3. A metric that is degenerate in the toy's geometry
+**Caught by:** design review.
+
+"Modality gap = distance between the mean image embedding and the mean text embedding" is a fine
+metric on a 768-d sphere and meaningless on a circle once nine clusters spread around it - both means
+sit near the origin and the difference is noise. Replaced with mean positive-pair cosine plus the
+cone concentration of each modality at init (mean resultant length), which the circle can honestly
+show, and the prose now states that the toy's cones dissolve while real CLIP's do not (Liang et al.).
+
+### 4. The stepper batch has to come from a half-trained model
+**Caught by:** my test (the gradient step was all zeros).
+
+The 4x4 loss walkthrough used the fully trained page-load model, whose row probabilities were 1.0 to
+double precision, so the "gradient = P - I" step rendered as a grid of zeros. A snapshot at step 90
+(loss 0.59) gives probabilities that are neither uniform nor saturated. Pedagogical panels should be
+driven by the state that has something to show, and the harness should assert it is not saturated.
+
+### 5. The DOM stub must carry the HTML's input values
+**Caught by:** my test (five spurious failures: N = 2^0 = 1 in the scale panel, empty bag-of-words
+inputs).
+
+The stubbed `document` returned '' for every `input.value`, so sliders read 0 and text inputs were
+empty. The harness now parses `value="..."` off every `<input>` and the first `<option>` of every
+`<select>` in the built page. Standing practice: the stub has to reproduce every attribute the script
+reads at load, not just canvas heights.
+
+### 6. Prompt-template effects are only honest if the training captions make bare labels OOD
+**Caught by:** design review, confirmed by measurement.
+
+With bare "{colour} {shape}" among the training templates, every zero-shot template scored 100% and
+the "prompt engineering matters" panel had nothing to show. Making every training caption a sentence
+(as web captions are) gives canonical 100%, bare label 38%, ensemble 96% on the page-load model -
+the mechanism behind the paper's +1.3 / +3.5 points, measured rather than asserted.
+
+### 7. Editing a file with sed invalidates the Edit tool's read state
+Eight Edit calls failed after one `sed -i` on the same file. Cheap to re-read, but do not mix the two
+on one file in one pass.
