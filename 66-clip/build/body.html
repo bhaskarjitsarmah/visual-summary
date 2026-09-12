@@ -1,0 +1,649 @@
+
+<div class="container">
+
+  <div class="hero">
+    <div class="category">Representations &middot; Multimodal</div>
+    <h1>How <span>CLIP</span> is trained: a matching game, played 32,768 wide</h1>
+    <p class="sub">CLIP never sees a label. It sees a batch of images and a batch of captions and is asked one question:
+       <em>which goes with which?</em> This post takes that question apart &mdash; the two encoders, the similarity matrix,
+       the symmetric loss, the temperature knob &mdash; and then lets you train a miniature CLIP in your browser and
+       watch the embedding space organise itself.</p>
+    <div class="meta"><span>Post 66</span><span>&middot;</span><span>~18 min</span><span>&middot;</span><span>8 interactive panels</span><span>&middot;</span><span>A real contrastive model trains live on this page</span></div>
+  </div>
+
+  <!-- ══════════════════ 1 · THE GAME ══════════════════ -->
+  <div class="section" id="s-game">
+    <h2>1 &middot; You are the model. Play one training step.</h2>
+    <p>Here are five images and five captions, shuffled. Click an image, then click the caption you think belongs to it.
+       Match all five, then check your answer. This is <em>exactly</em> the task CLIP is trained on &mdash; no class names,
+       no bounding boxes, just <em>which text came with which image</em>.</p>
+
+    <div class="panel">
+      <div class="game" id="game">
+        <div class="col" id="game-imgs"></div>
+        <div class="col" id="game-caps"></div>
+        <svg id="game-svg"></svg>
+      </div>
+      <div class="ctl-row" style="margin-top:1rem;justify-content:center">
+        <button class="btn primary" id="game-check" disabled>Check my matches</button>
+        <button class="btn" id="game-reset">Shuffle again</button>
+        <button class="btn" id="game-matrix" style="display:none">Show it as a matrix &rarr;</button>
+        <button class="btn" id="game-scale" style="display:none">Now scale it to CLIP &rarr;</button>
+      </div>
+      <div class="step-note" id="game-note">Pick an image on the left, then its caption on the right. Lines will appear as you go.</div>
+      <div id="game-scalebox" style="display:none;margin-top:.8rem" class="canvas-card">
+        <div class="ctitle">The same grid at CLIP's batch size <span>32,768 &times; 32,768</span></div>
+        <canvas id="game-scale-cv" height="220"></canvas>
+        <div class="readout" style="grid-template-columns:repeat(3,1fr)">
+          <div class="rcell"><div class="rk">positives (the diagonal)</div><div class="rv">32,768</div></div>
+          <div class="rcell hot"><div class="rk">negatives (everything else)</div><div class="rv">1,073,709,056</div></div>
+          <div class="rcell vio"><div class="rk">share of cells that are positives</div><div class="rv">0.003%</div></div>
+        </div>
+      </div>
+    </div>
+
+    <p>Notice what made it hard. Two of the images share a subject, so the only way to tell their captions apart was the
+       <em>detail</em> &mdash; the beach, the harness. Those near-misses are called <em>hard negatives</em>, and they are where
+       almost all the learning signal comes from. Now imagine the same game with 32,768 images and 32,768 captions at once.
+       That single round is one training step of CLIP.</p>
+
+    <div class="callout violet">
+      <strong>The whole idea in one sentence.</strong> Train an image encoder and a text encoder so that, inside a batch,
+      every image scores highest against its own caption and every caption scores highest against its own image.
+      Everything else on this page is the machinery that turns that sentence into gradients.
+    </div>
+  </div>
+
+  <!-- ══════════════════ 2 · TWO TOWERS ══════════════════ -->
+  <div class="section" id="s-towers">
+    <h2>2 &middot; Two encoders, one space</h2>
+    <p>CLIP is two separate networks that never talk to each other until the very end. The <span class="i-img">image tower</span>
+       turns pixels into a vector; the <span class="i-txt">text tower</span> turns a caption into a vector of the <em>same length</em>.
+       Each vector is then pushed onto the unit sphere. Hover a box for what CLIP actually used.</p>
+
+    <div class="panel">
+      <div class="arch">
+        <div class="tower img">
+          <div class="abox" data-note="A 224&times;224 image (336 for the final model), random-square-cropped from the resized original. That crop is the <b>only</b> augmentation CLIP uses."><b>Image</b>224&times;224 pixels, one random square crop<span class="arrow">&#8595;</span></div>
+          <div class="abox" data-note="Either a modified ResNet (attention pooling instead of global average pooling) or a Vision Transformer. The headline model is ViT-L/14: 24 layers, 1024 wide, 16 heads, 14-pixel patches. Trained <b>from scratch</b> &mdash; no ImageNet weights."><b>image_encoder</b>ResNet or ViT &mdash; ViT-L/14: 24 layers, 1024 wide<span class="arrow">&#8595;</span></div>
+          <div class="abox" data-note="A plain matrix W<sub>i</sub> of shape [d<sub>i</sub>, d<sub>e</sub>]. The paper tried the SimCLR-style non-linear head and saw no efficiency difference, so it kept the linear one."><b>W_i &middot; I_f</b>linear projection to d<sub>e</sub> = 768<span class="arrow">&#8595;</span></div>
+          <div class="abox" data-note="Divide by the vector's length so it has norm 1. After this, a dot product between an image vector and a text vector <b>is</b> their cosine similarity."><b>l2_normalize</b>I<sub>e</sub> on the unit sphere</div>
+        </div>
+        <div class="arch-mid">
+          <div>joint space</div>
+          <div class="bigx">&times;</div>
+          <div>I<sub>e</sub> &middot; T<sub>e</sub><sup>T</sup><br>cosine</div>
+        </div>
+        <div class="tower txt">
+          <div class="abox" data-note="Lower-cased byte-pair encoding with a 49,152-entry vocabulary (Appendix F lists 49,408 tokens), capped at <b>76</b> tokens plus [SOS]/[EOS]. Long captions are simply truncated."><b>Caption</b>BPE tokens, max 76, wrapped in [SOS] &hellip; [EOS]<span class="arrow">&#8595;</span></div>
+          <div class="abox" data-note="A GPT-2-style Transformer with <b>masked</b> (causal) self-attention. Base size: 63M parameters, 12 layers, 512 wide, 8 heads &mdash; the ViT-L/14 model uses a 768-wide version. Only width is scaled; depth never is."><b>text_encoder</b>Transformer &mdash; 12 layers, 512&ndash;768 wide<span class="arrow">&#8595;</span></div>
+          <div class="abox" data-note="The activation at the [EOS] position of the top layer is taken as the whole caption's feature. Because attention is causal, [EOS] is the only token that has seen every other token. It is layer-normed, then multiplied by W<sub>t</sub>."><b>[EOS] &rarr; W_t &middot; T_f</b>take the [EOS] activation, project<span class="arrow">&#8595;</span></div>
+          <div class="abox" data-note="Same normalisation as the image side. The two towers share <b>nothing</b> &mdash; not weights, not architecture &mdash; only this final space and the loss."><b>l2_normalize</b>T<sub>e</sub> on the unit sphere</div>
+        </div>
+      </div>
+      <div class="arch-note" id="arch-note"><b>Hover any box.</b> Numbers are from the paper's Section 2.4 and Appendix F (Tables 18&ndash;20).</div>
+    </div>
+
+    <h3>Why normalise? Because length is a cheat code.</h3>
+    <p>Without normalisation the loss could be gamed by just making vectors longer &mdash; a huge vector dotted with anything
+       gives a huge score. Projecting onto the sphere leaves only <em>direction</em>, so the only way to score well is to
+       point the same way as your partner. Toggle it below.</p>
+
+    <div class="panel">
+      <div class="ctl-row">
+        <label>Vectors</label>
+        <button class="btn sm active" id="norm-off">raw projections</button>
+        <button class="btn sm" id="norm-on">after l2_normalize</button>
+        <button class="btn sm" id="norm-stretch">stretch T2 &times;4</button>
+        <span class="note" style="margin:0 0 0 auto" id="norm-read"></span>
+      </div>
+      <div class="canvas-card">
+        <div class="ctitle">Three image vectors (teal) and three text vectors (rose) in a 2-D joint space <span>drag any point</span></div>
+        <canvas id="norm-canvas" height="260"></canvas>
+      </div>
+      <p class="hint">Raw dot products are dominated by whichever vector is longest: I1 points almost exactly along the short T2, yet the long T1
+         wins the raw score. Stretch T2 and the raw winner flips without any change of direction. On the sphere, only the angle survives.</p>
+    </div>
+  </div>
+
+  <!-- ══════════════════ 3 · THE BATCH MATRIX ══════════════════ -->
+  <div class="section" id="s-matrix">
+    <h2>3 &middot; The batch is the whole dataset, for one step</h2>
+    <p>Take N image&ndash;caption pairs, embed them all, and dot every image against every caption. You get an N&times;N grid of
+       cosine similarities. The N cells on the diagonal are the true pairs &mdash; the <em>positives</em>. The other N&sup2;&minus;N
+       cells are <em>negatives</em>, and CLIP never has to go looking for them: the batch supplies them for free.</p>
+
+    <p>The grid below is real. A miniature CLIP &mdash; two tiny encoders over a toy world of coloured shapes and short
+       captions &mdash; was trained in this tab when the page loaded. Hover any cell. Switch to the <em>untrained</em> model to
+       see what the same grid looks like before a single gradient step.</p>
+
+    <div class="panel">
+      <div class="ctl-row">
+        <label>Batch size N = <span class="val" id="mx-n">8</span></label>
+        <input type="range" id="mx-slider" min="2" max="16" value="8" step="1">
+        <div class="ctl-group">
+          <label>Model</label>
+          <button class="btn sm active" id="mx-trained">trained</button>
+          <button class="btn sm" id="mx-untrained">untrained</button>
+        </div>
+        <button class="btn sm" id="mx-resample">new batch</button>
+      </div>
+      <div class="mx-wrap">
+        <div class="mx-corner"></div>
+        <div class="mx-cols" id="mx-cols"></div>
+        <div class="mx-rows" id="mx-rows"></div>
+        <div class="mx" id="mx"></div>
+      </div>
+      <div class="mx-tip" id="mx-tip">hover or tap a cell</div>
+      <div class="legend"><span><i style="background:#1d4ed8"></i>cos = &minus;1</span><span class="grad"></span><span><i style="background:#f43f5e"></i>cos = +1</span><span style="margin-left:auto"><i style="border:1px solid #fff;background:transparent"></i>diagonal = the N true pairs</span></div>
+      <div class="readout">
+        <div class="rcell"><div class="rk">positives</div><div class="rv" id="mx-pos">8</div></div>
+        <div class="rcell hot"><div class="rk">negatives (N&sup2;&minus;N)</div><div class="rv" id="mx-neg">56</div></div>
+        <div class="rcell"><div class="rk">mean diagonal cos</div><div class="rv" id="mx-dmean">&mdash;</div></div>
+        <div class="rcell"><div class="rk">mean off-diag cos</div><div class="rv" id="mx-omean">&mdash;</div></div>
+        <div class="rcell vio"><div class="rk">chance loss = ln N</div><div class="rv" id="mx-lnn">2.079</div></div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <strong>Why the batch size is the hyper-parameter that matters.</strong> Two encoder passes per pair buy N&sup2;&minus;N
+      comparisons. At N = 8 there are 56 negatives; at CLIP's N = 32,768 there are about 1.07 <em>billion</em> per step.
+      More negatives means a harder game per step and, crucially, a much better chance that the batch contains a
+      <em>near-miss</em> &mdash; another photo of a dog, another caption about a beach. Section 6 lets you measure this.
+      Look also for cells marked as <em>false negatives</em>: two pairs of the same concept in one batch are still scored as
+      non-matches. CLIP does nothing about those; with 400M pairs it simply does not care.
+    </div>
+  </div>
+
+  <!-- ══════════════════ 4 · THE LOSS ══════════════════ -->
+  <div class="section" id="s-loss">
+    <h2>4 &middot; The loss, one line at a time</h2>
+    <p>The entire training objective fits in the fourteen lines of pseudocode the paper gives in Figure 3. Step through it.
+       Each step highlights the line, and the 4&times;4 grid on the right shows what that line does to the batch.</p>
+
+    <div class="panel">
+      <div class="stepper" id="loss-steps">
+        <button class="btn sm step-btn active" data-step="0">0 &middot; Start</button>
+        <button class="btn sm step-btn" data-step="1">1 &middot; Encode</button>
+        <button class="btn sm step-btn" data-step="2">2 &middot; Project + normalise</button>
+        <button class="btn sm step-btn" data-step="3">3 &middot; Logits</button>
+        <button class="btn sm step-btn" data-step="4">4 &middot; Labels</button>
+        <button class="btn sm step-btn" data-step="5">5 &middot; Image &rarr; text loss</button>
+        <button class="btn sm step-btn" data-step="6">6 &middot; Text &rarr; image loss</button>
+        <button class="btn sm step-btn" data-step="7">7 &middot; Average</button>
+        <button class="btn sm step-btn rose" data-step="8">8 &middot; Gradient</button>
+      </div>
+      <div class="grid2">
+        <div>
+          <div class="code" id="pseudo"></div>
+        </div>
+        <div>
+          <div class="ctl-row" style="margin-bottom:.4rem"><label id="loss-mx-title">Cosine similarities I<sub>e</sub> &middot; T<sub>e</sub><sup>T</sup></label></div>
+          <div class="mx-wrap">
+            <div class="mx-corner"></div>
+            <div class="mx-cols" id="lmx-cols"></div>
+            <div class="mx-rows" id="lmx-rows"></div>
+            <div style="display:flex;align-items:start"><div class="mx" id="lmx" style="flex:1"></div><div class="mx-side" id="lmx-side"></div></div>
+          </div>
+          <div class="mx-bottom" id="lmx-bottom"></div>
+          <div class="readout" style="grid-template-columns:1fr 1fr 1fr">
+            <div class="rcell"><div class="rk">loss_i</div><div class="rv" id="l-li">&mdash;</div></div>
+            <div class="rcell"><div class="rk">loss_t</div><div class="rv" id="l-lt">&mdash;</div></div>
+            <div class="rcell hot"><div class="rk">loss</div><div class="rv" id="l-l">&mdash;</div></div>
+          </div>
+          <div class="ctl-row" style="margin-top:.7rem;margin-bottom:0">
+            <span class="note" style="margin:0" id="lmx-pin">Tap a cell, then push its cosine up or down:</span>
+            <button class="btn sm" id="lmx-up" disabled>+0.15</button>
+            <button class="btn sm" id="lmx-down" disabled>&minus;0.15</button>
+            <button class="btn sm" id="lmx-restore" disabled>restore</button>
+          </div>
+        </div>
+      </div>
+      <div class="step-note" id="loss-note"></div>
+    </div>
+
+    <h3>The formula behind the code</h3>
+    <div class="formula">L<sub>ij</sub> = exp(t) &middot; cos(I<sub>i</sub>, T<sub>j</sub>) &nbsp;&nbsp;<span class="dimd">scaled similarity matrix, N &times; N</span></div>
+    <div class="formula">loss<sub>i&rarr;t</sub> = &minus;(1/N) &Sigma;<sub>i</sub> log <span class="hot">exp(L<sub>ii</sub>)</span> / &Sigma;<sub>j</sub> exp(L<sub>ij</sub>) &nbsp;&nbsp;<span class="dimd">each image picks its caption</span></div>
+    <div class="formula">loss<sub>t&rarr;i</sub> = &minus;(1/N) &Sigma;<sub>j</sub> log <span class="hot">exp(L<sub>jj</sub>)</span> / &Sigma;<sub>i</sub> exp(L<sub>ij</sub>) &nbsp;&nbsp;<span class="dimd">each caption picks its image</span></div>
+    <div class="formula"><span class="hot">loss = &frac12; (loss<sub>i&rarr;t</sub> + loss<sub>t&rarr;i</sub>)</span></div>
+    <div class="formula">&part;loss / &part;L<sub>ij</sub> = &frac12; (P<sup>row</sup><sub>ij</sub> &minus; &delta;<sub>ij</sub>) / N + &frac12; (P<sup>col</sup><sub>ij</sub> &minus; &delta;<sub>ij</sub>) / N &nbsp;&nbsp;<span class="dimd">step 8: the gradient matrix, P &minus; I</span></div>
+    <p>This is the InfoNCE loss of van den Oord et al., applied twice and averaged. Two things are worth keeping. First, it is
+       a plain N-way classification: for image <em>i</em>, the "classes" are the N captions in the batch and the answer is
+       caption <em>i</em>. Second, the gradient on every logit is simply <em>probability minus label</em>: each negative is
+       pushed down in proportion to the probability the model gave it, and the positive is pulled up by 1 &minus; p. Negatives
+       the model already dismisses contribute almost nothing. The hard negatives carry the step &mdash; push one up in the
+       grid above and watch both its row and its column pay for it.</p>
+    <div class="callout amber">
+      <strong>Where the numbers come from.</strong> The paper traces the objective from Sohn's multi-class N-pair loss (2016)
+      through InfoNCE (2018) to ConVIRT (2020), which applied it to medical image&ndash;report pairs. CLIP's contribution was
+      not the loss. It was the discovery that this loss, at web scale, produces a general-purpose visual model.
+    </div>
+  </div>
+
+  <!-- ══════════════════ 5 · TEMPERATURE ══════════════════ -->
+  <div class="section" id="s-temp">
+    <h2>5 &middot; Temperature: the knob CLIP learns for itself</h2>
+    <p>Cosines live in [&minus;1, 1], and in a trained CLIP they live in a much narrower band than that: matching pairs score
+       around 0.3, unrelated pairs around 0.1 to 0.2. Feed numbers like that straight into a softmax over 32,768 candidates and
+       the probabilities are almost uniform, so the loss barely moves however good the geometry is. CLIP multiplies every
+       cosine by a scale <span class="mono">exp(t)</span> before the softmax &mdash; equivalently, divides by a temperature
+       &tau; = 1/exp(t). The paper initialises &tau; at <span class="mono">0.07</span> (borrowed from Wu et al. 2018),
+       <em>learns</em> it by gradient descent, and clips the scale at 100 because larger values made training unstable.</p>
+
+    <div class="panel">
+      <div class="ctl-row">
+        <label>&tau; = <span class="val" id="temp-val">0.07</span> &nbsp; scale = <span class="val" id="temp-scale">14.3</span></label>
+        <input type="range" id="temp-slider" min="0" max="1000" value="580" step="1" style="max-width:340px">
+        <button class="btn sm" data-tau="1">&tau; = 1</button>
+        <button class="btn sm" data-tau="0.07">init 0.07</button>
+        <button class="btn sm" data-tau="0.01">clip 0.01</button>
+        <button class="btn sm rose" id="temp-swap">hardest negative &rarr; 0.36</button>
+      </div>
+      <div class="marks" id="temp-marks"></div>
+      <div class="tbar-head"><span>candidate</span><span>softmax probability</span><span>cos</span><span>&part;loss/&part;logit</span></div>
+      <div class="tbars" id="tbars"></div>
+      <div class="readout" style="grid-template-columns:repeat(4,1fr)">
+        <div class="rcell hot"><div class="rk">&minus;log p(positive)</div><div class="rv" id="temp-loss">&mdash;</div></div>
+        <div class="rcell"><div class="rk">gradient on the hardest negative</div><div class="rv" id="temp-hard">&mdash;</div></div>
+        <div class="rcell"><div class="rk">share of push on top-2 negatives</div><div class="rv" id="temp-share">&mdash;</div></div>
+        <div class="rcell vio"><div class="rk">best possible loss at this &tau; (N = 8)</div><div class="rv" id="temp-floor">&mdash;</div></div>
+      </div>
+      <div class="step-note" id="temp-note"></div>
+      <p class="hint">One image's row of eight cosines, in the narrow band a trained CLIP actually produces: the true pair at 0.31, the closest
+         non-match at 0.24, the rest down to 0.08. Every number above is computed from these eight values.</p>
+    </div>
+
+    <p>Three regimes. At &tau; = 1 the softmax is nearly flat: the positive gets barely more probability than anything else and
+       the gradient is spread thinly across every negative. Worse, because cosines cannot exceed 1, even a <em>perfect</em>
+       geometry cannot get the loss below ln(1 + (N&minus;1)e<sup>&minus;2/&tau;</sup>) &mdash; at &tau; = 1 and N = 32,768 that
+       floor is 8.4. Around 0.07 the hardest negatives dominate the gradient, which is what you want. Push towards 0.01 and the
+       loss becomes a contest between the positive and the single closest negative, with everything else ignored &mdash; and a
+       single negative that overtakes the positive sends the loss past 10, which is why the scale is clipped. The released CLIP
+       checkpoints sit exactly at that clip: their logits are cosine &times; 100, i.e. &tau; = 0.01. The miniature model in the
+       next section drifts the same way, and you can watch it happen.</p>
+  </div>
+
+  <!-- ══════════════════ 6 · THE LAB ══════════════════ -->
+  <div class="section" id="s-lab">
+    <h2>6 &middot; The lab: train CLIP in your browser</h2>
+    <p>Everything above, running for real. The world is nine concepts: three colours &times; three shapes. An "image" is a
+       12-number feature vector (colour, shape, size, position, noise) drawn as an icon. A "caption" is a bag of words from
+       a 14-word vocabulary, generated from templates like <em>"a photo of a red circle"</em> or <em>"the square is blue"</em>.
+       Two small MLP encoders map both into a <em>2-dimensional</em> space, so after normalisation every embedding is a point
+       on a circle and you can see the whole space at once. The loss is the symmetric cross-entropy from Section 4, the
+       temperature is learnable and clipped at a scale of 100, and the gradients are computed by hand-written backprop
+       &mdash; checked against finite differences to 10<sup>&minus;8</sup>.</p>
+
+    <div class="panel">
+      <div class="panel-title">Guided experiments &mdash; each one resets to the same seed and trains automatically</div>
+      <div class="ctl-row">
+        <button class="btn sm lab-preset active" data-preset="default">1 &middot; Default run</button>
+        <button class="btn sm lab-preset" data-preset="tau1">2 &middot; &tau; frozen at 1</button>
+        <button class="btn sm lab-preset" data-preset="tiny">3 &middot; Tiny batch (N = 4)</button>
+        <button class="btn sm lab-preset" data-preset="siglip">4 &middot; SigLIP sigmoid</button>
+        <button class="btn sm lab-preset" data-preset="collide">5 &middot; Collisions (N = 32)</button>
+      </div>
+      <div class="ctl-row">
+        <div class="ctl-group">
+          <label>Batch N</label>
+          <button class="btn sm lab-n" data-n="4">4</button>
+          <button class="btn sm lab-n active" data-n="16">16</button>
+          <button class="btn sm lab-n" data-n="32">32</button>
+        </div>
+        <div class="ctl-group">
+          <label>&tau;</label>
+          <button class="btn sm lab-t active" data-t="learn">learnable</button>
+          <button class="btn sm lab-t" data-t="1">fixed 1.0</button>
+          <button class="btn sm lab-t" data-t="0.07">fixed 0.07</button>
+        </div>
+        <div class="ctl-group">
+          <label>Loss</label>
+          <button class="btn sm lab-l active" data-l="softmax">softmax (CLIP)</button>
+          <button class="btn sm lab-l rose" data-l="sigmoid">sigmoid (SigLIP)</button>
+        </div>
+        <div class="ctl-group">
+          <label>Speed</label>
+          <button class="btn sm lab-sp" data-sp="1">slow</button>
+          <button class="btn sm lab-sp active" data-sp="3">normal</button>
+          <button class="btn sm lab-sp" data-sp="15">fast</button>
+        </div>
+        <button class="btn sm active" id="lab-forces">forces on</button>
+      </div>
+      <div class="ctl-row">
+        <button class="btn primary" id="lab-play">&#9654; Train</button>
+        <button class="btn" id="lab-step">Step &times;1</button>
+        <button class="btn" id="lab-step50">Step &times;50</button>
+        <button class="btn" id="lab-reset">&#8635; Reset (new seed)</button>
+        <div class="lab-status" style="margin:0 0 0 auto">
+          <span>step <span class="pill" id="lab-stepc">0</span></span>
+          <span>loss <span class="pill" id="lab-loss">&mdash;</span></span>
+          <span>&tau; <span class="pill" id="lab-tau">&mdash;</span></span>
+          <span id="lab-biaswrap" style="display:none">b <span class="pill" id="lab-bias">&mdash;</span></span>
+        </div>
+      </div>
+
+      <div class="grid-lab">
+        <div class="canvas-card">
+          <div class="ctitle">The joint embedding space <span>90 held-out images (icons) &middot; 9 captions (labels) &middot; arrows = this batch's gradient</span></div>
+          <canvas id="lab-circle" height="400"></canvas>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.8rem">
+          <div class="canvas-card">
+            <div class="ctitle">This step's batch: cosine matrix <span id="lab-hm-sub">rows = images, cols = captions, amber = false negative</span></div>
+            <canvas id="lab-heat" height="150"></canvas>
+          </div>
+          <div class="canvas-card">
+            <div class="ctitle">Loss per step <span id="lab-loss-sub">violet = chance ln N &middot; amber = floor at current &tau;</span></div>
+            <canvas id="lab-curve" height="120"></canvas>
+          </div>
+          <div class="canvas-card">
+            <div class="ctitle">Learned temperature &tau; <span>log scale, dashed = clip at 0.01</span></div>
+            <canvas id="lab-tcurve" height="80"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="acc-row">
+        <div class="acc"><div class="ak"><span>image &rarr; caption top-1</span><b id="acc-i2t">0%</b></div><div class="aw"><div class="af" id="accf-i2t" style="width:0"></div></div></div>
+        <div class="acc"><div class="ak"><span>colour correct</span><b id="acc-col">0%</b></div><div class="aw"><div class="af" id="accf-col" style="width:0"></div></div></div>
+        <div class="acc"><div class="ak"><span>shape correct</span><b id="acc-shp">0%</b></div><div class="aw"><div class="af" id="accf-shp" style="width:0"></div></div></div>
+        <div class="acc"><div class="ak"><span>positive-pair cosine</span><b id="acc-pc">&mdash;</b></div><div class="aw"><div class="af" id="accf-pc" style="width:0;background:var(--rose)"></div></div></div>
+        <div class="acc"><div class="ak"><span>false negatives in this batch</span><b id="acc-fn">&mdash;</b></div><div class="aw"><div class="af" id="accf-fn" style="width:0;background:var(--amber)"></div></div></div>
+      </div>
+      <div class="lab-note" id="lab-note"></div>
+    </div>
+
+    <h3>What each experiment shows</h3>
+    <ul>
+      <li><strong>1 &middot; Default run.</strong> At step 0 the nine captions sit almost on top of each other and the images
+          occupy their own arc: two random networks map their inputs into two narrow cones (the dashed arrows are the mean
+          embedding of each modality &mdash; long means concentrated). Watch the captions fan out first, then the image clusters
+          drift to meet them, then &tau; fall as the softmax sharpens. The loss never reaches the amber floor because a batch of 16
+          drawn from 9 concepts almost always contains two pairs of the <em>same</em> concept &mdash; false negatives, marked amber
+          in the heatmap.</li>
+      <li><strong>2 &middot; &tau; frozen at 1.</strong> The clusters still form, but the loss stalls high: with cosines capped at
+          1, a flat softmax cannot get below the floor shown in amber. This is the reason CLIP learns &tau; instead of fixing it.</li>
+      <li><strong>3 &middot; Tiny batch.</strong> With N = 4 a batch usually contains no same-colour or same-shape near-miss,
+          so separating one attribute already wins most rounds. Watch the <em>colour</em> and <em>shape</em> bars separate, and
+          notice how long it takes for the second attribute to be learned at all.</li>
+      <li><strong>4 &middot; SigLIP.</strong> Every cell becomes its own yes/no question with a learned bias b initialised at
+          &minus;10, so the 240 negatives start out already "correct". No chance line is drawn because there is no softmax to be
+          uniform over. The clusters form just the same; the difference is memory, not geometry.</li>
+      <li><strong>5 &middot; Collisions.</strong> N = 32 over 9 concepts means every batch has several duplicates. Count the amber
+          cells: those are pairs the objective insists on pushing apart even though they are the same concept. CLIP never masks
+          them; at 400 million captions the collision rate is simply low enough not to matter.</li>
+    </ul>
+    <div class="callout rose">
+      <strong>What the toy cannot tell you.</strong> Real CLIP embeds into 768 dimensions, not 2; its text encoder is a
+      Transformer that can see word order; and its two modalities stay in separate cones after training &mdash; Liang et al.
+      (2022) measure the distance between the image and text centres of a trained CLIP at 0.82, and show that the low temperature
+      is what keeps them apart. On a circle there is no room for two cones once nine clusters have to spread out, so here they
+      dissolve. Occasionally a run also gets stuck with two clusters in the wrong order &mdash; on a one-dimensional ring, clusters
+      cannot pass through each other. That trap does not exist in 768 dimensions; press Reset.
+    </div>
+  </div>
+
+  <!-- ══════════════════ 7 · ZERO-SHOT ══════════════════ -->
+  <div class="section" id="s-zeroshot">
+    <h2>7 &middot; The classifier that writes itself</h2>
+    <p>After training, the text encoder has become something strange: a machine that turns a sentence into a
+       <em>classifier weight vector</em>. To classify an image into K classes, embed K prompts, embed the image, take K cosines,
+       scale by exp(t), softmax. No fine-tuning, no labels. The paper found the wording of the prompt matters &mdash;
+       <em>"A photo of a {label}."</em> beat the bare label by 1.3 points on ImageNet, and ensembling 80 such templates added
+       another 3.5 &mdash; because a full sentence looks more like the captions the model was trained on. The toy reproduces the
+       mechanism: its training captions were always sentences, so a bare "red circle" is out of distribution for it too.</p>
+
+    <div class="panel">
+      <div class="ctl-row">
+        <label>Model</label>
+        <span class="note" style="margin:0" id="zs-which"></span>
+      </div>
+      <div class="grid2">
+        <div>
+          <div class="panel-title">1 &middot; pick a held-out image</div>
+          <div class="zs-imgs" id="zs-imgs"></div>
+          <div class="panel-title" style="margin-top:.8rem">2 &middot; write the prompt template</div>
+          <div class="ctl-row">
+            <select id="zs-tmpl">
+              <option value="a photo of a {C} {S}">a photo of a {C} {S}</option>
+              <option value="{C} {S}">{C} {S}  (bare label)</option>
+              <option value="the {S} is {C}">the {S} is {C}</option>
+              <option value="a large {C} {S}">a large {C} {S}</option>
+              <option value="photo photo photo {C} {S}">photo photo photo {C} {S}  (never seen in training)</option>
+              <option value="ensemble">ensemble: average of 4 templates</option>
+              <option value="custom">custom&hellip;</option>
+            </select>
+            <input type="text" id="zs-custom" placeholder="use {C} and {S}, vocab only" style="display:none;flex:1;min-width:160px">
+          </div>
+          <div class="chips" id="zs-chips"></div>
+          <p class="note">Words outside the 14-word vocabulary are dropped &mdash; the toy has no tokenizer fallback.</p>
+        </div>
+        <div>
+          <div class="panel-title">3 &middot; nine prompts become nine classifier weights</div>
+          <div class="zs-bars" id="zs-bars"></div>
+          <div class="readout" style="grid-template-columns:1fr 1fr">
+            <div class="rcell hot"><div class="rk">prediction</div><div class="rv" id="zs-pred">&mdash;</div></div>
+            <div class="rcell"><div class="rk">accuracy of this template over 90 images</div><div class="rv" id="zs-acc">&mdash;</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="step-note" id="zs-note"></div>
+    </div>
+
+    <p>The trick generalises far beyond classification. Retrieval is the same computation with the roles swapped: embed a query
+       sentence, rank a million image embeddings by cosine. Stable Diffusion conditions its denoiser on CLIP text embeddings;
+       LLaVA feeds CLIP's ViT-L/14 patch features into a language model. In every case the asset is the shared space, not the
+       classifier.</p>
+  </div>
+
+  <!-- ══════════════════ 8 · SCALE ══════════════════ -->
+  <div class="section" id="s-scale">
+    <h2>8 &middot; What 400 million pairs actually costs</h2>
+    <p>CLIP's dataset, WIT, was built by searching for 500,000 queries (every word appearing at least 100 times in English
+       Wikipedia, plus bigrams, article titles and WordNet synsets) and keeping up to 20,000 pairs per query. Every model was
+       trained for 32 epochs at a batch of 32,768. Move the sliders to see what those choices imply.</p>
+
+    <div class="panel">
+      <div class="ctl-row">
+        <label>Batch N = <span class="val" id="sc-n">32,768</span></label>
+        <input type="range" id="sc-nslider" min="8" max="16" value="15" step="1">
+        <span class="note" style="margin:0">400M pairs &times; 32 epochs, as in the paper</span>
+      </div>
+      <div class="readout">
+        <div class="rcell"><div class="rk">steps per epoch</div><div class="rv" id="sc-spe">&mdash;</div></div>
+        <div class="rcell"><div class="rk">total steps</div><div class="rv" id="sc-steps">&mdash;</div></div>
+        <div class="rcell"><div class="rk">pairs seen</div><div class="rv" id="sc-seen">&mdash;</div></div>
+        <div class="rcell hot"><div class="rk">negatives per step</div><div class="rv" id="sc-negs">&mdash;</div></div>
+        <div class="rcell"><div class="rk">logit matrix, fp16</div><div class="rv" id="sc-mem">&mdash;</div></div>
+        <div class="rcell vio"><div class="rk">chance loss ln N</div><div class="rv" id="sc-lnn">&mdash;</div></div>
+      </div>
+      <p class="note" id="sc-note"></p>
+    </div>
+
+    <h3>The engineering that made a 32,768 batch fit</h3>
+    <ul>
+      <li><strong>Sharded similarity.</strong> No GPU ever holds the full N&times;N matrix &mdash; the pseudocode's single
+          <span class="mono">np.dot</span> hides this. Each GPU computes only the pairwise similarities its local slice of the batch
+          needs, against the gathered embeddings from every other GPU.</li>
+      <li><strong>Mixed precision, gradient checkpointing, half-precision Adam statistics</strong>, and text-encoder weights
+          stored in half precision with stochastic rounding.</li>
+      <li><strong>Adam with decoupled weight decay</strong> (0.2), 2,000 warm-up iterations, cosine decay. &beta;&#8322; = 0.98
+          for the ViTs rather than the usual 0.999.</li>
+      <li><strong>Compute.</strong> The largest ResNet (RN50x64) took 18 days on 592 V100s; ViT-L/14 took 12 days on 256 V100s
+          &mdash; about <span class="mono" id="sc-gpudays-r"></span> and <span class="mono" id="sc-gpudays-v"></span> V100-days respectively.
+          The similarity matrix is not where that time goes: over the whole run it is about 4.2 &times; 10<sup>14</sup>
+          dot products of 768 numbers, while the two encoders process 12.8 billion images and captions. The encoders dominate.</li>
+    </ul>
+
+    <h3>Why contrastive at all? The efficiency argument</h3>
+    <p>OpenAI's first attempt predicted captions word by word, like an image-captioning model. It worked, but slowly. The paper
+       reports two efficiency ratios measured by the rate at which zero-shot ImageNet accuracy improved with data:</p>
+    <div class="eff" id="eff"></div>
+    <p class="note">Relative efficiency as stated in Section 2.3 and Figure 2 of the paper: a bag-of-words predictor learns
+       3&times; faster than the transformer language model, and the contrastive objective a further 4&times; faster than
+       bag-of-words. The curves themselves are not reproduced here.</p>
+    <div class="callout">
+      <strong>The reason it is faster.</strong> Predicting the exact words of a caption forces the model to spend capacity on
+      everything that is unpredictable about web text &mdash; phrasing, typos, usernames. Predicting only <em>which caption</em>
+      goes with the image lets the model ignore all of that and keep what is shared between the picture and the words.
+    </div>
+  </div>
+
+  <!-- ══════════════════ 9 · LIMITS ══════════════════ -->
+  <div class="section" id="s-limits">
+    <h2>9 &middot; What the objective never asks for</h2>
+    <p>A model learns exactly what the loss rewards and nothing more. Every well-known CLIP failure is a feature the matching
+       game did not require.</p>
+
+    <div class="grid2">
+      <div class="lim">
+        <h4>Word order</h4>
+        <p>If no caption in the batch is a re-ordering of another, the model is never punished for treating text as a bag of
+           words. Yuksekgonul et al. (2023) built the ARO benchmark from exactly such pairs: asked to pick the right caption out
+           of two that differ only in a relation or attribute, CLIP scored <span class="m">59%</span> and <span class="m">62%</span>
+           against a chance level of 50%. Adding word-order-shuffled captions to each batch as hard negatives (NegCLIP) lifted
+           the relation score to 81%. Our toy's text encoder is a bag of words <em>by construction</em> &mdash; try it:</p>
+        <div class="ctl-row" style="margin-top:.6rem">
+          <input type="text" id="bow-a" value="a red circle" style="flex:1;min-width:120px">
+          <input type="text" id="bow-b" value="circle red a" style="flex:1;min-width:120px">
+        </div>
+        <div class="note">cosine between the two captions: <span class="val" id="bow-cos">&mdash;</span></div>
+      </div>
+      <div class="lim">
+        <h4>The modality gap</h4>
+        <p>In a trained CLIP, image and text embeddings occupy two separate regions of the sphere. Liang et al. (2022) trace it
+           to the cone effect: a random deep network maps all its inputs into a narrow cone, the two towers start in two
+           different cones, and the contrastive loss at a low temperature has a <em>repulsive</em> structure that keeps them
+           apart &mdash; the measured gap of 0.82 is a loss minimum, and closing it raises the loss.</p>
+        <div class="note">In the lab right now: cone concentration at init &mdash; images <span class="val" id="cone-i">&mdash;</span>, captions <span class="val" id="cone-t">&mdash;</span> (1 = a single point); positive-pair cosine <span class="val" id="pc-init">&mdash;</span> at init &rarr; <span class="val" id="pc-now">&mdash;</span> now.</div>
+      </div>
+      <div class="lim">
+        <h4>Whatever the captions never mention</h4>
+        <p>The image tower keeps only what helps pick the right caption. The paper lists the casualties: counting objects,
+           fine-grained classes (car models, aircraft variants, flower species), and handwritten digits &mdash; zero-shot CLIP
+           reached only 88% on MNIST, below a logistic regression on raw pixels, because almost nothing in web captions looks
+           like a handwritten "7".</p>
+        <div class="note">The lab measures the same mechanism: changing only an image's <em>size</em>, a feature no caption
+           mentions, moved its embedding by <span class="val" id="nuis-init">&mdash;</span> at init and moves it by
+           <span class="val" id="nuis-now">&mdash;</span> now.</div>
+      </div>
+      <div class="lim">
+        <h4>Typographic attacks</h4>
+        <p>Because the text tower learned to read words in images (rendered text is cheap contrastive signal), Goh et al. (2021)
+           found that a Granny Smith apple with a paper label reading <span class="m">"iPod"</span> is classified as an iPod.
+           The objective rewarded reading the label exactly as much as recognising the fruit.</p>
+      </div>
+    </div>
+
+    <h3>What changed after CLIP</h3>
+    <div class="tblwrap">
+    <table class="cmp">
+      <tr><th>Model</th><th>What it changed</th><th>Why</th></tr>
+      <tr><td>ALIGN (Google, 2021)</td><td>1.8 billion <em>noisier</em> pairs, no curation</td><td>Scale beats cleaning under the contrastive objective.</td></tr>
+      <tr><td>OpenCLIP / LAION (2022&ndash;23)</td><td>Open reproduction on LAION-400M and LAION-2B</td><td>Showed the recipe is reproducible and follows clean scaling laws.</td></tr>
+      <tr><td>SigLIP (Google, 2023)</td><td>Sigmoid loss per pair instead of softmax over the batch</td><td>No global normalisation, so no need to gather the whole batch's similarities; clearly better below a 16k batch, and both losses saturate around 32k. Try it in the lab.</td></tr>
+      <tr><td>LLaVA, Flamingo, &hellip;</td><td>Use CLIP's image tower as the eyes of a language model</td><td>The contrastive objective produced the most reusable vision features available.</td></tr>
+    </table>
+    </div>
+  </div>
+
+  <!-- ══════════════════ 10 · PM LENS ══════════════════ -->
+  <div class="section" id="s-pm">
+    <h2>10 &middot; PM lens &mdash; what to ask before you ship a CLIP-like model</h2>
+    <p>You will meet CLIP-style models as an image-search feature, a content-moderation classifier, an embedding API, or the
+       vision half of a multimodal assistant. The questions below follow directly from how it is trained.</p>
+    <h3>Six questions</h3>
+    <ul>
+      <li><strong>"What was it trained on, and can we say so?"</strong> &mdash; The objective needs hundreds of millions of
+          <em>web-scraped</em> pairs. WIT was never released; LAION was built from Common Crawl and has been withdrawn and
+          re-issued over content concerns. Provenance is a product risk, not a research footnote.</li>
+      <li><strong>"Zero-shot on <em>whose</em> prompts?"</strong> &mdash; Section 7 showed a template change moves accuracy. Any
+          zero-shot number you are quoted is a number for one prompt set; ask for the ensemble, and for the prompts.</li>
+      <li><strong>"Is the task a matching task?"</strong> &mdash; Retrieval, tagging, de-duplication and coarse classification
+          are matching tasks and CLIP excels. Counting, reading small text, relational questions ("left of", "holding") are
+          not, and a captioning or VLM model will do better.</li>
+      <li><strong>"What is the recall at the k we actually show?"</strong> &mdash; For search, evaluate with Recall@k and NDCG
+          on your own queries (Post 65), not with ImageNet accuracy from the model card.</li>
+      <li><strong>"Softmax or sigmoid, and what batch?"</strong> &mdash; If you are training or fine-tuning, the batch size
+          <em>is</em> the negative set. Small-batch fine-tuning of a CLIP model with the softmax loss is a common way to quietly
+          degrade it; SigLIP's loss is the safer default at small scale.</li>
+      <li><strong>"Has anyone tried the typographic attack?"</strong> &mdash; A moderation classifier that reads text in images
+          can be steered by text in images. Red-team it with labels before someone else does.</li>
+    </ul>
+    <div class="callout amber">
+      <strong>The single most useful mental model.</strong> A CLIP embedding answers "what caption would the web have put under
+      this?" &mdash; not "what is in this image?" The two overlap enough to be useful and diverge enough to bite. Every failure
+      mode in Section 9 is a place where the web's captions and the truth disagree.
+    </div>
+  </div>
+
+  <!-- ══════════════════ 11 · CHEAT SHEET ══════════════════ -->
+  <div class="section" id="s-card">
+    <h2>11 &middot; The whole thing on one card</h2>
+    <div class="formula">I<sub>e</sub> = normalize(W<sub>i</sub> &middot; image_encoder(I)) &nbsp;&nbsp; T<sub>e</sub> = normalize(W<sub>t</sub> &middot; text_encoder(T)<sub>[EOS]</sub>)</div>
+    <div class="formula">logits = exp(t) &middot; I<sub>e</sub> T<sub>e</sub><sup>T</sup> &nbsp;&nbsp;<span class="dimd">N &times; N, diagonal = true pairs</span></div>
+    <div class="formula"><span class="hot">loss = &frac12; [ CE(logits, arange(N)) + CE(logits<sup>T</sup>, arange(N)) ]</span></div>
+    <div class="tblwrap">
+    <table class="cmp">
+      <tr><th>Hyper-parameter</th><th>CLIP value</th><th>Why it matters</th></tr>
+      <tr><td>Batch size</td><td class="num">32,768</td><td>Sets the number of negatives, N&sup2;&minus;N &asymp; 1.07B per step.</td></tr>
+      <tr><td>Temperature &tau;</td><td class="num">t init ln(1/0.07) = 2.659, learned, clipped at ln 100 = 4.605</td><td>Controls how sharply the hardest negatives dominate the gradient. Released checkpoints sit at the clip.</td></tr>
+      <tr><td>Gradient on logits</td><td class="num">(P<sup>row</sup> &minus; I)/2N + (P<sup>col</sup> &minus; I)/2N</td><td>Probability minus label: negatives pushed in proportion to p, the positive pulled by 1 &minus; p.</td></tr>
+      <tr><td>Loss floors</td><td class="num">ln(1 + (N&minus;1)e<sup>&minus;2/&tau;</sup>) &nbsp;&middot;&nbsp; (1/N) &Sigma; ln k<sub>i</sub></td><td>Bounded cosines at temperature &tau;; k<sub>i</sub> items of the same concept in one batch. Chance is ln N.</td></tr>
+      <tr><td>SigLIP alternative</td><td class="num">&minus;(1/N) &Sigma; log &sigma;(z<sub>ij</sub>(s&middot;cos + b)), s init 10, b init &minus;10</td><td>Per-pair binary loss; no softmax over the batch, no ln N.</td></tr>
+      <tr><td>Epochs</td><td class="num">32</td><td>&asymp; 12.8 billion pairs seen; &asymp; 390,000 steps.</td></tr>
+      <tr><td>Optimizer</td><td class="num">Adam, wd 0.2, cosine, 2k warm-up</td><td>&beta;&#8322; = 0.98 for ViTs; 0.999 for ResNets.</td></tr>
+      <tr><td>Embedding dim</td><td class="num">512 (ViT-B) / 768 (ViT-L)</td><td>The joint space. Linear projection, no non-linear head.</td></tr>
+      <tr><td>Text context</td><td class="num">76 tokens + [SOS]/[EOS]</td><td>The [EOS] activation is the caption's feature.</td></tr>
+      <tr><td>Augmentation</td><td class="num">random square crop only</td><td>At 400M pairs, overfitting is not the problem.</td></tr>
+      <tr><td>Init</td><td class="num">from scratch</td><td>No ImageNet weights, no pre-trained text model.</td></tr>
+    </table>
+    </div>
+    <ul style="margin-top:1rem">
+      <li>The loss is InfoNCE, applied image&rarr;text and text&rarr;image and averaged. It is an N-way classification with the batch as the label set.</li>
+      <li>A uniform guess scores ln N. With N = 32,768 that is 10.4; and with cosines bounded, the best possible loss at temperature &tau; is ln(1 + (N&minus;1)e<sup>&minus;2/&tau;</sup>) &mdash; 8.4 at &tau; = 1, essentially 0 at 0.07. That is why &tau; is learned.</li>
+      <li>Zero-shot classification = embed K prompts, take K cosines, softmax. The text encoder is a hypernetwork for linear classifiers.</li>
+      <li>Everything CLIP is bad at &mdash; order, counting, reading small text correctly &mdash; is something the matching game never demanded.</li>
+    </ul>
+    <p style="margin-top:1rem;font-size:.85rem;color:var(--muted)">
+      Source: Radford et al., <em>Learning Transferable Visual Models From Natural Language Supervision</em>, ICML 2021 (arXiv:2103.00020),
+      Sections 2.3&ndash;2.5, 3.1.4, Figure 3 and Appendix F. Follow-ups: Zhai et al. 2023 (SigLIP, arXiv:2303.15343); Liang et al. 2022
+      (modality gap, arXiv:2203.02053); Yuksekgonul et al. 2023 (ARO, arXiv:2210.01936); Wu et al. 2018 (&tau; = 0.07); van den Oord et al. 2018 (InfoNCE).
+    </p>
+  </div>
+
+  <!-- RELATED POSTS -->
+  <div class="related-strip">
+    <div class="related-strip-label">Continue Learning</div>
+    <div class="related-strip-grid">
+      <a class="rc" href="../16-contrastive-loss/">
+        <div class="rc-type" style="color:#f7b731;">Prerequisite</div>
+        <div class="rc-num">Post 16 · Representations</div>
+        <div class="rc-title">Contrastive Loss</div>
+        <div class="rc-why">Siamese networks, margins and NT-Xent — the lineage CLIP's symmetric InfoNCE loss comes from.</div>
+      </a>
+      <a class="rc" href="../08-sbert/">
+        <div class="rc-type" style="color:#f7b731;">Prerequisite</div>
+        <div class="rc-num">Post 08 · Representations</div>
+        <div class="rc-title">Sentence-BERT</div>
+        <div class="rc-why">A two-tower text encoder trained for cosine similarity — CLIP's text side, one modality earlier.</div>
+      </a>
+      <a class="rc" href="../30-semantic-collapse/">
+        <div class="rc-type" style="color:#a78bfa;">Related</div>
+        <div class="rc-num">Post 30 · Representations</div>
+        <div class="rc-title">Semantic Collapse</div>
+        <div class="rc-why">Contrastive training erases whatever the negatives never test — CLIP's bag-of-words behaviour is the multimodal case.</div>
+      </a>
+      <a class="rc" href="../65-ndcg/">
+        <div class="rc-type" style="color:#a78bfa;">Related</div>
+        <div class="rc-num">Post 65 · Evaluation</div>
+        <div class="rc-title">NDCG</div>
+        <div class="rc-why">How to evaluate the retrieval systems that CLIP embeddings power, at the k your users actually see.</div>
+      </a>
+    </div>
+    <a class="map-link-btn" href="../learning-map/">&#x1F5FA; See Post 66 in the Learning Map &#x2192;</a>
+  </div>
+
+  <div class="footer">Visual Summary &middot; Post 66 &mdash; CLIP Under the Hood<br><span style="font-size:.72rem">Every figure in Sections 3, 4, 6, 7 and 9 is computed in your browser by the miniature model on this page.</span></div>
+</div>
