@@ -1,0 +1,20 @@
+var g = require('./glob.js').globMatch, ok = 0, bad = 0;
+function t(p, f, e){ var r = g(p, f); if(r !== e){ bad++; console.log('[X]', p, f, 'got', r); } else ok++; }
+t('src/api/**/*.ts', 'src/api/orders.ts', true);
+t('src/api/**/*.ts', 'src/api/v2/refunds.ts', true);
+t('src/api/**/*.ts', 'src/web/Button.ts', false);
+t('src/api/**/*.ts', 'src/api/orders.tsx', false);
+t('**/*.test.ts', 'orders.test.ts', true);
+t('**/*.test.ts', 'src/api/orders.test.ts', true);
+t('**/*.test.ts', 'src/api/orders.ts', false);
+t('src/**/*.{ts,tsx}', 'src/web/Button.tsx', true);
+t('src/**/*.{ts,tsx}', 'src/web/Button.css', false);
+t('*.md', 'README.md', true);
+t('*.md', 'docs/a.md', false);
+t('src/**', 'src/a/b/c.ts', true);
+t('db/migrations/*.sql', 'db/migrations/001_init.sql', true);
+t('src/?pi/*.ts', 'src/api/x.ts', true);
+t('./src/api/*.ts', 'src/api/x.ts', true);
+t('src/api/*.ts', 'src/api/v2/x.ts', false);
+console.log(bad ? '[X]' : '[OK]', ok, 'passed,', bad, 'failed');
+process.exitCode = bad ? 1 : 0;

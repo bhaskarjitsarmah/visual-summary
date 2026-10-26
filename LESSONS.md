@@ -186,3 +186,32 @@ the mechanism behind the paper's +1.3 / +3.5 points, measured rather than assert
 ### 7. Editing a file with sed invalidates the Edit tool's read state
 Eight Edit calls failed after one `sed -i` on the same file. Cheap to re-read, but do not mix the two
 on one file in one pass.
+
+---
+
+## 2026-10-01 - Post 67 (Why .claude/rules waits)
+
+### 1. `String.prototype.replace` with a string replacement expands `$&`
+**Caught by:** my test (build.js's own "marker left" assertion).
+
+Inlining glob.js into engine.js with `engine.replace('//GLOB//', glob)` silently re-inserted the marker, because the glob
+code contains the regex-escape idiom `'\\$&'`, and `$&` in a *replacement string* means "the matched text". Any time
+source code is spliced in with `replace`, pass a function (`replace(marker, function(){ return code; })`) so nothing in
+the payload is interpreted. Post 66's build.js uses the string form too, so switch it to a function before reusing it.
+
+### 2. A comma-split input broke brace globs
+**Caught by:** my test (the harness's expected count for `src/web/**/*.{ts,tsx}`).
+
+The glob playground split its input on `,` to allow several patterns, which cut `{ts,tsx}` in half. Split only on
+commas at brace depth 0. My first expected count (3) was also wrong: `src/web/Cart.test.ts` is a `.ts` file under
+`src/web/`. Both errors were found by asserting a number instead of eyeballing the panel, and the overlap became a
+teaching point in the post.
+
+### 3. Product facts get the same treatment as paper numbers
+Every load rule in the post (launch vs on read vs on invoke, nested CLAUDE.md, compaction, imports, the
+InstructionsLoaded reasons) was checked against the docs by a separate agent before any prose was written. Anything the
+docs did not state, such as whether rules without `paths` are re-injected after /compact, is left out rather than guessed.
+
+### 4. Git Bash heredocs on this machine mangle backslashes
+`cat <<'EOF'` and `python - <<'PY'` both collapsed a double backslash to a single one here (this entry was itself mangled the first time). Write any file containing backslashes with the
+Write tool, and make edits with Edit, not sed.

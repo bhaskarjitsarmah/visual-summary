@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Why Some Instructions Wait — Post 67 | Visual Summary</title>
+<style>
+:root{
+  --bg:#050811;
+  --surface:#0a1020;
+  --surface2:#0f1830;
+  --border:#1a2a4a;
+  --acc:#f97316;
+  --acc2:#fb923c;
+  --acc3:#fdba74;
+  --sky:#38bdf8;
+  --sky2:#7dd3fc;
+  --text:#e2e8f0;
+  --muted:#64748b;
+  --dim:#94a3b8;
+  --green:#10b981;
+  --red:#ef4444;
+  --red2:#fca5a5;
+  /* the three load triggers */
+  --launch:#38bdf8;
+  --onread:#f59e0b;
+  --oninvoke:#a78bfa;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.6;overflow-x:hidden}
+a{color:var(--sky2);text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:'Courier New',monospace;font-size:.86em;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:0 .3em;color:var(--acc3)}
+
+/* GATE */
+#gate{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center}
+.gate-box{background:var(--surface);border:1px solid var(--acc);border-radius:16px;padding:2.5rem;width:min(380px,90vw);text-align:center}
+.gate-box h2{font-size:1.4rem;color:var(--acc3);margin-bottom:.5rem}
+.gate-box p{color:var(--muted);font-size:.9rem;margin-bottom:1.5rem}
+.gate-box input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem;color:var(--text);font-size:1rem;margin-bottom:1rem;outline:none}
+.gate-box input:focus{border-color:var(--acc)}
+.gate-box button{width:100%;background:linear-gradient(135deg,var(--acc),var(--sky));color:#fff;border:none;border-radius:8px;padding:.75rem;font-size:1rem;cursor:pointer}
+.gate-box button:hover{opacity:.9}
+#gate-err{color:var(--red);font-size:.85rem;margin-top:.5rem;display:none}
+
+.topbar{position:sticky;top:0;z-index:100;background:rgba(5,8,17,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:.75rem 1.5rem;display:flex;align-items:center;gap:1rem}
+.topbar .logo{color:var(--acc3);font-weight:700;font-size:.95rem;white-space:nowrap}
+.topbar .post-tag{background:rgba(249,115,22,.16);color:var(--acc3);border:1px solid var(--acc);border-radius:20px;padding:.2rem .75rem;font-size:.8rem;white-space:nowrap}
+.topbar nav{display:flex;gap:.4rem;flex-wrap:wrap;flex:1;justify-content:flex-end}
+.topbar nav a{color:var(--muted);font-size:.78rem;padding:.25rem .5rem;border-radius:4px;transition:.2s}
+.topbar nav a:hover{color:var(--acc2);background:rgba(249,115,22,.1);text-decoration:none}
+@media(max-width:760px){ .topbar nav{display:none} }
+#progress{position:fixed;top:0;left:0;height:2px;background:linear-gradient(90deg,var(--acc),var(--sky));z-index:200;width:0}
+
+.container{max-width:960px;margin:0 auto;padding:0 1.5rem 5rem}
+@media(max-width:600px){ .container{padding:0 1rem 4rem} }
+
+.hero{padding:3.5rem 0 2rem;text-align:center}
+.hero .category{display:inline-block;background:rgba(56,189,248,.12);color:var(--sky2);border:1px solid var(--sky);border-radius:20px;padding:.3rem .9rem;font-size:.8rem;margin-bottom:1rem;letter-spacing:.05em;text-transform:uppercase}
+.hero h1{font-size:clamp(1.8rem,4vw,2.7rem);font-weight:800;line-height:1.2;margin-bottom:1rem}
+.hero h1 span{background:linear-gradient(135deg,var(--acc3),var(--sky));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero .sub{color:var(--muted);font-size:1rem;max-width:700px;margin:0 auto 1.5rem}
+.hero .meta{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;font-size:.8rem;color:var(--muted)}
+
+.section{margin:2.5rem 0;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.75rem;scroll-margin-top:70px}
+@media(max-width:600px){ .section{padding:1.15rem} }
+.section h2{font-size:1.2rem;color:var(--acc3);margin-bottom:1rem}
+.section p{color:var(--dim);font-size:.93rem}
+.section p+p{margin-top:.75rem}
+.section h3{font-size:1rem;color:var(--sky2);margin:1.5rem 0 .6rem}
+.section ul,.section ol{color:var(--dim);font-size:.93rem;margin:.6rem 0 0 1.1rem}
+.section li{margin-bottom:.45rem}
+.section em,.section strong{color:var(--text)}
+
+.callout{background:rgba(249,115,22,.07);border-left:3px solid var(--acc);border-radius:8px;padding:1rem 1.25rem;margin:1.15rem 0;font-size:.9rem;color:var(--dim)}
+.callout strong{color:var(--acc3)}
+.callout.sky{background:rgba(56,189,248,.07);border-color:var(--sky)}
+.callout.sky strong{color:var(--sky2)}
+.callout.red{background:rgba(239,68,68,.07);border-color:var(--red)}
+.callout.red strong{color:var(--red2)}
+.quote{border-left:3px solid var(--border);padding:.2rem 0 .2rem 1rem;margin:1rem 0;color:var(--text);font-style:italic;font-size:.92rem}
+.quote cite{display:block;font-style:normal;font-size:.75rem;color:var(--muted);margin-top:.3rem}
+
+.panel{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:1.25rem;margin-top:1.25rem}
+@media(max-width:600px){ .panel{padding:.85rem} }
+.panel-title{font-size:.8rem;color:var(--acc2);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.9rem}
+.ctl-row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:.9rem}
+.ctl-row label{color:var(--muted);font-size:.82rem}
+.btn{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.45rem .9rem;color:var(--dim);font-size:.82rem;cursor:pointer;transition:.18s;font-family:inherit}
+.btn:hover{border-color:var(--acc);color:var(--acc3)}
+.btn.active{background:rgba(249,115,22,.16);border-color:var(--acc2);color:var(--acc3)}
+.btn.primary{background:linear-gradient(135deg,var(--acc),var(--sky));color:#fff;border-color:transparent;font-weight:600}
+.btn.primary:hover{opacity:.9;color:#fff}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.sm{padding:.3rem .6rem;font-size:.75rem}
+input[type=range]{accent-color:var(--acc2);flex:1;min-width:120px}
+input[type=text]{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.45rem .7rem;color:var(--text);font-size:.88rem;font-family:'Courier New',monospace;outline:none;width:100%}
+input[type=text]:focus{border-color:var(--acc)}
+.mono{font-family:'Courier New',monospace}
+.note{font-size:.8rem;color:var(--muted);margin-top:.6rem}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media(max-width:760px){ .grid2{grid-template-columns:1fr} }
+
+/* trigger tags */
+.tag-l,.tag-r,.tag-i{display:inline-block;font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;border-radius:20px;padding:.08rem .5rem;border:1px solid;white-space:nowrap;font-family:'Segoe UI',system-ui,sans-serif}
+.tag-l{color:var(--launch);border-color:var(--launch);background:rgba(56,189,248,.1)}
+.tag-r{color:var(--onread);border-color:var(--onread);background:rgba(245,158,11,.1)}
+.tag-i{color:var(--oninvoke);border-color:var(--oninvoke);background:rgba(167,139,250,.1)}
+
+/* ── section 1: flip ── */
+.flip{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem}
+@media(max-width:760px){ .flip{grid-template-columns:1fr} }
+.fcard{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:1rem;transition:border-color .2s}
+.fcard.on{border-color:var(--onread)}
+.fcard.launch{border-color:var(--launch)}
+.fhead{display:flex;justify-content:space-between;align-items:center;gap:.5rem;margin-bottom:.6rem;flex-wrap:wrap}
+.fname{font-family:'Courier New',monospace;font-size:.85rem;color:var(--text);font-weight:700}
+pre.src{font-family:'Courier New',monospace;font-size:.76rem;line-height:1.5;color:var(--dim);white-space:pre-wrap;word-break:break-word;margin:0}
+pre.src .fm{color:var(--onread)}
+pre.src .fm.off{color:var(--muted);text-decoration:line-through;opacity:.5}
+.fwhen{margin-top:.7rem;font-size:.82rem;color:var(--dim)}
+.toggle{display:flex;align-items:center;gap:.5rem;font-size:.85rem;color:var(--dim);cursor:pointer;margin-top:.8rem;user-select:none}
+.toggle input{accent-color:var(--onread);width:16px;height:16px}
+
+/* ── section 2: simulator ── */
+.sim{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:1rem;margin-top:1rem}
+@media(max-width:820px){ .sim{grid-template-columns:1fr} }
+.tree{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:.7rem .4rem;font-family:'Courier New',monospace;font-size:.78rem}
+.tree .grp{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:.5rem .5rem .2rem;font-family:'Segoe UI',system-ui,sans-serif}
+.tnode{display:flex;align-items:center;gap:.45rem;padding:.22rem .5rem;border-radius:6px;cursor:pointer;border:1px solid transparent;white-space:nowrap;overflow:hidden}
+.tnode:hover{border-color:var(--border);background:var(--surface)}
+.tnode .ind{color:var(--border);flex-shrink:0}
+.tnode .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;border:1.5px solid var(--muted)}
+.tnode .nm{overflow:hidden;text-overflow:ellipsis;color:var(--dim)}
+.tnode.dir{cursor:default}
+.tnode.dir:hover{border-color:transparent;background:none}
+.tnode.dir .nm{color:var(--muted)}
+.tnode.ghost .nm{color:var(--muted);font-style:italic;opacity:.6}
+.tnode.k-launch .dot{border-color:var(--launch)}
+.tnode.k-glob .dot,.tnode.k-nested .dot{border-color:var(--onread)}
+.tnode.k-skill .dot{border-color:var(--oninvoke)}
+.tnode.k-launch.in .dot{background:var(--launch)}
+.tnode.k-glob.in .dot,.tnode.k-nested.in .dot{background:var(--onread)}
+.tnode.k-skill.in .dot{background:var(--oninvoke)}
+.tnode.k-skill.half .dot{background:linear-gradient(90deg,var(--oninvoke) 50%,transparent 50%)}
+.tnode.in .nm{color:var(--text)}
+.tnode.src .dot{border-radius:2px;border-color:var(--border)}
+.tnode.src.seen .dot{background:var(--dim);border-color:var(--dim)}
+.tnode.flash{animation:flash 1s ease}
+@keyframes flash{0%{background:rgba(245,158,11,.35)}100%{background:transparent}}
+.tnode .act{margin-left:auto;font-size:.6rem;color:var(--muted);font-family:'Segoe UI',system-ui,sans-serif;opacity:0;transition:.15s}
+.tnode:hover .act{opacity:1}
+
+.ctx{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:.75rem}
+.ctx-head{display:flex;justify-content:space-between;align-items:baseline;gap:.5rem;margin-bottom:.5rem;flex-wrap:wrap}
+.ctx-head b{font-size:.76rem;color:var(--acc2);text-transform:uppercase;letter-spacing:.05em}
+.ctx-head span{font-size:.75rem;color:var(--muted);font-family:'Courier New',monospace}
+.meter{height:10px;background:var(--surface2);border-radius:5px;overflow:hidden;display:flex;margin-bottom:.6rem}
+.meter i{display:block;height:100%;transition:width .3s}
+.ctx-list{display:flex;flex-direction:column;gap:.3rem;min-height:120px}
+.centry{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:.5rem;align-items:center;background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--launch);border-radius:6px;padding:.3rem .5rem;font-size:.74rem;cursor:pointer}
+.centry.r-path_glob_match,.centry.r-nested_traversal{border-left-color:var(--onread)}
+.centry.r-skill{border-left-color:var(--oninvoke)}
+.centry.new{animation:slidein .45s ease}
+@keyframes slidein{0%{transform:translateX(16px);opacity:0;background:rgba(245,158,11,.25)}100%{transform:none;opacity:1}}
+.centry .cp{font-family:'Courier New',monospace;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.centry .cr{font-size:.62rem;color:var(--muted);font-family:'Courier New',monospace}
+.centry .ct{font-family:'Courier New',monospace;color:var(--dim);font-size:.7rem}
+.ctx-empty{color:var(--muted);font-size:.8rem;text-align:center;padding:1.5rem 0}
+
+.narr{background:rgba(249,115,22,.06);border:1px solid rgba(249,115,22,.28);border-radius:8px;padding:.7rem .9rem;margin-top:.8rem;font-size:.87rem;color:var(--dim);min-height:3.2em}
+.narr b{color:var(--acc3)}
+.narr .ev{display:block;font-family:'Courier New',monospace;font-size:.75rem;color:var(--muted);margin-bottom:.25rem}
+.narr .ev .p{color:var(--sky2)}
+.out{margin-top:.8rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.out .oh{font-size:.7rem;padding:.35rem .7rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:.5rem;color:var(--muted);font-family:'Courier New',monospace}
+.out.bad{border-color:var(--red)} .out.bad .oh b{color:var(--red2)}
+.out.good{border-color:var(--green)} .out.good .oh b{color:#6ee7b7}
+.out pre{padding:.6rem .8rem;font-family:'Courier New',monospace;font-size:.74rem;color:var(--dim);white-space:pre-wrap;margin:0}
+.out pre .hl{background:rgba(239,68,68,.18);color:var(--red2)}
+.out.good pre .hl{background:rgba(16,185,129,.15);color:#6ee7b7}
+.steps{display:flex;gap:.3rem;flex-wrap:wrap;align-items:center}
+.steps .dotstep{width:22px;height:22px;border-radius:50%;border:1px solid var(--border);background:var(--bg);color:var(--muted);font-size:.65rem;display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:'Courier New',monospace}
+.steps .dotstep.done{border-color:var(--acc);color:var(--acc3)}
+.steps .dotstep.cur{background:var(--acc);color:#fff;border-color:var(--acc)}
+.inspect{margin-top:.8rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.7rem .8rem;display:none}
+.inspect.show{display:block}
+.inspect .ih{display:flex;justify-content:space-between;gap:.5rem;align-items:center;margin-bottom:.4rem;flex-wrap:wrap}
+.legend{display:flex;gap:1rem;flex-wrap:wrap;font-size:.72rem;color:var(--muted);margin-top:.6rem;align-items:center}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:.3rem;vertical-align:middle}
+
+/* ── section 3: glob ── */
+.gfiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:.3rem;margin-top:.8rem}
+.gfile{font-family:'Courier New',monospace;font-size:.76rem;padding:.3rem .55rem;border-radius:6px;background:var(--bg);border:1px solid var(--border);color:var(--muted);transition:.15s;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gfile.hit{border-color:var(--onread);color:var(--text);background:rgba(245,158,11,.1)}
+.gstat{font-size:.82rem;color:var(--dim);margin-top:.6rem}
+.gstat b{color:var(--onread);font-family:'Courier New',monospace}
+.gerr{color:var(--red2)}
+
+/* ── section 4: budget ── */
+.sl{display:grid;grid-template-columns:180px minmax(0,1fr) 70px;gap:.6rem;align-items:center;margin-bottom:.5rem;font-size:.82rem;color:var(--dim)}
+.sl .v{font-family:'Courier New',monospace;color:var(--acc3);text-align:right}
+@media(max-width:600px){ .sl{grid-template-columns:1fr 64px} .sl input{grid-column:1/3;grid-row:2} }
+.bars{margin-top:1rem;display:flex;flex-direction:column;gap:.7rem}
+.bar .bl{display:flex;justify-content:space-between;font-size:.78rem;color:var(--dim);margin-bottom:.25rem;gap:.5rem}
+.bar .bl b{font-family:'Courier New',monospace;color:var(--text)}
+.bar .bw{height:22px;background:var(--bg);border:1px solid var(--border);border-radius:5px;overflow:hidden;display:flex}
+.bar .bw i{display:block;height:100%;transition:width .25s}
+.readout{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.6rem;margin-top:1rem}
+.rcell{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.6rem .7rem}
+.rcell .rk{font-size:.64rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.rcell .rv{font-size:1.15rem;font-family:'Courier New',monospace;color:var(--acc3);font-weight:700;margin-top:.15rem}
+
+/* tables */
+table.cmp{width:100%;border-collapse:collapse;font-size:.8rem;margin-top:.9rem}
+table.cmp th,table.cmp td{border:1px solid var(--border);padding:.5rem .6rem;text-align:left;vertical-align:top}
+table.cmp th{background:var(--surface2);color:var(--acc3);font-weight:600;font-size:.7rem;text-transform:uppercase;letter-spacing:.04em}
+table.cmp td{color:var(--dim)}
+table.cmp td.num{font-family:'Courier New',monospace;color:var(--text);text-align:right;white-space:nowrap}
+table.cmp td.bad{color:var(--red2)}
+table.cmp td.good{color:#6ee7b7}
+.tblwrap{overflow-x:auto}
+
+/* ── section 6: quiz ── */
+.quiz{display:flex;flex-direction:column;gap:.7rem;margin-top:1rem}
+.q{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:.8rem .9rem}
+.q.right{border-color:var(--green)}
+.q.wrong{border-color:var(--red)}
+.q .qt{font-size:.9rem;color:var(--text);margin-bottom:.55rem}
+.q .qopts{display:flex;gap:.35rem;flex-wrap:wrap}
+.q .qopts .btn{font-size:.74rem;padding:.3rem .6rem;font-family:'Courier New',monospace}
+.q .qopts .btn.pick-right{border-color:var(--green);color:#6ee7b7;background:rgba(16,185,129,.12)}
+.q .qopts .btn.pick-wrong{border-color:var(--red);color:var(--red2);background:rgba(239,68,68,.1)}
+.q .qa{font-size:.82rem;color:var(--dim);margin-top:.55rem;display:none}
+.q .qa.show{display:block}
+.qscore{font-size:.85rem;color:var(--dim);margin-top:.8rem}
+.qscore b{color:var(--acc3)}
+
+pre.codeblock{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem;font-family:'Courier New',monospace;font-size:.76rem;color:var(--dim);overflow-x:auto;margin-top:.8rem;line-height:1.5}
+pre.codeblock .k{color:var(--sky2)} pre.codeblock .s{color:var(--acc3)} pre.codeblock .c{color:var(--muted)}
+
+/* ladder */
+.ladder{display:flex;flex-direction:column;gap:.5rem;margin-top:1rem}
+.rung{display:grid;grid-template-columns:150px minmax(0,1fr);gap:.8rem;align-items:start;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:.7rem .9rem}
+@media(max-width:600px){ .rung{grid-template-columns:1fr} }
+.rung .rw{font-size:.82rem}
+.rung .rd{font-size:.84rem;color:var(--dim)}
+.rung .rd code{font-size:.78rem}
+
+.related-strip{margin-top:3rem;padding-top:1.5rem;border-top:1px solid var(--border)}
+.related-strip-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.related-strip-label::after{content:'';flex:1;height:1px;background:var(--border)}
+.related-strip-grid{display:flex;gap:12px;flex-wrap:wrap}
+.rc{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px 15px;text-decoration:none;color:inherit;transition:all .15s;min-width:160px;flex:1;max-width:230px}
+.rc:hover{border-color:#555;transform:translateY(-1px);text-decoration:none}
+.rc-type{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px}
+.rc-num{font-size:10px;color:var(--muted);margin-bottom:2px;font-family:'Courier New',monospace}
+.rc-title{font-size:12px;font-weight:700;color:var(--text);line-height:1.35;margin-bottom:3px}
+.rc-why{font-size:10px;color:var(--muted);line-height:1.5}
+.map-link-btn{display:inline-flex;align-items:center;gap:6px;margin-top:14px;font-size:11px;color:#a5b4fc;font-weight:600;border:1px solid rgba(99,102,241,.3);border-radius:6px;padding:5px 12px;transition:all .15s;text-decoration:none}
+.map-link-btn:hover{border-color:#6366f1;background:rgba(99,102,241,.08);text-decoration:none}
+
+.footer{text-align:center;color:var(--muted);font-size:.78rem;padding-top:2rem;border-top:1px solid var(--border);margin-top:2rem}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+
+<!-- GATE -->
+<div id="gate">
+  <div class="gate-box">
+    <div style="font-size:2rem;margin-bottom:.5rem">📂</div>
+    <h2>Visual Summary</h2>
+    <p>Post 67 &mdash; Why Some Instructions Wait</p>
+    <input type="password" id="gate-input" placeholder="Enter password" onkeydown="if(event.key==='Enter')checkGate()">
+    <button onclick="checkGate()">Unlock</button>
+    <div id="gate-err">Incorrect password</div>
+  </div>
+</div>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <span class="logo">Visual Summary</span>
+  <span class="post-tag">Post #67</span>
+  <nav>
+    <a href="#s-question">The Question</a>
+    <a href="#s-sim">Simulator</a>
+    <a href="#s-glob">Patterns</a>
+    <a href="#s-budget">Budget</a>
+    <a href="#s-why">Why Reads</a>
+    <a href="#s-ladder">The Ladder</a>
+    <a href="#s-where">Where It Goes</a>
+    <a href="#s-debug">Debug</a>
+    <a href="#s-pm">PM Lens</a>
+  </nav>
+</div>
+
+<div class="container">
+
+  <div class="hero">
+    <div class="category">Agents &middot; Claude Code</div>
+    <h1>Why <span>.claude/rules</span> waits and CLAUDE.md doesn't</h1>
+    <p class="sub">Two markdown files sit in the same repo and both tell Claude how to write code. One is in the prompt from the
+       first turn of every session. The other shows up only when Claude reads a matching file, and sometimes after the code
+       it was meant to govern is already written. This post shows how Claude Code decides what goes into the prompt, and when.</p>
+    <div class="meta"><span>Post 67</span><span>&middot;</span><span>~12 min</span><span>&middot;</span><span>5 interactive panels</span><span>&middot;</span><span>Every load rule cited to the Claude Code docs</span></div>
+  </div>
+
+  <!-- ══════════════════ 1 · THE QUESTION ══════════════════ -->
+  <div class="section" id="s-question">
+    <h2>1 &middot; The question</h2>
+    <p>Here is the question that prompted this post. In an explorable of a Claude Code repo, <code>CLAUDE.md</code> is labelled
+       <em>loads every session</em> and <code>.claude/rules/api.md</code> is labelled <em>loads on a matching file read</em>.
+       Both are markdown files that Claude Code reads, so why do they behave differently?</p>
+    <p>The short answer: <strong>the folder is not what decides it. Three lines of frontmatter are.</strong> Toggle them off and watch the label change.</p>
+
+    <div class="flip">
+      <div class="fcard launch">
+        <div class="fhead"><span class="fname">CLAUDE.md</span><span class="tag-l">every session</span></div>
+        <pre class="src" id="flip-claude"></pre>
+        <div class="fwhen">No trigger. Claude Code loads it at launch because it is meant for things that are true for every task:
+          build commands, layout, team-wide conventions.</div>
+      </div>
+      <div class="fcard on" id="flip-card">
+        <div class="fhead"><span class="fname">.claude/rules/api.md</span><span id="flip-tag" class="tag-r">on matching read</span></div>
+        <pre class="src" id="flip-api"></pre>
+        <div class="fwhen" id="flip-when"></div>
+        <label class="toggle"><input type="checkbox" id="flip-toggle" checked> keep the <code>paths:</code> frontmatter</label>
+      </div>
+    </div>
+
+    <div class="quote">&ldquo;Rules without <code>paths</code> frontmatter are loaded at launch with the same priority as
+      <code>.claude/CLAUDE.md</code>.&rdquo; &hellip; &ldquo;Path-scoped rules trigger when Claude reads files matching the pattern,
+      not on every tool use.&rdquo;<cite>Claude Code docs, <a href="https://code.claude.com/docs/en/memory" target="_blank" rel="noopener">Manage Claude's memory</a></cite></div>
+
+    <p>So <code>.claude/rules/</code> is two features in one folder: a place to split a long CLAUDE.md into topic files (no
+       <code>paths</code>, loaded at launch), and a place for <em>conditional</em> instructions that wait for evidence they are
+       needed. The rest of this post is about the second kind: what the trigger is, why it was chosen, and the one case where it
+       fires too late.</p>
+  </div>
+
+  <!-- ══════════════════ 2 · SIMULATOR ══════════════════ -->
+  <div class="section" id="s-sim">
+    <h2>2 &middot; Watch a session fill its prompt</h2>
+    <p>Below is a small repo, <code>acme-shop</code>, with ten instruction files. Each dot shows how its file loads:
+       <span class="tag-l">launch</span> at session start, <span class="tag-r">on read</span> when Claude reads a matching file,
+       <span class="tag-i">on invoke</span> when a skill is invoked. A filled dot means the file is in context right now.
+       Step through a scenario, or click files in the tree yourself. Clicking a source file makes Claude read it (or create
+       it, if it is greyed out).</p>
+
+    <div class="panel">
+      <div class="ctl-row">
+        <label>Scenario</label>
+        <button class="btn active" data-scn="bug">Fix a bug in an endpoint</button>
+        <button class="btn" data-scn="catch">The catch: a brand-new endpoint</button>
+        <button class="btn" data-scn="web">A frontend-only task</button>
+      </div>
+      <div class="ctl-row">
+        <button class="btn sm" id="sim-back">&larr; Back</button>
+        <button class="btn primary sm" id="sim-next">Next step &rarr;</button>
+        <button class="btn sm" id="sim-play">&#9654; Play</button>
+        <button class="btn sm" id="sim-reset">Reset</button>
+        <div class="steps" id="sim-steps"></div>
+      </div>
+
+      <div class="sim">
+        <div>
+          <div class="tree" id="tree"></div>
+          <div class="legend">
+            <span><i style="background:var(--launch)"></i>launch</span>
+            <span><i style="background:var(--onread)"></i>on read</span>
+            <span><i style="background:var(--oninvoke)"></i>on invoke</span>
+            <span><i style="background:var(--dim);border-radius:2px"></i>source file Claude has opened</span>
+          </div>
+        </div>
+        <div>
+          <div class="ctx">
+            <div class="ctx-head"><b>Instructions in the prompt</b><span id="ctx-tok"></span></div>
+            <div class="meter" id="ctx-meter"></div>
+            <div class="ctx-list" id="ctx-list"></div>
+          </div>
+          <div class="narr" id="sim-narr"></div>
+          <div class="out" id="sim-out" style="display:none"></div>
+          <div class="inspect" id="inspect"></div>
+        </div>
+      </div>
+      <p class="note">Token counts use the rough &asymp; 4 characters per token rule on the exact file text shown, so they are
+        approximate. The tag on each context entry is the load reason, using the names Claude Code's <code>InstructionsLoaded</code>
+        hook reports (section 8). The generated handler in the catch scenario is illustrative: it shows what the rule exists to prevent.</p>
+    </div>
+
+    <div class="callout red">
+      <strong>The catch, stated precisely.</strong> The trigger is Claude <em>reading</em> a matching file. Having the file open
+      in your editor does not count, and neither does Claude <em>creating</em> one: a file that does not exist yet has nothing to
+      read. A greenfield task in a scoped directory can therefore be written before its rules arrive. Run the second
+      scenario to watch it happen.
+    </div>
+  </div>
+
+  <!-- ══════════════════ 3 · GLOB ══════════════════ -->
+  <div class="section" id="s-glob">
+    <h2>3 &middot; The trigger is a glob</h2>
+    <p>The <code>paths</code> field takes glob patterns, relative to the project root. <code>*</code> matches within one folder,
+       <code>**</code> crosses any number of folders, and <code>{ts,tsx}</code> expands into alternatives. You can give several
+       patterns as a YAML list. Type a pattern and see which files in a slightly larger acme-shop would trigger it.</p>
+    <div class="panel">
+      <div class="ctl-row">
+        <label>Presets</label>
+        <button class="btn sm" data-glob="src/api/**/*.ts">src/api/**/*.ts</button>
+        <button class="btn sm" data-glob="**/*.test.ts">**/*.test.ts</button>
+        <button class="btn sm" data-glob="src/web/**/*.{ts,tsx}">src/web/**/*.{ts,tsx}</button>
+        <button class="btn sm" data-glob="src/api/*.ts">src/api/*.ts</button>
+        <button class="btn sm" data-glob="*.md">*.md</button>
+        <button class="btn sm" data-glob="src/**">src/**</button>
+      </div>
+      <input type="text" id="glob-in" value="src/api/**/*.ts" spellcheck="false" aria-label="glob pattern">
+      <div class="gstat" id="glob-stat"></div>
+      <div class="gfiles" id="glob-files"></div>
+    </div>
+    <div class="callout sky">
+      <strong>Two patterns worth noticing.</strong> <code>src/api/*.ts</code> does not reach <code>src/api/v2/</code>, since one
+      star stays inside one folder. And <code>**/*.test.ts</code> also matches a test file at the repo root, because <code>**/</code>
+      can match zero folders. Patterns also overlap: <code>src/web/**/*.{ts,tsx}</code> catches <code>src/web/Cart.test.ts</code>,
+      so reading that one file loads both the React rule and the test rule. If a rule never fires, or fires when you did not
+      expect it, check the pattern first.
+    </div>
+  </div>
+
+  <!-- ══════════════════ 4 · BUDGET ══════════════════ -->
+  <div class="section" id="s-budget">
+    <h2>4 &middot; Why not just load everything? The prompt is a budget</h2>
+    <p>Everything loaded at launch rides along on every turn of the session. A team that writes one rule file per concern
+       (API, tests, migrations, React, infra, analytics, auth) can end up with dozens. Use the sliders to see what loading
+       them all costs compared with loading only what a session touches.</p>
+    <div class="panel">
+      <div class="panel-title">An illustrative team repo, not a measurement</div>
+      <div class="sl"><span>Rule files</span><input type="range" id="b-rules" min="1" max="80" value="30"><span class="v" id="b-rules-v"></span></div>
+      <div class="sl"><span>Avg tokens per rule</span><input type="range" id="b-tok" min="50" max="1500" step="50" value="300"><span class="v" id="b-tok-v"></span></div>
+      <div class="sl"><span>Always-on CLAUDE.md</span><input type="range" id="b-core" min="200" max="5000" step="100" value="1500"><span class="v" id="b-core-v"></span></div>
+      <div class="sl"><span>Share of rules a task needs</span><input type="range" id="b-share" min="0" max="100" step="5" value="10"><span class="v" id="b-share-v"></span></div>
+      <div class="sl"><span>Turns in the session</span><input type="range" id="b-turns" min="1" max="150" value="40"><span class="v" id="b-turns-v"></span></div>
+      <div class="bars">
+        <div class="bar"><div class="bl"><span>Every rule loaded at launch</span><b id="b-all"></b></div><div class="bw"><i id="b-all-core" style="background:var(--launch)"></i><i id="b-all-rules" style="background:#64748b"></i></div></div>
+        <div class="bar"><div class="bl"><span>Rules scoped with <code>paths:</code></span><b id="b-sc"></b></div><div class="bw"><i id="b-sc-core" style="background:var(--launch)"></i><i id="b-sc-rules" style="background:var(--onread)"></i></div></div>
+      </div>
+      <div class="readout">
+        <div class="rcell"><div class="rk">Tokens per turn saved</div><div class="rv" id="b-saved"></div></div>
+        <div class="rcell"><div class="rk">Scoped / always</div><div class="rv" id="b-ratio"></div></div>
+        <div class="rcell"><div class="rk">Instruction tokens re-sent, all on</div><div class="rv" id="b-sess-all"></div></div>
+        <div class="rcell"><div class="rk">&hellip; scoped</div><div class="rv" id="b-sess-sc"></div></div>
+      </div>
+      <p class="note">The scoped bar is an upper bound for the session: it assumes the needed rules are loaded from turn one,
+        when in fact each one arrives at its first matching read.</p>
+    </div>
+    <p style="margin-top:1rem">The cost has two parts, and only one is money.</p>
+    <ul>
+      <li><strong>Context space.</strong> Prompt caching makes re-sent tokens cheaper, but it does not make them smaller. They still
+          take up room in the window for the whole session, room that would otherwise hold code and conversation.</li>
+      <li><strong>Attention.</strong> The docs make the adherence point directly about CLAUDE.md:</li>
+    </ul>
+    <div class="quote">&ldquo;Size: target under 200 lines per CLAUDE.md file. Longer files consume more context and reduce adherence.&rdquo;
+      <cite>Claude Code docs, Manage Claude's memory</cite></div>
+    <p>A migration rule sitting in the prompt while Claude restyles a button is not neutral. It is one more instruction competing
+       with the ones that matter. Path scoping is how you get many rules without making each one weaker:</p>
+    <div class="quote">&ldquo;Rules can also be scoped to specific file paths, so they only load into context when Claude works with
+      matching files, reducing noise and saving context space.&rdquo;<cite>Claude Code docs, Manage Claude's memory</cite></div>
+  </div>
+
+  <!-- ══════════════════ 5 · WHY READS ══════════════════ -->
+  <div class="section" id="s-why">
+    <h2>5 &middot; Why the trigger is a read</h2>
+    <p>Lazy loading needs a signal for <em>when</em> a rule becomes relevant. At launch Claude Code knows nothing about the task.
+       After your prompt it knows some words, but words are a weak signal: "fix the cart" could mean the React component, the
+       API, or the database. The first hard evidence of what a task touches is the files Claude opens. Reading
+       <code>src/api/orders.ts</code> is about as clear a sign of API work as there is, and it usually comes before any edit,
+       because you read code before you change it.</p>
+    <p>That last clause is where the design is right most of the time and wrong once. The table runs the three scenarios
+       from section 2 under two policies and counts what goes wrong. The numbers come from the same engine that drives the
+       simulator.</p>
+    <div class="tblwrap"><table class="cmp" id="strat-table"></table></div>
+    <p class="note">"Unneeded tokens" counts path-scoped rules loaded into a session that never touched a file they match. "Rule
+      missing at write" counts files created in a scoped directory before their rule loaded.</p>
+
+    <h3>Closing the gap</h3>
+    <p>The read trigger is cheap and right for edits. It only misses on greenfield work. You do not have to choose between
+       "always" and "lazy" for a whole rule. You can split it:</p>
+    <ul>
+      <li><strong>Promote the one line that must never be missed.</strong> If hand-returned status shapes are a real incident
+          risk, put a single line in CLAUDE.md ("API handlers throw ApiError; see .claude/rules/api.md") and keep the details
+          scoped.</li>
+      <li><strong>Make reading the first step.</strong> "Look at orders.ts and add a refunds endpoint like it" causes the read
+          that loads the rule, and gives Claude a working example as well.</li>
+      <li><strong>A nested CLAUDE.md is not the fix.</strong> <code>src/api/CLAUDE.md</code> also loads on read, so it has the
+          same gap as the rule it would point to.</li>
+    </ul>
+  </div>
+
+  <!-- ══════════════════ 6 · LADDER ══════════════════ -->
+  <div class="section" id="s-ladder">
+    <h2>6 &middot; The same idea, all the way down</h2>
+    <p>Path-scoped rules are one rung on a ladder that runs through all of Claude Code's instruction files: load the
+       cheapest summary early, and the full text only when there is evidence it is needed.</p>
+    <div class="ladder">
+      <div class="rung"><div class="rw"><span class="tag-l">at launch</span></div><div class="rd">
+        <code>CLAUDE.md</code> and <code>CLAUDE.local.md</code> in the working directory <em>and every directory above it</em>,
+        <code>~/.claude/CLAUDE.md</code>, the managed-policy CLAUDE.md, every rule <em>without</em> <code>paths</code> (project and
+        <code>~/.claude/rules/</code>), every <code>@import</code> those files pull in, and each skill's <em>description</em>.</div></div>
+      <div class="rung"><div class="rw"><span class="tag-r">on read</span></div><div class="rd">
+        Rules <em>with</em> <code>paths</code>, when Claude reads a matching file. <code>CLAUDE.md</code> / <code>CLAUDE.local.md</code> in
+        a <em>subdirectory</em> of the working directory, when Claude reads a file in that subdirectory.</div></div>
+      <div class="rung"><div class="rw"><span class="tag-i">on invoke</span></div><div class="rd">
+        A skill's full <code>SKILL.md</code> body, when the skill runs. It then stays for the rest of the session.</div></div>
+      <div class="rung"><div class="rw"><span class="tag-l">after /compact</span></div><div class="rd">
+        The project-root CLAUDE.md is re-read from disk and re-injected. Nested CLAUDE.md files and <code>paths:</code> rules
+        are not; they reload the next time Claude reads a file they apply to. So the catch from section 2 can come back
+        after a compaction.</div></div>
+    </div>
+    <div class="callout">
+      <strong>Two misreadings to avoid.</strong> First, <code>@imports</code> are not lazy: "imported files are expanded and loaded
+      into context at launch alongside the CLAUDE.md that references them", so splitting a big CLAUDE.md into imports
+      organises it without shrinking it. Use path-scoped rules or skills for that. Second, user rules and project rules do not
+      override each other: user rules load first, and "if a user rule and a project rule conflict, Claude may follow either one."
+    </div>
+  </div>
+
+  <!-- ══════════════════ 7 · WHERE IT GOES ══════════════════ -->
+  <div class="section" id="s-where">
+    <h2>7 &middot; Where does this instruction belong?</h2>
+    <p>The question to ask for any instruction is <em>when does it need to be true?</em> Every task, one area of the code, one
+       procedure you run sometimes, or only on your machine. Pick a home for each instruction below.</p>
+    <div class="quiz" id="quiz"></div>
+    <div class="qscore" id="qscore"></div>
+  </div>
+
+  <!-- ══════════════════ 8 · DEBUG ══════════════════ -->
+  <div class="section" id="s-debug">
+    <h2>8 &middot; Seeing what actually loaded</h2>
+    <p>When a rule seems to be ignored, the first question is whether it was in context at all. Claude Code gives you three tools for this:</p>
+    <ul>
+      <li><code>/context</code> lists the CLAUDE.md and rules files loaded into the current session, under <em>Memory files</em>.</li>
+      <li><code>/memory</code> lists your CLAUDE.md, CLAUDE.local.md and other memory file locations across user and project scopes.</li>
+      <li>The <code>InstructionsLoaded</code> hook fires whenever an instruction file loads, with the reason as its matcher value:
+          <code>session_start</code>, <code>nested_traversal</code>, <code>path_glob_match</code>, <code>include</code> or
+          <code>compact</code>. It is for observing only and cannot block a load.</li>
+    </ul>
+    <p>To log every path-scoped load to a file, add this to <code>.claude/settings.json</code>:</p>
+<pre class="codeblock">{
+  <span class="k">"hooks"</span>: {
+    <span class="k">"InstructionsLoaded"</span>: [
+      {
+        <span class="k">"matcher"</span>: <span class="s">"path_glob_match"</span>,
+        <span class="k">"hooks"</span>: [
+          { <span class="k">"type"</span>: <span class="s">"command"</span>, <span class="k">"command"</span>: <span class="s">"cat &gt;&gt; ~/.claude/instructions-loaded.log"</span> }
+        ]
+      }
+    ]
+  }
+}</pre>
+    <p class="note">The hook receives the event as JSON on stdin; this one just appends it. See the
+      <a href="https://code.claude.com/docs/en/hooks" target="_blank" rel="noopener">hooks reference</a> for the payload fields.</p>
+  </div>
+
+  <!-- ══════════════════ 9 · PM LENS ══════════════════ -->
+  <div class="section" id="s-pm">
+    <h2>9 &middot; PM lens: instructions are a product surface</h2>
+    <p>If your team ships with Claude Code, the instruction files are part of the product: they decide how consistent the
+       output is. Questions worth asking:</p>
+    <ul>
+      <li><strong>"How many lines load before anyone types?"</strong> Run <code>/context</code> in a fresh session. If the always-on
+          instructions are over a couple of hundred lines, adherence is already being traded for coverage.</li>
+      <li><strong>"Which rules have never fired?"</strong> An <code>InstructionsLoaded</code> log over a week shows which
+          <code>paths:</code> rules loaded. A rule that never loads has a broken glob, or describes code nobody touches.</li>
+      <li><strong>"What breaks if this rule loads late?"</strong> Sort scoped rules by the cost of the greenfield miss. A style
+          preference can wait. A security or money-handling invariant earns one line in CLAUDE.md.</li>
+      <li><strong>"Is this an instruction or a procedure?"</strong> A checklist you run sometimes (release, incident review) is a
+          skill: description always loaded, body on demand. A fact about the code is a rule.</li>
+      <li><strong>"Is it personal?"</strong> Ports, test accounts and personal style go in <code>CLAUDE.local.md</code> or
+          <code>~/.claude/</code>, not in the committed files every teammate pays for.</li>
+    </ul>
+    <div class="callout">
+      <strong>The single most useful mental model.</strong> Instructions loaded at launch are paid for by every task. Path-scoped
+      ones are paid for only by tasks that touch matching files. The read trigger is what makes the second kind possible, and
+      also why it can arrive late.
+    </div>
+  </div>
+
+  <!-- ══════════════════ 10 · CHEAT SHEET ══════════════════ -->
+  <div class="section" id="s-card">
+    <h2>10 &middot; The whole thing on one card</h2>
+    <div class="tblwrap">
+    <table class="cmp">
+      <tr><th>File</th><th>Loads</th><th>Use it for</th></tr>
+      <tr><td class="mono">~/.claude/CLAUDE.md</td><td><span class="tag-l">launch</span></td><td>Your preferences, every project.</td></tr>
+      <tr><td class="mono">CLAUDE.md (and ancestors)</td><td><span class="tag-l">launch</span></td><td>True for every task: commands, layout, invariants. Under 200 lines.</td></tr>
+      <tr><td class="mono">CLAUDE.local.md</td><td><span class="tag-l">launch</span></td><td>Personal, per-project, gitignored.</td></tr>
+      <tr><td class="mono">.claude/rules/x.md, no paths</td><td><span class="tag-l">launch</span></td><td>Splitting CLAUDE.md into topic files. Same cost as CLAUDE.md.</td></tr>
+      <tr><td class="mono">.claude/rules/x.md + paths:</td><td><span class="tag-r">on read</span></td><td>Conventions for one area of the code.</td></tr>
+      <tr><td class="mono">src/sub/CLAUDE.md</td><td><span class="tag-r">on read</span></td><td>Notes about one subdirectory.</td></tr>
+      <tr><td class="mono">.claude/skills/x/SKILL.md</td><td><span class="tag-l">description</span> <span class="tag-i">body on invoke</span></td><td>Procedures you run sometimes. Under 500 lines.</td></tr>
+      <tr><td class="mono">@path imports</td><td><span class="tag-l">launch</span></td><td>Organising, not saving context.</td></tr>
+    </table>
+    </div>
+    <ul style="margin-top:1rem">
+      <li>The folder does not decide when a rule loads. The <code>paths:</code> frontmatter does.</li>
+      <li>The trigger is Claude <em>reading</em> a matching file: not a file being open in your editor, not words in the prompt, not creating a file.</li>
+      <li>Greenfield files in a scoped area can be written before their rule loads. Promote critical lines, or start by reading an existing file.</li>
+      <li>After <code>/compact</code>, only the project-root CLAUDE.md is re-injected. Scoped rules return on the next matching read.</li>
+      <li>Check with <code>/context</code>. Log with the <code>InstructionsLoaded</code> hook.</li>
+    </ul>
+    <p style="margin-top:1rem;font-size:.85rem;color:var(--muted)">
+      Sources: Claude Code documentation, <a href="https://code.claude.com/docs/en/memory" target="_blank" rel="noopener">Manage Claude's memory</a>
+      (CLAUDE.md locations, the directory walk, <code>.claude/rules/</code>, path-specific rules, imports, compaction, <code>/context</code>),
+      <a href="https://code.claude.com/docs/en/skills" target="_blank" rel="noopener">Skills</a> and
+      <a href="https://code.claude.com/docs/en/hooks" target="_blank" rel="noopener">Hooks</a> (<code>InstructionsLoaded</code>).
+      The acme-shop repo, its token counts and the budget sliders are illustrations.
+    </p>
+  </div>
+
+  <!-- RELATED POSTS -->
+  <div class="related-strip">
+    <div class="related-strip-label">Continue Learning</div>
+    <div class="related-strip-grid">
+      <a class="rc" href="../35-agent-harness/">
+        <div class="rc-type" style="color:#f7b731;">Prerequisite</div>
+        <div class="rc-num">Post 35 · Evaluation</div>
+        <div class="rc-title">Agent Harness Engineering</div>
+        <div class="rc-why">Why the harness around the model, including what goes into its context, decides agent reliability.</div>
+      </a>
+      <a class="rc" href="../59-claude-tag/">
+        <div class="rc-type" style="color:#a78bfa;">Related</div>
+        <div class="rc-num">Post 59 · Agents</div>
+        <div class="rc-title">Claude Tag</div>
+        <div class="rc-why">Agent Skills' progressive disclosure: the same load-the-summary-first pattern, from the Slack side.</div>
+      </a>
+      <a class="rc" href="../50-memory-agents/">
+        <div class="rc-type" style="color:#a78bfa;">Related</div>
+        <div class="rc-num">Post 50 · Agents</div>
+        <div class="rc-title">Memory in LLM Agents</div>
+        <div class="rc-why">Where instruction files sit in the wider taxonomy of agent memory: sources, forms and retrieval.</div>
+      </a>
+      <a class="rc" href="../54-skilllens/">
+        <div class="rc-type" style="color:#a78bfa;">Related</div>
+        <div class="rc-num">Post 54 · Agents</div>
+        <div class="rc-title">SkillLens</div>
+        <div class="rc-why">What happens to skills after they are written: extraction, consumption, and when they actually get used.</div>
+      </a>
+    </div>
+    <a class="map-link-btn" href="../learning-map/">&#x1F5FA; See Post 67 in the Learning Map &#x2192;</a>
+  </div>
+
+  <div class="footer">Visual Summary &middot; Post 67 &mdash; Why Some Instructions Wait<br><span style="font-size:.72rem">The simulator, the pattern matcher and the policy table all run on one loader engine in your browser.</span></div>
+</div>
+
+<script>
+"use strict";
+
+/* ═══════════════ GATE ═══════════════ */
+(function(){ if(localStorage.getItem('pg_unlocked_67')==='1') document.getElementById('gate').style.display='none'; })();
+function checkGate(){
+  if(document.getElementById('gate-input').value==='visual2025'){
+    localStorage.setItem('pg_unlocked_67','1');
+    document.getElementById('gate').style.display='none';
+  } else document.getElementById('gate-err').style.display='block';
+}
+
+/* ═══════════════ HELPERS ═══════════════ */
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function fmtInt(n){ return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+function fmtK(n){ return n >= 1e6 ? (n / 1e6).toFixed(2) + ' M' : (n >= 1e4 ? (n / 1e3).toFixed(1) + ' k' : fmtInt(n)); }
+
+/* glob matcher used by the page: **, *, ?, {a,b} — patterns are relative to the project root */
+function expandBraces(p){
+  var m = p.match(/\{([^{}]*)\}/);
+  if(!m) return [p];
+  var out = [];
+  m[1].split(',').forEach(function(alt){
+    expandBraces(p.slice(0, m.index) + alt + p.slice(m.index + m[0].length)).forEach(function(x){ out.push(x); });
+  });
+  return out;
+}
+function globToRegex(p){
+  var re = '', i = 0;
+  while(i < p.length){
+    var c = p[i];
+    if(c === '*' && p[i + 1] === '*'){
+      var atStart = i === 0 || p[i - 1] === '/';
+      if(atStart && p[i + 2] === '/'){ re += '(?:[^/]+/)*'; i += 3; continue; }
+      if(atStart && i + 2 === p.length){ re += '.*'; i += 2; continue; }
+      re += '[^/]*'; i += 2; continue;
+    }
+    if(c === '*'){ re += '[^/]*'; i++; continue; }
+    if(c === '?'){ re += '[^/]'; i++; continue; }
+    re += c.replace(/[.+^$()|[\]\\]/g, '\\$&'); i++;
+  }
+  return new RegExp('^' + re + '$');
+}
+function globMatch(pattern, file){
+  pattern = pattern.trim().replace(/^\.\//, '');
+  if(!pattern) return false;
+  return expandBraces(pattern).some(function(p){ return globToRegex(p).test(file); });
+}
+
+/* The instruction files in the demo repo. `load` is the trigger, straight from code.claude.com/docs/en/memory:
+   launch  — loaded at session start (CLAUDE.md files at/above cwd, CLAUDE.local.md, rules without `paths`)
+   glob    — rules with `paths:` frontmatter, loaded when Claude reads a matching file
+   nested  — CLAUDE.md in a subdirectory, loaded when Claude reads a file in that subdirectory
+   skill   — description at launch, body when the skill is invoked */
+var INSTR = [
+  { id:'user', path:'~/.claude/CLAUDE.md', scope:'user', load:'launch', text:
+'# Personal\n- Explain trade-offs before any large refactor.\n- Small commits, imperative commit messages.' },
+  { id:'root', path:'CLAUDE.md', scope:'project', load:'launch', text:
+'# acme-shop\nNode 20 + TypeScript. Next.js storefront in src/web, Express API in src/api.\n\n## Commands\n- npm run dev    start web + api\n- npm test       vitest, all packages\n- npm run lint   eslint + prettier\n\n## Conventions\n- TypeScript strict; no `any` without a comment saying why.\n- Money is integer cents (amountCents), never floats.' },
+  { id:'local', path:'CLAUDE.local.md', scope:'local', load:'launch', text:
+'- My local API runs on port 4001, not 4000.\n- Log in as the seeded user dev@acme.test.' },
+  { id:'style', path:'.claude/rules/style.md', scope:'project', load:'launch', text:
+'# Code style\n- Named exports only; no default exports.\n- Dates are ISO-8601 strings at every boundary.' },
+  { id:'api', path:'.claude/rules/api.md', scope:'project', load:'glob', paths:['src/api/**/*.ts'], text:
+'---\npaths:\n  - "src/api/**/*.ts"\n---\n# API conventions\n- Throw ApiError(status, code, message). Never hand-return a status shape.\n- Validate every request body with the zod schema in src/api/schemas.ts.\n- Handlers are async and never call res.send directly.' },
+  { id:'tests', path:'.claude/rules/tests.md', scope:'project', load:'glob', paths:['**/*.test.ts'], text:
+'---\npaths:\n  - "**/*.test.ts"\n---\n# Tests\n- One describe() per exported function.\n- Build data with test/factories.ts; never inline fixtures.\n- No network: mock fetch with msw.' },
+  { id:'react', path:'.claude/rules/frontend/react.md', scope:'project', load:'glob', paths:['src/web/**/*.{ts,tsx}'], text:
+'---\npaths:\n  - "src/web/**/*.{ts,tsx}"\n---\n# React\n- Server components by default; "use client" only for state or effects.\n- Tailwind classes; no inline style objects.\n- Every interactive element needs an accessible name.' },
+  { id:'migr', path:'.claude/rules/migrations.md', scope:'project', load:'glob', paths:['db/migrations/*.sql'], text:
+'---\npaths:\n  - "db/migrations/*.sql"\n---\n# Migrations\n- Additive only: never drop or rename a column in the same release.\n- Every migration ships with a tested down-migration.' },
+  { id:'nested', path:'src/api/CLAUDE.md', scope:'project', load:'nested', dir:'src/api/', text:
+'# src/api\nRoutes are registered in router.ts. A new handler is dead code until it is added there.' },
+  { id:'skill', path:'.claude/skills/deploy-check/SKILL.md', scope:'project', load:'skill', name:'deploy-check',
+    desc:'---\nname: deploy-check\ndescription: Pre-release checklist. Use before any release or when asked "is this ready to ship?"\n---',
+    text:'---\nname: deploy-check\ndescription: Pre-release checklist. Use before any release or when asked "is this ready to ship?"\n---\n# Deploy check\n1. npm run lint && npm test must both pass.\n2. Migrations in db/migrations are additive only.\n3. Bump the version in package.json; add a CHANGELOG entry.\n4. Post the release note in #releases.' }
+];
+
+/* Ordinary source files. `exists:false` files can be created but not read. */
+var SRC = [
+  { path:'package.json', exists:true },
+  { path:'README.md', exists:true },
+  { path:'db/migrations/001_init.sql', exists:true },
+  { path:'db/migrations/002_refunds.sql', exists:false },
+  { path:'src/api/router.ts', exists:true },
+  { path:'src/api/orders.ts', exists:true },
+  { path:'src/api/orders.test.ts', exists:true },
+  { path:'src/api/refunds.ts', exists:false },
+  { path:'src/web/Cart.tsx', exists:true },
+  { path:'src/web/Button.tsx', exists:true },
+  { path:'src/web/styles.css', exists:true }
+];
+
+function tokensOf(s){ return Math.ceil(s.length / 4); }       /* the page's stated heuristic: ≈ 4 characters per token */
+function instrById(id){ for(var i = 0; i < INSTR.length; i++) if(INSTR[i].id === id) return INSTR[i]; return null; }
+function entryTokens(key){
+  if(key === 'skill:desc') return tokensOf(instrById('skill').desc);
+  return tokensOf(instrById(key).text);
+}
+/* the ceiling: every instruction file loaded (skill counted at full body, description included in it) */
+function allTokens(){ var t = 0; INSTR.forEach(function(f){ t += tokensOf(f.text); }); return t; }
+
+/* Replay a list of events and return a snapshot after each one.
+   Each snapshot: { ev, loaded: [{key,label,reason,step,tokens}], added: [keys], files: {path:true}, note, violation } */
+function simulate(events){
+  var loaded = [], have = {}, files = {}, snaps = [];
+  SRC.forEach(function(f){ if(f.exists) files[f.path] = true; });
+  function add(key, label, reason, step, added){
+    if(have[key]) return;
+    have[key] = true;
+    loaded.push({ key:key, label:label, reason:reason, step:step, tokens:entryTokens(key) });
+    added.push(key);
+  }
+  events.forEach(function(ev, step){
+    var added = [], note = '', violation = null, err = null;
+    if(ev.t === 'launch'){
+      INSTR.forEach(function(f){ if(f.load === 'launch') add(f.id, f.path, 'session_start', step, added); });
+      add('skill:desc', 'deploy-check (description only)', 'session_start', step, added);
+    } else if(ev.t === 'read'){
+      if(!files[ev.f]){ err = ev.f + ' does not exist yet, so there is nothing to read.'; }
+      else {
+        INSTR.forEach(function(f){
+          if(f.load === 'glob' && f.paths.some(function(p){ return globMatch(p, ev.f); })) add(f.id, f.path, 'path_glob_match', step, added);
+          if(f.load === 'nested' && ev.f.indexOf(f.dir) === 0) add(f.id, f.path, 'nested_traversal', step, added);
+        });
+      }
+    } else if(ev.t === 'create'){
+      if(files[ev.f]) err = ev.f + ' already exists.';
+      else {
+        files[ev.f] = true;
+        /* writing a new file is not a read: nothing triggers. Report what a matching rule would have said. */
+        INSTR.forEach(function(f){
+          if(f.load === 'glob' && f.paths.some(function(p){ return globMatch(p, ev.f); }) && !have[f.id]){
+            violation = violation || { rule:f.id, path:f.path };
+          }
+        });
+      }
+    } else if(ev.t === 'skill'){
+      add('skill', instrById('skill').path, 'skill invoked', step, added);
+    }
+    var tok = 0; loaded.forEach(function(l){ tok += l.tokens; });
+    snaps.push({ ev:ev, loaded:loaded.slice(), added:added, files:Object.assign({}, files), tokens:tok, violation:violation, err:err });
+  });
+  return snaps;
+}
+function isLoaded(snap, key){ return snap.loaded.some(function(l){ return l.key === key; }); }
+
+/* ── guided scenarios ── */
+var SCENARIOS = {
+  bug: { title:'Fix a bug in an endpoint', events:[
+    { t:'launch', say:'Session starts. Everything marked <b>launch</b> enters the prompt before you type a word.' },
+    { t:'prompt', text:'GET /orders returns 500 when the cart is empty. Fix it.', say:'Your prompt names no file. Nothing new loads: rules match on files, not on words.' },
+    { t:'read', f:'src/api/orders.ts', say:'Claude <b>reads</b> orders.ts. It matches <code>src/api/**/*.ts</code>, so <b>api.md</b> loads, and because the file sits in src/api/, so does <b>src/api/CLAUDE.md</b>.' },
+    { t:'read', f:'src/api/orders.test.ts', say:'Reading the test file matches <code>**/*.test.ts</code> &rarr; <b>tests.md</b> loads. api.md is already in context; it is not loaded twice.' },
+    { t:'read', f:'src/api/router.ts', say:'Another API file. Every rule that matches is already loaded, so nothing changes.' }
+  ]},
+  catch: { title:'The catch: a brand-new endpoint', events:[
+    { t:'launch', say:'Fresh session.' },
+    { t:'prompt', text:'Add a POST /refunds endpoint.', say:'A greenfield task. Claude knows from CLAUDE.md that the API lives in src/api.' },
+    { t:'read', f:'package.json', say:'Claude checks dependencies. package.json matches no rule.' },
+    { t:'create', f:'src/api/refunds.ts', say:'Claude <b>writes</b> a new file at src/api/refunds.ts. Creating a file is not reading one. The docs tie path-scoped rules to reads, so <b>api.md has not loaded</b>, and the handler hand-returns a status shape.' },
+    { t:'read', f:'src/api/orders.ts', say:'Only now, reading a sibling for reference, does api.md arrive. The rule is in context after the code it governs was written.' }
+  ]},
+  web: { title:'A frontend-only task', events:[
+    { t:'launch', say:'Fresh session.' },
+    { t:'prompt', text:'The cart badge overlaps the icon on mobile.', say:'A CSS/React task.' },
+    { t:'read', f:'src/web/Cart.tsx', say:'Cart.tsx matches <code>src/web/**/*.{ts,tsx}</code> &rarr; <b>react.md</b> loads.' },
+    { t:'read', f:'src/web/styles.css', say:'A .css file matches no pattern. Note that react.md\'s brace list is {ts,tsx}.' },
+    { t:'read', f:'src/web/Button.tsx', say:'Done. api.md, tests.md, migrations.md and src/api/CLAUDE.md never entered the prompt, because this session never needed them.' }
+  ]}
+};
+
+/* ── what each trigger strategy would do on a scenario (thought experiment, computed) ──
+   all:    every rule loaded at launch
+   read:   Claude Code's behaviour (simulate)
+   Returns { violations, wastedTokens } where wasted = tokens of path-scoped rules loaded but matching no file the session touched. */
+function strategyOutcome(strategy, events){
+  var touched = events.filter(function(e){ return e.t === 'read' || e.t === 'create'; }).map(function(e){ return e.f; });
+  var scoped = INSTR.filter(function(f){ return f.load === 'glob'; });
+  function relevant(f){ return touched.some(function(p){ return f.paths.some(function(g){ return globMatch(g, p); }); }); }
+  var violations = 0, wasted = 0;
+  if(strategy === 'all'){
+    scoped.forEach(function(f){ if(!relevant(f)) wasted += tokensOf(f.text); });
+  } else if(strategy === 'read'){
+    var snaps = simulate(events);
+    snaps.forEach(function(s){ if(s.violation) violations++; });
+  }
+  return { violations:violations, wastedTokens:wasted };
+}
+
+/* ── context budget model (section 4) ── */
+function budget(o){
+  /* o: rules, tokPerRule, core, share (0..1 of rule areas a session touches), turns */
+  var always = o.core + o.rules * o.tokPerRule;
+  var scoped = o.core + Math.round(o.rules * o.share) * o.tokPerRule;
+  return { always:always, scoped:scoped, saved:always - scoped,
+           alwaysSession:always * o.turns, scopedSession:scoped * o.turns,
+           ratio:scoped / always };
+}
+
+var TRIGGER_TAG = { launch:'<span class="tag-l">launch</span>', glob:'<span class="tag-r">on read</span>', nested:'<span class="tag-r">on read</span>', skill:'<span class="tag-i">on invoke</span>' };
+function triggerText(f){
+  if(f.load === 'launch') return 'Loaded at session start, every session.';
+  if(f.load === 'glob') return 'Loaded the first time Claude reads a file matching ' + f.paths.map(function(p){ return '<code>' + esc(p) + '</code>'; }).join(', ') + '.';
+  if(f.load === 'nested') return 'A CLAUDE.md in a subdirectory: loaded when Claude reads a file under <code>' + esc(f.dir) + '</code>.';
+  return 'Its name and description load at launch so Claude knows the skill exists. The body loads when the skill is invoked.';
+}
+function srcHtml(text){
+  /* colour YAML frontmatter */
+  var m = text.match(/^---\n[\s\S]*?\n---/);
+  if(!m) return esc(text);
+  return '<span class="fm">' + esc(m[0]) + '</span>' + esc(text.slice(m[0].length));
+}
+
+/* ═══════════════ 1 · FLIP ═══════════════ */
+var API_BODY = instrById('api').text.replace(/^---\n[\s\S]*?\n---\n/, '');
+function renderFlip(){
+  var on = $('flip-toggle').checked;
+  $('flip-claude').innerHTML = esc(instrById('root').text);
+  var fm = instrById('api').text.match(/^---\n[\s\S]*?\n---\n/)[0];
+  $('flip-api').innerHTML = '<span class="fm' + (on ? '' : ' off') + '">' + esc(fm) + '</span>' + esc(API_BODY);
+  $('flip-card').className = 'fcard ' + (on ? 'on' : 'launch');
+  $('flip-tag').className = on ? 'tag-r' : 'tag-l';
+  $('flip-tag').textContent = on ? 'on matching read' : 'every session';
+  $('flip-when').innerHTML = on
+    ? 'Waits. It loads the first time Claude <b>reads</b> a file matching <code>src/api/**/*.ts</code>. Until then it costs nothing.'
+    : 'Same folder, same text, no <code>paths</code>: it now <b>loads at launch</b> with the same priority as <code>.claude/CLAUDE.md</code>, in every session, including ones that never touch the API.';
+}
+$('flip-toggle').addEventListener('change', renderFlip);
+
+/* ═══════════════ 2 · SIMULATOR ═══════════════ */
+var TREE = [
+  { g:'~/.claude/  (your machine, every project)' },
+  { d:0, n:'CLAUDE.md', i:'user' },
+  { g:'acme-shop/  (the repo)' },
+  { d:0, n:'CLAUDE.md', i:'root' },
+  { d:0, n:'CLAUDE.local.md', i:'local' },
+  { d:0, n:'package.json', s:'package.json' },
+  { d:0, n:'README.md', s:'README.md' },
+  { d:0, n:'.claude/', dir:true },
+  { d:1, n:'rules/', dir:true },
+  { d:2, n:'style.md', i:'style' },
+  { d:2, n:'api.md', i:'api' },
+  { d:2, n:'tests.md', i:'tests' },
+  { d:2, n:'migrations.md', i:'migr' },
+  { d:2, n:'frontend/', dir:true },
+  { d:3, n:'react.md', i:'react' },
+  { d:1, n:'skills/deploy-check/', dir:true },
+  { d:2, n:'SKILL.md', i:'skill' },
+  { d:0, n:'db/migrations/', dir:true },
+  { d:1, n:'001_init.sql', s:'db/migrations/001_init.sql' },
+  { d:1, n:'002_refunds.sql', s:'db/migrations/002_refunds.sql' },
+  { d:0, n:'src/', dir:true },
+  { d:1, n:'api/', dir:true },
+  { d:2, n:'CLAUDE.md', i:'nested' },
+  { d:2, n:'router.ts', s:'src/api/router.ts' },
+  { d:2, n:'orders.ts', s:'src/api/orders.ts' },
+  { d:2, n:'orders.test.ts', s:'src/api/orders.test.ts' },
+  { d:2, n:'refunds.ts', s:'src/api/refunds.ts' },
+  { d:1, n:'web/', dir:true },
+  { d:2, n:'Cart.tsx', s:'src/web/Cart.tsx' },
+  { d:2, n:'Button.tsx', s:'src/web/Button.tsx' },
+  { d:2, n:'styles.css', s:'src/web/styles.css' }
+];
+var sim = { scn:'bug', timeline:[], pos:0, inspect:null, playing:null, lastAdded:[] };
+function loadScenario(key){
+  stopPlay();
+  sim.scn = key;
+  sim.timeline = SCENARIOS[key].events.slice();
+  sim.pos = 0; sim.inspect = null;
+  document.querySelectorAll('[data-scn]').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-scn') === key); });
+  renderSim();
+}
+function currentSnap(){
+  if(sim.pos === 0) return null;
+  var snaps = simulate(sim.timeline.slice(0, sim.pos));
+  return { snap:snaps[snaps.length - 1], all:snaps };
+}
+function userEvent(ev){
+  stopPlay();
+  sim.timeline = sim.timeline.slice(0, sim.pos);
+  if(sim.pos === 0){ sim.timeline.push({ t:'launch', say:'Session starts.' }); sim.pos = 1; }
+  sim.timeline.push(ev); sim.pos++;
+  renderSim();
+}
+function describe(ev, snap){
+  if(ev.say) return ev.say;
+  if(snap.err) return snap.err;
+  var names = snap.added.map(function(k){ return '<b>' + esc(k === 'skill:desc' ? 'skill description' : instrById(k).path) + '</b>'; });
+  if(ev.t === 'read') return 'Claude reads <code>' + esc(ev.f) + '</code>. ' + (names.length ? 'Loaded: ' + names.join(', ') + '.' : 'No new instruction file matches, so nothing new loads.');
+  if(ev.t === 'create') return 'Claude creates <code>' + esc(ev.f) + '</code>. Creating is not reading, so nothing loads.' + (snap.violation ? ' <b>' + esc(snap.violation.path) + '</b> covers this file but is not in context.' : '');
+  if(ev.t === 'skill') return 'You run <code>/deploy-check</code>. The full SKILL.md body loads and stays for the rest of the session.';
+  return '';
+}
+function evLine(ev){
+  if(ev.t === 'launch') return '$ claude';
+  if(ev.t === 'prompt') return '<span class="p">you &rsaquo;</span> ' + esc(ev.text);
+  if(ev.t === 'read') return 'Read(' + esc(ev.f) + ')';
+  if(ev.t === 'create') return 'Write(' + esc(ev.f) + ')  <span style="color:var(--muted)">new file</span>';
+  if(ev.t === 'skill') return 'Skill(deploy-check)';
+  return '';
+}
+var CODE_BAD = 'export async function createRefund(req, res) {\n  const order = await db.orders.find(req.body.orderId);\n  if (!order) {\n    <span class="hl">return res.status(404).json({ error: "not found" });</span>\n  }\n  const refund = await refunds.create(order, req.body.amountCents);\n  <span class="hl">res.send(refund);</span>\n}';
+var CODE_GOOD = 'export async function createRefund(req: Request) {\n  <span class="hl">const body = RefundSchema.parse(req.body);</span>\n  const order = await db.orders.find(body.orderId);\n  if (!order) <span class="hl">throw new ApiError(404, "ORDER_NOT_FOUND", "No such order");</span>\n  return refunds.create(order, body.amountCents);\n}';
+function renderSim(){
+  var cs = currentSnap(), snap = cs ? cs.snap : null;
+  var loadedKeys = {}, seen = {}, files = {};
+  SRC.forEach(function(f){ if(f.exists) files[f.path] = true; });
+  if(snap){
+    snap.loaded.forEach(function(l){ loadedKeys[l.key] = true; });
+    sim.timeline.slice(0, sim.pos).forEach(function(e){ if(e.f) seen[e.f] = true; });
+    files = snap.files;
+  }
+  var added = snap ? snap.added : [];
+  /* tree */
+  var h = '';
+  TREE.forEach(function(r){
+    if(r.g){ h += '<div class="grp">' + esc(r.g) + '</div>'; return; }
+    var ind = '<span class="ind">' + new Array(r.d + 1).join('&#9474; ') + '</span>';
+    if(r.dir){ h += '<div class="tnode dir">' + ind + '<span class="nm">' + esc(r.n) + '</span></div>'; return; }
+    if(r.i){
+      var f = instrById(r.i), cls = 'tnode k-' + f.load;
+      if(loadedKeys[r.i]) cls += ' in'; else if(r.i === 'skill' && loadedKeys['skill:desc']) cls += ' half';
+      if(added.indexOf(r.i) >= 0) cls += ' flash';
+      h += '<div class="' + cls + '" data-i="' + r.i + '">' + ind + '<span class="dot"></span><span class="nm">' + esc(r.n) + '</span><span class="act">inspect</span></div>';
+      return;
+    }
+    var ex = !!files[r.s], c2 = 'tnode src' + (ex ? '' : ' ghost') + (seen[r.s] ? ' seen' : '');
+    h += '<div class="' + c2 + '" data-s="' + esc(r.s) + '">' + ind + '<span class="dot"></span><span class="nm">' + esc(r.n) + '</span><span class="act">' + (ex ? 'Claude reads' : 'Claude creates') + '</span></div>';
+  });
+  $('tree').innerHTML = h;
+  /* context */
+  var total = allTokens();
+  if(!snap){
+    $('ctx-list').innerHTML = '<div class="ctx-empty">Nothing yet. The session has not started.</div>';
+    $('ctx-tok').textContent = '0 of ' + total + ' tokens';
+    $('ctx-meter').innerHTML = '';
+  } else {
+    var colors = { session_start:'var(--launch)', path_glob_match:'var(--onread)', nested_traversal:'var(--onread)', 'skill invoked':'var(--oninvoke)' };
+    $('ctx-list').innerHTML = snap.loaded.map(function(l){
+      var rcls = l.reason === 'skill invoked' ? 'skill' : l.reason;
+      return '<div class="centry r-' + rcls + (added.indexOf(l.key) >= 0 ? ' new' : '') + '" data-i="' + (l.key === 'skill:desc' ? 'skill' : l.key) + '">' +
+        '<span class="cr">#' + l.step + '</span><span class="cp">' + esc(l.label) + ' <span class="cr">' + esc(l.reason) + '</span></span><span class="ct">&asymp;' + l.tokens + '</span></div>';
+    }).join('');
+    $('ctx-tok').textContent = '≈ ' + snap.tokens + ' of ' + total + ' tokens if everything loaded';
+    $('ctx-meter').innerHTML = snap.loaded.map(function(l){
+      return '<i style="width:' + (100 * l.tokens / total).toFixed(2) + '%;background:' + colors[l.reason] + ';border-right:1px solid var(--bg)"></i>';
+    }).join('');
+  }
+  /* narration */
+  if(!snap){
+    $('sim-narr').innerHTML = '<span class="ev">' + esc(SCENARIOS[sim.scn] ? SCENARIOS[sim.scn].title : '') + '</span>Press <b>Next step</b> to start the session, or click any file in the tree.';
+  } else {
+    var ev = sim.timeline[sim.pos - 1];
+    $('sim-narr').innerHTML = '<span class="ev">step ' + (sim.pos - 1) + ' &middot; ' + evLine(ev) + '</span>' + describe(ev, snap);
+  }
+  /* generated-code panel: the most recent create of an API file */
+  var out = $('sim-out'), lastCreate = -1;
+  if(cs) cs.all.forEach(function(s, i){ if(s.ev.t === 'create' && !s.err && globMatch('src/api/**/*.ts', s.ev.f)) lastCreate = i; });
+  if(lastCreate < 0){ out.style.display = 'none'; }
+  else {
+    var cv = cs.all[lastCreate], bad = !!cv.violation;
+    out.style.display = 'block';
+    out.className = 'out ' + (bad ? 'bad' : 'good');
+    out.innerHTML = '<div class="oh"><span>' + esc(cv.ev.f) + ' (written at step ' + lastCreate + ')</span><b>' + (bad ? 'api.md was not in context' : 'api.md was in context') + '</b></div><pre>' + (bad ? CODE_BAD : CODE_GOOD) + '</pre>';
+  }
+  /* steps */
+  var st = '';
+  for(var i = 0; i < sim.timeline.length; i++){
+    st += '<span class="dotstep' + (i < sim.pos - 1 ? ' done' : '') + (i === sim.pos - 1 ? ' cur' : '') + '" data-step="' + (i + 1) + '">' + i + '</span>';
+  }
+  $('sim-steps').innerHTML = st;
+  $('sim-back').disabled = sim.pos === 0;
+  $('sim-next').disabled = sim.pos >= sim.timeline.length;
+  $('sim-play').disabled = sim.pos >= sim.timeline.length;
+  renderInspect(loadedKeys);
+}
+function renderInspect(loadedKeys){
+  var box = $('inspect');
+  if(!sim.inspect){ box.className = 'inspect'; box.innerHTML = ''; return; }
+  var f = instrById(sim.inspect);
+  var state = loadedKeys[f.id] ? '<span style="color:#6ee7b7">in context</span>' :
+    (f.id === 'skill' && loadedKeys['skill:desc'] ? '<span style="color:var(--oninvoke)">description only</span>' : '<span style="color:var(--muted)">not loaded</span>');
+  box.className = 'inspect show';
+  box.innerHTML = '<div class="ih"><span class="fname">' + esc(f.path) + '</span><span>' + TRIGGER_TAG[f.load] + ' &nbsp;' + state + '</span></div>' +
+    '<div class="note" style="margin:0 0 .5rem">' + triggerText(f) + '</div><pre class="src">' + srcHtml(f.text) + '</pre>' +
+    (f.id === 'skill' ? '<div style="margin-top:.6rem"><button class="btn sm" id="invoke-skill"' + (loadedKeys.skill ? ' disabled' : '') + '>Run /deploy-check</button></div>' : '');
+  var ib = $('invoke-skill');
+  if(ib) ib.addEventListener('click', function(){ userEvent({ t:'skill' }); });
+}
+$('tree').addEventListener('click', function(e){
+  var n = e.target.closest('.tnode'); if(!n) return;
+  if(n.getAttribute('data-i')){ sim.inspect = n.getAttribute('data-i'); renderSim(); return; }
+  var p = n.getAttribute('data-s'); if(!p) return;
+  var cs = currentSnap(), files = cs ? cs.snap.files : null;
+  var exists = files ? !!files[p] : SRC.some(function(f){ return f.path === p && f.exists; });
+  userEvent({ t:exists ? 'read' : 'create', f:p });
+});
+$('ctx-list').addEventListener('click', function(e){
+  var n = e.target.closest('.centry'); if(!n) return;
+  sim.inspect = n.getAttribute('data-i'); renderSim();
+});
+$('sim-steps').addEventListener('click', function(e){
+  var n = e.target.closest('.dotstep'); if(!n) return;
+  stopPlay(); sim.pos = +n.getAttribute('data-step'); renderSim();
+});
+document.querySelectorAll('[data-scn]').forEach(function(b){ b.addEventListener('click', function(){ loadScenario(b.getAttribute('data-scn')); }); });
+$('sim-next').addEventListener('click', function(){ stopPlay(); if(sim.pos < sim.timeline.length){ sim.pos++; renderSim(); } });
+$('sim-back').addEventListener('click', function(){ stopPlay(); if(sim.pos > 0){ sim.pos--; renderSim(); } });
+$('sim-reset').addEventListener('click', function(){ loadScenario(sim.scn); });
+function stopPlay(){ if(sim.playing){ clearInterval(sim.playing); sim.playing = null; $('sim-play').innerHTML = '&#9654; Play'; } }
+$('sim-play').addEventListener('click', function(){
+  if(sim.playing){ stopPlay(); return; }
+  if(sim.pos >= sim.timeline.length) return;
+  $('sim-play').innerHTML = '&#10074;&#10074; Pause';
+  function tick(){ if(sim.pos >= sim.timeline.length){ stopPlay(); renderSim(); return; } sim.pos++; renderSim(); }
+  tick();
+  sim.playing = setInterval(tick, 2200);
+});
+
+/* ═══════════════ 3 · GLOB PLAYGROUND ═══════════════ */
+var GLOB_FILES = ['CLAUDE.md', 'README.md', 'package.json', 'orders.test.ts', 'docs/architecture.md',
+  'db/migrations/001_init.sql', 'db/migrations/002_refunds.sql',
+  'src/api/router.ts', 'src/api/orders.ts', 'src/api/orders.test.ts', 'src/api/schemas.ts', 'src/api/v2/refunds.ts', 'src/api/v2/refunds.test.ts', 'src/api/README.md',
+  'src/web/Cart.tsx', 'src/web/Button.tsx', 'src/web/hooks/useCart.ts', 'src/web/styles.css', 'src/web/Cart.test.ts',
+  'test/factories.ts'];
+/* "a, b" is two patterns, but the comma inside {ts,tsx} is part of one */
+function splitPatterns(raw){
+  var out = [], cur = '', depth = 0;
+  for(var i = 0; i < raw.length; i++){
+    var c = raw[i];
+    if(c === '{') depth++;
+    if(c === '}') depth = Math.max(0, depth - 1);
+    if(c === ',' && depth === 0){ out.push(cur); cur = ''; } else cur += c;
+  }
+  out.push(cur);
+  return out.map(function(s){ return s.trim(); }).filter(Boolean);
+}
+function renderGlob(){
+  var raw = $('glob-in').value, pats = splitPatterns(raw);
+  var hits = 0, html = '';
+  GLOB_FILES.forEach(function(f){
+    var hit = pats.some(function(p){ return globMatch(p, f); });
+    if(hit) hits++;
+    html += '<div class="gfile' + (hit ? ' hit' : '') + '" title="' + esc(f) + '">' + esc(f) + '</div>';
+  });
+  $('glob-files').innerHTML = html;
+  $('glob-stat').innerHTML = pats.length
+    ? 'Reading any of <b>' + hits + '</b> of ' + GLOB_FILES.length + ' files would load this rule.'
+    : '<span class="gerr">Empty pattern: matches nothing.</span>';
+  document.querySelectorAll('[data-glob]').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-glob') === raw.trim()); });
+}
+$('glob-in').addEventListener('input', renderGlob);
+document.querySelectorAll('[data-glob]').forEach(function(b){ b.addEventListener('click', function(){ $('glob-in').value = b.getAttribute('data-glob'); renderGlob(); }); });
+
+/* ═══════════════ 4 · BUDGET ═══════════════ */
+function readBudget(){
+  return { rules:+$('b-rules').value, tokPerRule:+$('b-tok').value, core:+$('b-core').value, share:+$('b-share').value / 100, turns:+$('b-turns').value };
+}
+function renderBudget(){
+  var o = readBudget(), r = budget(o);
+  $('b-rules-v').textContent = o.rules; $('b-tok-v').textContent = fmtInt(o.tokPerRule); $('b-core-v').textContent = fmtInt(o.core);
+  $('b-share-v').textContent = Math.round(o.share * 100) + '%'; $('b-turns-v').textContent = o.turns;
+  var scale = r.always;
+  $('b-all-core').style.width = (100 * o.core / scale) + '%';
+  $('b-all-rules').style.width = (100 * (r.always - o.core) / scale) + '%';
+  $('b-sc-core').style.width = (100 * o.core / scale) + '%';
+  $('b-sc-rules').style.width = (100 * (r.scoped - o.core) / scale) + '%';
+  $('b-all').textContent = fmtInt(r.always) + ' tokens / turn';
+  $('b-sc').textContent = fmtInt(r.scoped) + ' tokens / turn';
+  $('b-saved').textContent = fmtInt(r.saved);
+  $('b-ratio').textContent = Math.round(r.ratio * 100) + '%';
+  $('b-sess-all').textContent = fmtK(r.alwaysSession);
+  $('b-sess-sc').textContent = fmtK(r.scopedSession);
+}
+['b-rules', 'b-tok', 'b-core', 'b-share', 'b-turns'].forEach(function(id){ $(id).addEventListener('input', renderBudget); });
+
+/* ═══════════════ 5 · POLICY TABLE ═══════════════ */
+function renderStrategy(){
+  var h = '<tr><th>Scenario</th><th>Load every rule at launch</th><th>Load on read (Claude Code)</th></tr>';
+  ['bug', 'catch', 'web'].forEach(function(k){
+    var ev = SCENARIOS[k].events, a = strategyOutcome('all', ev), r = strategyOutcome('read', ev);
+    function cell(o){
+      return '<td class="' + (o.violations ? 'bad' : (o.wastedTokens ? '' : 'good')) + '">' +
+        (o.violations ? o.violations + ' rule missing at write' : 'rule present when needed') + '<br>' +
+        '<span class="mono">' + (o.wastedTokens ? '&asymp; ' + o.wastedTokens + ' unneeded tokens' : 'no unneeded tokens') + '</span></td>';
+    }
+    h += '<tr><td>' + esc(SCENARIOS[k].title) + '</td>' + cell(a) + cell(r) + '</tr>';
+  });
+  $('strat-table').innerHTML = h;
+}
+
+/* ═══════════════ 7 · QUIZ ═══════════════ */
+var Q_OPTS = ['~/.claude/CLAUDE.md', 'CLAUDE.md', 'CLAUDE.local.md', 'rule + paths:', 'skill'];
+var QUIZ = [
+  { q:'"Run npm test before you say you are done."', a:['CLAUDE.md'], why:'True for every task in the repo, and short. This is what the always-on file is for.' },
+  { q:'"Migrations are additive only. Never drop a column in the same release."', a:['rule + paths:'], why:'Only matters when Claude is in <code>db/migrations/</code>. Scope it with <code>paths: "db/migrations/*.sql"</code>. Writing a <em>new</em> migration is the greenfield case, so if this has ever caused an incident, add one line to CLAUDE.md as well.' },
+  { q:'"React components are server components unless they need state."', a:['rule + paths:'], why:'An area convention: <code>src/web/**/*.{ts,tsx}</code>. API-only sessions never pay for it.' },
+  { q:'"My local API runs on port 4001."', a:['CLAUDE.local.md'], why:'Personal to this project on your machine. CLAUDE.local.md loads at launch and stays out of git.' },
+  { q:'"Release: lint, test, bump the version, write the changelog, post in #releases."', a:['skill'], why:'A procedure you run sometimes. As a skill only its description is always loaded, and the steps arrive when you run it.' },
+  { q:'"Explain trade-offs before any large refactor." (you want this everywhere)', a:['~/.claude/CLAUDE.md'], why:'A personal preference across all projects: your user-level CLAUDE.md.' }
+];
+var quizState = {};
+function renderQuiz(){
+  var h = '', right = 0, answered = 0;
+  QUIZ.forEach(function(item, qi){
+    var pick = quizState[qi], ok = pick != null && item.a.indexOf(pick) >= 0;
+    if(pick != null){ answered++; if(ok) right++; }
+    h += '<div class="q' + (pick == null ? '' : (ok ? ' right' : ' wrong')) + '"><div class="qt">' + esc(item.q) + '</div><div class="qopts">';
+    Q_OPTS.forEach(function(o){
+      var cls = 'btn';
+      if(pick === o) cls += ok ? ' pick-right' : ' pick-wrong';
+      else if(pick != null && item.a.indexOf(o) >= 0) cls += ' pick-right';
+      h += '<button class="' + cls + '" data-q="' + qi + '" data-o="' + esc(o) + '">' + esc(o) + '</button>';
+    });
+    h += '</div><div class="qa' + (pick != null ? ' show' : '') + '">' + (ok ? '&#10003; ' : '&#10007; Better: <b>' + esc(item.a.join(' or ')) + '</b>. ') + item.why + '</div></div>';
+  });
+  $('quiz').innerHTML = h;
+  $('qscore').innerHTML = answered ? '<b>' + right + ' / ' + QUIZ.length + '</b> placed where they load at the right time' + (answered < QUIZ.length ? ' (' + (QUIZ.length - answered) + ' to go)' : '.') : '';
+}
+$('quiz').addEventListener('click', function(e){
+  var b = e.target.closest('[data-q]'); if(!b) return;
+  quizState[+b.getAttribute('data-q')] = b.getAttribute('data-o');
+  renderQuiz();
+});
+
+/* ═══════════════ PROGRESS ═══════════════ */
+window.addEventListener('scroll', function(){
+  var d = document.documentElement, p = d.scrollTop / Math.max(1, d.scrollHeight - d.clientHeight);
+  $('progress').style.width = (p * 100) + '%';
+});
+
+renderFlip();
+loadScenario('bug');
+renderGlob();
+renderBudget();
+renderStrategy();
+renderQuiz();
+
+</script>
+</body>
+</html>
